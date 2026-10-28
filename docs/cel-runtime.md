@@ -147,6 +147,9 @@ changes before presenting retained measurements as current evidence.
 
 The [initial measurements](evidence/cel-runtime-benchmark.md) retain the observed
 warm throughput and the open cold-start performance gap.
+The [post-parser capture](evidence/cel-runtime-after-parsing.md) refreshes those
+measurements after the dependency/module changes; YAML execution remains outside
+the measured rules stage.
 
 Worker threads and V8 heap settings are not an operating-system sandbox or a total
 RSS cap. Actual OOM confinement, hosted CPU/RSS/network/filesystem/credential

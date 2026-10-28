@@ -65,6 +65,20 @@ replacement entities and deletion tombstones must mask older catalog entries.
 Required unavailable transformations block dependent stages; avoid speculative
 errors about data that should have been transformed.
 
+## Implemented parsing boundary
+
+The [source parser](parsing.md) consumes verified immutable snapshots and returns
+frozen JSON documents, authored/alias location provenance, redacted diagnostics,
+and per-file parse coverage. It uses a lazy-loaded YAML 1.2 lexer/parser/composer,
+an iterative syntax guard, bounded JSON expansion and cooperative request budgets.
+CI excludes an invalid file's entities; IDE mode retains unaffected documents.
+Neither mode exposes an invalid document as a validated entity.
+
+This stage precedes native Backstage checks. An excluded invalid source must later
+produce an invalid-replacement marker in catalog overlays, preventing fallback to
+an older entity. Passing parse coverage does not imply completed compatibility,
+substitution, admission, policy, or hosted-authority coverage.
+
 ## Release breadth
 
 The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and

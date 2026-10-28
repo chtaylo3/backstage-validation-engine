@@ -200,6 +200,10 @@ try {
       }
     }
     const files = [
+      'src/index.ts',
+      ...['index', 'types', 'locations', 'budget', 'syntax', 'convert', 'parser', 'findings'].map(
+        (name) => `src/parsing/${name}.ts`,
+      ),
       'package-lock.json',
       'test/fixtures/cel-qualification.json',
       'src/core/json.ts',

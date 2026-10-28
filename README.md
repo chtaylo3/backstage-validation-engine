@@ -3,9 +3,10 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: foundation and managed CEL rules stage implemented.** Contract version
+**Status: foundation, source parsing and managed CEL rules stage implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
-and dependency-aware rule execution are available. Entity parsing, Backstage
+and dependency-aware rule execution are available. YAML parsing includes bounded
+normalization, UTF-16 locations and CI/IDE document handling. Native Backstage
 adapters, schema rules, the CLI, LSP, and hosted controller are the next increments.
 This package is private during development.
 
@@ -36,6 +37,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 | `npm run schemas:check`    | Fail if checked-in schemas differ from the definitions              |
 | `npm run clean`            | Remove build, test, and coverage output                             |
 | `npm run example:cel`      | Execute a normalized-entity fixture through the managed rules stage |
+| `npm run example:parse`    | Parse an immutable catalog fixture and show source locations        |
 | `npm run benchmark:cel`    | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation
@@ -75,12 +77,16 @@ snapshotting; YAML and entity validation have not run.
 For managed selectors/expressions, cancellation, and rule reports, see the
 [CEL runtime guide](docs/cel-runtime.md) and runnable `npm run example:cel` fixture.
 
+For YAML parsing, exact source ranges, recovery and budgets, see the
+[parsing guide](docs/parsing.md) and `npm run example:parse`.
+
 ## Structure
 
 ```text
 src/
   contracts/   Versioned schemas, inferred types, and contract validation
   core/        Canonical JSON, snapshots, bindings, findings, and outcomes
+  parsing/     Bounded YAML normalization, diagnostics and source locations
   policy/      Deployment defaults and bounded rule dependency graphs
   runtime/     Shared supervised CEL/RE2 workers and request budgets
 schemas/       Generated draft-07 JSON Schemas, checked into Git

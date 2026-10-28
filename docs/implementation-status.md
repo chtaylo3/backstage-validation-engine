@@ -37,12 +37,26 @@ of 1.67 ms for one warm entity, 14.89 ms for 100 warm entities, and 2,649.13 ms 
 fresh-process execution. The cold result exceeds the provisional 2,500 ms target;
 startup profiling/packaging remains an open pilot performance gate.
 
+## Source-preserving parsing increment
+
+Implemented multi-file/document YAML 1.2 parsing with immutable source provenance,
+UTF-16 JSON Pointer locations, alias provenance, strict CI withholding and
+document-level IDE recovery. Syntax/alias/expansion/source budgets, safe numeric
+normalization, duplicate/merge-key and unsupported tag/version rejection,
+cancellation and deadline coverage are exercised by 48 parser checks. The full
+local suite now has 138 checks. See the [parsing acceptance register](parsing.md).
+
+The [post-parser rules-stage capture](evidence/cel-runtime-after-parsing.md) records
+p95 of 1.69 ms for one warm entity, 16.47 ms for 100 entities and 2,788.98 ms for a
+fresh process. It excludes YAML execution; the cold-start target remains open.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Source-preserving YAML parsing and native pinned
-   adapters. Implement BC-01 through BC-07: native envelopes/kinds, native policies
-   and defaults, contextual references, safe local substitutions, admission/custom
-   kinds, proposed catalog overlays, and unsupported-processor blocking.
+1. **Engine and compatibility.** Start with native pinned adapters and BC-01/BC-02:
+   envelope/kind validation plus explicit native policies/default provenance for
+   catalog-model 1.10.2 and 1.7.5. Continue BC-03 through BC-07: contextual references,
+   safe local substitutions, admission/custom kinds, proposed catalog overlays,
+   and unsupported-processor blocking.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, provider access with bounded
    retries/timeouts and authorization-aware caching, JSON/SARIF, and CLI exits.

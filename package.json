@@ -44,13 +44,15 @@
     "schemas:check": "npm run build && node scripts/schemas.mjs --check",
     "benchmark:cel": "npm run build && node scripts/benchmark-cel.mjs",
     "example:cel": "npm run build && node examples/run-cel-rules.mjs",
+    "example:parse": "npm run build && node examples/parse-catalog.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test"
   },
   "dependencies": {
     "@marcbachmann/cel-js": "8.0.0",
     "@sinclair/typebox": "0.34.52",
     "ajv": "8.20.0",
-    "re2js": "2.9.0"
+    "re2js": "2.9.0",
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

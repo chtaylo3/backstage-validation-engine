@@ -28,8 +28,9 @@ digest integrity, temporal relationships, graph consistency, and outcome rules.
 
 Timestamps are integer Unix epoch **milliseconds**. URIs are absolute URI strings.
 Positions and ranges are zero-based UTF-16 coordinates; range ends are exclusive.
-The contract checks coordinate ordering; the future parser/adapter must check
-coordinates against the actual document. Findings use JSON Pointer paths.
+The contract checks coordinate ordering; the parser derives positions directly
+from authored text. Adapters must enforce source digest/buffer version when
+applying edits. Findings use JSON Pointer paths.
 
 ## Content addressing and immutability
 
