@@ -1,0 +1,115 @@
+{
+  "artifacts": [],
+  "bypass": {
+    "authority": {
+      "evidenceDigest": "sha256:bba2d36669004a3ef16764b0dfe370dfc0c22263976dfd3d896370b3fa39be0d",
+      "repository": "https://github.com/example/governance",
+      "revision": "example-governance-revision-1",
+      "verifierId": "example-only-not-a-verifier"
+    },
+    "expiresAt": 1793188830000,
+    "installationId": "example-installation",
+    "issuedAt": 1793188799000,
+    "reason": "Synthetic emergency receipt for contract documentation.",
+    "recordId": "example-emergency-record",
+    "repositoryId": "example-repository",
+    "revision": "example-bypass-revision-1",
+    "ruleIds": [],
+    "type": "emergency",
+    "verifiedAt": 1793188800000
+  },
+  "contractVersion": "0.2",
+  "coverage": [
+    {
+      "required": true,
+      "stage": "identity",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "bypass",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "policy",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "parse",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "substitution",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "compatibility",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "admission",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "overlay",
+      "status": "bypassed",
+      "subject": "repository"
+    },
+    {
+      "reason": "Repository emergency bypass.",
+      "required": true,
+      "stage": "rules",
+      "status": "bypassed",
+      "subject": "repository"
+    }
+  ],
+  "enforcement": "allow",
+  "findings": [],
+  "freshness": {
+    "authorityCheckedAt": 1793188800000,
+    "evaluatedAt": 1793188800100,
+    "publishBefore": 1793188830000
+  },
+  "mode": "ci",
+  "outcome": "bypassed",
+  "provenance": {
+    "activationDigest": "sha256:bb55627aaa508f6df5cabd2618015f38832e4a2590fbdc364aa83d2045575fcb",
+    "dataDigest": "sha256:add1cbfe502558ed91b7720166d96d00311443a23bd55e2360f46fc249e26a99",
+    "installationId": "example-installation",
+    "policyDigest": "sha256:58b56e9a64403e1c07a9532a7d71d0773d8c186fe5f29ea9c0cd70a04e9d4cd0",
+    "profileDigest": "sha256:f6f58dfeecde579fe3a362869d72622ae9b4ae8686bfa04a6c1a9f35283dbd11",
+    "repositoryId": "example-repository",
+    "sourceDigest": "sha256:f26b2c61f9eb74f77a6df0cc4949d293fbdcba56ecf05e6d28c46ea09ad754a7"
+  },
+  "resources": {
+    "completedAt": 1793188800100,
+    "deadlineAt": 1793188805000,
+    "interrupted": "none",
+    "startedAt": 1793188800000
+  },
+  "ruleStates": [],
+  "run": {
+    "attemptId": "example-attempt-1",
+    "generation": 1,
+    "runId": "example-run-1"
+  }
+}

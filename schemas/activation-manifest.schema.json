@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:activation-manifest:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "generation",
+    "installationId",
+    "repositoryId",
+    "policyDigest",
+    "profileDigest",
+    "bypassDigest",
+    "activatedAt",
+    "authority"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 1,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "installationId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "repositoryId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "policyDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "profileDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "bypassDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "activatedAt": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "authority": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "repository",
+        "revision",
+        "verifierId",
+        "evidenceDigest"
+      ],
+      "properties": {
+        "repository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "revision": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "verifierId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "evidenceDigest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

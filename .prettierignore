@@ -1,0 +1,10 @@
+plan/
+node_modules/
+dist/
+.test-dist/
+coverage/
+package-lock.json
+schemas/
+LICENSE
+# Frozen qualification corpus; preserve the planning evidence hash.
+test/fixtures/cel-qualification.json

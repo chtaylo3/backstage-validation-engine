@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:deployment-profile:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "id",
+    "profileVersion",
+    "adapterId",
+    "celProfileId",
+    "schemaDialect",
+    "nativePolicies",
+    "admission",
+    "referenceContexts",
+    "customKinds",
+    "readers",
+    "requiredProcessors",
+    "limits"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "profileVersion": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "adapterId": {
+      "anyOf": [
+        {
+          "const": "@backstage/catalog-model@1.10.2",
+          "type": "string"
+        },
+        {
+          "const": "@backstage/catalog-model@1.7.5",
+          "type": "string"
+        }
+      ]
+    },
+    "celProfileId": {
+      "const": "bve-cel/1",
+      "type": "string"
+    },
+    "schemaDialect": {
+      "const": "draft-07",
+      "type": "string"
+    },
+    "nativePolicies": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "defaultNamespace",
+        "fieldFormat",
+        "noForeignRootFields",
+        "schema",
+        "groupDefaultParent"
+      ],
+      "properties": {
+        "defaultNamespace": {
+          "type": "boolean"
+        },
+        "fieldFormat": {
+          "type": "boolean"
+        },
+        "noForeignRootFields": {
+          "type": "boolean"
+        },
+        "schema": {
+          "type": "boolean"
+        },
+        "groupDefaultParent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "admission": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "allowedKinds",
+        "locations"
+      ],
+      "properties": {
+        "allowedKinds": {
+          "uniqueItems": true,
+          "type": "array",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "sourcePrefix",
+              "allowedKinds"
+            ],
+            "properties": {
+              "sourcePrefix": {
+                "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]+$",
+                "type": "string"
+              },
+              "allowedKinds": {
+                "uniqueItems": true,
+                "type": "array",
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "referenceContexts": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "defaultKind",
+          "namespace"
+        ],
+        "properties": {
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "defaultKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "const": "entity",
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "customKinds": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiVersion",
+          "kind",
+          "schema"
+        ],
+        "properties": {
+          "apiVersion": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "schema": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "version",
+              "digest"
+            ],
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "digest": {
+                "pattern": "^sha256:[a-f0-9]{64}$",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "readers": {
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "requiredProcessors": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage"
+        ],
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "stage": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "limits": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "requestBytes",
+        "fileBytes",
+        "entities",
+        "rules",
+        "graphDepth",
+        "substitutionDepth",
+        "expandedEntityBytes",
+        "requestTimeoutMs",
+        "celWorkers",
+        "celOutstandingJobs",
+        "celExecutionMs"
+      ],
+      "properties": {
+        "requestBytes": {
+          "minimum": 1,
+          "maximum": 16777216,
+          "type": "integer"
+        },
+        "fileBytes": {
+          "minimum": 1,
+          "maximum": 1048576,
+          "type": "integer"
+        },
+        "entities": {
+          "minimum": 1,
+          "maximum": 1000,
+          "type": "integer"
+        },
+        "rules": {
+          "minimum": 1,
+          "maximum": 256,
+          "type": "integer"
+        },
+        "graphDepth": {
+          "minimum": 1,
+          "maximum": 64,
+          "type": "integer"
+        },
+        "substitutionDepth": {
+          "minimum": 1,
+          "maximum": 8,
+          "type": "integer"
+        },
+        "expandedEntityBytes": {
+          "minimum": 1,
+          "maximum": 1048576,
+          "type": "integer"
+        },
+        "requestTimeoutMs": {
+          "minimum": 1,
+          "maximum": 5000,
+          "type": "integer"
+        },
+        "celWorkers": {
+          "minimum": 1,
+          "maximum": 2,
+          "type": "integer"
+        },
+        "celOutstandingJobs": {
+          "minimum": 1,
+          "maximum": 64,
+          "type": "integer"
+        },
+        "celExecutionMs": {
+          "minimum": 1,
+          "maximum": 100,
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

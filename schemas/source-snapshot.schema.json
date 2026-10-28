@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:source-snapshot:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "digest",
+    "repository",
+    "revision",
+    "files",
+    "changes"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "repository": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "revision": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "uri",
+          "text",
+          "digest",
+          "origin"
+        ],
+        "properties": {
+          "uri": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]+$",
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "digest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "const": "repository",
+                "type": "string"
+              },
+              {
+                "const": "buffer",
+                "type": "string"
+              }
+            ]
+          },
+          "version": {
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "uri",
+          "kind"
+        ],
+        "properties": {
+          "uri": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]+$",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "const": "added",
+                "type": "string"
+              },
+              {
+                "const": "modified",
+                "type": "string"
+              },
+              {
+                "const": "deleted",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+/** Normative bve-cel/1 ceilings. Repository policy cannot raise these limits. */
+export const CEL_PROFILE = 'bve-cel/1' as const;
+export const CEL_LIMITS = Object.freeze({
+  expressionChars: 4096,
+  inputBytes: 256 * 1024,
+  inputNodes: 10_000,
+  inputDepth: 64,
+  stringChars: 65_536,
+  patternChars: 512,
+  astNodes: 4096,
+  astDepth: 64,
+  literalEntries: 1000,
+  callArguments: 32,
+  cacheEntries: 256,
+  workers: 2,
+  pending: 64,
+  pendingPerWorker: 32,
+  executionMs: 100,
+  startupMs: 3000,
+  queueMs: 1000,
+  requestMs: 5000,
+  oldSpaceMb: 64,
+  youngSpaceMb: 16,
+  stackMb: 2,
+});

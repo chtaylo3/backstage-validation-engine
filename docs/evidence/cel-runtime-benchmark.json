@@ -1,0 +1,88 @@
+{
+  "capturedAt": "2026-10-28T05:38:12.388Z",
+  "scope": "Synthetic normalized-entity rules stage, including managed selectors/RE2 expressions, pinned bindings, snapshots and result aggregation; excludes YAML parsing, native Backstage, network providers and CLI/LSP transport.",
+  "coldScope": "Five fresh Node processes including module loading, fixture setup, one-entity rules execution and worker shutdown.",
+  "environment": {
+    "node": "v24.20.0",
+    "platform": "linux",
+    "arch": "x64",
+    "release": "6.6.87.2-microsoft-standard-WSL2",
+    "logicalCpus": 20
+  },
+  "dependencies": {
+    "@marcbachmann/cel-js": "8.0.0",
+    "@sinclair/typebox": "0.34.52",
+    "ajv": "8.20.0",
+    "re2js": "2.9.0"
+  },
+  "cold": {
+    "samplesMs": [2649.133019, 2599.856011, 2616.9356749999997, 2603.5979929999994, 2597.561549],
+    "medianMs": 2603.5979929999994,
+    "p95Ms": 2649.133019,
+    "minMs": 2597.561549,
+    "maxMs": 2649.133019
+  },
+  "warmSingleEntity": {
+    "samplesMs": [
+      1.8044760000011593, 1.3063399999991816, 1.1212969999996858, 1.6694200000001729,
+      0.8696299999992334, 0.844321000000491, 0.6902859999991051, 0.7389559999992343,
+      0.721095000000787, 1.1992229999996198, 0.798917000000074, 0.7871770000001561,
+      0.7152220000007219, 0.706253000000288, 0.6487519999991491, 1.1320470000009664,
+      0.642507000000478, 0.7203690000005736, 0.7220039999992878, 0.8066930000004504
+    ],
+    "medianMs": 0.7930470000001151,
+    "p95Ms": 1.6694200000001729,
+    "minMs": 0.642507000000478,
+    "maxMs": 1.8044760000011593
+  },
+  "warm100Entities": {
+    "samplesMs": [
+      17.225388999999268, 14.367247000000134, 14.89439399999901, 14.771201999999903,
+      10.932412000000113, 10.822872000000643, 10.44010200000048, 10.15119599999889,
+      11.177335000000312, 11.836647000000085, 10.130412000000433, 10.325136999999813,
+      9.469466999998986, 10.518996000000698, 10.26744399999916, 9.533801999999923,
+      9.711880000000747, 9.973367000000508, 8.763036000000284, 9.937427000000753
+    ],
+    "medianMs": 10.382619500000146,
+    "p95Ms": 14.89439399999901,
+    "minMs": 8.763036000000284,
+    "maxMs": 17.225388999999268
+  },
+  "runtime": {
+    "workers": 2,
+    "active": 0,
+    "queued": 0,
+    "pending": 0,
+    "workerStarts": 2,
+    "closed": false
+  },
+  "processRssBytesAtEnd": 160292864,
+  "limitations": [
+    "Local observations, not release SLOs.",
+    "End-of-run RSS is not a measured peak or a per-worker cap.",
+    "No native IDE/OS or hosted workload qualification."
+  ],
+  "hashes": {
+    "package-lock.json": "05186bad8c400edd89ee5f4f35046b26948c1c913f2574d88c008461d567f471",
+    "test/fixtures/cel-qualification.json": "5dbcd903f3caaff62067c4c99e0f04e21d980c53827825536fba4176a74d4fc1",
+    "src/core/json.ts": "f0cb13d8a58c114a9ffeb4164de75323c9498ef019dbc2fbc613321840792ab0",
+    "src/core/cel-rules.ts": "a3b8ea58e69ca090f1f3658bc634f97a3e2ad3750570d6ca9e79ef07d6d1fd53",
+    "src/core/bindings.ts": "232f1f322c7361027a8d6dc863855c78c15e9e8c9050088241ea814099649862",
+    "src/core/results.ts": "cc6157e5d361cc61887d7f13196d07f4bb122983cae6ebbbcc8c9e3c68739a65",
+    "src/core/outcomes.ts": "02329ffb654558d7e6e33ba87f87998bf7b34e968abf3d9690acb9a73f1cf684",
+    "src/contracts/schemas.ts": "9f3fb1ff37f9ef1d26f22811759be9af57c5779e36f9cb94bc9c2d98cb65ce15",
+    "src/contracts/validate.ts": "d68f6352495d0b25928271fa619f52ac192a0bff1d24146d9d6c29d34933dbb0",
+    "src/policy/rule-graph.ts": "94b599bc1b8451c35268906a66eb3eca1a210bac3705c9e22e4130a18db0bead",
+    "src/policy/profile.ts": "cfe93b0d9ed08494557740b603074e9d39278d9b0eb4f2d874142b1f1a30aa1f",
+    "src/runtime/request-budget.ts": "6eb27153aee1421d7352a1ce759af26ec5968665b9355ddac8d9dee2598accbf",
+    "src/runtime/cel/limits.ts": "a9b66fc3cf736c61ad16905c865dfa4d9e9eb1d979079600cdfa0ee3291b252d",
+    "src/runtime/cel/errors.ts": "33dae33f83d40fb1f8ad003b7f09cf307314aa20a7a7269cbf07895301398f54",
+    "src/runtime/cel/input.ts": "f670cf41bec78fe45f0f83cb102f7507c04f628c254dce2672e3a05fd1c49646",
+    "src/runtime/cel/evaluator.ts": "f4a607fb9ce0e198b14692d39491b36f0b7962267be5340686391e4cc0fb1acc",
+    "src/runtime/cel/protocol.ts": "e5aeb53c82d82b190bb07deffa8d1545ac079dda33176ecc8cd6fc730f29e789",
+    "src/runtime/cel/worker.ts": "28c5c69e7eaa27d77f15ab4b0da5818c3029b615039a24550a3f6808afaa4e63",
+    "src/runtime/cel/pool.ts": "2e356688a583b4cab0137ed235124c968ed99bc6a164d60a349312f5946348d3",
+    "src/runtime/cel/index.ts": "866a49b141cc2b4e7a042e621de660343f4691b0d2d062af992df833850dc983",
+    "scripts/benchmark-cel.mjs": "45df3e039607969bfec0d91e5beec4e5729e135aa544a258f1e2cf6a98609036"
+  }
+}

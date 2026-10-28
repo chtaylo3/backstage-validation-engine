@@ -1,0 +1,99 @@
+{
+  "artifacts": [],
+  "contractVersion": "0.2",
+  "coverage": [
+    {
+      "required": true,
+      "stage": "identity",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "bypass",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "policy",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "parse",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "substitution",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "compatibility",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "admission",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "required": true,
+      "stage": "overlay",
+      "status": "verified",
+      "subject": "repository"
+    },
+    {
+      "reason": "Required catalog snapshot is unavailable.",
+      "required": true,
+      "stage": "rules",
+      "status": "unavailable",
+      "subject": "repository"
+    }
+  ],
+  "enforcement": "block",
+  "findings": [],
+  "freshness": {
+    "authorityCheckedAt": 1793188800000,
+    "evaluatedAt": 1793188800100,
+    "publishBefore": 1793188860000
+  },
+  "mode": "ci",
+  "outcome": "incomplete",
+  "provenance": {
+    "activationDigest": "sha256:bb55627aaa508f6df5cabd2618015f38832e4a2590fbdc364aa83d2045575fcb",
+    "dataDigest": "sha256:add1cbfe502558ed91b7720166d96d00311443a23bd55e2360f46fc249e26a99",
+    "installationId": "example-installation",
+    "policyDigest": "sha256:58b56e9a64403e1c07a9532a7d71d0773d8c186fe5f29ea9c0cd70a04e9d4cd0",
+    "profileDigest": "sha256:f6f58dfeecde579fe3a362869d72622ae9b4ae8686bfa04a6c1a9f35283dbd11",
+    "repositoryId": "example-repository",
+    "sourceDigest": "sha256:f26b2c61f9eb74f77a6df0cc4949d293fbdcba56ecf05e6d28c46ea09ad754a7"
+  },
+  "resources": {
+    "completedAt": 1793188800100,
+    "deadlineAt": 1793188805000,
+    "interrupted": "none",
+    "startedAt": 1793188800000
+  },
+  "ruleStates": [
+    {
+      "reason": "dependency_unavailable",
+      "required": true,
+      "ruleId": "owner-required",
+      "status": "incomplete",
+      "subjectId": "component:default/example"
+    }
+  ],
+  "run": {
+    "attemptId": "example-attempt-1",
+    "generation": 1,
+    "runId": "example-run-1"
+  }
+}

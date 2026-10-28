@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:validation-request:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "run",
+    "execution",
+    "identity",
+    "source",
+    "policy",
+    "profile",
+    "activation",
+    "data"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "run": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "runId",
+        "attemptId",
+        "generation"
+      ],
+      "properties": {
+        "runId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "attemptId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        }
+      }
+    },
+    "execution": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "mode",
+        "startedAt",
+        "deadlineAt"
+      ],
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "const": "ci",
+              "type": "string"
+            },
+            {
+              "const": "ide",
+              "type": "string"
+            }
+          ]
+        },
+        "startedAt": {
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "deadlineAt": {
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        }
+      }
+    },
+    "identity": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "installationId",
+        "repositoryId",
+        "authorityRef",
+        "permissionRevision"
+      ],
+      "properties": {
+        "installationId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repositoryId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "authorityRef": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "permissionRevision": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "source": {
+      "$ref": "urn:backstage-validation:source-snapshot:0.2"
+    },
+    "policy": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "digest",
+        "revision"
+      ],
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "revision": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "profile": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "digest",
+        "id"
+      ],
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "activation": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "digest",
+        "generation"
+      ],
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        }
+      }
+    },
+    "data": {
+      "$ref": "urn:backstage-validation:data-snapshot:0.2"
+    }
+  }
+}

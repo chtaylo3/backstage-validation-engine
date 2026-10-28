@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:coverage:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "stage",
+    "subject",
+    "required",
+    "status"
+  ],
+  "properties": {
+    "stage": {
+      "anyOf": [
+        {
+          "const": "identity",
+          "type": "string"
+        },
+        {
+          "const": "bypass",
+          "type": "string"
+        },
+        {
+          "const": "policy",
+          "type": "string"
+        },
+        {
+          "const": "parse",
+          "type": "string"
+        },
+        {
+          "const": "substitution",
+          "type": "string"
+        },
+        {
+          "const": "compatibility",
+          "type": "string"
+        },
+        {
+          "const": "admission",
+          "type": "string"
+        },
+        {
+          "const": "overlay",
+          "type": "string"
+        },
+        {
+          "const": "rules",
+          "type": "string"
+        },
+        {
+          "const": "publication",
+          "type": "string"
+        }
+      ]
+    },
+    "subject": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "required": {
+      "type": "boolean"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "const": "verified",
+          "type": "string"
+        },
+        {
+          "const": "unsupported",
+          "type": "string"
+        },
+        {
+          "const": "unavailable",
+          "type": "string"
+        },
+        {
+          "const": "blocked",
+          "type": "string"
+        },
+        {
+          "const": "skipped",
+          "type": "string"
+        },
+        {
+          "const": "bypassed",
+          "type": "string"
+        }
+      ]
+    },
+    "reason": {
+      "minLength": 1,
+      "type": "string"
+    }
+  }
+}

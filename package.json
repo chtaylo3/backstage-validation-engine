@@ -1,0 +1,63 @@
+{
+  "name": "@chtaylo3/backstage-validation-engine",
+  "version": "0.1.0-dev.0",
+  "description": "Shared, source-preserving Backstage catalog validation contracts and engine foundations",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chtaylo3/backstage-validation-engine.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "import": "./dist/contracts/index.js"
+    },
+    "./schemas/*": "./schemas/*.schema.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "schemas",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "node scripts/clean.mjs build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/*.test.js",
+    "test:coverage": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 --experimental-test-coverage .test-dist/test/*.test.js",
+    "schemas:generate": "npm run build && node scripts/schemas.mjs",
+    "schemas:check": "npm run build && node scripts/schemas.mjs --check",
+    "benchmark:cel": "npm run build && node scripts/benchmark-cel.mjs",
+    "example:cel": "npm run build && node examples/run-cel-rules.mjs",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test"
+  },
+  "dependencies": {
+    "@marcbachmann/cel-js": "8.0.0",
+    "@sinclair/typebox": "0.34.52",
+    "ajv": "8.20.0",
+    "re2js": "2.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.10.1",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  }
+}

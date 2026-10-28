@@ -1,0 +1,16 @@
+{
+  "activatedAt": 1793188799000,
+  "authority": {
+    "evidenceDigest": "sha256:bba2d36669004a3ef16764b0dfe370dfc0c22263976dfd3d896370b3fa39be0d",
+    "repository": "https://github.com/example/governance",
+    "revision": "example-governance-revision-1",
+    "verifierId": "example-only-not-a-verifier"
+  },
+  "bypassDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "contractVersion": "0.2",
+  "generation": 1,
+  "installationId": "example-installation",
+  "policyDigest": "sha256:58b56e9a64403e1c07a9532a7d71d0773d8c186fe5f29ea9c0cd70a04e9d4cd0",
+  "profileDigest": "sha256:f6f58dfeecde579fe3a362869d72622ae9b4ae8686bfa04a6c1a9f35283dbd11",
+  "repositoryId": "example-repository"
+}

@@ -1,0 +1,11 @@
+/plan/
+/node_modules/
+/dist/
+/.test-dist/
+/coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

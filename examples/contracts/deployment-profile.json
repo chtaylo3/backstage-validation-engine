@@ -1,0 +1,66 @@
+{
+  "adapterId": "@backstage/catalog-model@1.10.2",
+  "admission": {
+    "allowedKinds": [
+      "Component",
+      "API",
+      "Group",
+      "User",
+      "Resource",
+      "System",
+      "Domain",
+      "Location"
+    ],
+    "locations": []
+  },
+  "celProfileId": "bve-cel/1",
+  "contractVersion": "0.2",
+  "customKinds": [],
+  "id": "backstage-default/1",
+  "limits": {
+    "celExecutionMs": 100,
+    "celOutstandingJobs": 64,
+    "celWorkers": 2,
+    "entities": 1000,
+    "expandedEntityBytes": 1048576,
+    "fileBytes": 1048576,
+    "graphDepth": 64,
+    "requestBytes": 16777216,
+    "requestTimeoutMs": 5000,
+    "rules": 256,
+    "substitutionDepth": 8
+  },
+  "nativePolicies": {
+    "defaultNamespace": true,
+    "fieldFormat": true,
+    "groupDefaultParent": false,
+    "noForeignRootFields": true,
+    "schema": true
+  },
+  "profileVersion": "1",
+  "readers": ["snapshot-local"],
+  "referenceContexts": [
+    {
+      "defaultKind": "Group",
+      "namespace": "entity",
+      "path": "/spec/owner"
+    },
+    {
+      "defaultKind": "API",
+      "namespace": "entity",
+      "path": "/spec/providesApis/*"
+    },
+    {
+      "defaultKind": "API",
+      "namespace": "entity",
+      "path": "/spec/consumesApis/*"
+    },
+    {
+      "defaultKind": "System",
+      "namespace": "entity",
+      "path": "/spec/system"
+    }
+  ],
+  "requiredProcessors": [],
+  "schemaDialect": "draft-07"
+}

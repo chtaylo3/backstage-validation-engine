@@ -1,0 +1,56 @@
+{
+  "activation": {
+    "digest": "sha256:bb55627aaa508f6df5cabd2618015f38832e4a2590fbdc364aa83d2045575fcb",
+    "generation": 1
+  },
+  "contractVersion": "0.2",
+  "data": {
+    "contractVersion": "0.2",
+    "digest": "sha256:add1cbfe502558ed91b7720166d96d00311443a23bd55e2360f46fc249e26a99",
+    "entries": []
+  },
+  "execution": {
+    "deadlineAt": 1793188805000,
+    "mode": "ci",
+    "startedAt": 1793188800000
+  },
+  "identity": {
+    "authorityRef": "example-only/identity-1",
+    "installationId": "example-installation",
+    "permissionRevision": "example-permissions-1",
+    "repositoryId": "example-repository"
+  },
+  "policy": {
+    "digest": "sha256:58b56e9a64403e1c07a9532a7d71d0773d8c186fe5f29ea9c0cd70a04e9d4cd0",
+    "revision": "example-policy-revision-1"
+  },
+  "profile": {
+    "digest": "sha256:f6f58dfeecde579fe3a362869d72622ae9b4ae8686bfa04a6c1a9f35283dbd11",
+    "id": "backstage-default/1"
+  },
+  "run": {
+    "attemptId": "example-attempt-1",
+    "generation": 1,
+    "runId": "example-run-1"
+  },
+  "source": {
+    "changes": [
+      {
+        "kind": "modified",
+        "uri": "file:///workspace/catalog-info.yaml"
+      }
+    ],
+    "contractVersion": "0.2",
+    "digest": "sha256:f26b2c61f9eb74f77a6df0cc4949d293fbdcba56ecf05e6d28c46ea09ad754a7",
+    "files": [
+      {
+        "digest": "sha256:55c2b1a28aace695e0ff5c693f971416bdd347c8bf8218365068d33c22efcd31",
+        "origin": "repository",
+        "text": "apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata:\n  name: example\nspec:\n  type: service\n  lifecycle: production\n",
+        "uri": "file:///workspace/catalog-info.yaml"
+      }
+    ],
+    "repository": "https://github.com/example/application",
+    "revision": "example-source-revision-1"
+  }
+}

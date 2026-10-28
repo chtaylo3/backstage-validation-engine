@@ -1,0 +1,19 @@
+{
+  "contractVersion": "0.2",
+  "extends": [],
+  "id": "organization-baseline",
+  "plugins": [],
+  "revision": "example-policy-revision-1",
+  "rules": [
+    {
+      "expression": "has(entity.spec.owner)",
+      "id": "owner-required",
+      "kind": "cel",
+      "mandatory": true,
+      "requires": [],
+      "severity": "error",
+      "version": "1"
+    }
+  ],
+  "schemas": []
+}
