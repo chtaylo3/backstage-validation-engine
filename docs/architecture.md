@@ -79,6 +79,15 @@ produce an invalid-replacement marker in catalog overlays, preventing fallback t
 an older entity. Passing parse coverage does not imply completed compatibility,
 substitution, admission, policy, or hosted-authority coverage.
 
+## Implemented native boundary
+
+The [native compatibility adapter](backstage-compatibility.md) selects exact
+catalog-model 1.10.2/1.7.5 packages, applies declared native policies and stock kind
+validators, and records source-attributed normalization separately from authored
+JSON. Required unavailable processors and unresolved substitution markers block
+dependent native checks. The source-level entry point composes parsing with
+BC-01/BC-02; it does not attest later compatibility or governance stages.
+
 ## Release breadth
 
 The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and

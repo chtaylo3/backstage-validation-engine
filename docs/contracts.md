@@ -32,6 +32,14 @@ The contract checks coordinate ordering; the parser derives positions directly
 from authored text. Adapters must enforce source digest/buffer version when
 applying edits. Findings use JSON Pointer paths.
 
+## Native policy configuration
+
+The pre-release deployment profile now permits `nativePolicies.groupDefaultParentRef`.
+It is required when the native group-parent policy is enabled and is included in
+the profile digest. Its Group reference is checked using the selected native
+adapter. Disabled profiles do not need this field. Regenerated profile schemas
+and consumers must accompany use of the new setting.
+
 ## Content addressing and immutability
 
 Digests use `sha256:` plus 64 lowercase hexadecimal characters. File digests hash

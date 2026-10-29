@@ -76,6 +76,10 @@
         },
         "groupDefaultParent": {
           "type": "boolean"
+        },
+        "groupDefaultParentRef": {
+          "minLength": 1,
+          "type": "string"
         }
       }
     },

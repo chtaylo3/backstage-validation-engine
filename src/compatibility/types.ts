@@ -1,0 +1,109 @@
+import type {
+  DeploymentProfile,
+  Finding,
+  JsonValue,
+  ValidationResult,
+} from '../contracts/schemas.js';
+import type { Immutable } from '../core/json.js';
+import type { ParsedSourceDocument } from '../parsing/types.js';
+
+export const BACKSTAGE_ADAPTER_IDS = Object.freeze([
+  '@backstage/catalog-model@1.10.2',
+  '@backstage/catalog-model@1.7.5',
+] as const);
+export type BackstageAdapterId = (typeof BACKSTAGE_ADAPTER_IDS)[number];
+export const BUILTIN_KINDS = Object.freeze([
+  'Component',
+  'API',
+  'Group',
+  'User',
+  'Resource',
+  'System',
+  'Domain',
+  'Location',
+] as const);
+export type NativePolicyName =
+  | 'schema'
+  | 'default_namespace'
+  | 'field_format'
+  | 'no_foreign_root_fields'
+  | 'group_default_parent';
+export type NativeStage = 'envelope' | 'kind' | NativePolicyName;
+export interface NativeIssue {
+  readonly code:
+    | 'invalid_envelope'
+    | 'invalid_kind'
+    | 'invalid_policy_value'
+    | 'unsupported_kind'
+    | 'unsupported_api_version';
+  readonly stage: NativeStage;
+  readonly path: string;
+}
+
+export interface NormalizationChange {
+  readonly path: string;
+  readonly policy: NativePolicyName;
+  readonly before?: Immutable<JsonValue>;
+  readonly after?: Immutable<JsonValue>;
+}
+
+export interface NativeEntityCheck {
+  readonly status: 'valid' | 'invalid' | 'unsupported';
+  readonly authored: Immutable<JsonValue>;
+  readonly normalized: Immutable<JsonValue>;
+  readonly entityRef?: string;
+  readonly issues: readonly NativeIssue[];
+  readonly changes: readonly NormalizationChange[];
+}
+
+export interface NativeExecutionContext {
+  readonly deadlineAt: number;
+  readonly signal?: AbortSignal;
+}
+export interface BackstageAdapter {
+  readonly id: BackstageAdapterId;
+  readonly kinds: readonly string[];
+  validateSettings(settings: Immutable<DeploymentProfile['nativePolicies']>): void;
+  /** Native Entity schema and stock kind checks, without configured policies. */
+  checkEntity(
+    value: Immutable<JsonValue>,
+    context: NativeExecutionContext,
+  ): Promise<NativeEntityCheck>;
+  validate(
+    value: Immutable<JsonValue>,
+    settings: Immutable<DeploymentProfile['nativePolicies']>,
+    context: NativeExecutionContext,
+  ): Promise<NativeEntityCheck>;
+}
+
+export interface CompatibleSourceEntity {
+  readonly document: ParsedSourceDocument;
+  readonly entityRef: string;
+  readonly authored: Immutable<JsonValue>;
+  readonly normalized: Immutable<JsonValue>;
+  readonly changes: readonly (NormalizationChange & {
+    readonly origin: Immutable<Finding['location']>;
+  })[];
+}
+
+export interface BackstageCompatibilityReport {
+  readonly adapterId: BackstageAdapterId;
+  readonly sourceDigest: string;
+  readonly profileDigest: string;
+  readonly entities: readonly CompatibleSourceEntity[];
+  readonly findings: readonly Immutable<Finding>[];
+  readonly coverage: readonly Immutable<ValidationResult['coverage'][number]>[];
+  readonly artifacts: Immutable<ValidationResult['artifacts']>;
+  readonly interrupted: ValidationResult['resources']['interrupted'];
+}
+
+export class BackstageRuntimeError extends Error {
+  override readonly name = 'BackstageRuntimeError';
+  constructor(readonly code: 'resource_limit' | 'adapter_unavailable') {
+    super(
+      code === 'resource_limit'
+        ? 'Native validation exceeds profile resource limits.'
+        : 'Pinned native adapter is unavailable.',
+    );
+  }
+}

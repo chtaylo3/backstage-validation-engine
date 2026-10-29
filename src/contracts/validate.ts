@@ -268,11 +268,27 @@ export function parseContract<K extends keyof ContractTypes>(
       break;
     case 'deployment-profile': {
       const profile = value as DeploymentProfile;
+      if (
+        profile.nativePolicies.groupDefaultParent &&
+        !profile.nativePolicies.groupDefaultParentRef
+      ) {
+        reject(
+          'invalid_contract',
+          '/nativePolicies/groupDefaultParentRef',
+          'enabled group-parent defaulting requires a pinned parent reference',
+        );
+      }
       if (profile.limits.fileBytes > profile.limits.requestBytes)
         reject('invalid_contract', '/limits', 'file budget exceeds request budget');
       unique(
         profile.referenceContexts.map((context) => context.path),
         '/referenceContexts',
+      );
+      unique(
+        profile.requiredProcessors.map((processor) =>
+          JSON.stringify([processor.id, processor.stage]),
+        ),
+        '/requiredProcessors',
       );
       break;
     }

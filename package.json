@@ -45,12 +45,15 @@
     "benchmark:cel": "npm run build && node scripts/benchmark-cel.mjs",
     "example:cel": "npm run build && node examples/run-cel-rules.mjs",
     "example:parse": "npm run build && node examples/parse-catalog.mjs",
+    "example:backstage": "npm run build && node examples/validate-backstage.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test"
   },
   "dependencies": {
+    "@backstage/catalog-model": "1.10.2",
     "@marcbachmann/cel-js": "8.0.0",
     "@sinclair/typebox": "0.34.52",
     "ajv": "8.20.0",
+    "backstage-catalog-model-older": "npm:@backstage/catalog-model@1.7.5",
     "re2js": "2.9.0",
     "yaml": "2.9.1"
   },

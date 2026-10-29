@@ -201,6 +201,9 @@ try {
     }
     const files = [
       'src/index.ts',
+      ...['index', 'types', 'adapter', 'native-errors', 'sources'].map(
+        (name) => `src/compatibility/${name}.ts`,
+      ),
       ...['index', 'types', 'locations', 'budget', 'syntax', 'convert', 'parser', 'findings'].map(
         (name) => `src/parsing/${name}.ts`,
       ),

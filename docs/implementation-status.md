@@ -43,18 +43,30 @@ Implemented multi-file/document YAML 1.2 parsing with immutable source provenanc
 UTF-16 JSON Pointer locations, alias provenance, strict CI withholding and
 document-level IDE recovery. Syntax/alias/expansion/source budgets, safe numeric
 normalization, duplicate/merge-key and unsupported tag/version rejection,
-cancellation and deadline coverage are exercised by 48 parser checks. The full
-local suite now has 138 checks. See the [parsing acceptance register](parsing.md).
+cancellation and deadline coverage are exercised by 48 parser checks. That
+increment brought the local suite to 138 checks. See the [parsing acceptance register](parsing.md).
 
 The [post-parser rules-stage capture](evidence/cel-runtime-after-parsing.md) records
 p95 of 1.69 ms for one warm entity, 16.47 ms for 100 entities and 2,788.98 ms for a
 fresh process. It excludes YAML execution; the cold-start target remains open.
 
+## Native compatibility increment
+
+Implemented and locally tested BC-01/BC-02 on catalog-model 1.10.2 and 1.7.5:
+native envelopes/kinds, explicit native policy composition, immutable authored and
+normalized entities, and source-attributed defaults. The parser/native pipeline
+blocks unsupported processors and unresolved substitutions before dependent
+checks. The native/source suites add 130 checks, bringing the local total to 268.
+See [compatibility scope and acceptance](backstage-compatibility.md).
+
+The optional group-parent default requires a pinned `groupDefaultParentRef` in
+the pre-release deployment profile. Existing disabled configurations are unchanged.
+Historical rules-stage benchmarks remain scoped evidence; integrated native
+pipeline performance still needs qualification before pilot release.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Start with native pinned adapters and BC-01/BC-02:
-   envelope/kind validation plus explicit native policies/default provenance for
-   catalog-model 1.10.2 and 1.7.5. Continue BC-03 through BC-07: contextual references,
+1. **Engine and compatibility.** Continue with BC-03: native contextual references,
    safe local substitutions, admission/custom kinds, proposed catalog overlays,
    and unsupported-processor blocking.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve

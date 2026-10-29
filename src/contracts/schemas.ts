@@ -132,6 +132,7 @@ export const DeploymentProfileSchema = schema('deployment-profile', {
     noForeignRootFields: Type.Boolean(),
     schema: Type.Boolean(),
     groupDefaultParent: Type.Boolean(),
+    groupDefaultParentRef: Type.Optional(text()),
   }),
   admission: object({
     allowedKinds: strings(),

@@ -3,11 +3,12 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: foundation, source parsing and managed CEL rules stage implemented.** Contract version
+**Status: source parsing, native BC-01/BC-02 and managed CEL rules implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
-normalization, UTF-16 locations and CI/IDE document handling. Native Backstage
-adapters, schema rules, the CLI, LSP, and hosted controller are the next increments.
+normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
+adapters apply native kinds/policies with source-attributed defaults. References,
+substitutions, admission/overlays, schema rules, CLI/LSP and hosted control remain.
 This package is private during development.
 
 ## Development
@@ -26,19 +27,20 @@ drift detection, a production build, and the tests. CI schedules the same checks
 on Linux, Windows, and macOS; a configured matrix is not evidence that those runs
 have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 
-| Command                    | Purpose                                                             |
-| -------------------------- | ------------------------------------------------------------------- |
-| `npm run build`            | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
-| `npm test`                 | Compile and run the Node test suite                                 |
-| `npm run test:coverage`    | Run tests with Node's experimental coverage report                  |
-| `npm run lint`             | Run ESLint with TypeScript type information                         |
-| `npm run format`           | Format source, examples, and documentation                          |
-| `npm run schemas:generate` | Regenerate checked-in JSON Schemas from the contract definitions    |
-| `npm run schemas:check`    | Fail if checked-in schemas differ from the definitions              |
-| `npm run clean`            | Remove build, test, and coverage output                             |
-| `npm run example:cel`      | Execute a normalized-entity fixture through the managed rules stage |
-| `npm run example:parse`    | Parse an immutable catalog fixture and show source locations        |
-| `npm run benchmark:cel`    | Measure fresh-process, warm, and 100-entity rules-stage latency     |
+| Command                     | Purpose                                                             |
+| --------------------------- | ------------------------------------------------------------------- |
+| `npm run build`             | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
+| `npm test`                  | Compile and run the Node test suite                                 |
+| `npm run test:coverage`     | Run tests with Node's experimental coverage report                  |
+| `npm run lint`              | Run ESLint with TypeScript type information                         |
+| `npm run format`            | Format source, examples, and documentation                          |
+| `npm run schemas:generate`  | Regenerate checked-in JSON Schemas from the contract definitions    |
+| `npm run schemas:check`     | Fail if checked-in schemas differ from the definitions              |
+| `npm run clean`             | Remove build, test, and coverage output                             |
+| `npm run example:cel`       | Execute a normalized-entity fixture through the managed rules stage |
+| `npm run example:parse`     | Parse an immutable catalog fixture and show source locations        |
+| `npm run example:backstage` | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run benchmark:cel`     | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation
 
@@ -80,6 +82,9 @@ For managed selectors/expressions, cancellation, and rule reports, see the
 For YAML parsing, exact source ranges, recovery and budgets, see the
 [parsing guide](docs/parsing.md) and `npm run example:parse`.
 
+For versioned native envelopes/kinds, policies and normalization provenance, see
+[Backstage compatibility](docs/backstage-compatibility.md) and `npm run example:backstage`.
+
 ## Structure
 
 ```text
@@ -87,6 +92,7 @@ src/
   contracts/   Versioned schemas, inferred types, and contract validation
   core/        Canonical JSON, snapshots, bindings, findings, and outcomes
   parsing/     Bounded YAML normalization, diagnostics and source locations
+  compatibility/  Versioned native Backstage adapters and normalization provenance
   policy/      Deployment defaults and bounded rule dependency graphs
   runtime/     Shared supervised CEL/RE2 workers and request budgets
 schemas/       Generated draft-07 JSON Schemas, checked into Git

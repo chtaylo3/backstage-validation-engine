@@ -1,0 +1,55 @@
+[
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "Component",
+    "metadata": { "name": "service" },
+    "spec": { "type": "service", "lifecycle": "production", "owner": "team" }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "API",
+    "metadata": { "name": "api" },
+    "spec": {
+      "type": "openapi",
+      "lifecycle": "production",
+      "owner": "team",
+      "definition": "openapi: 3.0.0"
+    }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "Group",
+    "metadata": { "name": "team" },
+    "spec": { "type": "team", "children": [] }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "User",
+    "metadata": { "name": "developer" },
+    "spec": { "memberOf": [] }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "Resource",
+    "metadata": { "name": "database" },
+    "spec": { "type": "database", "owner": "team" }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "System",
+    "metadata": { "name": "system" },
+    "spec": { "owner": "team" }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "Domain",
+    "metadata": { "name": "domain" },
+    "spec": { "owner": "team" }
+  },
+  {
+    "apiVersion": "backstage.io/v1alpha1",
+    "kind": "Location",
+    "metadata": { "name": "catalog" },
+    "spec": { "type": "file", "targets": ["./component.yaml"] }
+  }
+]

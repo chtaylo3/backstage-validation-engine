@@ -20,8 +20,9 @@ substitutions, authorize admission, or execute organization policy. BC-01 throug
 BC-07 remain open until their respective pipeline stages are implemented.
 
 The [48 parser acceptance checks](../test/parsing.test.ts) exercise this register.
-The full local suite contains 138 checks, including the existing contracts and
-managed CEL qualification. Native IDE/OS and hosted scale qualification remain
+The parsing increment brought the local suite to 138 checks, including contracts
+and managed CEL qualification. Subsequent totals are tracked in the
+[implementation status](implementation-status.md). Native IDE/OS and hosted scale qualification remain
 release work.
 
 ## API and source ownership
