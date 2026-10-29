@@ -28,3 +28,4 @@ export { RequestBudget } from './runtime/request-budget.js';
 export type { EvaluationContext } from './runtime/request-budget.js';
 export * from './parsing/index.js';
 export * from './compatibility/index.js';
+export * from './providers/index.js';

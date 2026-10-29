@@ -18,7 +18,13 @@ export interface RequestMatch {
   readonly entityRef?: string;
 }
 export type FixtureFault =
-  | { readonly kind: 'status'; readonly status: 401 | 403 | 429 | 503 }
+  | {
+      readonly kind: 'status';
+      readonly status: 302 | 401 | 403 | 404 | 429 | 503;
+      readonly retryAfter?: string;
+      readonly location?: string;
+    }
+  | { readonly kind: 'invalid-body'; readonly body: unknown }
   | { readonly kind: 'malformed-json' }
   | { readonly kind: 'disconnect' };
 export interface FixtureRequest {
@@ -271,6 +277,14 @@ export async function startFakeBackstage(
           response.end('{'); // Explicit fault bypasses the response-schema guard.
           return;
         }
+        if (fault.kind === 'invalid-body') {
+          log.status = 200;
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(fault.body));
+          return;
+        }
+        if (fault.retryAfter !== undefined) response.setHeader('retry-after', fault.retryAfter);
+        if (fault.location !== undefined) response.setHeader('location', fault.location);
         status = fault.status;
         result = errorBody(status, 'Injected catalog fixture failure');
       }
@@ -330,7 +344,13 @@ export async function startFakeBackstage(
       if (failures.length) throw new AggregateError(failures, 'Catalog fixture contract failure');
     },
     failNext(match: RequestMatch, fault: FixtureFault): void {
-      faults.push({ match: normalizedMatch(match), fault: Object.freeze({ ...fault }) });
+      faults.push({
+        match: normalizedMatch(match),
+        fault:
+          fault.kind === 'invalid-body'
+            ? Object.freeze({ ...fault, body: immutableJson(fault.body) })
+            : Object.freeze({ ...fault }),
+      });
     },
     holdNext(match: RequestMatch): ResponseGate {
       const entry = {

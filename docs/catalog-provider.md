@@ -1,0 +1,130 @@
+# Production catalog provider
+
+Implemented 2026-10-29. `createCatalogProvider` is the bounded production HTTP
+adapter for catalog observations, tested against the pinned Backstage 1.55.3 and
+1.56.2 [catalog fixtures](testing-harness.md). It supplies data for later reference
+and rule processing. Organization rules decide which references must exist.
+
+## Trusted construction and credentials
+
+The host constructs one reusable provider per approved connection, supplying its
+catalog base URL, connection ID, exact native adapter ID and async credential
+resolver. URLs accept HTTPS and loopback HTTP, and reject embedded credentials,
+queries and fragments. Lookup references cannot change the destination. Redirects
+are returned as unavailable instead of followed.
+
+The frozen access context includes installation, principal, permission/credential
+revisions, scope, policy/profile digests and maximum cache age. IDs are bounded to
+128 characters; scope permits 16 unique strings of at most 128 characters each.
+`maxAgeMs` is at most 30,000; zero requests fresh network observations.
+
+The resolver receives this context and cancellation signal. Its credential binding
+must match installation, principal, revisions and scope exactly. Binding mismatches
+produce unavailable permission data without HTTP. Tokens are bounded and excluded
+from reports/diagnostics. A token fingerprint partitions the cache.
+
+These are trusted-host consistency checks. The resolver must obtain and verify
+credentials through the deployment's actual authentication mechanism; the catalog
+API does not echo a verified principal for this adapter to compare. The host
+constructs access from verified authority, updates permission/credential revisions,
+and performs the checks required before enforcement/publication.
+
+## Lookup behavior
+
+`lookup(refs, access, { deadlineAt, signal? })` returns an immutable report with a
+contract-0.2 `data` snapshot, typed `failures` and `interrupted`. Duplicate references
+within a call share one observation. Each call owns its HTTP tasks and cancellation.
+The exact native adapter parses/canonicalizes references, including the default
+namespace. A kind must be supplied by the input or preceding source-context stage.
+
+One uncached reference uses `GET /entities/by-name/{kind}/{namespace}/{name}`;
+larger sets use ordered `POST /entities/by-refs` batches. The client checks JSON
+content type/UTF-8, batch structure/length, native envelopes and requested identity.
+Custom-kind envelopes are valid catalog data; ingestion policies are not rerun.
+
+| Result                                                                         | Observation                                     |
+| ------------------------------------------------------------------------------ | ----------------------------------------------- |
+| Entity matching the requested reference                                        | `present`                                       |
+| Single lookup 404 with valid error envelope, or batch `null`                   | `missing` from the authorized view              |
+| 401/403 or mismatched credential binding                                       | `unavailable: permission_denied`                |
+| Deadline, attempt timeout, cancellation or expired observation                 | `unavailable: timeout`, with typed interruption |
+| Network failure                                                                | `unavailable: offline`                          |
+| Invalid response, redirect, unsupported endpoint or exhausted retry/rate limit | `unavailable: provider_error`                   |
+
+A batch endpoint's 404 never makes all its references missing. Upstream error
+messages are not copied into diagnostics. `interrupted: none` only means no execution
+interruption; callers still check failures and availability for required coverage.
+Cancellation remains distinct in the report, while the existing data-entry contract
+uses the timeout reason for both cancellation and timeouts.
+
+## Resource and lifecycle limits
+
+`CATALOG_LIMITS` exports initial ceilings; trusted options may lower them.
+
+| Resource                                       | Ceiling                                         |
+| ---------------------------------------------- | ----------------------------------------------- |
+| Active / active-plus-queued calls per provider | 4 / 64                                          |
+| Input references / batch size                  | 1,000 / 100                                     |
+| HTTP attempt / whole operation                 | 1,000 ms / original deadline, at most 5 seconds |
+| Retries / default delay / maximum retry wait   | 1 / 50 ms / 1,000 ms                            |
+| Decoded response / aggregate response bytes    | 1 MiB / 8 MiB                                   |
+| Aggregate response JSON values                 | 40,000                                          |
+| Cache entries / serialized entry bytes         | 512 / 8 MiB                                     |
+| Positive / negative observation expiry         | 30,000 / 5,000 ms                               |
+
+FIFO admission and retry waits consume the original deadline. Admission, response
+and combined snapshot exhaustion produce resource-limit interruption. A shared
+connection cooldown honors Retry-After; new callers cannot bypass it. Waits above
+the allowed ceiling or remaining budget return unavailable without an early retry.
+Authentication, invalid responses and redirects are not retried. Closing cancels
+active/queued work, awaits managed calls, clears cache and rejects new work. Trusted
+credential/transport callbacks receive signals and must release any external
+resources they acquire when cancelled.
+
+## Caches and provenance
+
+Partitions include connection/endpoint, native adapter, installation, principal,
+permission/credential revisions, sorted scope, policy/profile digests, required
+freshness and token fingerprint. LRU eviction bounds entry count and bytes.
+Failures are not cached. Known permission/binding failures clear cached observations
+and prevent older in-flight calls from repopulating them. Only the newest call may
+populate cache, conservatively preventing delayed old data from replacing new data.
+
+Cache hits retain original timestamps. Fetch time is the successful attempt's
+start, so a delayed response cannot gain a freshness window on arrival. Entries
+expiring while other reads wait become unavailable before delivery. Cached/network
+observations together must fit the shared snapshot limits. Observation revisions
+are content fingerprints, not global catalog revisions or evidence of an atomic
+cross-entity read.
+
+Pin data before evaluation. Establish the original operation deadline, collect data
+using it, then construct the validation request with `startedAt` at pinning and
+the **same original deadline**. Request validation rechecks freshness and identity/
+permission binding. Callers propagate interruption and unavailable required coverage
+into results. Local/PR overlays must precede external reads in source integration.
+
+## Examples and remaining integration
+
+```bash
+npm run fixtures:serve -- 1.56
+# In another terminal, replace PORT with the printed numeric port:
+npm run example:provider -- http://127.0.0.1:PORT/api/catalog
+npm run test:harness
+```
+
+The example uses the development fixture token and prints scoped observations,
+including a missing entity, without an enforcement verdict. `npm run check` runs
+the full checks. Tests cover both real fixture targets, both native helper pins,
+binding/cache isolation, TTLs, stale arrival, retries/cooldowns, redirects, invalid
+responses, aggregate budgets, deadlines, queued cancellation and shutdown.
+
+Field-specific source contexts, proposed overlays, CEL data bindings, the production
+LSP transport and real-backend authentication/smoke qualification remain integration
+work. The adapter does not negotiate a backend API version. Wire fixtures and
+native validation package support remain separate; full pipeline performance
+qualification is open.
+
+Local qualification on 2026-10-29: all 31 provider checks passed within the full
+356-test `npm run check`. The built example also passed against the standalone
+1.56 fixture server: two present observations, one missing observation and graceful
+shutdown. Hosted CI and real Backstage deployment runs remain open.

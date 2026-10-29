@@ -77,6 +77,10 @@ ports. The execution environment must allow loopback listeners; in a restricted
 sandbox, run with authorized local socket access. Normal local runs require no
 fixed port configuration.
 
+The 2026-10-29 production-provider increment adds 31 checks to `test:harness`, for
+88 harness/provider checks. The full project check passed 356 tests. The provider
+example passed against the standalone fixture server; real-backend runs remain open.
+
 ## Inventory shape and use
 
 The TypeScript API accepts this shape (illustrative version numbers only):
@@ -133,9 +137,10 @@ them in `npm run check`.
   permits 64 connections.
 - `upsert`, `remove`, `setPrincipal` and `revokeToken` are in-process controls.
   There are no HTTP administration routes. Inserted JSON is copied and frozen.
-- `failNext(match, fault)` injects one matching 401/403/429/503 response, malformed
-  JSON, or a disconnect. Malformed JSON is an explicit fault that bypasses the
-  normal response-schema guard.
+- `failNext(match, fault)` injects one matching status failure, malformed JSON or a
+  disconnect. Provider tests also use 302/404, Retry-After/location headers and
+  explicit `invalid-body` payloads. Malformed JSON/invalid bodies bypass the normal
+  response-schema guard only as declared faults.
 - `holdNext(match)` returns `entered`, `cancelled`, and `release()`. It captures the
   response before waiting, allowing an old catalog snapshot to arrive after a new
   request without sleeps. Cancellation and shutdown release held handlers.
@@ -195,8 +200,9 @@ or retiring a supported minor is a separate explicit support-policy change.
 
 - Add catalog search/pagination and projections when the production provider or
   completion path needs them, with version-specific semantic fixtures.
-- Production provider integration with availability distinctions, deadlines,
-  cancellation, bounded retries and authorization-aware cache isolation.
+- The [production provider](catalog-provider.md) is tested against the fixtures for
+  availability, identity, deadlines/cancellation, retry/cooldown limits and scoped
+  caches. Source-reference, overlay and rule bindings remain to be composed.
 - Production LSP stdio client/server integration and diagnostics race tests.
 - Smoke tests against real pinned Backstage backends. Neither fake probes nor the
   two existing catalog-model adapters establish deployed backend compatibility.

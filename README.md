@@ -3,12 +3,14 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, native BC-01/BC-02 and managed CEL rules implemented.** Contract version
+**Status: source parsing, native BC-01/BC-02, managed CEL and catalog HTTP access implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
 adapters apply native kinds/policies with source-attributed defaults. References,
 substitutions, admission/overlays, schema rules, CLI/LSP and hosted control remain.
+Bounded catalog HTTP access returns immutable observations with scoped caches,
+retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.
 
 ## Development
@@ -44,6 +46,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 | `npm run example:cel`             | Execute a normalized-entity fixture through the managed rules stage |
 | `npm run example:parse`           | Parse an immutable catalog fixture and show source locations        |
 | `npm run example:backstage`       | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run example:provider -- URL` | Read observations from a running fake catalog API                   |
 | `npm run benchmark:cel`           | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation

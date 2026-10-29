@@ -135,5 +135,10 @@ admission, catalog overlays or hosted authority. Earlier rules-only benchmark
 captures predate these dependencies; full pipeline startup/latency requalification
 remains an open pilot gate.
 
-Next: BC-03 native reference parsing/stringification using field-specific default
-kinds and namespace context, with same-change catalog overlays following in BC-06.
+Next: BC-03 field-specific source reference integration, using native default kinds
+and namespace context, with same-change catalog overlays following in BC-06.
+
+The production provider now uses `adapter.resolveReference` and
+`adapter.entityReference` for pinned native parsing/stringification and envelope
+identity checks. Both package pins are tested. Field-specific parsed-source
+reference integration and existence-rule/overlay semantics remain BC-03/BC-06 work.

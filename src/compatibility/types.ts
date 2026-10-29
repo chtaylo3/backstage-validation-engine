@@ -63,6 +63,18 @@ export interface NativeExecutionContext {
 export interface BackstageAdapter {
   readonly id: BackstageAdapterId;
   readonly kinds: readonly string[];
+  /** Native reference parsing only; field-specific source contexts are supplied by the caller. */
+  resolveReference(
+    reference: string,
+    context?: { readonly defaultKind?: string; readonly defaultNamespace?: string },
+  ): {
+    readonly kind: string;
+    readonly namespace: string;
+    readonly name: string;
+    readonly entityRef: string;
+  };
+  /** Native envelope only, accepting catalog data for custom kinds without applying ingestion policies. */
+  entityReference(value: Immutable<JsonValue>): string;
   validateSettings(settings: Immutable<DeploymentProfile['nativePolicies']>): void;
   /** Native Entity schema and stock kind checks, without configured policies. */
   checkEntity(

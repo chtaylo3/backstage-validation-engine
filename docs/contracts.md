@@ -79,9 +79,11 @@ includes provider/connection, installation, principal, permission revision,
 scope, data revision, fetch time, and expiry.
 
 Requests reject stale/future observations, installation mismatches, and permission
-revision mismatches. Trusted adapters must verify principal/scope authorization;
-this foundation does not perform network requests or authenticate callers.
-Provider cache keys and retry/rate-limit behavior are subsequent implementation.
+revision mismatches. Trusted host adapters must verify principal/scope authorization;
+the contract parser checks consistency rather than authenticating callers.
+The [catalog provider](catalog-provider.md) implements bounded HTTP, credential
+bindings, scoped caches, retries and rate limits. Data is pinned before evaluation
+using the original operation deadline.
 
 ## Decisions and enforcement
 

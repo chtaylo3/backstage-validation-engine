@@ -88,6 +88,16 @@ JSON. Required unavailable processors and unresolved substitution markers block
 dependent native checks. The source-level entry point composes parsing with
 BC-01/BC-02; it does not attest later compatibility or governance stages.
 
+## Implemented catalog access boundary
+
+The [catalog provider](catalog-provider.md) selects a host-owned connection and
+credential resolver, performs native reference/envelope checks and bounded HTTP
+lookups, and returns immutable availability/provenance snapshots. Scoped caches,
+FIFO admission, retry/cooldown limits, original deadlines and cancellation are
+tested against the multi-version fake. Data is pinned before evaluation; callers
+propagate unavailable required coverage and interruptions. Source contexts/overlays,
+CEL data bindings and production LSP transport remain integration work.
+
 ## Release breadth
 
 The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and

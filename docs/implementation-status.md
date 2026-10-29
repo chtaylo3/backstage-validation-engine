@@ -87,15 +87,27 @@ remain open. Native adapter support is unchanged.
 The full `npm run check` passed locally with 325 tests, including 57 harness
 checks. Hosted CI and real Backstage backend runs are not claimed.
 
+## Production catalog provider increment
+
+Implemented host-owned endpoints/credentials, typed observations, native reference/
+envelope helpers on both pins, bounded HTTP batches/retries/cooldowns, FIFO
+admission, cancellation/shutdown and scoped LRU caches. The adapter carries the
+original deadline and returns contract-0.2 data snapshots for pinning before
+evaluation. See [provider behavior and qualification](catalog-provider.md).
+Source-context/overlay and rule bindings, production LSP transport and real-backend
+authentication/smoke qualification remain open.
+All 31 new provider checks passed locally; the full `npm run check` passed 356
+tests. The built provider example passed against the standalone fake API.
+
 ## Next increments, in order
 
 1. **Engine and compatibility.** Continue with BC-03: native contextual references,
    safe local substitutions, admission/custom kinds, proposed catalog overlays,
-   and unsupported-processor blocking. Build the versioned catalog fake/provider
-   test path alongside BC-03, then add thin LSP transport tests.
+   and unsupported-processor blocking. Compose the completed catalog fake/provider
+   path with field-specific BC-03 processing, then add thin LSP transport tests.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
-   inherited mandatory baselines. Add schema rules, provider access with bounded
-   retries/timeouts and authorization-aware caching, JSON/SARIF, and CLI exits.
+   inherited mandatory baselines. Add schema rules, bind catalog snapshots into
+   rule execution, and add JSON/SARIF output and CLI exits.
 3. **IDE path.** Cancellable async validation over workspace/open-buffer snapshots,
    stale-diagnostic suppression, version-safe fixes, responsive completion, and
    actual VS Code pilot qualification.

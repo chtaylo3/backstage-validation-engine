@@ -25,6 +25,7 @@ type Library = Pick<
   | 'entityEnvelopeSchemaValidator'
   | 'entitySchemaValidator'
   | 'stringifyEntityRef'
+  | 'parseEntityRef'
   | 'componentEntityV1alpha1Validator'
   | 'apiEntityV1alpha1Validator'
   | 'groupEntityV1alpha1Validator'
@@ -216,6 +217,23 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     return result('valid');
   };
   return Object.freeze<BackstageAdapter>({
+    resolveReference: (reference, context) => {
+      try {
+        const parsed = lib.parseEntityRef(reference, context);
+        return Object.freeze({ ...parsed, entityRef: lib.stringifyEntityRef(parsed) });
+      } catch {
+        reject('invalid_contract', '/reference', 'invalid native entity reference');
+      }
+    },
+    entityReference: (value) => {
+      try {
+        const candidate = snapshot(value) as unknown as Entity;
+        envelope(candidate);
+        return lib.stringifyEntityRef(candidate);
+      } catch {
+        reject('invalid_contract', '/entity', 'invalid native entity envelope');
+      }
+    },
     id,
     kinds: BUILTIN_KINDS,
     validateSettings: (settings) => {
