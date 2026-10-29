@@ -8,3 +8,5 @@ schemas/
 LICENSE
 # Frozen qualification corpus; preserve the planning evidence hash.
 test/fixtures/cel-qualification.json
+# Verbatim upstream OpenAPI bytes are integrity pinned.
+test/fixtures/backstage/**/openapi.yaml

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "refreshedAt": "2026-10-29T02:47:50.427Z",
+  "releaseIndexUrl": "https://api.github.com/repos/backstage/backstage/releases",
+  "supportedMinors": ["1.55", "1.56"],
+  "observedVersions": ["1.55.0", "1.55.1", "1.55.2", "1.55.3", "1.56.0", "1.56.1", "1.56.2"],
+  "releases": [
+    {
+      "backstageVersion": "1.55.3",
+      "catalogBackendVersion": "4.0.0",
+      "catalogModelVersion": "1.10.1",
+      "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+      "openApi": {
+        "path": "1.55.3/6c66969256572989ed10ee862b26065a0980c0bd/openapi.yaml",
+        "sha256": "cf26233702b7e9a356ad00edc75b52b57cfc9fad72d39de3d5f37c23a8900719"
+      }
+    },
+    {
+      "backstageVersion": "1.56.2",
+      "catalogBackendVersion": "4.0.2",
+      "catalogModelVersion": "1.10.2",
+      "sourceCommit": "1e85ac7e08f276f49604202fd7245e0ad0aa63af",
+      "openApi": {
+        "path": "1.56.2/1e85ac7e08f276f49604202fd7245e0ad0aa63af/openapi.yaml",
+        "sha256": "cf26233702b7e9a356ad00edc75b52b57cfc9fad72d39de3d5f37c23a8900719"
+      }
+    }
+  ]
+}

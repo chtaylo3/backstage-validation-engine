@@ -28,6 +28,11 @@ adapter. Unknown IDs are configuration errors; an unavailable/mismatched package
 does not fall back to another version. Backstage modules are not imported during
 unrelated root-library initialization.
 
+The [catalog HTTP harness](testing-harness.md) independently pins wire-contract
+fixtures for Backstage umbrella releases 1.55.3 and 1.56.2. Their recorded backend
+and model package versions are provenance, not additional native-validation adapter
+support. Real deployed-backend smoke qualification remains open.
+
 `adapter.checkEntity(json, execution)` runs the public native `entitySchemaValidator`
 and the selected stock kind validator. The eight-kind fixture corpus compares
 native acceptance with the wrapper on both pins, including empty specs, invalid

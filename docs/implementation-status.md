@@ -64,11 +64,35 @@ the pre-release deployment profile. Existing disabled configurations are unchang
 Historical rules-stage benchmarks remain scoped evidence; integrated native
 pipeline performance still needs qualification before pilot release.
 
+## Versioned test-harness plumbing
+
+Implemented numeric latest-patch selection for explicitly supported Backstage
+major.minor lines across concurrent majors/minors, immutable package/spec pins,
+offline OpenAPI artifact integrity verification, and concurrent fixture lifecycle
+with isolated HTTP probe coverage and cleanup after partial startup. The convention
+is to test only the latest stable patch in each supported minor. Synthetic matrix
+tests prove multi-major selection independently of upstream releases. See
+[harness design and acceptance](testing-harness.md).
+All 28 new harness checks passed locally, bringing the suite to 296 tests; the
+full `npm run check` passed with loopback socket access enabled for HTTP probes.
+
+The subsequent catalog harness increment captures official Backstage 1.55.3 and
+1.56.2 OpenAPI specs/licenses and exact package/source provenance. The fake now
+validates the implemented full-entity single/batch lookup subset against those
+specs, with scoped fixture identities, mutation controls, one-shot failures,
+response gates, cancellation and isolated listeners. Release refresh and read-only
+upstream drift commands are implemented; a separate weekly/manual drift workflow
+is configured. Production provider/LSP integration and real-backend smoke tests
+remain open. Native adapter support is unchanged.
+The full `npm run check` passed locally with 325 tests, including 57 harness
+checks. Hosted CI and real Backstage backend runs are not claimed.
+
 ## Next increments, in order
 
 1. **Engine and compatibility.** Continue with BC-03: native contextual references,
    safe local substitutions, admission/custom kinds, proposed catalog overlays,
-   and unsupported-processor blocking.
+   and unsupported-processor blocking. Build the versioned catalog fake/provider
+   test path alongside BC-03, then add thin LSP transport tests.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, provider access with bounded
    retries/timeouts and authorization-aware caching, JSON/SARIF, and CLI exits.

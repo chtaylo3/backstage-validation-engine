@@ -27,20 +27,24 @@ drift detection, a production build, and the tests. CI schedules the same checks
 on Linux, Windows, and macOS; a configured matrix is not evidence that those runs
 have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 
-| Command                     | Purpose                                                             |
-| --------------------------- | ------------------------------------------------------------------- |
-| `npm run build`             | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
-| `npm test`                  | Compile and run the Node test suite                                 |
-| `npm run test:coverage`     | Run tests with Node's experimental coverage report                  |
-| `npm run lint`              | Run ESLint with TypeScript type information                         |
-| `npm run format`            | Format source, examples, and documentation                          |
-| `npm run schemas:generate`  | Regenerate checked-in JSON Schemas from the contract definitions    |
-| `npm run schemas:check`     | Fail if checked-in schemas differ from the definitions              |
-| `npm run clean`             | Remove build, test, and coverage output                             |
-| `npm run example:cel`       | Execute a normalized-entity fixture through the managed rules stage |
-| `npm run example:parse`     | Parse an immutable catalog fixture and show source locations        |
-| `npm run example:backstage` | Parse a fixture, apply native policies and run CEL rules            |
-| `npm run benchmark:cel`     | Measure fresh-process, warm, and 100-entity rules-stage latency     |
+| Command                           | Purpose                                                             |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `npm run build`                   | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
+| `npm test`                        | Compile and run the Node test suite                                 |
+| `npm run test:harness`            | Check version selection, pinned artifacts and concurrent fixtures   |
+| `npm run fixtures:serve`          | Start the pinned fake catalog APIs on isolated localhost ports      |
+| `npm run fixtures:refresh`        | Capture latest patches and upstream specs for supported minors      |
+| `npm run fixtures:check-upstream` | Detect upstream release, package or contract drift                  |
+| `npm run test:coverage`           | Run tests with Node's experimental coverage report                  |
+| `npm run lint`                    | Run ESLint with TypeScript type information                         |
+| `npm run format`                  | Format source, examples, and documentation                          |
+| `npm run schemas:generate`        | Regenerate checked-in JSON Schemas from the contract definitions    |
+| `npm run schemas:check`           | Fail if checked-in schemas differ from the definitions              |
+| `npm run clean`                   | Remove build, test, and coverage output                             |
+| `npm run example:cel`             | Execute a normalized-entity fixture through the managed rules stage |
+| `npm run example:parse`           | Parse an immutable catalog fixture and show source locations        |
+| `npm run example:backstage`       | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run benchmark:cel`           | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation
 
@@ -84,6 +88,10 @@ For YAML parsing, exact source ranges, recovery and budgets, see the
 
 For versioned native envelopes/kinds, policies and normalization provenance, see
 [Backstage compatibility](docs/backstage-compatibility.md) and `npm run example:backstage`.
+
+For the versioned catalog HTTP fake, fixture controls and upstream update process,
+see the [testing harness guide](docs/testing-harness.md). Start one minor with
+`npm run fixtures:serve -- 1.56`, or omit the minor to start all fixture targets.
 
 ## Structure
 
