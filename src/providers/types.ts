@@ -78,6 +78,8 @@ export interface CatalogExecutionContext {
   readonly signal?: AbortSignal;
 }
 export interface CatalogProvider {
+  readonly connectionId: string;
+  readonly adapterId: BackstageAdapterId;
   lookup(
     references: readonly string[],
     access: CatalogAccessContext,

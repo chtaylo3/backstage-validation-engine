@@ -29,3 +29,9 @@ export type { EvaluationContext } from './runtime/request-budget.js';
 export * from './parsing/index.js';
 export * from './compatibility/index.js';
 export * from './providers/index.js';
+export { prepareBackstageReferenceData } from './core/reference-data.js';
+export type {
+  ReferenceDataPreparation,
+  BackstageReferenceObservation,
+  ReferenceBlockReason,
+} from './core/reference-data.js';

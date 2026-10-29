@@ -82,8 +82,9 @@ validates the implemented full-entity single/batch lookup subset against those
 specs, with scoped fixture identities, mutation controls, one-shot failures,
 response gates, cancellation and isolated listeners. Release refresh and read-only
 upstream drift commands are implemented; a separate weekly/manual drift workflow
-is configured. Production provider/LSP integration and real-backend smoke tests
-remain open. Native adapter support is unchanged.
+is configured. Provider/source-reference integration is covered by subsequent
+increments below; LSP and real-backend smoke tests remain open. Native adapter
+support is unchanged.
 The full `npm run check` passed locally with 325 tests, including 57 harness
 checks. Hosted CI and real Backstage backend runs are not claimed.
 
@@ -94,17 +95,31 @@ envelope helpers on both pins, bounded HTTP batches/retries/cooldowns, FIFO
 admission, cancellation/shutdown and scoped LRU caches. The adapter carries the
 original deadline and returns contract-0.2 data snapshots for pinning before
 evaluation. See [provider behavior and qualification](catalog-provider.md).
-Source-context/overlay and rule bindings, production LSP transport and real-backend
+Qualified overlay and rule bindings, production LSP transport and real-backend
 authentication/smoke qualification remain open.
 All 31 new provider checks passed locally; the full `npm run check` passed 356
 tests. The built provider example passed against the standalone fake API.
 
+## Source references and catalog pinning increment
+
+Implemented BC-03 on declared owner/API/system contexts: canonical native identity,
+fixed/entity namespaces, escaped pointers, bounded array wildcards and attributed
+findings. Reports retain occurrences, source digests/versions and identity claims.
+The preparer verifies provider binding, collects eligible observations and pins
+data under the original deadline. Local/invalid/unknown/deleted/competing guards
+prevent fallback until BC-06 qualification. See [scope and acceptance](source-references.md).
+Missing references remain data until an explicit organization rule consumes them.
+All 31 new checks passed locally, including both native pins against both backend
+fixtures. The full check passed 387 tests; reference-preparation and native/CEL
+examples passed. Full overlay, policy-binding, hosted CI and real IDE/backend
+qualification remain open.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Continue with BC-03: native contextual references,
-   safe local substitutions, admission/custom kinds, proposed catalog overlays,
-   and unsupported-processor blocking. Compose the completed catalog fake/provider
-   path with field-specific BC-03 processing, then add thin LSP transport tests.
+1. **Engine and compatibility.** Continue with safe substitutions, admission/custom
+   kinds, qualified overlays and full processor blocking. The source/provider path
+   is ready for thin LSP transport and fixture-driven editor tests alongside
+   remaining compatibility work.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, bind catalog snapshots into
    rule execution, and add JSON/SARIF output and CLI exits.

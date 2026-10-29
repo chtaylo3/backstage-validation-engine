@@ -81,6 +81,10 @@ The 2026-10-29 production-provider increment adds 31 checks to `test:harness`, f
 88 harness/provider checks. The full project check passed 356 tests. The provider
 example passed against the standalone fixture server; real-backend runs remain open.
 
+The source-reference/preparation increment adds 31 checks to `test:harness`, for
+119 harness/integration checks. The full project check passed 387 tests, and the
+new source-reference example passed against the standalone fixture server.
+
 ## Inventory shape and use
 
 The TypeScript API accepts this shape (illustrative version numbers only):
@@ -202,7 +206,8 @@ or retiring a supported minor is a separate explicit support-policy change.
   completion path needs them, with version-specific semantic fixtures.
 - The [production provider](catalog-provider.md) is tested against the fixtures for
   availability, identity, deadlines/cancellation, retry/cooldown limits and scoped
-  caches. Source-reference, overlay and rule bindings remain to be composed.
+  caches. The [reference preparer](source-references.md) exercises both native pins
+  against both fixtures. Qualified overlays and rule bindings remain to be composed.
 - Production LSP stdio client/server integration and diagnostics race tests.
 - Smoke tests against real pinned Backstage backends. Neither fake probes nor the
   two existing catalog-model adapters establish deployed backend compatibility.

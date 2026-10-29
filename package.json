@@ -39,7 +39,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/*.test.js",
-    "test:harness": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/fixture-matrix.test.js .test-dist/test/catalog-api.test.js .test-dist/test/catalog-provider.test.js .test-dist/test/release-refresh.test.js",
+    "test:harness": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/fixture-matrix.test.js .test-dist/test/catalog-api.test.js .test-dist/test/catalog-provider.test.js .test-dist/test/backstage-references.test.js .test-dist/test/release-refresh.test.js",
     "fixtures:refresh": "tsc -p tsconfig.test.json && node .test-dist/test/harness/refresh-cli.js",
     "fixtures:check-upstream": "tsc -p tsconfig.test.json && node .test-dist/test/harness/refresh-cli.js --check",
     "fixtures:serve": "tsc -p tsconfig.test.json && node .test-dist/test/harness/serve-cli.js",
@@ -51,6 +51,7 @@
     "example:parse": "npm run build && node examples/parse-catalog.mjs",
     "example:backstage": "npm run build && node examples/validate-backstage.mjs",
     "example:provider": "npm run build && node examples/read-catalog.mjs",
+    "example:references": "npm run build && node examples/prepare-references.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test"
   },
   "dependencies": {

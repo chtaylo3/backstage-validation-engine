@@ -3,12 +3,12 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, native BC-01/BC-02, managed CEL and catalog HTTP access implemented.** Contract version
+**Status: source parsing, declared BC-01/BC-02/BC-03, managed CEL and catalog access implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
-adapters apply native kinds/policies with source-attributed defaults. References,
-substitutions, admission/overlays, schema rules, CLI/LSP and hosted control remain.
+adapters apply native kinds/policies and field-specific references with source
+provenance. Substitutions, admission/overlays, schema rules, CLI/LSP and hosted control remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.
@@ -29,25 +29,26 @@ drift detection, a production build, and the tests. CI schedules the same checks
 on Linux, Windows, and macOS; a configured matrix is not evidence that those runs
 have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 
-| Command                           | Purpose                                                             |
-| --------------------------------- | ------------------------------------------------------------------- |
-| `npm run build`                   | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
-| `npm test`                        | Compile and run the Node test suite                                 |
-| `npm run test:harness`            | Check version selection, pinned artifacts and concurrent fixtures   |
-| `npm run fixtures:serve`          | Start the pinned fake catalog APIs on isolated localhost ports      |
-| `npm run fixtures:refresh`        | Capture latest patches and upstream specs for supported minors      |
-| `npm run fixtures:check-upstream` | Detect upstream release, package or contract drift                  |
-| `npm run test:coverage`           | Run tests with Node's experimental coverage report                  |
-| `npm run lint`                    | Run ESLint with TypeScript type information                         |
-| `npm run format`                  | Format source, examples, and documentation                          |
-| `npm run schemas:generate`        | Regenerate checked-in JSON Schemas from the contract definitions    |
-| `npm run schemas:check`           | Fail if checked-in schemas differ from the definitions              |
-| `npm run clean`                   | Remove build, test, and coverage output                             |
-| `npm run example:cel`             | Execute a normalized-entity fixture through the managed rules stage |
-| `npm run example:parse`           | Parse an immutable catalog fixture and show source locations        |
-| `npm run example:backstage`       | Parse a fixture, apply native policies and run CEL rules            |
-| `npm run example:provider -- URL` | Read observations from a running fake catalog API                   |
-| `npm run benchmark:cel`           | Measure fresh-process, warm, and 100-entity rules-stage latency     |
+| Command                             | Purpose                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `npm run build`                     | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
+| `npm test`                          | Compile and run the Node test suite                                 |
+| `npm run test:harness`              | Check version selection, pinned artifacts and concurrent fixtures   |
+| `npm run fixtures:serve`            | Start the pinned fake catalog APIs on isolated localhost ports      |
+| `npm run fixtures:refresh`          | Capture latest patches and upstream specs for supported minors      |
+| `npm run fixtures:check-upstream`   | Detect upstream release, package or contract drift                  |
+| `npm run test:coverage`             | Run tests with Node's experimental coverage report                  |
+| `npm run lint`                      | Run ESLint with TypeScript type information                         |
+| `npm run format`                    | Format source, examples, and documentation                          |
+| `npm run schemas:generate`          | Regenerate checked-in JSON Schemas from the contract definitions    |
+| `npm run schemas:check`             | Fail if checked-in schemas differ from the definitions              |
+| `npm run clean`                     | Remove build, test, and coverage output                             |
+| `npm run example:cel`               | Execute a normalized-entity fixture through the managed rules stage |
+| `npm run example:parse`             | Parse an immutable catalog fixture and show source locations        |
+| `npm run example:backstage`         | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run example:provider -- URL`   | Read observations from a running fake catalog API                   |
+| `npm run example:references -- URL` | Prepare source references and pin catalog data for evaluation       |
+| `npm run benchmark:cel`             | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation
 
@@ -95,6 +96,9 @@ For versioned native envelopes/kinds, policies and normalization provenance, see
 For the versioned catalog HTTP fake, fixture controls and upstream update process,
 see the [testing harness guide](docs/testing-harness.md). Start one minor with
 `npm run fixtures:serve -- 1.56`, or omit the minor to start all fixture targets.
+
+For contextual references and source-to-provider data pinning, see
+[source references](docs/source-references.md) and `npm run example:references -- URL`.
 
 ## Structure
 

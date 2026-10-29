@@ -103,10 +103,31 @@ export interface BackstageCompatibilityReport {
   readonly sourceDigest: string;
   readonly profileDigest: string;
   readonly entities: readonly CompatibleSourceEntity[];
+  readonly references: readonly BackstageSourceReference[];
+  readonly sourceClaims: readonly SourceIdentityClaim[];
+  /** Some proposed sources cannot yet be assigned a safe canonical identity. */
+  readonly unresolvedSourceIdentities: boolean;
   readonly findings: readonly Immutable<Finding>[];
   readonly coverage: readonly Immutable<ValidationResult['coverage'][number]>[];
   readonly artifacts: Immutable<ValidationResult['artifacts']>;
   readonly interrupted: ValidationResult['resources']['interrupted'];
+}
+
+export interface BackstageSourceReference {
+  readonly sourceEntityRef: string;
+  readonly targetRef: string;
+  readonly value: string;
+  readonly contextPath: string;
+  readonly sourceDigest: string;
+  readonly version?: number;
+  readonly location: Immutable<Finding['location']>;
+  readonly relatedLocations: readonly Immutable<Finding['location']>[];
+}
+
+export interface SourceIdentityClaim {
+  readonly uri: string;
+  readonly document: number;
+  readonly entityRef?: string;
 }
 
 export class BackstageRuntimeError extends Error {

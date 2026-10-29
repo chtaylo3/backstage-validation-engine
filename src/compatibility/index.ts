@@ -11,5 +11,8 @@ export type {
   NativeEntityCheck,
   NormalizationChange,
   CompatibleSourceEntity,
+  BackstageSourceReference,
+  SourceIdentityClaim,
   BackstageCompatibilityReport,
 } from './types.js';
+export { REFERENCE_LIMITS } from '../policy/reference-contexts.js';

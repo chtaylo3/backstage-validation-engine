@@ -52,8 +52,9 @@ try {
     JSON.stringify(
       {
         scope:
-          'Example of parsing, native BC-01/BC-02 and CEL rules; remaining compatibility stages are not attested.',
+          'Example of parsing, declared native BC-01/BC-02/BC-03 contexts and CEL rules; later compatibility stages remain unqualified.',
         adapterId: native.adapterId,
+        references: native.references,
         entities: native.entities.map(({ document, ...entity }) => ({
           ...entity,
           uri: document.uri,

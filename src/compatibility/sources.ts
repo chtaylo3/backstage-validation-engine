@@ -19,12 +19,16 @@ import { locateParsedPath, parseSourceSnapshot, parsingFindings } from '../parsi
 import type { ParsedSourceDocument } from '../parsing/index.js';
 import { CelError } from '../runtime/cel/errors.js';
 import { RequestBudget } from '../runtime/request-budget.js';
+import { compileReferenceContexts } from '../policy/reference-contexts.js';
+import { extractEntityReferences } from './references.js';
 import { loadBackstageAdapter } from './adapter.js';
 import { BackstageRuntimeError } from './types.js';
 import type {
   BackstageCompatibilityReport,
   CompatibleSourceEntity,
   NativeEntityCheck,
+  BackstageSourceReference,
+  SourceIdentityClaim,
 } from './types.js';
 
 const MESSAGES = Object.freeze({
@@ -39,6 +43,9 @@ const MESSAGES = Object.freeze({
   cancelled: 'Native validation cancelled.',
   timeout: 'Validation request deadline exceeded during native validation.',
   adapter_unavailable: 'Pinned native adapter is unavailable.',
+  invalid_reference: 'Reference does not satisfy the configured native reference context.',
+  invalid_reference_shape: 'Reference field does not have the configured scalar/array structure.',
+  invalid_identity: 'Entity identity cannot be represented by an unambiguous native reference.',
 });
 
 async function substitutionPath(
@@ -62,7 +69,7 @@ async function substitutionPath(
   return undefined;
 }
 
-/** Executes parsing and BC-01/BC-02 only; remaining pipeline stages are not attested. */
+/** Executes parsing and declared BC-01/BC-02/BC-03 contexts; later stages are not attested. */
 export async function validateBackstageSources(
   request: Immutable<ValidationRequest>,
   context: {
@@ -76,6 +83,8 @@ export async function validateBackstageSources(
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
   verifyRequestBindings(run, context);
   const profile = parseContract('deployment-profile', context.profile);
+  const referencePatterns = compileReferenceContexts(profile.referenceContexts);
+  const referenceCounter = { visits: 0, occurrences: 0 };
   const parsed = await parseSourceSnapshot(run.source, {
     mode: run.execution.mode,
     deadlineAt: run.execution.deadlineAt,
@@ -92,6 +101,9 @@ export async function validateBackstageSources(
   const findings: Immutable<Finding>[] = [...parsingFindings(run, parsed)];
   const coverage: Immutable<Coverage>[] = [...parsed.coverage];
   const entities: CompatibleSourceEntity[] = [];
+  const references: BackstageSourceReference[] = [];
+  const sourceClaims: SourceIdentityClaim[] = [];
+  const unparsedSources = parsed.files.some((file) => file.status !== 'parsed');
   const artifacts: ValidationResult['artifacts'] = [];
   let interrupted = parsed.interrupted;
   const diagnostic = (
@@ -162,6 +174,21 @@ export async function validateBackstageSources(
       adapter = await loadBackstageAdapter(profile.adapterId);
       budget.throwIfInterrupted();
       adapter.validateSettings(profile.nativePolicies);
+      for (const pattern of referencePatterns) {
+        try {
+          adapter.resolveReference('context-check', {
+            defaultKind: pattern.defaultKind,
+            defaultNamespace: pattern.namespace === 'entity' ? 'default' : pattern.namespace,
+          });
+        } catch {
+          throw new ContractError('invalid_contract', [
+            {
+              path: '/referenceContexts',
+              message: 'reference context defaults must form an unambiguous native reference',
+            },
+          ]);
+        }
+      }
     }
   } catch (error) {
     if (error instanceof ContractError) throw error;
@@ -184,6 +211,19 @@ export async function validateBackstageSources(
   }
   for (const document of parsed.documents) {
     const subject = JSON.stringify([document.uri, document.document]);
+    let claim: SourceIdentityClaim = { uri: document.uri, document: document.document };
+    if (!unavailable && adapter && !profile.requiredProcessors.length) {
+      try {
+        const identity = adapter.resolveReference(
+          adapter.entityReference(document.value),
+        ).entityRef;
+        claim = { ...claim, entityRef: identity };
+      } catch {
+        /* Unresolved identities are retained as conservative blockers. */
+      }
+    }
+    const claimIndex = sourceClaims.length;
+    sourceClaims.push(claim);
     if (unavailable || !adapter || profile.requiredProcessors.length) {
       coverage.push({
         stage: 'compatibility',
@@ -194,6 +234,7 @@ export async function validateBackstageSources(
       });
       continue;
     }
+    let phase: 'native' | 'references' = 'native';
     try {
       await yieldTurn();
       budget.throwIfInterrupted();
@@ -245,6 +286,47 @@ export async function validateBackstageSources(
           `${issue.stage}/${issue.code}`,
         );
       if (checked.status === 'valid' && checked.entityRef) {
+        phase = 'references';
+        try {
+          sourceClaims[claimIndex] = {
+            ...claim,
+            entityRef: adapter.entityReference(checked.normalized),
+          };
+        } catch {
+          diagnostic(
+            document,
+            'invalid_identity',
+            '/metadata',
+            'compatibility',
+            'references/invalid_identity',
+          );
+          coverage.push({
+            stage: 'compatibility',
+            subject: JSON.stringify(['references', document.uri, document.document]),
+            required: true,
+            status: 'verified',
+          });
+          continue;
+        }
+        const extracted = await extractEntityReferences(
+          document,
+          checked.normalized,
+          checked.entityRef,
+          referencePatterns,
+          adapter,
+          budget,
+          referenceCounter,
+        );
+        coverage.push({
+          stage: 'compatibility',
+          subject: JSON.stringify(['references', document.uri, document.document]),
+          required: true,
+          status: 'verified',
+        });
+        for (const issue of extracted.issues)
+          diagnostic(document, issue.code, issue.path, 'compatibility', `references/${issue.code}`);
+        if (extracted.issues.length) continue;
+        references.push(...extracted.references);
         const changes = checked.changes.map((change) => ({
           ...change,
           origin: locateParsedPath(document, change.path),
@@ -282,7 +364,10 @@ export async function validateBackstageSources(
       diagnostic(document, code, '', code === 'adapter_unavailable' ? 'dependency' : 'resource');
       coverage.push({
         stage: 'compatibility',
-        subject,
+        subject:
+          phase === 'references'
+            ? JSON.stringify(['references', document.uri, document.document])
+            : subject,
         required: true,
         status: 'blocked',
         reason: MESSAGES[code],
@@ -306,6 +391,10 @@ export async function validateBackstageSources(
     sourceDigest: run.source.digest,
     profileDigest: run.profile.digest,
     entities,
+    references,
+    sourceClaims,
+    unresolvedSourceIdentities:
+      unparsedSources || sourceClaims.some((claim) => claim.entityRef === undefined),
     findings,
     coverage,
     artifacts,

@@ -16,6 +16,7 @@ import { ContractError, reject } from '../core/errors.js';
 import { canonicalJson, deepFreeze, digestJson, digestText } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
 import { orderRules } from '../policy/rule-graph.js';
+import { compileReferenceContexts } from '../policy/reference-contexts.js';
 import { decideOutcome } from '../core/outcomes.js';
 
 export interface ContractTypes {
@@ -284,6 +285,7 @@ export function parseContract<K extends keyof ContractTypes>(
         profile.referenceContexts.map((context) => context.path),
         '/referenceContexts',
       );
+      compileReferenceContexts(profile.referenceContexts);
       unique(
         profile.requiredProcessors.map((processor) =>
           JSON.stringify([processor.id, processor.stage]),

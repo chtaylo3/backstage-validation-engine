@@ -34,7 +34,7 @@ function strings(values: readonly string[]): readonly string[] {
   }
   return Object.freeze([...values].sort());
 }
-function accessContext(input: CatalogAccessContext): CatalogAccessContext {
+export function normalizeCatalogAccess(input: CatalogAccessContext): CatalogAccessContext {
   let value: CatalogAccessContext;
   try {
     value = JSON.parse(
@@ -205,7 +205,7 @@ export async function createCatalogProvider(
     } catch {
       throw new CatalogProviderError('input_limit');
     }
-    const access = accessContext(rawAccess);
+    const access = normalizeCatalogAccess(rawAccess);
     let refs: string[];
     try {
       refs = [...new Set(safeInput.map((ref) => adapter.resolveReference(ref).entityRef))];
@@ -413,6 +413,8 @@ export async function createCatalogProvider(
     }
   };
   return Object.freeze<CatalogProvider>({
+    connectionId,
+    adapterId: adapter.id,
     lookup: (refs, access, execution) => {
       const work = lookup(refs, access, execution);
       calls.add(work);

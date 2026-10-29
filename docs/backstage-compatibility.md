@@ -1,6 +1,7 @@
 # Native Backstage compatibility
 
-Status: BC-01/BC-02 implemented and locally tested, 2026-10-28. Source parsing is
+Status: BC-01/BC-02 and declared BC-03 contexts implemented and locally tested,
+2026-10-29. Source parsing is
 implemented; this increment adds the exact native catalog-model adapters selected
 by ADR 0002 in the planning repository.
 
@@ -8,7 +9,7 @@ by ADR 0002 in the planning repository.
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | BC-01 | Native envelope/kind parity for Component, API, Group, User, Resource, System, Domain and Location on 1.10.2 and 1.7.5                       | Passed locally                                        |
 | BC-02 | Native namespace defaulting, field-format/root/schema policies and opt-in group-parent defaulting, preserving authored/normalized provenance | Passed locally                                        |
-| BC-03 | Contextual native entity references and canonical identity                                                                                   | Pending                                               |
+| BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                  |
 | BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Pending                                               |
 | BC-05 | Kind/source admission and declared custom schemas                                                                                            | Pending                                               |
 | BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Pending                                               |
@@ -101,6 +102,12 @@ checks are inapplicable, while parser findings still block CI. Parser resource
 interruption blocks downstream native work. Invalid native entities never appear
 in the accepted entity/artifact list.
 
+Declared references are extracted after successful native checks, with canonical
+targets separate from effective values and exact source provenance. See
+[source references and preparation](source-references.md) for context bounds,
+external observations and conservative fallback guards. Invalid references withhold
+their subject; catalog absence is not an automatic native validation error.
+
 Native errors are converted to fixed messages. A maintained prefix adapter
 extracts only diagnostic paths from known public error formats; it does not
 decide validity or expose raw native errors. Unknown formats fall back to a safe
@@ -130,15 +137,15 @@ npm run example:backstage
 
 The example parses a catalog fixture, applies native policies/kind validation and
 passes accepted normalized entities to managed CEL rules. Its output names the
-limited scope. It does not attest reference resolution, substitution processing,
+limited scope. It does not attest catalog presence, substitution processing,
 admission, catalog overlays or hosted authority. Earlier rules-only benchmark
 captures predate these dependencies; full pipeline startup/latency requalification
 remains an open pilot gate.
 
-Next: BC-03 field-specific source reference integration, using native default kinds
-and namespace context, with same-change catalog overlays following in BC-06.
+Next compatibility stages: BC-04 safe substitutions, BC-05 admission/custom kinds
+and BC-06 qualified proposed-state overlays.
 
 The production provider now uses `adapter.resolveReference` and
 `adapter.entityReference` for pinned native parsing/stringification and envelope
-identity checks. Both package pins are tested. Field-specific parsed-source
-reference integration and existence-rule/overlay semantics remain BC-03/BC-06 work.
+identity checks. Both package pins and field-specific source contexts are tested.
+Explicit existence-rule bindings and qualified overlays remain separate work.

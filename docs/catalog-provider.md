@@ -118,9 +118,11 @@ the full checks. Tests cover both real fixture targets, both native helper pins,
 binding/cache isolation, TTLs, stale arrival, retries/cooldowns, redirects, invalid
 responses, aggregate budgets, deadlines, queued cancellation and shutdown.
 
-Field-specific source contexts, proposed overlays, CEL data bindings, the production
-LSP transport and real-backend authentication/smoke qualification remain integration
-work. The adapter does not negotiate a backend API version. Wire fixtures and
+The [reference preparer](source-references.md) now collects data from source contexts,
+verifies provenance and pins an evaluation request under the original deadline.
+Qualified overlays, CEL data bindings, production LSP transport and real-backend
+authentication/smoke qualification remain integration work. The adapter does not
+negotiate a backend API version. Wire fixtures and
 native validation package support remain separate; full pipeline performance
 qualification is open.
 

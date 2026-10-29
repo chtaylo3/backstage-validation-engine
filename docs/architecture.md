@@ -55,9 +55,9 @@ does not require a broker, database, or central validation service.
 
 ## Pipeline
 
-Trusted identity → early emergency bypass → pin activation/source/policy/profile/
-data → discover and parse → resolve substitutions → native policies and admission
-→ proposed catalog overlay → rules and bounded providers → routine exceptions
+Trusted identity → early emergency bypass → pin activation/source/policy/profile
+→ discover and parse → resolve substitutions → native policies and admission
+→ proposed catalog overlay → collect and pin bounded provider data → rules → routine exceptions
 → coverage and enforcement → publication freshness check.
 
 Preserve authored and effective entities with provenance between them. Invalid
@@ -86,7 +86,8 @@ catalog-model 1.10.2/1.7.5 packages, applies declared native policies and stock 
 validators, and records source-attributed normalization separately from authored
 JSON. Required unavailable processors and unresolved substitution markers block
 dependent native checks. The source-level entry point composes parsing with
-BC-01/BC-02; it does not attest later compatibility or governance stages.
+BC-01/BC-02 and declared BC-03 contexts; it does not attest later compatibility
+or governance stages.
 
 ## Implemented catalog access boundary
 
@@ -95,8 +96,11 @@ credential resolver, performs native reference/envelope checks and bounded HTTP
 lookups, and returns immutable availability/provenance snapshots. Scoped caches,
 FIFO admission, retry/cooldown limits, original deadlines and cancellation are
 tested against the multi-version fake. Data is pinned before evaluation; callers
-propagate unavailable required coverage and interruptions. Source contexts/overlays,
-CEL data bindings and production LSP transport remain integration work.
+propagate unavailable required coverage and interruptions. The
+[reference preparer](source-references.md) connects source contexts to observations
+and pins a new evaluation request under the original deadline. Conservative guards
+prevent premature fallback. Qualified overlays, CEL data bindings and production
+LSP transport remain integration work.
 
 ## Release breadth
 

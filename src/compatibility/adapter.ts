@@ -26,6 +26,7 @@ type Library = Pick<
   | 'entitySchemaValidator'
   | 'stringifyEntityRef'
   | 'parseEntityRef'
+  | 'getCompoundEntityRef'
   | 'componentEntityV1alpha1Validator'
   | 'apiEntityV1alpha1Validator'
   | 'groupEntityV1alpha1Validator'
@@ -220,7 +221,17 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     resolveReference: (reference, context) => {
       try {
         const parsed = lib.parseEntityRef(reference, context);
-        return Object.freeze({ ...parsed, entityRef: lib.stringifyEntityRef(parsed) });
+        const entityRef = lib.stringifyEntityRef(parsed);
+        const roundtrip = lib.parseEntityRef(entityRef);
+        if (
+          ['kind', 'namespace', 'name'].some(
+            (key) =>
+              roundtrip[key as keyof typeof roundtrip] !==
+              parsed[key as keyof typeof parsed].toLowerCase(),
+          )
+        )
+          throw new Error('Ambiguous reference');
+        return Object.freeze({ ...parsed, entityRef });
       } catch {
         reject('invalid_contract', '/reference', 'invalid native entity reference');
       }
@@ -229,7 +240,18 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
       try {
         const candidate = snapshot(value) as unknown as Entity;
         envelope(candidate);
-        return lib.stringifyEntityRef(candidate);
+        const entityRef = lib.stringifyEntityRef(candidate);
+        const actual = lib.getCompoundEntityRef(candidate);
+        const roundtrip = lib.parseEntityRef(entityRef);
+        if (
+          ['kind', 'namespace', 'name'].some(
+            (key) =>
+              roundtrip[key as keyof typeof roundtrip] !==
+              actual[key as keyof typeof actual].toLowerCase(),
+          )
+        )
+          throw new Error('Ambiguous identity');
+        return entityRef;
       } catch {
         reject('invalid_contract', '/entity', 'invalid native entity envelope');
       }
