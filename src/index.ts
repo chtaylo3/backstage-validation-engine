@@ -14,7 +14,9 @@ export type { FindingIdentity, ResultInput } from './core/results.js';
 export { orderRules } from './policy/rule-graph.js';
 export { DEFAULT_DEPLOYMENT_PROFILE } from './policy/profile.js';
 export { verifyRequestBindings } from './core/bindings.js';
-export { executeCelRules } from './core/cel-rules.js';
+export { executeCelRules, executePolicyRules } from './core/cel-rules.js';
+export { validatePolicySources } from './core/policy-sources.js';
+export type { PolicySourceContext } from './core/policy-sources.js';
 export type { RuleSubject, RuleExecutionReport } from './core/cel-rules.js';
 export {
   getSharedCelRuntime,

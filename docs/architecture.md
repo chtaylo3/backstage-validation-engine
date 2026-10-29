@@ -99,8 +99,11 @@ tested against the multi-version fake. Data is pinned before evaluation; callers
 propagate unavailable required coverage and interruptions. The
 [reference preparer](source-references.md) connects source contexts to observations
 and pins a new evaluation request under the original deadline. Conservative guards
-prevent premature fallback. Qualified overlays, CEL data bindings and production
-LSP transport remain integration work.
+prevent premature fallback. [Explicit catalog rules and the stdio LSP](lsp.md)
+now consume those pins through `validatePolicySources`. The editor adapter owns
+workspace generations, cancellation and versioned publication; authority remains
+launcher-owned. Qualified positive overlays and real-backend/editor qualification
+remain open.
 
 ## Release breadth
 

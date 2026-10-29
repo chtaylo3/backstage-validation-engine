@@ -92,9 +92,9 @@ deadlines, without an enforcement verdict.
 Tests cover both native pins against both fixtures, namespaces/case, escaped paths,
 arrays, aliases/defaults, resource bounds, invalid/unknown/deleted/competing claims,
 authorization binding, unavailable data, cancellation, stale retained data and
-overlapping buffer versions. Future LSP transport must suppress superseded source
-digests/versions. Catalog-backed rule bindings, BC-04/BC-05/BC-06 and real backend/
-IDE qualification remain open.
+overlapping buffer versions. [Catalog rules and the LSP](lsp.md) now consume these
+pins and suppress superseded editor generations. BC-04/BC-05/BC-06 and real
+backend/IDE qualification remain open.
 
 Local qualification on 2026-10-29: 31 new reference/preparation checks passed;
 `npm run check` passed all 387 tests. The source-reference example passed against

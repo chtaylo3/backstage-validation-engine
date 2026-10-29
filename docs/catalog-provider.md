@@ -120,7 +120,8 @@ responses, aggregate budgets, deadlines, queued cancellation and shutdown.
 
 The [reference preparer](source-references.md) now collects data from source contexts,
 verifies provenance and pins an evaluation request under the original deadline.
-Qualified overlays, CEL data bindings, production LSP transport and real-backend
+[Explicit catalog rules and the stdio LSP](lsp.md) consume those pins without
+changing the frozen CEL environment. Qualified overlays and real-backend
 authentication/smoke qualification remain integration work. The adapter does not
 negotiate a backend API version. Wire fixtures and
 native validation package support remain separate; full pipeline performance

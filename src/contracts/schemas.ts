@@ -166,6 +166,12 @@ const rule = Type.Union([
     expression: Type.String({ minLength: 1, maxLength: 4096 }),
   }),
   object({ ...ruleBase, kind: Type.Literal('schema'), schema: artifactRef }),
+  object({
+    ...ruleBase,
+    kind: Type.Literal('catalog'),
+    check: Type.Literal('exists'),
+    referencePath: Type.String({ minLength: 1, maxLength: 4096 }),
+  }),
 ]);
 export const PolicyBundleSchema = schema('policy-bundle', {
   contractVersion: version(),

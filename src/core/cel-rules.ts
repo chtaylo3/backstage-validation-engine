@@ -21,6 +21,9 @@ import { reject } from './errors.js';
 import { deepFreeze, immutableJson } from './json.js';
 import type { Immutable } from './json.js';
 import { createFindingId } from './results.js';
+import { bindCatalogReferences } from './catalog-bindings.js';
+import type { CatalogBindings } from './catalog-bindings.js';
+import type { ReferenceDataPreparation } from './reference-data.js';
 
 export interface RuleSubject {
   readonly id: string;
@@ -35,7 +38,7 @@ export interface RuleExecutionReport {
   readonly failures: readonly {
     readonly subjectId: string;
     readonly ruleId: string;
-    readonly code: CelErrorCode | 'unsupported_rule';
+    readonly code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable';
   }[];
   readonly interrupted: ValidationResult['resources']['interrupted'];
 }
@@ -96,7 +99,7 @@ function failureState(code: CelErrorCode): StateFailure {
  * not a Backstage ingestion/validation API. Identity/activation authority must
  * already have been verified by the calling adapter.
  */
-export async function executeCelRules(
+export async function executePolicyRules(
   request: Immutable<ValidationRequest>,
   context: {
     readonly profile: Immutable<DeploymentProfile>;
@@ -104,7 +107,11 @@ export async function executeCelRules(
     readonly activation: Immutable<ActivationManifest>;
   },
   subjects: readonly RuleSubject[],
-  options: { readonly signal?: AbortSignal; readonly runtime?: CelRuntime } = {},
+  options: {
+    readonly signal?: AbortSignal;
+    readonly runtime?: CelRuntime;
+    readonly referenceData?: ReferenceDataPreparation;
+  } = {},
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
@@ -130,6 +137,25 @@ export async function executeCelRules(
     return rule;
   });
   const runtime = options.runtime ?? getSharedCelRuntime();
+  const catalogPaths = [
+    ...new Set(
+      policy.rules.filter((rule) => rule.kind === 'catalog').map((rule) => rule.referencePath),
+    ),
+  ];
+  let catalogBindings: CatalogBindings = new Map();
+  try {
+    if (catalogPaths.length)
+      catalogBindings = await bindCatalogReferences(
+        run,
+        profile,
+        sorted,
+        catalogPaths,
+        options.referenceData,
+        budget,
+      );
+  } catch (error) {
+    if (!(error instanceof CelError) || !budget.interrupted) throw error;
+  }
   const evaluationContext = {
     requestId: JSON.stringify([
       run.identity.installationId,
@@ -155,7 +181,7 @@ export async function executeCelRules(
       const failures: {
         subjectId: string;
         ruleId: string;
-        code: CelErrorCode | 'unsupported_rule';
+        code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable';
       }[] = [];
       let interrupted: RuleExecutionReport['interrupted'] = 'none';
       for (const rule of rules) {
@@ -176,7 +202,7 @@ export async function executeCelRules(
           state.reason = 'prerequisite_blocked';
           covered.status = 'blocked';
           covered.reason = 'A prerequisite did not pass.';
-        } else if (rule.kind !== 'cel') {
+        } else if (rule.kind === 'schema') {
           state.status = 'incomplete';
           state.reason = 'dependency_unavailable';
           covered.status = 'unsupported';
@@ -190,6 +216,67 @@ export async function executeCelRules(
               !(await runtime.evaluate(rule.selector, subject.value, evaluationContext))
             ) {
               state.status = 'not_applicable';
+            } else if (rule.kind === 'catalog') {
+              const facts = catalogBindings.get(subject.id)?.get(rule.referencePath);
+              const unavailable = facts?.find(
+                (fact) =>
+                  fact.status === 'unavailable' ||
+                  fact.status === 'blocked' ||
+                  (fact.expiresAt !== undefined && fact.expiresAt <= Date.now()),
+              );
+              const addFinding = (
+                location: Finding['location'],
+                relatedLocations: readonly Immutable<Finding['location']>[],
+                dependency: boolean,
+              ) =>
+                findings.push({
+                  id: createFindingId({
+                    ruleId: rule.id,
+                    ruleVersion: rule.version,
+                    subjectId: subject.id,
+                    path: location.path,
+                    policyDigest: run.policy.digest,
+                    profileDigest: run.profile.digest,
+                  }),
+                  ruleId: rule.id,
+                  ruleVersion: rule.version,
+                  subjectId: subject.id,
+                  message: dependency
+                    ? 'Catalog data is unavailable for this policy rule.'
+                    : 'Referenced catalog entity was not found in the authorized view.',
+                  category: dependency ? 'dependency' : 'policy',
+                  severity: dependency && run.execution.mode === 'ide' ? 'warning' : rule.severity,
+                  enforcement:
+                    run.execution.mode === 'ci' &&
+                    (dependency ? rule.mandatory : rule.mandatory || rule.severity === 'error')
+                      ? 'blocking'
+                      : 'advisory',
+                  location,
+                  relatedLocations: [...relatedLocations],
+                  edits: [],
+                });
+              if (!facts || unavailable) {
+                state.status = 'incomplete';
+                state.reason = 'dependency_unavailable';
+                covered.status = unavailable?.status === 'unavailable' ? 'unavailable' : 'blocked';
+                covered.reason = 'Catalog observations required by the policy are unavailable.';
+                failures.push({
+                  subjectId: subject.id,
+                  ruleId: rule.id,
+                  code: 'catalog_unavailable',
+                });
+                addFinding(
+                  unavailable?.reference.location ?? subject.location,
+                  unavailable?.reference.relatedLocations ?? [],
+                  true,
+                );
+              } else if (!facts.length) state.status = 'not_applicable';
+              else {
+                const missing = facts.filter((fact) => fact.status === 'missing');
+                if (missing.length) state.status = 'failed';
+                for (const fact of missing)
+                  addFinding(fact.reference.location, fact.reference.relatedLocations, false);
+              }
             } else if (
               !(await runtime.evaluate(rule.expression, subject.value, evaluationContext))
             ) {
@@ -280,3 +367,6 @@ export async function executeCelRules(
     interrupted,
   });
 }
+
+/** Compatibility entry point; pure CEL behavior is unchanged. */
+export const executeCelRules = executePolicyRules;

@@ -7,7 +7,7 @@ for this increment.
 
 Keep one production engine. Introduce modules and packages when an implementation
 boundary needs them. Source imports use `.js` extensions for Node ESM; public
-exports live in `src/index.ts` and `src/contracts/index.ts`. Production TypeScript
+exports live in `src/index.ts`, `src/contracts/index.ts` and `src/lsp/index.ts`. Production TypeScript
 uses strict checking, unchecked-index checks, and exact optional properties.
 
 Change contracts in `src/contracts/schemas.ts`, regenerate with

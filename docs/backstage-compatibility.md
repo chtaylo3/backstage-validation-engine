@@ -148,4 +148,5 @@ and BC-06 qualified proposed-state overlays.
 The production provider now uses `adapter.resolveReference` and
 `adapter.entityReference` for pinned native parsing/stringification and envelope
 identity checks. Both package pins and field-specific source contexts are tested.
-Explicit existence-rule bindings and qualified overlays remain separate work.
+[Explicit existence-rule bindings](lsp.md) are implemented alongside the thin LSP
+transport. Qualified positive overlays remain separate BC-06 work.

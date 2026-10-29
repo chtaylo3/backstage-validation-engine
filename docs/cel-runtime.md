@@ -155,3 +155,8 @@ Worker threads and V8 heap settings are not an operating-system sandbox or a tot
 RSS cap. Actual OOM confinement, hosted CPU/RSS/network/filesystem/credential
 denial, native IDE/OS qualification, and representative-scale qualification remain
 release gates. Arbitrary untrusted plugins remain disabled.
+
+`executePolicyRules` now also supports explicit catalog-existence rules;
+`executeCelRules` remains a compatible alias. Catalog bindings are evaluated
+outside the interpreter. The `bve-cel/1` variables, semantics and frozen corpus
+remain unchanged. See the [catalog policy/LSP guide](lsp.md).

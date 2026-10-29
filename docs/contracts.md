@@ -122,3 +122,7 @@ versions do not affect those IDs. Suggested edits carry source digest and option
 document version preconditions.
 
 See [wire examples](../examples/contracts/README.md) for all required result cases.
+
+Catalog-existence policies use the additional pre-release 0.2 `catalog` rule kind
+with `check: "exists"` and a declared `referencePath`. See [catalog rules](lsp.md)
+for pinning, applicability, missing versus unavailable semantics and compatibility.

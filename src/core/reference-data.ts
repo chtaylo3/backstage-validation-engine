@@ -49,6 +49,7 @@ export interface ReferenceDataPreparation {
   readonly pinFailure?: 'interrupted' | 'stale_data' | 'resource_limit';
   readonly interrupted: ValidationResult['resources']['interrupted'];
   readonly collectionStartedAt: number;
+  readonly referencePaths: readonly string[];
 }
 type Interruption = ReferenceDataPreparation['interrupted'];
 const priority: Record<Interruption, number> = {
@@ -82,11 +83,30 @@ export async function prepareBackstageReferenceData(
     readonly provider: CatalogProvider;
     readonly access: CatalogAccessContext;
     readonly signal?: AbortSignal;
+    readonly referencePaths?: readonly string[];
   },
 ): Promise<ReferenceDataPreparation> {
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
   verifyRequestBindings(run, context);
+  const referencePaths =
+    options.referencePaths === undefined
+      ? context.profile.referenceContexts.map((row) => row.path)
+      : [...options.referencePaths];
+  if (
+    referencePaths.length > 256 ||
+    new Set(referencePaths).size !== referencePaths.length ||
+    referencePaths.some(
+      (path) => !context.profile.referenceContexts.some((row) => row.path === path),
+    )
+  ) {
+    reject(
+      'invalid_contract',
+      '/referencePaths',
+      'reference collection must select declared contexts',
+    );
+  }
+  referencePaths.sort();
   const access = normalizeCatalogAccess(options.access);
   const provider = options.provider;
   if (
@@ -101,7 +121,11 @@ export async function prepareBackstageReferenceData(
   const compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
   let interruption: Interruption = compatibility.interrupted;
   const targets = [
-    ...new Set(compatibility.references.map((reference) => reference.targetRef)),
+    ...new Set(
+      compatibility.references
+        .filter((reference) => referencePaths.includes(reference.contextPath))
+        .map((reference) => reference.targetRef),
+    ),
   ].sort();
   const claims = new Map<string, number>();
   for (const claim of compatibility.sourceClaims)
@@ -233,5 +257,6 @@ export async function prepareBackstageReferenceData(
     ...(pinFailure ? { pinFailure } : {}),
     interrupted: interruption,
     collectionStartedAt: run.execution.startedAt,
+    referencePaths,
   });
 }

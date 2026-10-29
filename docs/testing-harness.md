@@ -207,10 +207,13 @@ or retiring a supported minor is a separate explicit support-policy change.
 - The [production provider](catalog-provider.md) is tested against the fixtures for
   availability, identity, deadlines/cancellation, retry/cooldown limits and scoped
   caches. The [reference preparer](source-references.md) exercises both native pins
-  against both fixtures. Qualified overlays and rule bindings remain to be composed.
-- Production LSP stdio client/server integration and diagnostics race tests.
+  against both fixtures. Explicit catalog rule bindings and stdio integration are
+  implemented; qualified overlays remain open.
+- The [production LSP](lsp.md) now has a subprocess stdio test client covering
+  versioned diagnostics, cancellation, close/reopen, UTF-16 edits, buffer limits
+  and shutdown against pinned fixtures. Actual editor qualification remains open.
 - Smoke tests against real pinned Backstage backends. Neither fake probes nor the
   two existing catalog-model adapters establish deployed backend compatibility.
 
-Build the fake/provider path alongside BC-03 contextual reference work, followed
-by a thin LSP path. This harness work does not close any BC-03 through BC-06 gate.
+The fake/provider/reference/LSP loop is implemented. Extend it alongside
+BC-04/BC-05/BC-06; it does not establish full ingestion or real-backend compatibility.

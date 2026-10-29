@@ -175,6 +175,71 @@
                 }
               }
             }
+          },
+          {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "version",
+              "mandatory",
+              "severity",
+              "requires",
+              "kind",
+              "check",
+              "referencePath"
+            ],
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "const": "error",
+                    "type": "string"
+                  },
+                  {
+                    "const": "warning",
+                    "type": "string"
+                  }
+                ]
+              },
+              "requires": {
+                "uniqueItems": true,
+                "type": "array",
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "selector": {
+                "minLength": 1,
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "kind": {
+                "const": "catalog",
+                "type": "string"
+              },
+              "check": {
+                "const": "exists",
+                "type": "string"
+              },
+              "referencePath": {
+                "minLength": 1,
+                "maxLength": 4096,
+                "type": "string"
+              }
+            }
           }
         ]
       }

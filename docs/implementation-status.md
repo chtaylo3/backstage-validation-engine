@@ -83,7 +83,7 @@ specs, with scoped fixture identities, mutation controls, one-shot failures,
 response gates, cancellation and isolated listeners. Release refresh and read-only
 upstream drift commands are implemented; a separate weekly/manual drift workflow
 is configured. Provider/source-reference integration is covered by subsequent
-increments below; LSP and real-backend smoke tests remain open. Native adapter
+increments below; real-backend smoke tests remain open. Native adapter
 support is unchanged.
 The full `npm run check` passed locally with 325 tests, including 57 harness
 checks. Hosted CI and real Backstage backend runs are not claimed.
@@ -95,8 +95,8 @@ envelope helpers on both pins, bounded HTTP batches/retries/cooldowns, FIFO
 admission, cancellation/shutdown and scoped LRU caches. The adapter carries the
 original deadline and returns contract-0.2 data snapshots for pinning before
 evaluation. See [provider behavior and qualification](catalog-provider.md).
-Qualified overlay and rule bindings, production LSP transport and real-backend
-authentication/smoke qualification remain open.
+Qualified overlays and real-backend authentication/smoke qualification remain
+open; catalog-rule bindings and LSP transport are implemented below.
 All 31 new provider checks passed locally; the full `npm run check` passed 356
 tests. The built provider example passed against the standalone fake API.
 
@@ -111,21 +111,40 @@ prevent fallback until BC-06 qualification. See [scope and acceptance](source-re
 Missing references remain data until an explicit organization rule consumes them.
 All 31 new checks passed locally, including both native pins against both backend
 fixtures. The full check passed 387 tests; reference-preparation and native/CEL
-examples passed. Full overlay, policy-binding, hosted CI and real IDE/backend
-qualification remain open.
+examples passed. The following increment implements policy bindings and stdio
+transport. Full overlay, hosted CI and real IDE/backend qualification remain open.
+
+## Catalog policies and stdio LSP increment
+
+Implemented explicit pinned `catalog`/`exists` policy rules, context-selected
+provider collection, source/normalized-subject/data integrity binding, precise
+missing findings and incomplete dependency coverage. `validatePolicySources`
+composes native/source checks and policy execution; `executeCelRules` remains an
+alias for `executePolicyRules`. The frozen CEL environment/corpus is unchanged.
+
+Implemented a launcher-configured stdio server with UTF-16 incremental edits,
+open-buffer snapshots, cancellation, one active/latest queued request, epoch-based
+stale suppression, versioned diagnostics and awaited shutdown. Official protocol/
+text-document libraries are pinned; framing/buffer bounds and full-replacement
+resynchronization are enforced. The subprocess client exercises the production
+entry point against both pinned fake APIs. See [scope, setup and acceptance](lsp.md).
+
+All 37 new policy/LSP checks passed locally; the full `npm run check` passed
+424 tests, including the unchanged CEL corpus and EOF/unexpected-exit cleanup
+regressions. Full and production dependency audits report zero vulnerabilities.
+The development launcher generator and EOF smoke passed with empty protocol/error
+output streams. Real backend/IDE runs, filesystem snapshot refresh and positive
+local overlay qualification remain open.
 
 ## Next increments, in order
 
-1. **Engine and compatibility.** Continue with safe substitutions, admission/custom
-   kinds, qualified overlays and full processor blocking. The source/provider path
-   is ready for thin LSP transport and fixture-driven editor tests alongside
-   remaining compatibility work.
+1. **Engine and compatibility.** Implement BC-04 safe substitutions, BC-05
+   admission/custom kinds, BC-06 qualified proposed overlays and complete BC-07
+   processor blocking, extending the fixture-driven LSP loop for each behavior.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
-   inherited mandatory baselines. Add schema rules, bind catalog snapshots into
-   rule execution, and add JSON/SARIF output and CLI exits.
-3. **IDE path.** Cancellable async validation over workspace/open-buffer snapshots,
-   stale-diagnostic suppression, version-safe fixes, responsive completion, and
-   actual VS Code pilot qualification.
+   inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.
+3. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
+   completion and extension packaging, and qualify actual VS Code/JetBrains clients.
 4. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central
    Actions execution, and authoritative GitHub publication.

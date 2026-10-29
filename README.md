@@ -3,12 +3,13 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, declared BC-01/BC-02/BC-03, managed CEL and catalog access implemented.** Contract version
+**Status: source parsing, declared BC-01/BC-02/BC-03, catalog policies and stdio LSP implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
 adapters apply native kinds/policies and field-specific references with source
-provenance. Substitutions, admission/overlays, schema rules, CLI/LSP and hosted control remain.
+provenance. Explicit catalog rules feed cancellable, versioned LSP diagnostics.
+Substitutions, admission/overlays, schema rules, CLI and hosted control remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.
@@ -34,6 +35,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 | `npm run build`                     | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
 | `npm test`                          | Compile and run the Node test suite                                 |
 | `npm run test:harness`              | Check version selection, pinned artifacts and concurrent fixtures   |
+| `npm run test:lsp`                  | Exercise catalog policy rules and real stdio editor lifecycle       |
 | `npm run fixtures:serve`            | Start the pinned fake catalog APIs on isolated localhost ports      |
 | `npm run fixtures:refresh`          | Capture latest patches and upstream specs for supported minors      |
 | `npm run fixtures:check-upstream`   | Detect upstream release, package or contract drift                  |
@@ -100,6 +102,9 @@ see the [testing harness guide](docs/testing-harness.md). Start one minor with
 For contextual references and source-to-provider data pinning, see
 [source references](docs/source-references.md) and `npm run example:references -- URL`.
 
+For catalog-existence policies, trusted launcher setup, and the stdio language
+server, see the [LSP guide](docs/lsp.md).
+
 ## Structure
 
 ```text
@@ -108,6 +113,7 @@ src/
   core/        Canonical JSON, snapshots, bindings, findings, and outcomes
   parsing/     Bounded YAML normalization, diagnostics and source locations
   compatibility/  Versioned native Backstage adapters and normalization provenance
+  lsp/         Stdio transport, trusted host configuration and editor lifecycle
   policy/      Deployment defaults and bounded rule dependency graphs
   runtime/     Shared supervised CEL/RE2 workers and request budgets
 schemas/       Generated draft-07 JSON Schemas, checked into Git

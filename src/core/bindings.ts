@@ -56,4 +56,12 @@ export function verifyRequestBindings(
     reject('limit', '', 'request exceeds assigned profile budgets');
   }
   if (policy.extends.length === 0) orderRules(policy.rules, profile.limits.graphDepth);
+  for (const rule of policy.rules) {
+    if (
+      rule.kind === 'catalog' &&
+      !profile.referenceContexts.some((reference) => reference.path === rule.referencePath)
+    ) {
+      reject('invalid_policy', '/rules', 'catalog rule must bind a declared reference context');
+    }
+  }
 }
