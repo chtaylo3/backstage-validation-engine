@@ -109,6 +109,7 @@ void test('checked-in wire examples satisfy emitted schemas and production seman
   }
   const examples = resolve('examples/contracts');
   const names: Record<string, keyof ContractTypes> = {
+    'schema-artifact.json': 'schema-artifact',
     'source-snapshot.json': 'source-snapshot',
     'data-snapshot.json': 'data-snapshot',
     'deployment-profile.json': 'deployment-profile',

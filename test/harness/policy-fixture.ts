@@ -10,7 +10,9 @@ import {
 import type {
   CatalogProvider,
   DeploymentProfile,
+  Immutable,
   PolicyBundle,
+  SchemaArtifact,
   SourceInput,
 } from '../../src/index.js';
 import { makeContext, makeRequest, URI } from '../helpers.js';
@@ -50,6 +52,7 @@ export function policyRun(
     profile?: Partial<DeploymentProfile>;
     rootUri?: string;
     entrypoints?: readonly string[];
+    schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   } = {},
 ) {
   const base = makeContext();
@@ -82,7 +85,10 @@ export function policyRun(
     profile: { id: profile.id, digest: digestJson(profile) },
     activation: { generation: activation.generation, digest: digestJson(activation) },
   });
-  return { request, context: { profile, policy, activation } };
+  return {
+    request,
+    context: { profile, policy, activation, schemaArtifacts: options.schemaArtifacts ?? [] },
+  };
 }
 export const localTeam = { uri: 'file:///workspace/team.yaml', text: stringify(team) };
 

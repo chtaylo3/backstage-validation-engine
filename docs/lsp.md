@@ -76,6 +76,12 @@ rule needs data. Configuration consistency checks do not verify signatures,
 assignments, inheritance or backend authentication semantics. Initialization
 options and workspace settings cannot replace these artifacts or the endpoint.
 
+Optional `schemaArtifacts` supplies the trusted, digest-checked bodies for custom
+kind pins. Admission and custom-schema checks run before reference policies;
+disallowed/schema-invalid entities produce errors, and missing artifacts produce
+dependency warnings. Invalid schema configuration fails startup. See
+[admission and custom kinds](admission-custom-kinds.md).
+
 Programmatic hosts can import `parseLspConfig`, `createLspRequest`,
 `createLspCatalog` and `attachLspServer` from the package's `./lsp` export. The host
 supplies the disposal callback and owns provider/runtime lifetime. The stdio
@@ -139,3 +145,6 @@ shutdown returns protocol failure (exit 1) after cleanup, with empty output stre
 
 The subsequent BC-04 increment adds five LSP checks for included buffers and
 diagnostic provenance; the full local `npm run check` passed all 485 tests.
+
+BC-05 adds seven LSP checks for admission/custom schemas across both native and
+API pins. The full local `npm run check` passed all 552 tests on 2026-10-30.

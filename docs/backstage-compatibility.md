@@ -1,7 +1,7 @@
 # Native Backstage compatibility
 
-Status: BC-01/BC-02, declared BC-03 contexts and snapshot-local BC-04 implemented and locally tested,
-2026-10-29. Source parsing is
+Status: BC-01/BC-02, declared BC-03 contexts, snapshot-local BC-04 and scoped BC-05 implemented and locally tested,
+2026-10-30. Source parsing is
 implemented; this increment adds the exact native catalog-model adapters selected
 by ADR 0002 in the planning repository.
 
@@ -11,7 +11,7 @@ by ADR 0002 in the planning repository.
 | BC-02 | Native namespace defaulting, field-format/root/schema policies and opt-in group-parent defaulting, preserving authored/normalized provenance | Passed locally                                        |
 | BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                  |
 | BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Passed locally for snapshot-local reader              |
-| BC-05 | Kind/source admission and declared custom schemas                                                                                            | Pending                                               |
+| BC-05 | Kind/source admission and declared custom schemas                                                                                            | Passed locally for declared schema profile            |
 | BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Pending                                               |
 | BC-07 | Required unavailable processors block dependent validation without speculative errors                                                        | Native-stage guard implemented; full pipeline pending |
 
@@ -98,7 +98,10 @@ speculatively.
 
 Native rejection after completed parsing produces blocking compatibility findings
 in CI and advisory findings in IDE mode. Unrecognized kinds/API versions produce
-unsupported coverage; kind/source admission and custom schemas remain BC-05 work.
+unsupported coverage when admitted. [Kind/source admission and pinned custom
+schemas](admission-custom-kinds.md) implement BC-05 after native normalization.
+Disallowed kinds are completed admission violations. Custom schemas cannot replace
+stock validators; missing artifacts remain incomplete.
 Parser-rejected documents do not enter native validation. Their dependent native
 checks are inapplicable, while parser findings still block CI. Parser resource
 interruption blocks downstream native work. Invalid native entities never appear
@@ -139,13 +142,14 @@ npm run example:backstage
 
 The example parses a catalog fixture, applies native policies/kind validation and
 passes accepted normalized entities to managed CEL rules. Its output names the
-limited scope. It does not attest catalog presence, substitution processing,
-admission, catalog overlays or hosted authority. Earlier rules-only benchmark
+limited scope. It does not attest catalog presence, catalog overlays or hosted
+authority. `npm run example:custom` exercises a pinned custom schema and admission.
+Earlier rules-only benchmark
 captures predate these dependencies; full pipeline startup/latency requalification
 remains an open pilot gate.
 
-Next compatibility stages: BC-05 admission/custom kinds
-and BC-06 qualified proposed-state overlays.
+Next compatibility stages: BC-06 qualified proposed-state overlays and complete
+BC-07 processor blocking.
 
 The production provider now uses `adapter.resolveReference` and
 `adapter.entityReference` for pinned native parsing/stringification and envelope

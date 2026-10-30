@@ -24,3 +24,9 @@ outcomes. They are not outputs from an implemented entity-validation engine.
 Unsupported transformation blocks dependent stages and has no speculative
 missing-owner finding. A bypassed result explicitly records unexecuted coverage.
 The examples do not attest compatibility or authorize GitHub publication.
+
+`schema-artifact.json` supplies a pinned draft-07 Widget schema. The runnable
+`npm run example:custom` example admits it explicitly and evaluates native
+normalization, custom validation and CEL policy. `-- --invalid` demonstrates a
+completed schema violation with exit 1. Schema artifacts are trusted launcher/
+context input; entity content cannot replace their profile pins.

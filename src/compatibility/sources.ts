@@ -6,6 +6,7 @@ import type {
   Finding,
   JsonValue,
   PolicyBundle,
+  SchemaArtifact,
   ValidationRequest,
   ValidationResult,
 } from '../contracts/schemas.js';
@@ -23,6 +24,8 @@ import { compileReferenceContexts } from '../policy/reference-contexts.js';
 import { extractEntityReferences } from './references.js';
 import { loadBackstageAdapter } from './adapter.js';
 import { BackstageRuntimeError } from './types.js';
+import { admitsKind } from '../policy/admission.js';
+import { createCustomKindRegistry } from './custom-schemas.js';
 import {
   SnapshotSourceResolver,
   SourceResolutionError,
@@ -49,16 +52,20 @@ const MESSAGES = Object.freeze({
   invalid_reference: 'Reference does not satisfy the configured native reference context.',
   invalid_reference_shape: 'Reference field does not have the configured scalar/array structure.',
   invalid_identity: 'Entity identity cannot be represented by an unambiguous native reference.',
+  disallowed_kind: 'Entity kind is not allowed by the configured global or source admission rules.',
+  invalid_custom_kind: 'Entity does not satisfy the pinned custom kind schema.',
+  unsupported_custom_schema: 'The schema artifact required by this custom kind is unavailable.',
   ...SUBSTITUTION_MESSAGES,
 });
 
-/** Executes parsing and declared BC-01 through BC-04 contexts; later stages are not attested. */
+/** Executes parsing and declared BC-01 through BC-05 contexts; later stages are not attested. */
 export async function validateBackstageSources(
   request: Immutable<ValidationRequest>,
   context: {
     readonly profile: Immutable<DeploymentProfile>;
     readonly policy: Immutable<PolicyBundle>;
     readonly activation: Immutable<ActivationManifest>;
+    readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   },
   options: { readonly signal?: AbortSignal; readonly uris?: readonly string[] } = {},
 ): Promise<BackstageCompatibilityReport> {
@@ -159,6 +166,7 @@ export async function validateBackstageSources(
     });
   }
   let adapter: Awaited<ReturnType<typeof loadBackstageAdapter>> | undefined;
+  let customKinds: ReturnType<typeof createCustomKindRegistry> | undefined;
   let unavailable = parsed.interrupted !== 'none';
   let blockedReason: string =
     parsed.interrupted === 'resource_limit'
@@ -174,6 +182,8 @@ export async function validateBackstageSources(
       adapter = await loadBackstageAdapter(profile.adapterId);
       budget.throwIfInterrupted();
       adapter.validateSettings(profile.nativePolicies);
+      customKinds = createCustomKindRegistry(profile, context.schemaArtifacts);
+      budget.throwIfInterrupted();
       for (const pattern of referencePatterns) {
         try {
           adapter.resolveReference('context-check', {
@@ -224,7 +234,7 @@ export async function validateBackstageSources(
     }
     const claimIndex = sourceClaims.length;
     sourceClaims.push(claim);
-    if (unavailable || !adapter || profile.requiredProcessors.length) {
+    if (unavailable || !adapter || !customKinds || profile.requiredProcessors.length) {
       coverage.push({
         stage: 'compatibility',
         subject,
@@ -242,7 +252,7 @@ export async function validateBackstageSources(
       document = resolved.document;
       coverage.push({ stage: 'substitution', subject, required: true, status: 'verified' });
       phase = 'native';
-      const checked: NativeEntityCheck = await adapter.validate(
+      let checked: NativeEntityCheck = await adapter.normalizeEntity(
         resolved.value,
         profile.nativePolicies,
         { deadlineAt: run.execution.deadlineAt, signal: budget.signal },
@@ -253,15 +263,90 @@ export async function validateBackstageSources(
         profile.limits.expandedEntityBytes
       )
         throw new BackstageRuntimeError('resource_limit');
-      coverage.push({
-        stage: 'compatibility',
-        subject,
-        required: true,
-        status: checked.status === 'unsupported' ? 'unsupported' : 'verified',
-        ...(checked.status === 'unsupported'
-          ? { reason: 'Native kind/API-version support is incomplete.' }
-          : {}),
-      });
+      let customSchema: DeploymentProfile['customKinds'][number]['schema'] | undefined;
+      if (checked.status === 'valid') {
+        coverage.push({
+          stage: 'compatibility',
+          subject: JSON.stringify(['normalization', document.uri, document.document]),
+          required: true,
+          status: 'verified',
+        });
+        const value = checked.normalized as Readonly<Record<string, Immutable<JsonValue>>>;
+        const kind = value.kind as string;
+        const apiVersion = value.apiVersion as string;
+        try {
+          sourceClaims[claimIndex] = {
+            ...claim,
+            entityRef: adapter.entityReference(checked.normalized),
+          };
+        } catch {
+          /* Preserve conservative identity guards until reference qualification. */
+        }
+        coverage.push({ stage: 'admission', subject, required: true, status: 'verified' });
+        if (!admitsKind(profile, document.uri, kind)) {
+          diagnostic(
+            document,
+            'disallowed_kind',
+            '/kind',
+            'compatibility',
+            'admission/disallowed_kind',
+          );
+          continue;
+        }
+        const custom = customKinds.get(kind, apiVersion);
+        if (custom) {
+          coverage.push({
+            stage: 'compatibility',
+            subject,
+            required: true,
+            status: custom.validate ? 'verified' : 'unsupported',
+          });
+          if (!custom.validate) {
+            diagnostic(
+              document,
+              'unsupported_custom_schema',
+              '/kind',
+              'dependency',
+              'custom_schema/unsupported_custom_schema',
+            );
+            continue;
+          }
+          const invalidPath = custom.validate(checked.normalized);
+          budget.throwIfInterrupted();
+          if (invalidPath !== undefined) {
+            diagnostic(
+              document,
+              'invalid_custom_kind',
+              invalidPath,
+              'compatibility',
+              'custom_schema/invalid_custom_kind',
+            );
+            continue;
+          }
+          customSchema = { ...custom.schema };
+        } else {
+          const kindCheck = await adapter.validateKind(checked.normalized, {
+            deadlineAt: run.execution.deadlineAt,
+            signal: budget.signal,
+          });
+          checked = { ...kindCheck, authored: checked.authored, changes: checked.changes };
+          if (checked.status === 'unsupported' && customKinds.hasKind(kind))
+            checked = {
+              ...checked,
+              issues: [{ code: 'unsupported_api_version', stage: 'kind', path: '/apiVersion' }],
+            };
+        }
+      }
+      if (!customSchema)
+        coverage.push({
+          stage: 'compatibility',
+          subject,
+          required: true,
+          status: checked.status === 'unsupported' ? 'unsupported' : 'verified',
+          ...(checked.status === 'unsupported'
+            ? { reason: 'Native kind/API-version support is incomplete.' }
+            : {}),
+        });
       for (const issue of checked.issues)
         diagnostic(
           document,
@@ -323,6 +408,7 @@ export async function validateBackstageSources(
           resolved: resolved.value,
           substitutions: resolved.substitutions,
           normalized: checked.normalized,
+          ...(customSchema ? { customSchema } : {}),
           changes,
         });
         artifacts.push({
@@ -332,6 +418,15 @@ export async function validateBackstageSources(
           sourceDigest: document.sourceDigest,
           value: checked.normalized as JsonValue,
           provenance: [
+            ...(customSchema
+              ? [
+                  {
+                    path: '',
+                    origin: locateParsedPath(document, '/kind'),
+                    transformation: `custom-schema/${customSchema.digest}`,
+                  },
+                ]
+              : []),
             ...resolved.substitutions.map((substitution) => ({
               path: substitution.path,
               origin: substitution.origin,

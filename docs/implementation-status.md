@@ -155,10 +155,33 @@ Local qualification on 2026-10-29: 56 substitution checks and five added LSP
 checks passed. The full `npm run check` passed all 485 tests, type checking,
 lint, formatting, generated-schema verification and the production build.
 
+## Admission and custom-kind increment
+
+Implemented BC-05 global/source kind admission after native normalization, with
+additive exact-file/directory allowances pinned by the deployment profile. Denied
+entities retain violation findings and identity guards while being withheld from
+references, artifacts and policy evaluation.
+
+Trusted `schema-artifact` bodies bind to exact custom kind/API-version profile
+pins. Bounded synchronous draft-07 validation preserves native defaults without
+coercion or schema mutation. Local bundled references and RE2 patterns are
+supported; formats, external/cyclic references and asynchronous/custom extensions
+are rejected. Stock kind validators cannot be overridden. Missing artifacts remain
+incomplete. See [scope, examples and acceptance](admission-custom-kinds.md).
+
+The LSP accepts launcher-owned schema artifacts and exercises denial, schema
+failure/repair and missing-artifact warnings against both model/API pins. Positive
+overlays, actual backend/editor runs, host snapshot refresh and complete processor
+qualification remain open.
+
+Local qualification on 2026-10-30: 60 admission/custom-schema checks and seven
+added LSP checks passed. The full `npm run check` passed all 552 tests and required
+type/lint/format/schema/build checks. The built custom-kind example passed; its
+invalid-tier variant produced a completed schema violation with exit 1.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Implement BC-05 admission/custom kinds,
-   BC-06 qualified proposed overlays and complete BC-07
+1. **Engine and compatibility.** Implement BC-06 qualified proposed overlays and complete BC-07
    processor blocking, extending the fixture-driven LSP loop for each behavior.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.

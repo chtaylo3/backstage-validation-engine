@@ -67,7 +67,8 @@ Qualified overlays remain BC-06 work. Current guards:
 
 - Known local identities, including invalid replacements, block external fallback.
   Multiple claims produce `competing_claims`. Locally valid targets also stay
-  blocked until admission/overlay qualification.
+  blocked until overlay qualification. Admission and custom-schema checks now
+  withhold denied/invalid subjects while preserving their identity claims.
 - Unknown identities, malformed/incomplete sources and unresolved substitutions
   conservatively block fallback. An invalid known identity can be masked while
   unrelated external targets remain eligible.
@@ -97,7 +98,7 @@ Tests cover both native pins against both fixtures, namespaces/case, escaped pat
 arrays, aliases/defaults, resource bounds, invalid/unknown/deleted/competing claims,
 authorization binding, unavailable data, cancellation, stale retained data and
 overlapping buffer versions. [Catalog rules and the LSP](lsp.md) now consume these
-pins and suppress superseded editor generations. BC-05/BC-06 and real
+pins and suppress superseded editor generations. BC-06 and real
 backend/IDE qualification remain open.
 
 Local qualification on 2026-10-29: 31 new reference/preparation checks passed;

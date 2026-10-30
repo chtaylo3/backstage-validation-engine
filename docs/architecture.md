@@ -87,7 +87,9 @@ validators, and records source-attributed normalization separately from authored
 JSON. The [snapshot-local resolver](substitutions.md) implements BC-04 with pinned
 roots/entrypoints and included-file provenance. Required unavailable processors
 and unavailable readers block dependent native checks. The source-level entry
-point composes parsing with BC-01 through BC-04; it does not attest later compatibility
+point composes parsing with BC-01 through BC-05. [Admission and custom schemas](admission-custom-kinds.md)
+enforce pinned global/source allowances and immutable custom-kind artifacts after
+native normalization; stock validators remain versioned. It does not attest later compatibility
 or governance stages.
 
 ## Implemented catalog access boundary

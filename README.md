@@ -3,14 +3,15 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, declared BC-01 through BC-04, catalog policies and stdio LSP implemented.** Contract version
+**Status: source parsing, declared BC-01 through BC-05, catalog policies and stdio LSP implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
 adapters apply native kinds/policies and field-specific references with source
 provenance. Explicit catalog rules feed cancellable, versioned LSP diagnostics.
 Snapshot-local substitutions preserve included-file ranges and buffer versions.
-Admission/overlays, schema rules, CLI and hosted control remain.
+Pinned kind/source admission and custom schemas run before rules. Proposed
+overlays, organization schema rules, CLI and hosted control remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.
@@ -49,6 +50,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 | `npm run example:cel`               | Execute a normalized-entity fixture through the managed rules stage |
 | `npm run example:parse`             | Parse an immutable catalog fixture and show source locations        |
 | `npm run example:backstage`         | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run example:custom`            | Validate an admitted custom kind against its pinned schema and CEL  |
 | `npm run example:provider -- URL`   | Read observations from a running fake catalog API                   |
 | `npm run example:references -- URL` | Prepare source references and pin catalog data for evaluation       |
 | `npm run benchmark:cel`             | Measure fresh-process, warm, and 100-entity rules-stage latency     |
@@ -108,6 +110,9 @@ server, see the [LSP guide](docs/lsp.md).
 
 For safe local includes, file Locations, source roots and catalog entrypoints,
 see [snapshot-local substitutions](docs/substitutions.md).
+
+For global/source allowances, pinned custom schemas and launcher artifacts, see
+[admission and custom kinds](docs/admission-custom-kinds.md).
 
 ## Structure
 

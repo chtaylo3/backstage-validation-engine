@@ -76,6 +76,17 @@ export interface BackstageAdapter {
   /** Native envelope only, accepting catalog data for custom kinds without applying ingestion policies. */
   entityReference(value: Immutable<JsonValue>): string;
   validateSettings(settings: Immutable<DeploymentProfile['nativePolicies']>): void;
+  /** Native envelope and configured policies, before kind/admission decisions. */
+  normalizeEntity(
+    value: Immutable<JsonValue>,
+    settings: Immutable<DeploymentProfile['nativePolicies']>,
+    context: NativeExecutionContext,
+  ): Promise<NativeEntityCheck>;
+  /** Stock kind check of a normalized envelope, without repeating configured policies. */
+  validateKind(
+    value: Immutable<JsonValue>,
+    context: NativeExecutionContext,
+  ): Promise<NativeEntityCheck>;
   /** Native Entity schema and stock kind checks, without configured policies. */
   checkEntity(
     value: Immutable<JsonValue>,
@@ -95,6 +106,7 @@ export interface CompatibleSourceEntity {
   readonly resolved: Immutable<JsonValue>;
   readonly substitutions: readonly SourceSubstitution[];
   readonly normalized: Immutable<JsonValue>;
+  readonly customSchema?: Immutable<DeploymentProfile['customKinds'][number]['schema']>;
   readonly changes: readonly (NormalizationChange & {
     readonly origin: Immutable<Finding['location']>;
   })[];

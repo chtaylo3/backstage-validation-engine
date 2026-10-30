@@ -25,6 +25,7 @@ digest integrity, temporal relationships, graph consistency, and outcome rules.
 | `policy-bundle`       | Immutable declarative rules, mandatory flags, inherited bundle digests, schema/plugin references                                                     |
 | `activation-manifest` | Installation/repository assignment, policy/profile/bypass digests, generation, activation time, and verification evidence reference                  |
 | `json-value`          | Recursive JSON payload shared by provider data and normalized artifacts                                                                              |
+| `schema-artifact`     | Trusted schema body with an ID/version and canonical schema-content digest                                                                           |
 
 Timestamps are integer Unix epoch **milliseconds**. URIs are absolute URI strings.
 Positions and ranges are zero-based UTF-16 coordinates; range ends are exclusive.
@@ -41,6 +42,15 @@ adapter. Disabled profiles do not need this field. Regenerated profile schemas
 and consumers must accompany use of the new setting.
 
 ## Content addressing and immutability
+
+BC-05 enforces the profile's existing admission/custom-kind pins and adds the
+pre-release `schema-artifact` contract. Admission lists are bounded to 256 kinds/
+source rules and custom declarations to 64 pairs. Case-ambiguous duplicate kinds,
+noncanonical source prefixes, conflicting schema pins and stock-kind overrides
+are rejected. Bodies arrive through optional trusted `schemaArtifacts` context/
+launcher fields, rather than entity documents or network retrieval. See
+[admission and custom schemas](admission-custom-kinds.md) for supported draft-07
+features, compilation bounds and missing-versus-invalid behavior.
 
 Digests use `sha256:` plus 64 lowercase hexadecimal characters. File digests hash
 the exact UTF-8 text. Snapshot digests hash all snapshot fields except the snapshot

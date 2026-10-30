@@ -2,6 +2,7 @@ import type {
   ActivationManifest,
   DeploymentProfile,
   PolicyBundle,
+  SchemaArtifact,
   ValidationRequest,
 } from '../contracts/schemas.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
@@ -19,6 +20,7 @@ export interface PolicySourceContext {
   readonly profile: Immutable<DeploymentProfile>;
   readonly policy: Immutable<PolicyBundle>;
   readonly activation: Immutable<ActivationManifest>;
+  readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
 }
 
 /** Scoped native/source/rules composition; this does not qualify Backstage ingestion or authority. */

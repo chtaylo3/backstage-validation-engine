@@ -1,0 +1,55 @@
+{
+  "contractVersion": "0.2",
+  "digest": "sha256:2e95dfffe49bbe556ad1b9082c3795740ffeb76ff7e8e888afe00530c6134315",
+  "id": "example/widget",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+      "owner": {
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "type": "string"
+      }
+    },
+    "properties": {
+      "apiVersion": {
+        "const": "example.com/v1"
+      },
+      "kind": {
+        "const": "Widget"
+      },
+      "metadata": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "const": "default"
+          }
+        },
+        "required": ["name", "namespace"],
+        "type": "object"
+      },
+      "spec": {
+        "additionalProperties": false,
+        "properties": {
+          "defaulted": {
+            "default": "not-inserted",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/definitions/owner"
+          },
+          "tier": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": ["owner", "tier"],
+        "type": "object"
+      }
+    },
+    "required": ["apiVersion", "kind", "metadata", "spec"],
+    "type": "object"
+  },
+  "version": "1"
+}

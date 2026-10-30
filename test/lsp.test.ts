@@ -9,7 +9,8 @@ import {
 import { parseLspConfig } from '../src/lsp/config.js';
 import { BoundedLspInput, LSP_FRAME_BYTES } from '../src/lsp/framing.js';
 import { URI } from './helpers.js';
-import { digestText } from '../src/index.js';
+import { BACKSTAGE_ADAPTER_IDS, digestText } from '../src/index.js';
+import { widgetArtifact, widgetProfile, widgetText } from './harness/custom-kind-fixture.js';
 import { componentText, localTeam, policyMatrix, policyRun } from './harness/policy-fixture.js';
 import { startLspClient } from './harness/lsp-client.js';
 
@@ -211,6 +212,82 @@ void test('BC-04 LSP attributes invalid included YAML to its file and clears dep
     [],
   );
   await host.shutdown();
+});
+
+for (const adapterId of BACKSTAGE_ADAPTER_IDS)
+  void test(`BC-05 LSP enforces launcher admission and custom schemas on both API pins with ${adapterId}`, async (t) => {
+    const matrix = await policyMatrix(t);
+    for (const { fixture, target } of matrix.fixtures)
+      await t.test(`${adapterId}/${target.backstageVersion}`, async (t) => {
+        const before = fixture.requests().length;
+        const host = await startLspClient(
+          t,
+          config(fixture.baseUrl, {
+            schemaArtifacts: [widgetArtifact],
+            profile: {
+              ...widgetProfile,
+              adapterId,
+              admission: { allowedKinds: ['Widget'], locations: [] },
+            },
+            rules: [
+              {
+                id: 'custom-owner',
+                version: '1',
+                kind: 'catalog',
+                check: 'exists',
+                referencePath: '/spec/owner',
+                mandatory: true,
+                severity: 'error',
+                requires: [],
+              },
+            ],
+          }),
+        );
+        await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+          textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+        });
+        const denied = await host.waitFor((item) => item.version === 1);
+        assert.equal(denied.diagnostics.length, 1);
+        assert.equal(denied.diagnostics[0]?.code, 'backstage/admission/disallowed_kind');
+        assert.equal(denied.diagnostics[0]?.severity, 1);
+        assert.equal(fixture.requests().length, before);
+        await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+          textDocument: { uri: URI, version: 2 },
+          contentChanges: [{ text: widgetText({ owner: 'team', tier: 0 }) }],
+        });
+        const invalid = await host.waitFor((item) => item.version === 2);
+        assert.equal(invalid.diagnostics.length, 1);
+        assert.equal(invalid.diagnostics[0]?.code, 'backstage/custom_schema/invalid_custom_kind');
+        assert.equal(invalid.diagnostics[0]?.severity, 1);
+        assert.equal(fixture.requests().length, before);
+        await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+          textDocument: { uri: URI, version: 3 },
+          contentChanges: [{ text: widgetText() }],
+        });
+        assert.deepEqual((await host.waitFor((item) => item.version === 3)).diagnostics, []);
+        assert.equal(fixture.requests().length, before + 1);
+        await host.shutdown();
+      });
+  });
+
+void test('BC-05 LSP missing custom schemas warn without speculative schema failures and invalid artifacts fail configuration', async (t) => {
+  const host = await startLspClient(t, config(undefined, { profile: widgetProfile, rules: [] }));
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: widgetText({}) },
+  });
+  const report = await host.waitFor((item) => item.version === 1);
+  assert.equal(report.diagnostics.length, 1);
+  assert.equal(report.diagnostics[0]?.code, 'backstage/custom_schema/unsupported_custom_schema');
+  assert.equal(report.diagnostics[0]?.severity, 2);
+  await host.shutdown();
+  assert.throws(
+    () =>
+      config(undefined, {
+        profile: widgetProfile,
+        schemaArtifacts: [{ ...widgetArtifact, schema: true }],
+      }),
+    /digest mismatch/,
+  );
 });
 
 void test('LSP permission and outage diagnostics are dependency warnings rather than missing errors', async (t) => {

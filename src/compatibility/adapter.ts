@@ -121,6 +121,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     value: Immutable<JsonValue>,
     settings: Parameters<BackstageAdapter['validate']>[1] | undefined,
     context: NativeExecutionContext,
+    mode: 'entity' | 'kind' | 'normalize' = 'entity',
   ): Promise<NativeEntityCheck> => {
     using budget = new RequestBudget(context.deadlineAt, context.signal);
     budget.throwIfInterrupted();
@@ -182,7 +183,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     };
     // An always-on native envelope protects policies that expect metadata to exist.
     const invalidEnvelope = await call('envelope', () =>
-      settings ? envelope(candidate) : entitySchema(candidate),
+      settings || mode === 'kind' ? envelope(candidate) : entitySchema(candidate),
     );
     if (invalidEnvelope) return result('invalid', [invalidEnvelope]);
     if (settings) {
@@ -202,6 +203,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
       const issue = await apply('group_default_parent', parentPolicy);
       if (issue) return result('invalid', [issue]);
     }
+    if (mode === 'normalize') return result('valid');
     const validator = kinds.get(candidate.kind);
     if (!validator)
       return result('unsupported', [{ code: 'unsupported_kind', stage: 'kind', path: '/kind' }]);
@@ -262,6 +264,8 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
       configuredParent(settings);
     },
     checkEntity: (value, context) => execute(value, undefined, context),
+    normalizeEntity: (value, settings, context) => execute(value, settings, context, 'normalize'),
+    validateKind: (value, context) => execute(value, undefined, context, 'kind'),
     validate: (value, settings, context) => execute(value, settings, context),
   });
 }

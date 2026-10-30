@@ -216,5 +216,5 @@ or retiring a supported minor is a separate explicit support-policy change.
   two existing catalog-model adapters establish deployed backend compatibility.
 
 The fake/provider/reference/LSP loop is implemented. Extend it alongside
-BC-05/BC-06; snapshot-local BC-04 and included-buffer LSP scenarios are now
-implemented. This does not establish full ingestion or real-backend compatibility.
+BC-06; snapshot-local BC-04, BC-05 admission/custom schemas and their LSP scenarios
+are now implemented. This does not establish full ingestion or real-backend compatibility.

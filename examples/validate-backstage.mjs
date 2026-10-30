@@ -52,7 +52,7 @@ try {
     JSON.stringify(
       {
         scope:
-          'Example of parsing, declared native BC-01/BC-02/BC-03 contexts and CEL rules; later compatibility stages remain unqualified.',
+          'Example of parsing, pinned native policies/kinds, admission, references and CEL rules; complete deployment ingestion remains unqualified.',
         adapterId: native.adapterId,
         references: native.references,
         entities: native.entities.map(({ document, ...entity }) => ({

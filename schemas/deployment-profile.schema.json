@@ -93,13 +93,15 @@
       "properties": {
         "allowedKinds": {
           "uniqueItems": true,
+          "maxItems": 256,
           "type": "array",
           "items": {
-            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9]{0,62}$",
             "type": "string"
           }
         },
         "locations": {
+          "maxItems": 256,
           "type": "array",
           "items": {
             "additionalProperties": false,
@@ -115,9 +117,10 @@
               },
               "allowedKinds": {
                 "uniqueItems": true,
+                "maxItems": 256,
                 "type": "array",
                 "items": {
-                  "minLength": 1,
+                  "pattern": "^[A-Za-z][A-Za-z0-9]{0,62}$",
                   "type": "string"
                 }
               }
@@ -161,6 +164,7 @@
       }
     },
     "customKinds": {
+      "maxItems": 64,
       "type": "array",
       "items": {
         "additionalProperties": false,
@@ -173,10 +177,11 @@
         "properties": {
           "apiVersion": {
             "minLength": 1,
+            "maxLength": 128,
             "type": "string"
           },
           "kind": {
-            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9]{0,62}$",
             "type": "string"
           },
           "schema": {

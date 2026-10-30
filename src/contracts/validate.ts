@@ -7,6 +7,7 @@ import type {
   DeploymentProfile,
   JsonValue,
   PolicyBundle,
+  SchemaArtifact,
   SourceSnapshot,
   ValidationRequest,
   ValidationResult,
@@ -19,9 +20,11 @@ import { orderRules } from '../policy/rule-graph.js';
 import { compileReferenceContexts } from '../policy/reference-contexts.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { decideOutcome } from '../core/outcomes.js';
+import { validateAdmissionProfile } from '../policy/admission.js';
 
 export interface ContractTypes {
   'json-value': JsonValue;
+  'schema-artifact': SchemaArtifact;
   'source-snapshot': SourceSnapshot;
   'data-snapshot': DataSnapshot;
   'deployment-profile': DeploymentProfile;
@@ -278,6 +281,13 @@ export function parseContract<K extends keyof ContractTypes>(
   }
   // AJV validates against the schema selected by K; the cases add cross-field checks.
   switch (name) {
+    case 'schema-artifact': {
+      const artifact = value as SchemaArtifact;
+      canonicalJson(artifact.schema, { maxBytes: 64 * 1024, maxValues: 8192, maxDepth: 32 });
+      if (digestJson(artifact.schema) !== artifact.digest)
+        reject('integrity', '/schemaArtifacts', 'schema artifact digest mismatch');
+      break;
+    }
     case 'source-snapshot':
       checkSource(value as SourceSnapshot);
       break;
@@ -292,6 +302,7 @@ export function parseContract<K extends keyof ContractTypes>(
       break;
     case 'deployment-profile': {
       const profile = value as DeploymentProfile;
+      validateAdmissionProfile(profile);
       if (
         profile.nativePolicies.groupDefaultParent &&
         !profile.nativePolicies.groupDefaultParentRef

@@ -45,6 +45,15 @@ const position = object({ line: count(), character: count() });
 const range = object({ start: position, end: position });
 const location = object({ uri: uri(), document: count(), path: Type.String(), range });
 const artifactRef = object({ id: text(), version: text(), digest: digest() });
+const kindName = () => Type.String({ pattern: '^[A-Za-z][A-Za-z0-9]{0,62}$' });
+const kindNames = () => Type.Array(kindName(), { uniqueItems: true, maxItems: 256 });
+export const SchemaArtifactSchema = schema('schema-artifact', {
+  contractVersion: version(),
+  id: text(),
+  version: text(),
+  digest: digest(),
+  schema: reference(JsonValueSchema),
+});
 const sourceFile = object({
   uri: uri(),
   text: Type.String(),
@@ -137,8 +146,10 @@ export const DeploymentProfileSchema = schema('deployment-profile', {
     groupDefaultParentRef: Type.Optional(text()),
   }),
   admission: object({
-    allowedKinds: strings(),
-    locations: Type.Array(object({ sourcePrefix: uri(), allowedKinds: strings() })),
+    allowedKinds: kindNames(),
+    locations: Type.Array(object({ sourcePrefix: uri(), allowedKinds: kindNames() }), {
+      maxItems: 256,
+    }),
   }),
   referenceContexts: Type.Array(
     object({
@@ -147,7 +158,14 @@ export const DeploymentProfileSchema = schema('deployment-profile', {
       namespace: Type.Union([Type.Literal('entity'), text()]),
     }),
   ),
-  customKinds: Type.Array(object({ apiVersion: text(), kind: text(), schema: artifactRef })),
+  customKinds: Type.Array(
+    object({
+      apiVersion: Type.String({ minLength: 1, maxLength: 128 }),
+      kind: kindName(),
+      schema: artifactRef,
+    }),
+    { maxItems: 64 },
+  ),
   readers: strings(),
   requiredProcessors: Type.Array(object({ id: text(), stage: text() })),
   limits: ResourceLimitsSchema,
@@ -381,6 +399,7 @@ export const ValidationResultSchema = schema('validation-result', {
 /** Standalone draft-07 resources; references resolve through their versioned URNs. */
 export const contractSchemas = {
   'json-value': JsonValueSchema,
+  'schema-artifact': SchemaArtifactSchema,
   'source-snapshot': SourceSnapshotSchema,
   'data-snapshot': DataSnapshotSchema,
   'deployment-profile': DeploymentProfileSchema,
@@ -393,6 +412,7 @@ export const contractSchemas = {
 deepFreeze(contractSchemas);
 
 export type SourceSnapshot = Static<typeof SourceSnapshotSchema>;
+export type SchemaArtifact = Static<typeof SchemaArtifactSchema>;
 export type SourceFile = SourceSnapshot['files'][number];
 export type SourceChange = SourceSnapshot['changes'][number];
 export type DataSnapshot = Static<typeof DataSnapshotSchema>;

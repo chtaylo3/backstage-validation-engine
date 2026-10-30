@@ -182,17 +182,21 @@ void test('unresolved substitutions are incomplete and never become raw native v
   }
 });
 
-void test('unknown kinds and API versions report unsupported coverage without claiming admission', async () => {
+void test('admitted unknown kinds and API versions retain unsupported native coverage', async () => {
   for (const entity of [
     { ...component, kind: 'Custom' },
     { ...component, apiVersion: 'example.com/v999' },
   ]) {
-    const run = setup(stringify(entity));
+    const run = setup(stringify(entity), {
+      admission: { allowedKinds: ['Component', 'Custom'], locations: [] },
+    });
     const report = await validateBackstageSources(run.request, run.context);
     assert.equal(report.entities.length, 0);
     assert.equal(report.findings[0]?.category, 'dependency');
     assert(report.coverage.some((entry) => entry.status === 'unsupported'));
-    assert(!report.coverage.some((entry) => entry.stage === 'admission'));
+    assert(
+      report.coverage.some((entry) => entry.stage === 'admission' && entry.status === 'verified'),
+    );
   }
 });
 

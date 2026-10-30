@@ -4,7 +4,8 @@ import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import { CONTRACT_VERSION, ValidationRequestSchema } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import type { SourceSnapshot } from '../contracts/schemas.js';
+import type { SchemaArtifact, SourceSnapshot } from '../contracts/schemas.js';
+import { createCustomKindRegistry } from '../compatibility/custom-schemas.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { deepFreeze, digestJson, immutableJson } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
@@ -19,6 +20,7 @@ const schema = Type.Object(
     policy: Type.Unknown(),
     activation: Type.Unknown(),
     source: Type.Unknown(),
+    schemaArtifacts: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 64 })),
     identity: ValidationRequestSchema.properties.identity,
     debounceMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 250 })),
     catalog: Type.Optional(
@@ -49,9 +51,15 @@ const validate = new Ajv({ strict: true, ownProperties: true }).compile<Static<t
 export function parseLspConfig(input: unknown) {
   const safe: unknown = immutableJson(input);
   if (!validate(safe)) throw new Error('Invalid trusted LSP configuration.');
+  const profile = parseContract('deployment-profile', safe.profile);
+  const schemas = createCustomKindRegistry(
+    profile,
+    safe.schemaArtifacts as SchemaArtifact[] | undefined,
+  );
   const config = deepFreeze({
     ...safe,
-    profile: parseContract('deployment-profile', safe.profile),
+    profile,
+    schemaArtifacts: schemas.artifacts,
     policy: parseContract('policy-bundle', safe.policy),
     activation: parseContract('activation-manifest', safe.activation),
     source: parseContract('source-snapshot', safe.source),

@@ -4,6 +4,7 @@ import type {
   DataSnapshot,
   DeploymentProfile,
   PolicyBundle,
+  SchemaArtifact,
   ValidationRequest,
   ValidationResult,
 } from '../contracts/schemas.js';
@@ -78,6 +79,7 @@ export async function prepareBackstageReferenceData(
     readonly profile: Immutable<DeploymentProfile>;
     readonly policy: Immutable<PolicyBundle>;
     readonly activation: Immutable<ActivationManifest>;
+    readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   },
   options: {
     readonly provider: CatalogProvider;
