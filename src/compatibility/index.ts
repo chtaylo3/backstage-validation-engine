@@ -13,6 +13,7 @@ export type {
   CompatibleSourceEntity,
   BackstageSourceReference,
   SourceIdentityClaim,
+  SourceSubstitution,
   BackstageCompatibilityReport,
 } from './types.js';
 export { REFERENCE_LIMITS } from '../policy/reference-contexts.js';

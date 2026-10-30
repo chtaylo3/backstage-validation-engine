@@ -58,9 +58,9 @@ export function locateParsedPath(
     span = document.locations[path];
   }
   return deepFreeze({
-    uri: document.uri,
-    document: document.document,
-    path: pointer,
+    uri: span?.source?.uri ?? document.uri,
+    document: span?.source?.document ?? document.document,
+    path: span?.source ? span.source.path + pointer.slice(path.length) : pointer,
     range:
       kind === 'key'
         ? (span?.key ?? span?.value ?? document.range)

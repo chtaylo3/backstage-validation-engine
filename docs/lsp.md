@@ -87,6 +87,11 @@ launcher closes both its provider and shared CEL runtime on shutdown or EOF.
   close synchronization. Non-increasing versions and duplicate opens are ignored.
 - Immutable launcher-supplied repository snapshot plus current open buffers.
   Every accepted workspace edit invalidates dependent open-document results.
+- Pinned roots/entrypoints enable [snapshot-local substitutions](substitutions.md).
+  Included-buffer edits revalidate catalog users. Findings appear at actual
+  payload ranges and at related inclusion sites in open documents, with each
+  published document's current version/digest. Closing a payload restores its
+  pinned base bytes and revalidates users.
 - One active validation and one latest queued workspace generation. Edits/close/
   shutdown cancel active work; only the current epoch can publish. Diagnostics
   carry document version and, when known, file digest, finding ID and category.
@@ -120,7 +125,8 @@ published diagnostics and shut it down. HTTP response gates synchronize race and
 cancellation scenarios. Coverage includes both pinned backend contracts, both
 native models at the policy layer, UTF-16 offsets after emoji, authorization/
 outage distinctions, context selection, scoped CI aggregation, source/data binding,
-rapid edits, close/reopen, local-source guards, resynchronization and framing bounds.
+rapid edits, close/reopen, included-buffer edits/repair/restoration, inclusion-site
+diagnostics, local-source guards, resynchronization and framing bounds.
 
 Real Backstage authentication/smoke tests, actual editor clients, hosted OS runs
 and integrated latency/resource qualification remain release gates. The existing
@@ -130,3 +136,6 @@ Local qualification on 2026-10-29: 37 new policy/LSP checks and all 424 tests in
 `npm run check` passed. Full and production npm audits report zero vulnerabilities.
 The built development configuration generator and EOF smoke passed; EOF without
 shutdown returns protocol failure (exit 1) after cleanup, with empty output streams.
+
+The subsequent BC-04 increment adds five LSP checks for included buffers and
+diagnostic provenance; the full local `npm run check` passed all 485 tests.

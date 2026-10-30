@@ -23,6 +23,11 @@ import { compileReferenceContexts } from '../policy/reference-contexts.js';
 import { extractEntityReferences } from './references.js';
 import { loadBackstageAdapter } from './adapter.js';
 import { BackstageRuntimeError } from './types.js';
+import {
+  SnapshotSourceResolver,
+  SourceResolutionError,
+  SUBSTITUTION_MESSAGES,
+} from './substitutions.js';
 import type {
   BackstageCompatibilityReport,
   CompatibleSourceEntity,
@@ -38,38 +43,16 @@ const MESSAGES = Object.freeze({
   unsupported_kind: 'Kind is outside the implemented native adapter surface.',
   unsupported_api_version: 'API version is not recognized by the selected native kind validator.',
   unsupported_processor: 'Required deployment processor is unavailable.',
-  unsupported_substitution: 'Required source substitution has not been resolved.',
-  resource_limit: 'Native validation exceeds configured resource limits.',
   cancelled: 'Native validation cancelled.',
   timeout: 'Validation request deadline exceeded during native validation.',
   adapter_unavailable: 'Pinned native adapter is unavailable.',
   invalid_reference: 'Reference does not satisfy the configured native reference context.',
   invalid_reference_shape: 'Reference field does not have the configured scalar/array structure.',
   invalid_identity: 'Entity identity cannot be represented by an unambiguous native reference.',
+  ...SUBSTITUTION_MESSAGES,
 });
 
-async function substitutionPath(
-  value: Immutable<JsonValue>,
-  budget: RequestBudget,
-): Promise<string | undefined> {
-  const stack: { value: Immutable<JsonValue>; path: string }[] = [{ value, path: '' }];
-  let visited = 0;
-  while (stack.length) {
-    budget.throwIfInterrupted();
-    if (++visited % 128 === 0) await yieldTurn();
-    const item = stack.pop()!;
-    if (item.value && typeof item.value === 'object') {
-      for (const [key, child] of Object.entries(item.value)) {
-        const path = `${item.path}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`;
-        if (['$text', '$json', '$yaml'].includes(key)) return path;
-        stack.push({ value: child, path });
-      }
-    }
-  }
-  return undefined;
-}
-
-/** Executes parsing and declared BC-01/BC-02/BC-03 contexts; later stages are not attested. */
+/** Executes parsing and declared BC-01 through BC-04 contexts; later stages are not attested. */
 export async function validateBackstageSources(
   request: Immutable<ValidationRequest>,
   context: {
@@ -89,7 +72,9 @@ export async function validateBackstageSources(
     mode: run.execution.mode,
     deadlineAt: run.execution.deadlineAt,
     signal: budget.signal,
-    ...(options.uris ? { uris: options.uris } : {}),
+    ...((options.uris ?? run.source.entrypoints) === undefined
+      ? {}
+      : { uris: options.uris ?? run.source.entrypoints! }),
     limits: {
       files: profile.limits.entities,
       documents: profile.limits.entities,
@@ -104,6 +89,15 @@ export async function validateBackstageSources(
   const references: BackstageSourceReference[] = [];
   const sourceClaims: SourceIdentityClaim[] = [];
   const unparsedSources = parsed.files.some((file) => file.status !== 'parsed');
+  let unresolvedIncludes = false;
+  const resolver = new SnapshotSourceResolver(
+    run.source,
+    profile,
+    run.execution.mode,
+    budget,
+    parsed,
+  );
+  const documents = [...parsed.documents];
   const artifacts: ValidationResult['artifacts'] = [];
   let interrupted = parsed.interrupted;
   const diagnostic = (
@@ -112,9 +106,13 @@ export async function validateBackstageSources(
     path: string,
     category: Finding['category'],
     stage: string = code,
+    override?: SourceResolutionError,
   ): void => {
     const ruleId = `backstage/${stage}`;
-    const location = locateParsedPath(document, path);
+    const location = override?.location ?? locateParsedPath(document, path);
+    let authoredPath = path;
+    while (!document.locations[authoredPath] && authoredPath)
+      authoredPath = authoredPath.slice(0, authoredPath.lastIndexOf('/'));
     findings.push({
       id: createFindingId({
         ruleId,
@@ -132,7 +130,9 @@ export async function validateBackstageSources(
       severity: category === 'dependency' && run.execution.mode === 'ide' ? 'warning' : 'error',
       enforcement: run.execution.mode === 'ci' ? 'blocking' : 'advisory',
       location,
-      relatedLocations: [...(document.locations[path]?.relatedLocations ?? [])],
+      relatedLocations: [
+        ...(override?.relatedLocations ?? document.locations[authoredPath]?.relatedLocations ?? []),
+      ],
       edits: [],
     });
   };
@@ -209,7 +209,7 @@ export async function validateBackstageSources(
     });
     if (error instanceof CelError) interrupted = code === 'timeout' ? 'timeout' : 'cancelled';
   }
-  for (const document of parsed.documents) {
+  for (let document of documents) {
     const subject = JSON.stringify([document.uri, document.document]);
     let claim: SourceIdentityClaim = { uri: document.uri, document: document.document };
     if (!unavailable && adapter && !profile.requiredProcessors.length) {
@@ -234,31 +234,16 @@ export async function validateBackstageSources(
       });
       continue;
     }
-    let phase: 'native' | 'references' = 'native';
+    let phase: 'substitution' | 'native' | 'references' | 'locations' = 'substitution';
     try {
       await yieldTurn();
       budget.throwIfInterrupted();
-      const unresolved = await substitutionPath(document.value, budget);
-      if (unresolved !== undefined) {
-        diagnostic(document, 'unsupported_substitution', unresolved, 'dependency');
-        coverage.push({
-          stage: 'substitution',
-          subject,
-          required: true,
-          status: 'unsupported',
-          reason: MESSAGES.unsupported_substitution,
-        });
-        coverage.push({
-          stage: 'compatibility',
-          subject,
-          required: true,
-          status: 'blocked',
-          reason: MESSAGES.unsupported_substitution,
-        });
-        continue;
-      }
+      const resolved = await resolver.resolve(document);
+      document = resolved.document;
+      coverage.push({ stage: 'substitution', subject, required: true, status: 'verified' });
+      phase = 'native';
       const checked: NativeEntityCheck = await adapter.validate(
-        document.value,
+        resolved.value,
         profile.nativePolicies,
         { deadlineAt: run.execution.deadlineAt, signal: budget.signal },
       );
@@ -334,7 +319,9 @@ export async function validateBackstageSources(
         entities.push({
           document,
           entityRef: checked.entityRef,
-          authored: checked.authored,
+          authored: document.value,
+          resolved: resolved.value,
+          substitutions: resolved.substitutions,
           normalized: checked.normalized,
           changes,
         });
@@ -344,15 +331,109 @@ export async function validateBackstageSources(
           document: document.document,
           sourceDigest: document.sourceDigest,
           value: checked.normalized as JsonValue,
-          provenance: changes.map((change) => ({
-            path: change.path,
-            origin: change.origin,
-            transformation: `${profile.adapterId}/${change.policy}`,
-          })),
+          provenance: [
+            ...resolved.substitutions.map((substitution) => ({
+              path: substitution.path,
+              origin: substitution.origin,
+              transformation: `snapshot-local/${substitution.kind}`,
+            })),
+            ...changes.map((change) => ({
+              path: change.path,
+              origin: change.origin,
+              transformation: `${profile.adapterId}/${change.policy}`,
+            })),
+          ],
         });
+        if (adapter.resolveReference(checked.entityRef).kind === 'location') {
+          phase = 'locations';
+          const discovered = await resolver.discover(document, checked.normalized);
+          documents.push(...discovered.documents.map((row) => row.document));
+          for (const report of discovered.reports) {
+            findings.push(...parsingFindings(run, report));
+            coverage.push(...report.coverage);
+            if (report.files.some((file) => file.status !== 'parsed')) unresolvedIncludes = true;
+            for (const file of report.files)
+              if (file.status !== 'parsed')
+                coverage.push({
+                  stage: 'compatibility',
+                  subject: file.uri,
+                  required: file.status !== 'invalid',
+                  status: 'blocked',
+                  reason: 'Included source parsing did not complete.',
+                });
+            if (report.interrupted !== 'none') {
+              interrupted = report.interrupted;
+              unavailable = true;
+              blockedReason =
+                report.interrupted === 'timeout'
+                  ? MESSAGES.timeout
+                  : report.interrupted === 'cancelled'
+                    ? MESSAGES.cancelled
+                    : MESSAGES.resource_limit;
+            }
+          }
+          const resource = discovered.issues.some((issue) => issue.code === 'resource_limit');
+          const unsupported = discovered.issues.some((issue) => issue.unsupported);
+          coverage.push({
+            stage: 'substitution',
+            subject: JSON.stringify(['locations', document.uri, document.document]),
+            required: true,
+            status: resource ? 'blocked' : unsupported ? 'unsupported' : 'verified',
+          });
+          for (const issue of discovered.issues)
+            diagnostic(
+              document,
+              issue.code,
+              issue.path,
+              issue.unsupported
+                ? 'dependency'
+                : issue.code === 'resource_limit'
+                  ? 'resource'
+                  : 'compatibility',
+              `locations/${issue.code}`,
+              issue,
+            );
+          if (discovered.issues.length) unresolvedIncludes = true;
+          if (resource) {
+            interrupted = 'resource_limit';
+            unavailable = true;
+            blockedReason = MESSAGES.resource_limit;
+          }
+        }
       }
     } catch (error) {
       if (error instanceof ContractError) throw error;
+      if (error instanceof SourceResolutionError) {
+        const resource = error.code === 'resource_limit';
+        diagnostic(
+          document,
+          error.code,
+          error.path,
+          error.unsupported ? 'dependency' : resource ? 'resource' : 'compatibility',
+          `substitution/${error.code}`,
+          error,
+        );
+        coverage.push({
+          stage: 'substitution',
+          subject,
+          required: true,
+          status: resource ? 'blocked' : error.unsupported ? 'unsupported' : 'verified',
+          reason: error.message,
+        });
+        coverage.push({
+          stage: 'compatibility',
+          subject,
+          required: resource || error.unsupported,
+          status: 'blocked',
+          reason: 'Source resolution did not produce a native-validation subject.',
+        });
+        if (resource) {
+          interrupted = 'resource_limit';
+          unavailable = true;
+          blockedReason = MESSAGES.resource_limit;
+        }
+        continue;
+      }
       const code =
         error instanceof CelError
           ? error.code === 'request_timeout'
@@ -363,11 +444,13 @@ export async function validateBackstageSources(
             : 'adapter_unavailable';
       diagnostic(document, code, '', code === 'adapter_unavailable' ? 'dependency' : 'resource');
       coverage.push({
-        stage: 'compatibility',
+        stage: phase === 'substitution' || phase === 'locations' ? 'substitution' : 'compatibility',
         subject:
-          phase === 'references'
-            ? JSON.stringify(['references', document.uri, document.document])
-            : subject,
+          phase === 'locations'
+            ? JSON.stringify(['locations', document.uri, document.document])
+            : phase === 'references'
+              ? JSON.stringify(['references', document.uri, document.document])
+              : subject,
         required: true,
         status: 'blocked',
         reason: MESSAGES[code],
@@ -376,6 +459,7 @@ export async function validateBackstageSources(
         interrupted =
           code === 'timeout' ? 'timeout' : code === 'cancelled' ? 'cancelled' : 'resource_limit';
       unavailable = true;
+      if (phase === 'locations') unresolvedIncludes = true;
       blockedReason = MESSAGES[code];
     }
   }
@@ -394,7 +478,9 @@ export async function validateBackstageSources(
     references,
     sourceClaims,
     unresolvedSourceIdentities:
-      unparsedSources || sourceClaims.some((claim) => claim.entityRef === undefined),
+      unparsedSources ||
+      unresolvedIncludes ||
+      sourceClaims.some((claim) => claim.entityRef === undefined),
     findings,
     coverage,
     artifacts,

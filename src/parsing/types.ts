@@ -51,6 +51,14 @@ export interface NodeSourceSpan {
   readonly key?: Immutable<SourceRange>;
   readonly origin: 'authored' | 'alias';
   readonly relatedLocations: readonly Immutable<SourceLocation>[];
+  /** Resolved fields retain the included file's actual path, digest and editor version. */
+  readonly source?: {
+    readonly uri: string;
+    readonly document: number;
+    readonly path: string;
+    readonly sourceDigest: string;
+    readonly version?: number;
+  };
 }
 
 export interface ParsedSourceDocument {

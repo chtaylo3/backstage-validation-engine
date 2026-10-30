@@ -77,8 +77,12 @@ export async function extractEntityReferences(
           targetRef,
           value: current.value,
           contextPath: pattern.path,
-          sourceDigest: document.sourceDigest,
-          ...(document.version === undefined ? {} : { version: document.version }),
+          entityPath: current.path,
+          sourceDigest:
+            document.locations[authoredPath]?.source?.sourceDigest ?? document.sourceDigest,
+          ...((document.locations[authoredPath]?.source ?? document).version === undefined
+            ? {}
+            : { version: (document.locations[authoredPath]?.source ?? document).version! }),
           location: locateParsedPath(document, current.path),
           relatedLocations: document.locations[authoredPath]?.relatedLocations ?? [],
         });

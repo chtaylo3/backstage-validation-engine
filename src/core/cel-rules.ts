@@ -228,13 +228,14 @@ export async function executePolicyRules(
                 location: Finding['location'],
                 relatedLocations: readonly Immutable<Finding['location']>[],
                 dependency: boolean,
+                entityPath: string = location.path,
               ) =>
                 findings.push({
                   id: createFindingId({
                     ruleId: rule.id,
                     ruleVersion: rule.version,
                     subjectId: subject.id,
-                    path: location.path,
+                    path: entityPath,
                     policyDigest: run.policy.digest,
                     profileDigest: run.profile.digest,
                   }),
@@ -269,13 +270,19 @@ export async function executePolicyRules(
                   unavailable?.reference.location ?? subject.location,
                   unavailable?.reference.relatedLocations ?? [],
                   true,
+                  unavailable?.reference.entityPath ?? subject.location.path,
                 );
               } else if (!facts.length) state.status = 'not_applicable';
               else {
                 const missing = facts.filter((fact) => fact.status === 'missing');
                 if (missing.length) state.status = 'failed';
                 for (const fact of missing)
-                  addFinding(fact.reference.location, fact.reference.relatedLocations, false);
+                  addFinding(
+                    fact.reference.location,
+                    fact.reference.relatedLocations,
+                    false,
+                    fact.reference.entityPath,
+                  );
               }
             } else if (
               !(await runtime.evaluate(rule.expression, subject.value, evaluationContext))

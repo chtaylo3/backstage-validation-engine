@@ -92,6 +92,8 @@ export interface CompatibleSourceEntity {
   readonly document: ParsedSourceDocument;
   readonly entityRef: string;
   readonly authored: Immutable<JsonValue>;
+  readonly resolved: Immutable<JsonValue>;
+  readonly substitutions: readonly SourceSubstitution[];
   readonly normalized: Immutable<JsonValue>;
   readonly changes: readonly (NormalizationChange & {
     readonly origin: Immutable<Finding['location']>;
@@ -114,6 +116,7 @@ export interface BackstageCompatibilityReport {
 }
 
 export interface BackstageSourceReference {
+  readonly entityPath: string;
   readonly sourceEntityRef: string;
   readonly targetRef: string;
   readonly value: string;
@@ -122,6 +125,17 @@ export interface BackstageSourceReference {
   readonly version?: number;
   readonly location: Immutable<Finding['location']>;
   readonly relatedLocations: readonly Immutable<Finding['location']>[];
+}
+
+export interface SourceSubstitution {
+  readonly path: string;
+  readonly kind: '$text' | '$json' | '$yaml';
+  readonly origin: Immutable<Finding['location']>;
+  readonly target: {
+    readonly uri: string;
+    readonly sourceDigest: string;
+    readonly version?: number;
+  };
 }
 
 export interface SourceIdentityClaim {

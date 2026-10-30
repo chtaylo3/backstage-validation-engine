@@ -9,6 +9,7 @@ import {
 import { parseLspConfig } from '../src/lsp/config.js';
 import { BoundedLspInput, LSP_FRAME_BYTES } from '../src/lsp/framing.js';
 import { URI } from './helpers.js';
+import { digestText } from '../src/index.js';
 import { componentText, localTeam, policyMatrix, policyRun } from './harness/policy-fixture.js';
 import { startLspClient } from './harness/lsp-client.js';
 
@@ -68,6 +69,148 @@ void test('stdio LSP validates editor buffers against every pinned fake API and 
       assert.equal(fixture.requests().length, 2);
       await host.shutdown();
     });
+});
+
+void test('BC-04 LSP revalidates included buffers and projects findings to versioned inclusion sites on both pinned APIs', async (t) => {
+  const matrix = await policyMatrix(t);
+  const ownerUri = 'file:///workspace/owner.txt';
+  const text = componentText('{$text: ./owner.txt}');
+  for (const { fixture, target } of matrix.fixtures)
+    await t.test(target.backstageVersion, async (t) => {
+      const host = await startLspClient(
+        t,
+        config(fixture.baseUrl, {
+          rootUri: 'file:///workspace/',
+          entrypoints: [URI],
+          text,
+          files: [{ uri: ownerUri, text: 'missing' }],
+        }),
+      );
+      await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
+      });
+      const projected = await host.waitFor((item) => item.uri === URI && item.version === 1);
+      assert.equal(projected.diagnostics.length, 1);
+      assert.equal(projected.diagnostics[0]?.code, 'owner-exists');
+      assert.equal(projected.diagnostics[0]?.range.start.line, 6);
+      assert.equal(projected.diagnostics[0]?.relatedInformation?.[0]?.location.uri, ownerUri);
+      const projectedData = projected.diagnostics[0]?.data as {
+        findingId: string;
+        category: string;
+        sourceDigest: string;
+        version: number;
+      };
+      assert.equal(projectedData.category, 'policy');
+      assert.equal(projectedData.sourceDigest, digestText(text));
+      assert.equal(projectedData.version, 1);
+      await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: { uri: ownerUri, languageId: 'plaintext', version: 9, text: 'missing' },
+      });
+      const included = await host.waitFor((item) => item.uri === ownerUri && item.version === 9);
+      assert.equal(included.diagnostics.length, 1);
+      assert.equal(included.diagnostics[0]?.code, 'owner-exists');
+      assert.deepEqual(included.diagnostics[0]?.range, {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 7 },
+      });
+      assert.equal(included.diagnostics[0]?.relatedInformation?.[0]?.location.uri, URI);
+      const after = host.diagnostics.length;
+      await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+        textDocument: { uri: ownerUri, version: 10 },
+        contentChanges: [{ text: 'team' }],
+      });
+      assert.deepEqual(
+        (await host.waitFor((item) => item.uri === ownerUri && item.version === 10, after))
+          .diagnostics,
+        [],
+      );
+      assert.deepEqual(
+        (await host.waitFor((item) => item.uri === URI && item.version === 1, after)).diagnostics,
+        [],
+      );
+      const closed = host.diagnostics.length;
+      await host.client.sendNotification(DidCloseTextDocumentNotification.type, {
+        textDocument: { uri: ownerUri },
+      });
+      const restored = await host.waitFor(
+        (item) => item.uri === URI && item.diagnostics.some((row) => row.code === 'owner-exists'),
+        closed,
+      );
+      assert.equal(
+        (restored.diagnostics[0]?.data as { findingId: string }).findingId,
+        projectedData.findingId,
+      );
+      await host.shutdown();
+    });
+});
+
+void test('BC-04 LSP cancels stale catalog reads when an included buffer changes', async (t) => {
+  const matrix = await policyMatrix(t);
+  const fixture = matrix.fixtures[0]!.fixture;
+  const ownerUri = 'file:///workspace/owner.txt';
+  const text = componentText('{$text: ./owner.txt}');
+  const host = await startLspClient(
+    t,
+    config(fixture.baseUrl, {
+      rootUri: 'file:///workspace/',
+      entrypoints: [URI],
+      text,
+      files: [{ uri: ownerUri, text: 'missing' }],
+    }),
+  );
+  const gate = fixture.holdNext({ operation: 'byName', entityRef: 'group:default/missing' });
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
+  });
+  await gate.entered;
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: ownerUri, languageId: 'plaintext', version: 1, text: 'team' },
+  });
+  await gate.cancelled;
+  gate.release();
+  assert.deepEqual((await host.waitFor((item) => item.uri === ownerUri)).diagnostics, []);
+  assert.deepEqual((await host.waitFor((item) => item.uri === URI)).diagnostics, []);
+  await host.shutdown();
+  assert(host.diagnostics.every((item) => item.diagnostics.length === 0));
+});
+
+void test('BC-04 LSP attributes invalid included YAML to its file and clears dependent findings after repair', async (t) => {
+  const specUri = 'file:///workspace/spec.yaml';
+  const text = componentText().split('spec:')[0]! + 'spec: {$yaml: ./spec.yaml}\n';
+  const invalid = 'type: service\nlifecycle: production\nowner: 42\n';
+  const host = await startLspClient(
+    t,
+    config(undefined, {
+      rootUri: 'file:///workspace/',
+      entrypoints: [URI],
+      text,
+      files: [{ uri: specUri, text: invalid }],
+      rules: [],
+    }),
+  );
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
+  });
+  const parent = await host.waitFor((item) => item.uri === URI);
+  assert.equal(parent.diagnostics.length, 1);
+  assert.equal(parent.diagnostics[0]?.relatedInformation?.[0]?.location.uri, specUri);
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: specUri, languageId: 'yaml', version: 4, text: invalid },
+  });
+  const included = await host.waitFor((item) => item.uri === specUri && item.version === 4);
+  assert.equal(included.diagnostics.length, 1);
+  assert.equal(included.diagnostics[0]?.range.start.line, 2);
+  const after = host.diagnostics.length;
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: specUri, version: 5 },
+    contentChanges: [{ text: invalid.replace('42', 'team') }],
+  });
+  assert.deepEqual((await host.waitFor((item) => item.uri === URI, after)).diagnostics, []);
+  assert.deepEqual(
+    (await host.waitFor((item) => item.uri === specUri && item.version === 5, after)).diagnostics,
+    [],
+  );
+  await host.shutdown();
 });
 
 void test('LSP permission and outage diagnostics are dependency warnings rather than missing errors', async (t) => {

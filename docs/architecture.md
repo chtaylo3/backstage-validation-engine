@@ -84,9 +84,10 @@ substitution, admission, policy, or hosted-authority coverage.
 The [native compatibility adapter](backstage-compatibility.md) selects exact
 catalog-model 1.10.2/1.7.5 packages, applies declared native policies and stock kind
 validators, and records source-attributed normalization separately from authored
-JSON. Required unavailable processors and unresolved substitution markers block
-dependent native checks. The source-level entry point composes parsing with
-BC-01/BC-02 and declared BC-03 contexts; it does not attest later compatibility
+JSON. The [snapshot-local resolver](substitutions.md) implements BC-04 with pinned
+roots/entrypoints and included-file provenance. Required unavailable processors
+and unavailable readers block dependent native checks. The source-level entry
+point composes parsing with BC-01 through BC-04; it does not attest later compatibility
 or governance stages.
 
 ## Implemented catalog access boundary

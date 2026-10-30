@@ -17,6 +17,7 @@ import { canonicalJson, deepFreeze, digestJson, digestText } from '../core/json.
 import type { Immutable } from '../core/json.js';
 import { orderRules } from '../policy/rule-graph.js';
 import { compileReferenceContexts } from '../policy/reference-contexts.js';
+import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { decideOutcome } from '../core/outcomes.js';
 
 export interface ContractTypes {
@@ -41,6 +42,28 @@ function unique(values: readonly string[], path: string): void {
 }
 
 function checkSource(snapshot: SourceSnapshot): void {
+  if (
+    snapshot.rootUri !== undefined &&
+    (!isCanonicalSourceUri(snapshot.rootUri, true) ||
+      snapshot.files.some(
+        (file) => !isCanonicalSourceUri(file.uri) || !file.uri.startsWith(snapshot.rootUri!),
+      ) ||
+      snapshot.changes.some(
+        (change) => !isCanonicalSourceUri(change.uri) || !change.uri.startsWith(snapshot.rootUri!),
+      ))
+  ) {
+    reject(
+      'invalid_contract',
+      '/rootUri',
+      'local source files and changes must use canonical names inside the pinned root',
+    );
+  }
+  if (snapshot.entrypoints?.some((uri) => !snapshot.files.some((file) => file.uri === uri)))
+    reject(
+      'invalid_contract',
+      '/entrypoints',
+      'catalog entrypoint is absent from the effective snapshot',
+    );
   unique(
     snapshot.files.map((file) => file.uri),
     '/files',

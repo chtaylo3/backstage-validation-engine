@@ -56,6 +56,17 @@ function setup(
 void test('BC-01/02 source pipeline supports both pins and retains authored versus normalized provenance', async (t) => {
   for (const adapterId of BACKSTAGE_ADAPTER_IDS) {
     const run = setup(fixtures.map((entity) => stringify(entity)).join('---\n'), { adapterId });
+    // The native corpus contains a required file Location; BC-04 now executes it.
+    run.request = parseContract('validation-request', {
+      ...run.request,
+      source: createSourceSnapshot({
+        repository: run.request.source.repository,
+        revision: run.request.source.revision,
+        rootUri: 'file:///workspace/',
+        entrypoints: [URI],
+        files: [...run.request.source.files, { uri: 'file:///workspace/component.yaml', text: '' }],
+      }),
+    });
     const report = await validateBackstageSources(run.request, run.context);
     assert.equal(report.entities.length, 8);
     assert.equal(report.adapterId, adapterId);

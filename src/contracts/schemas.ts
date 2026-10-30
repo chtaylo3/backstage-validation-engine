@@ -62,6 +62,8 @@ export const SourceSnapshotSchema = schema('source-snapshot', {
   digest: digest(),
   repository: text(),
   revision: text(),
+  rootUri: Type.Optional(uri()),
+  entrypoints: Type.Optional(Type.Array(uri(), { uniqueItems: true, maxItems: 1000 })),
   files: Type.Array(sourceFile),
   changes: Type.Array(change),
 });

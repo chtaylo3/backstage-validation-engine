@@ -1,6 +1,6 @@
 # Native Backstage compatibility
 
-Status: BC-01/BC-02 and declared BC-03 contexts implemented and locally tested,
+Status: BC-01/BC-02, declared BC-03 contexts and snapshot-local BC-04 implemented and locally tested,
 2026-10-29. Source parsing is
 implemented; this increment adds the exact native catalog-model adapters selected
 by ADR 0002 in the planning repository.
@@ -10,7 +10,7 @@ by ADR 0002 in the planning repository.
 | BC-01 | Native envelope/kind parity for Component, API, Group, User, Resource, System, Domain and Location on 1.10.2 and 1.7.5                       | Passed locally                                        |
 | BC-02 | Native namespace defaulting, field-format/root/schema policies and opt-in group-parent defaulting, preserving authored/normalized provenance | Passed locally                                        |
 | BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                  |
-| BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Pending                                               |
+| BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Passed locally for snapshot-local reader              |
 | BC-05 | Kind/source admission and declared custom schemas                                                                                            | Pending                                               |
 | BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Pending                                               |
 | BC-07 | Required unavailable processors block dependent validation without speculative errors                                                        | Native-stage guard implemented; full pipeline pending |
@@ -89,10 +89,12 @@ GitHub approval.
 
 Required processors are not available in the initial executable-processor
 inventory. Their presence produces unsupported/blocked coverage before native
-validation. Unresolved `$text`, `$json` or `$yaml` markers likewise block native
-checks and record incomplete substitution coverage. Missing owners or other
-fields that those transformations might supply are not reported speculatively.
-This guard does not implement the substitutions themselves.
+validation. The [snapshot-local resolver](substitutions.md) now executes `$text`,
+`$json`, `$yaml` and file Locations under a pinned source root. Undeclared or
+unavailable readers block native checks with incomplete substitution coverage.
+Invalid includes retain violation findings while dependent native checks are
+withheld. Missing fields that transformations might supply are not reported
+speculatively.
 
 Native rejection after completed parsing produces blocking compatibility findings
 in CI and advisory findings in IDE mode. Unrecognized kinds/API versions produce
@@ -142,7 +144,7 @@ admission, catalog overlays or hosted authority. Earlier rules-only benchmark
 captures predate these dependencies; full pipeline startup/latency requalification
 remains an open pilot gate.
 
-Next compatibility stages: BC-04 safe substitutions, BC-05 admission/custom kinds
+Next compatibility stages: BC-05 admission/custom kinds
 and BC-06 qualified proposed-state overlays.
 
 The production provider now uses `adapter.resolveReference` and

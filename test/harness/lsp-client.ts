@@ -87,6 +87,7 @@ export async function startLspClient(t: TestContext, config: LspConfig) {
     },
     waitFor(
       predicate: (params: PublishDiagnosticsParams) => boolean,
+      after = 0,
     ): Promise<PublishDiagnosticsParams> {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -94,7 +95,7 @@ export async function startLspClient(t: TestContext, config: LspConfig) {
           reject(new Error('Timed out waiting for LSP diagnostics. ' + stderr));
         }, 10_000);
         const check = () => {
-          const found = diagnostics.find(predicate);
+          const found = diagnostics.slice(after).find(predicate);
           if (found) {
             clearTimeout(timer);
             waiters.delete(check);

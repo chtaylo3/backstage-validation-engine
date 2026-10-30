@@ -28,6 +28,19 @@
       "minLength": 1,
       "type": "string"
     },
+    "rootUri": {
+      "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]+$",
+      "type": "string"
+    },
+    "entrypoints": {
+      "uniqueItems": true,
+      "maxItems": 1000,
+      "type": "array",
+      "items": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]+$",
+        "type": "string"
+      }
+    },
     "files": {
       "type": "array",
       "items": {

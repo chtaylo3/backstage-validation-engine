@@ -27,8 +27,10 @@ shares the original deadline/signal. Exhaustion produces blocked coverage and
 resource interruption. Completed invalid checks retain findings/verified coverage.
 
 Canonical targets remain separate from effective field values. `references` retain
-context paths, source digests, buffer versions, UTF-16 locations and alias-related
-locations. Defaults retain nearest-authored locations and native mutation provenance.
+context paths, logical entity paths, source digests, buffer versions, UTF-16
+locations and alias/inclusion-related locations. Included values retain the actual
+payload's provenance; policy IDs use logical entity paths. Defaults retain
+nearest-authored locations and native mutation provenance.
 `sourceClaims` retain identities even for invalid/blocked documents;
 `unresolvedSourceIdentities` records incomplete identity coverage.
 
@@ -38,7 +40,8 @@ locations. Defaults retain nearest-authored locations and native mutation proven
 
 1. Verifies request/artifact bindings and matches provider adapter, installation,
    permission revision and policy/profile digests before HTTP.
-2. Runs source processing over the complete supplied snapshot and deduplicates
+2. Runs source processing from the supplied snapshot's entrypoints (all files when
+   omitted), resolves declared local inclusions and deduplicates
    canonical targets while preserving individual authored occurrences.
 3. Applies local guards, then collects eligible external targets under the original
    deadline and verifies exact target set, connection, principal and scope provenance.
@@ -73,8 +76,9 @@ Qualified overlays remain BC-06 work. Current guards:
 
 Guards return blocked observations instead of inventing missing-reference violations.
 They do not qualify positive local overlays, deletion or conflict behavior. The host
-supplies the complete proposed snapshot; discovery, substitutions and additional
-processor outputs retain their own qualification gates.
+supplies the complete proposed snapshot. [Snapshot-local discovery and
+substitutions](substitutions.md) are implemented; additional processor outputs
+retain their own qualification gates.
 
 ## Development and next work
 
@@ -93,7 +97,7 @@ Tests cover both native pins against both fixtures, namespaces/case, escaped pat
 arrays, aliases/defaults, resource bounds, invalid/unknown/deleted/competing claims,
 authorization binding, unavailable data, cancellation, stale retained data and
 overlapping buffer versions. [Catalog rules and the LSP](lsp.md) now consume these
-pins and suppress superseded editor generations. BC-04/BC-05/BC-06 and real
+pins and suppress superseded editor generations. BC-05/BC-06 and real
 backend/IDE qualification remain open.
 
 Local qualification on 2026-10-29: 31 new reference/preparation checks passed;

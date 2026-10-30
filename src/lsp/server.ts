@@ -18,16 +18,28 @@ import type { CatalogAccessContext, CatalogProvider } from '../providers/types.j
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 
-function diagnostic(finding: Immutable<Finding>, digest: string, version: number): Diagnostic {
+function diagnostic(
+  finding: Immutable<Finding>,
+  digest: string,
+  version: number,
+  uri: string,
+): Diagnostic {
+  const projected = finding.location.uri !== uri;
+  const location = projected
+    ? finding.relatedLocations.find((location) => location.uri === uri)!
+    : finding.location;
+  const related = [...(projected ? [finding.location] : []), ...finding.relatedLocations].filter(
+    (item) => item !== location,
+  );
   return {
-    range: finding.location.range,
+    range: location.range,
     severity: finding.severity === 'error' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
     source: 'backstage-validation',
     code: finding.ruleId,
     message: finding.message,
-    ...(finding.relatedLocations.length
+    ...(related.length
       ? {
-          relatedInformation: finding.relatedLocations.map((location) => ({
+          relatedInformation: related.map((location) => ({
             location: { uri: location.uri, range: location.range },
             message: 'Related source location.',
           })),
@@ -110,8 +122,12 @@ export function attachLspServer(
           if (!current()) return;
           const digest = digestText(document.getText());
           const diagnostics = report.findings
-            .filter((finding) => finding.location.uri === document.uri)
-            .map((finding) => diagnostic(finding, digest, document.version));
+            .filter(
+              (finding) =>
+                finding.location.uri === document.uri ||
+                finding.relatedLocations.some((location) => location.uri === document.uri),
+            )
+            .map((finding) => diagnostic(finding, digest, document.version, document.uri));
           if (
             report.interrupted !== 'none' ||
             (report.coverage.some((row) => row.required && row.status !== 'verified') &&

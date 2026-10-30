@@ -20,6 +20,8 @@ function compare(a: string, b: string): number {
 export function createSourceSnapshot(input: {
   readonly repository: string;
   readonly revision: string;
+  readonly rootUri?: string;
+  readonly entrypoints?: readonly string[];
   readonly files: readonly SourceInput[];
   readonly changes?: readonly Immutable<SourceChange>[];
 }): Immutable<SourceSnapshot> {
@@ -29,6 +31,8 @@ export function createSourceSnapshot(input: {
     contractVersion: CONTRACT_VERSION,
     repository: safe.repository,
     revision: safe.revision,
+    ...(safe.rootUri === undefined ? {} : { rootUri: safe.rootUri }),
+    ...(safe.entrypoints === undefined ? {} : { entrypoints: [...safe.entrypoints].sort(compare) }),
     files: safe.files
       .map((file) => ({
         uri: file.uri,
@@ -73,6 +77,10 @@ export function overlaySourceSnapshot(
   return createSourceSnapshot({
     repository: verified.repository,
     revision: verified.revision,
+    ...(verified.rootUri === undefined ? {} : { rootUri: verified.rootUri }),
+    ...(verified.entrypoints === undefined
+      ? {}
+      : { entrypoints: verified.entrypoints.filter((uri) => files.has(uri)) }),
     files: [...files.values()],
     changes: [...changes.values()],
   });

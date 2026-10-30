@@ -60,7 +60,13 @@ Buffer input requires a document version. Changes must agree with effective
 files: additions/modifications exist and deletions do not. Overlays preserve the
 base snapshot, reject competing URI claims, retain deletion tombstones, and track
 new-file removal without fabricating a deletion of a repository file. Readers
-must later enforce traversal/symlink boundaries against these snapshots.
+that capture disk content must enforce their traversal/symlink boundaries.
+
+Pre-release contract 0.2 now permits optional `rootUri` and `entrypoints` in source
+snapshots. A root pins canonical contained local file URIs. Entrypoints must exist
+and select catalog inputs separately from payload files; omission preserves
+all-file parsing. Both fields are hashed and retained by overlays. Updated schemas
+and consumers are required when using them. See [local resolution](substitutions.md).
 
 `verifyRequestBindings` checks content digests, IDs, revisions, activation scope/
 generation, and the assigned profile's lower budgets. Hash integrity proves

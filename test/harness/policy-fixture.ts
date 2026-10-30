@@ -48,6 +48,8 @@ export function policyRun(
     mode?: 'ci' | 'ide';
     files?: readonly SourceInput[];
     profile?: Partial<DeploymentProfile>;
+    rootUri?: string;
+    entrypoints?: readonly string[];
   } = {},
 ) {
   const base = makeContext();
@@ -64,6 +66,8 @@ export function policyRun(
   const source = createSourceSnapshot({
     repository: 'repository',
     revision: '1',
+    ...(options.rootUri === undefined ? {} : { rootUri: options.rootUri }),
+    ...(options.entrypoints === undefined ? {} : { entrypoints: options.entrypoints }),
     files: [
       { uri: URI, text: options.text ?? componentText(), version: 1, origin: 'buffer' },
       ...(options.files ?? []),

@@ -136,10 +136,29 @@ The development launcher generator and EOF smoke passed with empty protocol/erro
 output streams. Real backend/IDE runs, filesystem snapshot refresh and positive
 local overlay qualification remain open.
 
+## Snapshot-local substitutions increment
+
+Implemented BC-04 `$text`, `$json`, `$yaml` and file Location discovery from the
+immutable proposed snapshot. Optional pinned source roots and catalog entrypoints
+separate entity inputs from payloads and participate in source digests/overlays.
+Resolution enforces containment, cycles, depth and expansion budgets under the
+original deadline/signal. Authored, resolved and normalized values remain separate;
+included field ranges, digests, versions and use chains reach references/findings.
+See [reader scope and acceptance](substitutions.md).
+
+The stdio LSP revalidates included-buffer edits, projects findings to inclusion
+sites, restores pinned bytes on close and suppresses stale catalog responses.
+Remote/glob readers remain incomplete. Host filesystem capture, BC-05 admission,
+BC-06 positive overlays and real editor/backend qualification remain open.
+
+Local qualification on 2026-10-29: 56 substitution checks and five added LSP
+checks passed. The full `npm run check` passed all 485 tests, type checking,
+lint, formatting, generated-schema verification and the production build.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Implement BC-04 safe substitutions, BC-05
-   admission/custom kinds, BC-06 qualified proposed overlays and complete BC-07
+1. **Engine and compatibility.** Implement BC-05 admission/custom kinds,
+   BC-06 qualified proposed overlays and complete BC-07
    processor blocking, extending the fixture-driven LSP loop for each behavior.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.
