@@ -2,7 +2,18 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['plan/**', 'dist/**', '.test-dist/**', 'node_modules/**', 'coverage/**'] },
+  {
+    ignores: [
+      'plan/**',
+      'dist/**',
+      '.test-dist/**',
+      'node_modules/**',
+      'coverage/**',
+      '.agents/**',
+      '.codex/**',
+      '.aws/**',
+    ],
+  },
   eslint.configs.recommended,
   {
     files: ['**/*.ts'],

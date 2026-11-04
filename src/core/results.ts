@@ -70,6 +70,7 @@ export function createValidationResult(input: ResultInput): Immutable<Validation
     mode: request.execution.mode,
     provenance: {
       sourceDigest: request.source.digest,
+      ...(request.baseline ? { baselineDigest: request.baseline.digest } : {}),
       policyDigest: request.policy.digest,
       profileDigest: request.profile.digest,
       activationDigest: request.activation.digest,

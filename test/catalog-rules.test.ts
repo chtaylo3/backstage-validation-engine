@@ -119,10 +119,15 @@ void test('policy-selected contexts bound provider I/O; unbound contexts remain 
   assert.equal(matrix.fixtures[0]!.fixture.requests().length, 1);
 });
 
-void test('missing configuration and local proposed-state guards report attributed dependency warnings', async () => {
+void test('unconfigured external dependencies warn while qualified local targets need no API', async () => {
   for (const files of [[], [localTeam]]) {
     const run = policyRun({ files });
     const report = await validatePolicySources(run.request, run.context);
+    if (files.length) {
+      assert.equal(report.rules.ruleStates[0]?.status, 'passed');
+      assert.deepEqual(report.findings, []);
+      continue;
+    }
     assert.equal(report.rules.ruleStates[0]?.status, 'incomplete');
     const finding = report.findings.find((row) => row.ruleId === ownerRule.id)!;
     assert.equal(finding.category, 'dependency');

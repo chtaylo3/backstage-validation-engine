@@ -244,7 +244,7 @@ export async function executePolicyRules(
                   subjectId: subject.id,
                   message: dependency
                     ? 'Catalog data is unavailable for this policy rule.'
-                    : 'Referenced catalog entity was not found in the authorized view.',
+                    : 'Referenced entity is absent from the proposed catalog view.',
                   category: dependency ? 'dependency' : 'policy',
                   severity: dependency && run.execution.mode === 'ide' ? 'warning' : rule.severity,
                   enforcement:

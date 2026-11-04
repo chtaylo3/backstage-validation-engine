@@ -236,6 +236,7 @@ export const ValidationRequestSchema = schema('validation-request', {
     permissionRevision: text(),
   }),
   source: reference(SourceSnapshotSchema),
+  baseline: Type.Optional(reference(SourceSnapshotSchema)),
   policy: object({ digest: digest(), revision: text() }),
   profile: object({ digest: digest(), id: text() }),
   activation: object({ digest: digest(), generation: positive(Number.MAX_SAFE_INTEGER) }),
@@ -347,6 +348,7 @@ export const ValidationResultSchema = schema('validation-result', {
   mode: ValidationRequestSchema.properties.execution.properties.mode,
   provenance: object({
     sourceDigest: digest(),
+    baselineDigest: Type.Optional(digest()),
     policyDigest: digest(),
     profileDigest: digest(),
     activationDigest: digest(),

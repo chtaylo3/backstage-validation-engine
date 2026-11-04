@@ -14,6 +14,7 @@ import type {
   PolicyBundle,
   SchemaArtifact,
   SourceInput,
+  SourceSnapshot,
 } from '../../src/index.js';
 import { makeContext, makeRequest, URI } from '../helpers.js';
 import { startFakeBackstage } from './fake-backstage.js';
@@ -53,6 +54,8 @@ export function policyRun(
     rootUri?: string;
     entrypoints?: readonly string[];
     schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
+    baseline?: Immutable<SourceSnapshot>;
+    source?: Immutable<SourceSnapshot>;
   } = {},
 ) {
   const base = makeContext();
@@ -66,20 +69,23 @@ export function policyRun(
     policyDigest: digestJson(policy),
     profileDigest: digestJson(profile),
   });
-  const source = createSourceSnapshot({
-    repository: 'repository',
-    revision: '1',
-    ...(options.rootUri === undefined ? {} : { rootUri: options.rootUri }),
-    ...(options.entrypoints === undefined ? {} : { entrypoints: options.entrypoints }),
-    files: [
-      { uri: URI, text: options.text ?? componentText(), version: 1, origin: 'buffer' },
-      ...(options.files ?? []),
-    ],
-  });
+  const source =
+    options.source ??
+    createSourceSnapshot({
+      repository: 'repository',
+      revision: '1',
+      ...(options.rootUri === undefined ? {} : { rootUri: options.rootUri }),
+      ...(options.entrypoints === undefined ? {} : { entrypoints: options.entrypoints }),
+      files: [
+        { uri: URI, text: options.text ?? componentText(), version: 1, origin: 'buffer' },
+        ...(options.files ?? []),
+      ],
+    });
   const now = Date.now();
   const request = parseContract('validation-request', {
     ...makeRequest(options.mode ?? 'ide'),
     source,
+    ...(options.baseline ? { baseline: options.baseline } : {}),
     execution: { mode: options.mode ?? 'ide', startedAt: now, deadlineAt: now + 5000 },
     policy: { digest: digestJson(policy), revision: policy.revision },
     profile: { id: profile.id, digest: digestJson(profile) },

@@ -12,7 +12,10 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Finding } from '../contracts/schemas.js';
 import { digestText } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
-import { overlaySourceSnapshot } from '../core/snapshots.js';
+import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
+import type { SourceInput } from '../core/snapshots.js';
+import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { verifyRequestBindings } from '../core/bindings.js';
 import { validatePolicySources } from '../core/policy-sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { createLspRequest } from './config.js';
@@ -66,6 +69,7 @@ export function attachLspServer(
   } = {},
 ) {
   const documents = new Map<string, TextDocument>();
+  let workspaceSource = config.source;
   const unavailable = new Set<string>();
   let capacityExceeded = false;
   let epoch = 0;
@@ -105,7 +109,7 @@ export function attachLspServer(
           return;
         }
         const source = overlaySourceSnapshot(
-          config.source,
+          workspaceSource,
           frame.map((document) => ({
             uri: document.uri,
             text: document.getText(),
@@ -221,7 +225,7 @@ export function attachLspServer(
       if (Buffer.byteLength(updated.getText()) > config.profile.limits.fileBytes) return undefined;
     }
     const files = new Map(
-      config.source.files.map((file) => [file.uri, Buffer.byteLength(file.text)]),
+      workspaceSource.files.map((file) => [file.uri, Buffer.byteLength(file.text)]),
     );
     for (const item of documents.values()) files.set(item.uri, Buffer.byteLength(item.getText()));
     files.set(updated.uri, Buffer.byteLength(updated.getText()));
@@ -255,6 +259,16 @@ export function attachLspServer(
       capabilities: {
         positionEncoding: PositionEncodingKind.UTF16,
         textDocumentSync: { openClose: true, change: TextDocumentSyncKind.Incremental },
+        workspace: {
+          fileOperations: {
+            didRename: {
+              filters: [{ scheme: 'file', pattern: { glob: '**/*', matches: 'file' } }],
+            },
+            didDelete: {
+              filters: [{ scheme: 'file', pattern: { glob: '**/*', matches: 'file' } }],
+            },
+          },
+        },
       },
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
@@ -308,6 +322,79 @@ export function attachLspServer(
     schedule();
     await publish(item.uri, previous.version, []);
   });
+  const fileUri = (uri: string) =>
+    validUri(uri) &&
+    isCanonicalSourceUri(uri) &&
+    (!config.source.rootUri || uri.startsWith(config.source.rootUri));
+  type SourceFileOperation = { readonly oldUri: string; readonly newUri?: string };
+  async function fileOperations(rows: readonly SourceFileOperation[]) {
+    if (!initialized || stopped) return;
+    const cleared: TextDocument[] = [];
+    try {
+      if (!Array.isArray(rows) || rows.length === 0 || rows.length > 1000)
+        throw new Error('Invalid file operations');
+      const seen = new Set<string>();
+      const updates: (SourceInput | { uri: string; deleted: true })[] = [];
+      const renamed = new Map<string, string>();
+      for (const row of rows as readonly SourceFileOperation[]) {
+        if (
+          !row ||
+          !fileUri(row.oldUri) ||
+          seen.has(row.oldUri) ||
+          (row.newUri !== undefined &&
+            (!fileUri(row.newUri) || seen.has(row.newUri) || row.newUri === row.oldUri))
+        )
+          throw new Error('Invalid file operation');
+        seen.add(row.oldUri);
+        if (row.newUri !== undefined) seen.add(row.newUri);
+        const open = documents.get(row.oldUri);
+        const file = workspaceSource.files.find((file) => file.uri === row.oldUri);
+        if (!open && !file) throw new Error('Source bytes are unavailable');
+        if (file) updates.push({ uri: row.oldUri, deleted: true });
+        if (row.newUri !== undefined) {
+          if (unavailable.has(row.oldUri)) throw new Error('Source buffer is not synchronized');
+          if (
+            documents.has(row.newUri) ||
+            workspaceSource.files.some((file) => file.uri === row.newUri)
+          )
+            throw new Error('Conflicting rename');
+          updates.push(
+            open
+              ? { uri: row.newUri, text: open.getText(), origin: 'buffer', version: open.version }
+              : { ...file!, uri: row.newUri },
+          );
+          renamed.set(row.oldUri, row.newUri);
+        }
+        if (open) cleared.push(open);
+      }
+      let next = overlaySourceSnapshot(workspaceSource, updates);
+      if (workspaceSource.entrypoints !== undefined)
+        next = createSourceSnapshot({
+          ...next,
+          entrypoints: workspaceSource.entrypoints
+            .map((uri) => renamed.get(uri) ?? uri)
+            .filter((uri) => next.files.some((file) => file.uri === uri)),
+        });
+      if (next.files.length > 1000) throw new Error('Source limit exceeded');
+      verifyRequestBindings(createLspRequest(config, next), config);
+      workspaceSource = next;
+      for (const document of cleared) {
+        documents.delete(document.uri);
+        unavailable.delete(document.uri);
+      }
+    } catch {
+      capacityExceeded = true;
+    }
+    schedule();
+    if (!capacityExceeded)
+      for (const document of cleared) await publish(document.uri, document.version, []);
+  }
+  connection.workspace.onDidDeleteFiles((params) =>
+    fileOperations(
+      Array.isArray(params?.files) ? params.files.map((file) => ({ oldUri: file?.uri })) : [],
+    ),
+  );
+  connection.workspace.onDidRenameFiles((params) => fileOperations(params?.files ?? []));
   connection.onShutdown(async () => {
     requestedShutdown = true;
     await close();

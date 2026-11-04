@@ -5,6 +5,8 @@ import {
   DidOpenTextDocumentNotification,
   DidChangeTextDocumentNotification,
   DidCloseTextDocumentNotification,
+  DidDeleteFilesNotification,
+  DidRenameFilesNotification,
 } from 'vscode-languageserver/node';
 import { parseLspConfig } from '../src/lsp/config.js';
 import { BoundedLspInput, LSP_FRAME_BYTES } from '../src/lsp/framing.js';
@@ -404,7 +406,7 @@ void test('UTF-16 incremental edits preserve same-line emoji offsets and reject 
   assert.equal(host.diagnostics.filter((item) => item.version === 8).length, 1);
 });
 
-void test('workspace changes revalidate dependents while local proposed entities stay blocked until overlay qualification', async (t) => {
+void test('workspace changes qualify valid local targets, block invalid replacements and restore catalog fallback on close', async (t) => {
   const matrix = await policyMatrix(t);
   const fixture = matrix.fixtures[0]!.fixture;
   const host = await startLspClient(t, config(fixture.baseUrl));
@@ -413,7 +415,12 @@ void test('workspace changes revalidate dependents while local proposed entities
   });
   await host.waitFor((item) => item.uri === URI && item.diagnostics.length === 0);
   await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
-    textDocument: { uri: localTeam.uri, languageId: 'yaml', version: 1, text: localTeam.text },
+    textDocument: {
+      uri: localTeam.uri,
+      languageId: 'yaml',
+      version: 1,
+      text: localTeam.text.replace('children: []', 'children: invalid'),
+    },
   });
   const blocked = await host.waitFor(
     (item) =>
@@ -421,6 +428,16 @@ void test('workspace changes revalidate dependents while local proposed entities
   );
   assert.equal(blocked.diagnostics[0]?.severity, 2);
   assert.match(JSON.stringify(blocked), /dependency/);
+  const after = host.diagnostics.length;
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: localTeam.uri, version: 2 },
+    contentChanges: [{ text: localTeam.text }],
+  });
+  assert.deepEqual(
+    (await host.waitFor((item) => item.uri === URI && item.diagnostics.length === 0, after))
+      .diagnostics,
+    [],
+  );
   await host.client.sendNotification(DidCloseTextDocumentNotification.type, {
     textDocument: { uri: localTeam.uri },
   });
@@ -433,6 +450,162 @@ void test('workspace changes revalidate dependents while local proposed entities
     (await host.waitFor((item) => item.uri === URI && item.version === 2)).diagnostics,
     [],
   );
+  await host.shutdown();
+});
+
+for (const adapterId of BACKSTAGE_ADAPTER_IDS)
+  void test(`BC-06 LSP qualifies local buffers, invalid replacements and baseline deletions on both APIs with ${adapterId}`, async (t) => {
+    const matrix = await policyMatrix(t);
+    for (const { fixture, target } of matrix.fixtures)
+      await t.test(target.backstageVersion, async (t) => {
+        const before = fixture.requests().length;
+        const host = await startLspClient(
+          t,
+          config(fixture.baseUrl, { files: [localTeam], profile: { adapterId } }),
+        );
+        await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+          textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+        });
+        assert.deepEqual(
+          (await host.waitFor((item) => item.uri === URI && item.version === 1)).diagnostics,
+          [],
+        );
+        await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+          textDocument: {
+            uri: localTeam.uri,
+            languageId: 'yaml',
+            version: 4,
+            text: localTeam.text.replace('children: []', 'children: invalid'),
+          },
+        });
+        const invalid = await host.waitFor(
+          (item) => item.uri === URI && item.diagnostics.some((row) => row.code === 'owner-exists'),
+        );
+        assert.equal(invalid.diagnostics[0]?.severity, 2);
+        const repairedAfter = host.diagnostics.length;
+        await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+          textDocument: { uri: localTeam.uri, version: 5 },
+          contentChanges: [{ text: localTeam.text }],
+        });
+        assert.deepEqual(
+          (
+            await host.waitFor(
+              (item) => item.uri === URI && item.diagnostics.length === 0,
+              repairedAfter,
+            )
+          ).diagnostics,
+          [],
+        );
+        const deletedAfter = host.diagnostics.length;
+        await host.client.sendNotification(DidDeleteFilesNotification.type, {
+          files: [{ uri: localTeam.uri }],
+        });
+        const deleted = await host.waitFor(
+          (item) => item.uri === URI && item.diagnostics.some((row) => row.code === 'owner-exists'),
+          deletedAfter,
+        );
+        assert.equal(deleted.diagnostics[0]?.severity, 1);
+        assert.equal(fixture.requests().length, before);
+        await host.shutdown();
+      });
+  });
+
+void test('BC-06 LSP file/identity renames and competing source claims revalidate dependents', async (t) => {
+  const matrix = await policyMatrix(t);
+  const fixture = matrix.fixtures[0]!.fixture;
+  const moved = 'file:///workspace/moved.yaml';
+  const competing = 'file:///workspace/competing.yaml';
+  const platform = localTeam.text.replace('name: team', 'name: platform');
+  const host = await startLspClient(t, config(fixture.baseUrl, { files: [localTeam] }));
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+  });
+  await host.waitFor((item) => item.uri === URI && item.version === 1);
+  const movedAfter = host.diagnostics.length;
+  await host.client.sendNotification(DidRenameFilesNotification.type, {
+    files: [{ oldUri: localTeam.uri, newUri: moved }],
+  });
+  assert.deepEqual((await host.waitFor((item) => item.uri === URI, movedAfter)).diagnostics, []);
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: moved, languageId: 'yaml', version: 1, text: platform },
+  });
+  const renamed = await host.waitFor(
+    (item) => item.uri === URI && item.diagnostics.some((row) => row.code === 'owner-exists'),
+  );
+  assert.equal(renamed.diagnostics[0]?.severity, 1);
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ text: componentText('platform') }],
+  });
+  assert.deepEqual(
+    (await host.waitFor((item) => item.uri === URI && item.version === 2)).diagnostics,
+    [],
+  );
+  const duplicateAfter = host.diagnostics.length;
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: competing, languageId: 'yaml', version: 1, text: platform },
+  });
+  const conflict = await host.waitFor(
+    (item) =>
+      item.uri === moved &&
+      item.diagnostics.some((row) => row.code === 'backstage/overlay/competing_claims'),
+    duplicateAfter,
+  );
+  assert(conflict.diagnostics.some((row) => row.severity === 1));
+  const blocked = await host.waitFor(
+    (item) => item.uri === URI && item.diagnostics.some((row) => row.code === 'owner-exists'),
+    duplicateAfter,
+  );
+  assert.equal(blocked.diagnostics[0]?.severity, 2);
+  const closedAfter = host.diagnostics.length;
+  await host.client.sendNotification(DidCloseTextDocumentNotification.type, {
+    textDocument: { uri: competing },
+  });
+  assert.deepEqual(
+    (await host.waitFor((item) => item.uri === URI && item.diagnostics.length === 0, closedAfter))
+      .diagnostics,
+    [],
+  );
+  assert.equal(fixture.requests().length, 0);
+  await host.shutdown();
+});
+
+void test('BC-06 LSP cancels a superseded remote lookup when a local target is added', async (t) => {
+  const matrix = await policyMatrix(t);
+  const fixture = matrix.fixtures[0]!.fixture;
+  const host = await startLspClient(t, config(fixture.baseUrl));
+  const gate = fixture.holdNext({ operation: 'byName' });
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+  });
+  await gate.entered;
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: localTeam.uri, languageId: 'yaml', version: 1, text: localTeam.text },
+  });
+  await gate.cancelled;
+  gate.release();
+  assert.deepEqual((await host.waitFor((item) => item.uri === URI)).diagnostics, []);
+  await host.shutdown();
+  assert(host.diagnostics.every((item) => item.diagnostics.length === 0));
+  assert.equal(fixture.requests().length, 1);
+});
+
+void test('BC-06 LSP refuses file operations without pinned bytes and invalidates stale results', async (t) => {
+  const host = await startLspClient(t, config(undefined, { rules: [] }));
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+  });
+  await host.waitFor((item) => item.uri === URI);
+  const after = host.diagnostics.length;
+  await host.client.sendNotification(DidRenameFilesNotification.type, {
+    files: [{ oldUri: 'file:///workspace/unknown.yaml', newUri: 'file:///workspace/new.yaml' }],
+  });
+  const report = await host.waitFor(
+    (item) =>
+      item.uri === URI && item.diagnostics.some((row) => row.code === 'validation/incomplete'),
+    after,
+  );
+  assert.equal(report.diagnostics[0]?.severity, 2);
   await host.shutdown();
 });
 

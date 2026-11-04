@@ -20,6 +20,7 @@ const schema = Type.Object(
     policy: Type.Unknown(),
     activation: Type.Unknown(),
     source: Type.Unknown(),
+    baseline: Type.Optional(Type.Unknown()),
     schemaArtifacts: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 64 })),
     identity: ValidationRequestSchema.properties.identity,
     debounceMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 250 })),
@@ -63,6 +64,9 @@ export function parseLspConfig(input: unknown) {
     policy: parseContract('policy-bundle', safe.policy),
     activation: parseContract('activation-manifest', safe.activation),
     source: parseContract('source-snapshot', safe.source),
+    ...(safe.baseline === undefined
+      ? {}
+      : { baseline: parseContract('source-snapshot', safe.baseline) }),
     debounceMs: safe.debounceMs ?? 25,
   });
   verifyRequestBindings(createLspRequest(config, config.source), config);
@@ -71,7 +75,7 @@ export function parseLspConfig(input: unknown) {
 export type LspConfig = ReturnType<typeof parseLspConfig>;
 
 export function createLspRequest(
-  config: Pick<LspConfig, 'profile' | 'policy' | 'activation' | 'identity'>,
+  config: Pick<LspConfig, 'profile' | 'policy' | 'activation' | 'identity' | 'source' | 'baseline'>,
   source: Immutable<SourceSnapshot>,
 ) {
   const now = Date.now();
@@ -85,6 +89,10 @@ export function createLspRequest(
     },
     identity: config.identity,
     source,
+    ...((config.baseline ?? (config.source.changes.length === 0 ? config.source : undefined)) ===
+    undefined
+      ? {}
+      : { baseline: config.baseline ?? config.source }),
     policy: { digest: digestJson(config.policy), revision: config.policy.revision },
     profile: { digest: digestJson(config.profile), id: config.profile.id },
     activation: { digest: digestJson(config.activation), generation: config.activation.generation },

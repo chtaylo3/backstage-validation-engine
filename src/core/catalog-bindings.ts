@@ -10,6 +10,11 @@ import type { RuleSubject } from './cel-rules.js';
 import { digestJson, immutableJson } from './json.js';
 import type { Immutable } from './json.js';
 import { reject } from './errors.js';
+import {
+  buildProposedCatalog,
+  proposedCatalogEntry,
+  PROPOSED_CATALOG_PROVIDER,
+} from './proposed-catalog.js';
 
 export interface CatalogBoundReference {
   readonly reference: BackstageSourceReference;
@@ -26,6 +31,7 @@ const frame = (run: Immutable<ValidationRequest>) =>
     execution: run.execution,
     identity: run.identity,
     source: run.source.digest,
+    baseline: run.baseline?.digest ?? null,
     data: run.data.digest,
     policy: run.policy,
     profile: run.profile,
@@ -51,6 +57,12 @@ export async function bindCatalogReferences(
     reject('integrity', '/catalog', 'catalog preparation does not bind this rule request');
   const adapter = await loadBackstageAdapter(profile.adapterId);
   budget.throwIfInterrupted();
+  const proposed = await buildProposedCatalog(
+    run,
+    preparation.compatibility,
+    preparation.baseline,
+    budget,
+  );
   const patterns = compileReferenceContexts(profile.referenceContexts).filter(
     (pattern) => paths.includes(pattern.path) && preparation.referencePaths.includes(pattern.path),
   );
@@ -97,16 +109,46 @@ export async function bindCatalogReferences(
         if (!checked.has(observation.key)) {
           const pinned = data.get(observation.key);
           const { targetRef: ignored, ...entry } = observation;
-          if (
-            ignored !== reference.targetRef ||
-            observation.key !== catalogEntityKey(observation.provenance.connectionId, ignored) ||
-            observation.provenance.providerId !== 'backstage-catalog' ||
-            !pinned ||
-            digestJson(pinned) !== digestJson(entry)
-          ) {
-            reject('integrity', '/catalog', 'catalog observation differs from pinned data');
+          if (observation.provenance.providerId === PROPOSED_CATALOG_PROVIDER) {
+            const fact = proposed.get(reference.targetRef);
+            if (
+              !fact ||
+              fact.status === 'blocked' ||
+              !pinned ||
+              digestJson(
+                proposedCatalogEntry(
+                  run,
+                  reference.targetRef,
+                  fact,
+                  preparation.collectionStartedAt,
+                ),
+              ) !== digestJson(entry) ||
+              digestJson(pinned) !== digestJson(entry)
+            )
+              reject(
+                'integrity',
+                '/overlay',
+                'proposed catalog observation differs from the qualified source state',
+              );
+            checked.set(observation.key, pinned);
+          } else {
+            if (proposed.get(reference.targetRef))
+              reject(
+                'integrity',
+                '/overlay',
+                'catalog observation bypasses proposed source precedence',
+              );
+            if (
+              ignored !== reference.targetRef ||
+              observation.key !== catalogEntityKey(observation.provenance.connectionId, ignored) ||
+              observation.provenance.providerId !== 'backstage-catalog' ||
+              !pinned ||
+              digestJson(pinned) !== digestJson(entry)
+            ) {
+              reject('integrity', '/catalog', 'catalog observation differs from pinned data');
+            }
+            checked.set(observation.key, pinned);
           }
-          checked.set(observation.key, pinned);
         }
         const pinned = checked.get(observation.key)!;
         status = pinned.status;

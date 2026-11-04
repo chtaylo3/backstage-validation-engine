@@ -107,6 +107,9 @@
     "source": {
       "$ref": "urn:backstage-validation:source-snapshot:0.2"
     },
+    "baseline": {
+      "$ref": "urn:backstage-validation:source-snapshot:0.2"
+    },
     "policy": {
       "additionalProperties": false,
       "type": "object",

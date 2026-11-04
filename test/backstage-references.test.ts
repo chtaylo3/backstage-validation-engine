@@ -397,17 +397,17 @@ void test('source references collect pinned data on both backend contracts and n
     }
 });
 
-void test('local proposed targets mask old catalog entries until overlay qualification', async (t) => {
+void test('qualified local proposed targets precede old catalog observations', async (t) => {
   const state = await live(t);
   const run = setupSource(undefined, {}, 'ci', {
     files: [{ uri: 'file:///workspace/team.yaml', text: stringify(team) }],
   });
   const provider = await state.provider(run);
   const report = await collect(run, provider);
-  assert.deepEqual(report.observations, [
-    { targetRef: TEAM, status: 'blocked', reason: 'local_source' },
-  ]);
-  assert.equal(report.data.entries.length, 0);
+  assert.equal(report.observations[0]?.status, 'present');
+  assert.equal(report.observations[0]?.targetRef, TEAM);
+  assert.equal(report.data.entries[0]?.provenance.providerId, 'backstage-proposed-catalog');
+  assert.equal(report.data.entries.length, 1);
   assert.equal(state.fixtures[0]!.fixture.requests().length, 0);
 });
 
@@ -433,7 +433,7 @@ void test('an invalid replacement masks its identity while unrelated external ta
   assert.equal(report.compatibility.unresolvedSourceIdentities, false);
 });
 
-void test('duplicate local claims block fallback without claiming a qualified overlay', async (t) => {
+void test('duplicate local claims produce conflict findings and block fallback', async (t) => {
   const state = await live(t);
   const run = setupSource(undefined, {}, 'ci', {
     files: ['a', 'b'].map((name) => ({
@@ -603,7 +603,12 @@ void test('selected connection data is replaced so a blocked local claim cannot 
   ]);
   const run = setupSource(undefined, {}, 'ci', {
     data,
-    files: [{ uri: 'file:///workspace/team.yaml', text: stringify(team) }],
+    files: [
+      {
+        uri: 'file:///workspace/team.yaml',
+        text: stringify({ ...team, spec: { type: 'team', children: 'invalid' } }),
+      },
+    ],
   });
   const report = await collect(run, await state.provider(run));
   assert.equal(report.observations[0]?.status, 'blocked');

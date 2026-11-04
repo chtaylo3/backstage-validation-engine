@@ -115,6 +115,49 @@ function checkData(snapshot: DataSnapshot): void {
 
 function checkRequest(request: ValidationRequest): void {
   checkSource(request.source);
+  if (request.baseline) {
+    const base = request.baseline;
+    checkSource(base);
+    if (
+      base.repository !== request.source.repository ||
+      base.rootUri !== request.source.rootUri ||
+      base.changes.length
+    )
+      reject(
+        'invalid_contract',
+        '/baseline',
+        'baseline must be an unchanged snapshot of the same repository and source root',
+      );
+    const previous = new Map(base.files.map((file) => [file.uri, file]));
+    const proposed = new Map(request.source.files.map((file) => [file.uri, file]));
+    const changes = new Map(request.source.changes.map((change) => [change.uri, change.kind]));
+    for (const file of base.files) {
+      const next = proposed.get(file.uri);
+      if (
+        (!next && changes.get(file.uri) !== 'deleted') ||
+        (next && next.digest !== file.digest && changes.get(file.uri) !== 'modified')
+      )
+        reject(
+          'invalid_contract',
+          '/source/changes',
+          'baseline differences require explicit modification/deletion records',
+        );
+    }
+    for (const file of request.source.files)
+      if (!previous.has(file.uri) && changes.get(file.uri) !== 'added')
+        reject(
+          'invalid_contract',
+          '/source/changes',
+          'new baseline-relative sources require addition records',
+        );
+    for (const change of request.source.changes)
+      if ((change.kind === 'added') === previous.has(change.uri))
+        reject(
+          'invalid_contract',
+          '/source/changes',
+          'change kind conflicts with baseline source membership',
+        );
+  }
   checkData(request.data);
   if (request.run.generation !== request.activation.generation) {
     reject('invalid_contract', '/activation/generation', 'run and activation generations differ');

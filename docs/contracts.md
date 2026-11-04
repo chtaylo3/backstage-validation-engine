@@ -52,6 +52,13 @@ launcher fields, rather than entity documents or network retrieval. See
 [admission and custom schemas](admission-custom-kinds.md) for supported draft-07
 features, compilation bounds and missing-versus-invalid behavior.
 
+BC-06 adds optional `validation-request.baseline` (a source snapshot) and result
+`provenance.baselineDigest`. Baselines must have no change records and share the
+proposed repository/root. Baseline-relative source differences require coherent
+change records. Baseline/proposed raw bytes share the assigned request budget.
+Updated producers/consumers must include the new generated schemas when using
+these pre-release 0.2 fields. See [overlay provenance](proposed-overlays.md).
+
 Digests use `sha256:` plus 64 lowercase hexadecimal characters. File digests hash
 the exact UTF-8 text. Snapshot digests hash all snapshot fields except the snapshot
 `digest` field using project canonical JSON. The canonicalizer sorts object keys

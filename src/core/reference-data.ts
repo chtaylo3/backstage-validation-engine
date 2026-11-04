@@ -25,6 +25,11 @@ import { ContractError, reject } from './errors.js';
 import { deepFreeze } from './json.js';
 import type { Immutable } from './json.js';
 import { createDataSnapshot } from './snapshots.js';
+import {
+  buildProposedCatalog,
+  proposedCatalogEntry,
+  PROPOSED_CATALOG_PROVIDER,
+} from './proposed-catalog.js';
 
 export type ReferenceBlockReason =
   | 'local_source'
@@ -32,6 +37,7 @@ export type ReferenceBlockReason =
   | 'unresolved_sources'
   | 'unresolved_deletions'
   | 'source_incomplete'
+  | 'invalid_replacement'
   | 'provider_failure';
 export type BackstageReferenceObservation =
   | {
@@ -42,6 +48,7 @@ export type BackstageReferenceObservation =
   | (Immutable<DataEntry> & { readonly targetRef: string });
 export interface ReferenceDataPreparation {
   readonly compatibility: BackstageCompatibilityReport;
+  readonly baseline?: BackstageCompatibilityReport;
   readonly observations: readonly BackstageReferenceObservation[];
   readonly data: Immutable<DataSnapshot>;
   readonly catalog?: CatalogLookupReport;
@@ -70,8 +77,7 @@ function interrupted(budget: RequestBudget): 'timeout' | 'cancelled' {
 }
 
 /**
- * Prepare immutable external observations for declared source references. Local targets are
- * blocked until proposed-state overlay qualification; missing is not an existence-rule verdict.
+ * Qualify the proposed source overlay before collecting eligible external observations.
  */
 export async function prepareBackstageReferenceData(
   request: Immutable<ValidationRequest>,
@@ -120,8 +126,26 @@ export async function prepareBackstageReferenceData(
   ) {
     reject('integrity', '/catalog', 'catalog context does not bind this validation request');
   }
-  const compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
+  let compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
   let interruption: Interruption = compatibility.interrupted;
+  let baseline: BackstageCompatibilityReport | undefined;
+  if (run.baseline && interruption === 'none' && !budget.interrupted) {
+    const { baseline: sourceBaseline, ...withoutBaseline } = run;
+    baseline = await validateBackstageSources(
+      parseContract('validation-request', { ...withoutBaseline, source: sourceBaseline }),
+      context,
+      { signal: budget.signal },
+    );
+    interruption = merge(interruption, baseline.interrupted);
+  }
+  let proposed: Awaited<ReturnType<typeof buildProposedCatalog>> | undefined;
+  try {
+    if (!run.baseline || baseline)
+      proposed = await buildProposedCatalog(run, compatibility, baseline, budget);
+  } catch (error) {
+    if (!(error instanceof CelError)) throw error;
+    interruption = merge(interruption, interrupted(budget));
+  }
   const targets = [
     ...new Set(
       compatibility.references
@@ -129,26 +153,31 @@ export async function prepareBackstageReferenceData(
         .map((reference) => reference.targetRef),
     ),
   ].sort();
-  const claims = new Map<string, number>();
-  for (const claim of compatibility.sourceClaims)
-    if (claim.entityRef) claims.set(claim.entityRef, (claims.get(claim.entityRef) ?? 0) + 1);
   const blocked = new Map<string, ReferenceBlockReason>();
-  const hasDeletions = run.source.changes.some((change) => change.kind === 'deleted');
+  const received = new Map<string, Immutable<DataEntry>>();
   for (const target of targets) {
-    if (
-      compatibility.interrupted !== 'none' ||
-      budget.interrupted ||
-      compatibility.coverage.some(
-        (row) => row.stage === 'substitution' && row.status !== 'verified',
-      )
-    )
+    if (interruption !== 'none' || budget.interrupted || !proposed)
       blocked.set(target, 'source_incomplete');
-    else if (hasDeletions) blocked.set(target, 'unresolved_deletions');
-    else if (compatibility.unresolvedSourceIdentities) blocked.set(target, 'unresolved_sources');
-    else if (claims.has(target))
-      blocked.set(target, claims.get(target)! > 1 ? 'competing_claims' : 'local_source');
+    else {
+      const fact = proposed.get(target);
+      if (fact?.status === 'blocked') blocked.set(target, fact.reason);
+      else if (fact)
+        received.set(target, proposedCatalogEntry(run, target, fact, run.execution.startedAt));
+    }
   }
-  const eligible = targets.filter((target) => !blocked.has(target));
+  compatibility = {
+    ...compatibility,
+    coverage: [
+      ...compatibility.coverage,
+      {
+        stage: 'overlay',
+        subject: 'proposed-catalog',
+        required: targets.length > 0,
+        status: blocked.size || !proposed ? 'blocked' : 'verified',
+      },
+    ],
+  };
+  const eligible = targets.filter((target) => !blocked.has(target) && !received.has(target));
   let catalog: CatalogLookupReport | undefined;
   if (eligible.length) {
     try {
@@ -163,7 +192,6 @@ export async function prepareBackstageReferenceData(
       for (const ref of eligible) blocked.set(ref, 'provider_failure');
     }
   }
-  const received = new Map<string, Immutable<DataEntry>>();
   if (catalog) {
     const snapshot = parseContract('data-snapshot', catalog.data);
     const expected = new Map(
@@ -199,8 +227,9 @@ export async function prepareBackstageReferenceData(
   const retained = run.data.entries.filter(
     (entry) =>
       !(
-        entry.provenance.providerId === 'backstage-catalog' &&
-        entry.provenance.connectionId === provider.connectionId
+        entry.provenance.providerId === PROPOSED_CATALOG_PROVIDER ||
+        (entry.provenance.providerId === 'backstage-catalog' &&
+          entry.provenance.connectionId === provider.connectionId)
       ),
   );
   const retainedKeys = new Set(retained.map((entry) => entry.key));
@@ -252,6 +281,7 @@ export async function prepareBackstageReferenceData(
   }
   return deepFreeze({
     compatibility,
+    ...(baseline ? { baseline } : {}),
     observations,
     data,
     ...(catalog ? { catalog } : {}),

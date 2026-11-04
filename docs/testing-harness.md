@@ -208,7 +208,7 @@ or retiring a supported minor is a separate explicit support-policy change.
   availability, identity, deadlines/cancellation, retry/cooldown limits and scoped
   caches. The [reference preparer](source-references.md) exercises both native pins
   against both fixtures. Explicit catalog rule bindings and stdio integration are
-  implemented; qualified overlays remain open.
+  implemented, including qualified proposed overlays and baseline-relative masks.
 - The [production LSP](lsp.md) now has a subprocess stdio test client covering
   versioned diagnostics, cancellation, close/reopen, UTF-16 edits, buffer limits
   and shutdown against pinned fixtures. Actual editor qualification remains open.
@@ -216,5 +216,6 @@ or retiring a supported minor is a separate explicit support-policy change.
   two existing catalog-model adapters establish deployed backend compatibility.
 
 The fake/provider/reference/LSP loop is implemented. Extend it alongside
-BC-06; snapshot-local BC-04, BC-05 admission/custom schemas and their LSP scenarios
-are now implemented. This does not establish full ingestion or real-backend compatibility.
+complete BC-07 processing qualification. BC-04 substitutions, BC-05 admission/custom
+schemas, BC-06 overlays and their LSP scenarios are implemented. This does not
+establish full ingestion or real-backend compatibility.

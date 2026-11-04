@@ -81,7 +81,8 @@ rejected. URL types and glob targets retain unsupported/incomplete coverage.
 `spec.presence: optional` permits an absent target. Required missing targets are
 violations. An existing malformed target remains invalid even when optional.
 Included parse findings retain their Location use chain. Unresolved discovery
-conservatively blocks catalog fallback; positive local overlays remain BC-06 work.
+conservatively blocks catalog fallback. [BC-06 overlays](proposed-overlays.md) now
+qualify local entities and mask identities removed through valid Location changes.
 
 ## Bounds and results
 

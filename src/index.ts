@@ -32,6 +32,7 @@ export * from './parsing/index.js';
 export * from './compatibility/index.js';
 export * from './providers/index.js';
 export { prepareBackstageReferenceData } from './core/reference-data.js';
+export { proposedCatalogEntityKey, PROPOSED_CATALOG_PROVIDER } from './core/proposed-catalog.js';
 export type {
   ReferenceDataPreparation,
   BackstageReferenceObservation,

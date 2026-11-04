@@ -3,6 +3,9 @@ node_modules/
 dist/
 .test-dist/
 coverage/
+.agents/
+.codex/
+.aws/
 package-lock.json
 schemas/
 LICENSE

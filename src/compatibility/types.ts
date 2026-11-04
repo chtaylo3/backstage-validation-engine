@@ -154,6 +154,8 @@ export interface SourceIdentityClaim {
   readonly uri: string;
   readonly document: number;
   readonly entityRef?: string;
+  readonly location: Immutable<Finding['location']>;
+  readonly relatedLocations: readonly Immutable<Finding['location']>[];
 }
 
 export class BackstageRuntimeError extends Error {

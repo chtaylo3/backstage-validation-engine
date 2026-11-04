@@ -221,7 +221,12 @@ export async function validateBackstageSources(
   }
   for (let document of documents) {
     const subject = JSON.stringify([document.uri, document.document]);
-    let claim: SourceIdentityClaim = { uri: document.uri, document: document.document };
+    let claim: SourceIdentityClaim = {
+      uri: document.uri,
+      document: document.document,
+      location: locateParsedPath(document, '/metadata'),
+      relatedLocations: document.locations['/metadata']?.relatedLocations ?? [],
+    };
     if (!unavailable && adapter && !profile.requiredProcessors.length) {
       try {
         const identity = adapter.resolveReference(
@@ -250,6 +255,12 @@ export async function validateBackstageSources(
       budget.throwIfInterrupted();
       const resolved = await resolver.resolve(document);
       document = resolved.document;
+      claim = {
+        ...claim,
+        location: locateParsedPath(document, '/metadata'),
+        relatedLocations: document.locations['/metadata']?.relatedLocations ?? [],
+      };
+      sourceClaims[claimIndex] = claim;
       coverage.push({ stage: 'substitution', subject, required: true, status: 'verified' });
       phase = 'native';
       let checked: NativeEntityCheck = await adapter.normalizeEntity(
@@ -565,12 +576,79 @@ export async function validateBackstageSources(
       required: true,
       status: 'verified',
     });
+  const byIdentity = new Map<string, SourceIdentityClaim[]>();
+  for (const claim of sourceClaims)
+    if (claim.entityRef) {
+      const group = byIdentity.get(claim.entityRef) ?? [];
+      group.push(claim);
+      byIdentity.set(claim.entityRef, group);
+    }
+  const conflicts = new Set<string>();
+  let conflictFindings = 0;
+  for (const [entityRef, group] of byIdentity)
+    if (group.length > 1) {
+      conflicts.add(entityRef);
+      for (const claim of group) {
+        if (++conflictFindings > 64) {
+          interrupted = 'resource_limit';
+          break;
+        }
+        const ruleId = 'backstage/overlay/competing_claims';
+        const subjectId = JSON.stringify([claim.uri, claim.document]);
+        findings.push({
+          id: createFindingId({
+            ruleId,
+            ruleVersion: profile.adapterId,
+            subjectId,
+            path: '/metadata',
+            policyDigest: run.policy.digest,
+            profileDigest: run.profile.digest,
+          }),
+          ruleId,
+          ruleVersion: profile.adapterId,
+          subjectId,
+          message: 'Multiple proposed source documents claim the same catalog identity.',
+          category: 'compatibility',
+          severity: 'error',
+          enforcement: run.execution.mode === 'ci' ? 'blocking' : 'advisory',
+          location: claim.location,
+          relatedLocations: [
+            ...claim.relatedLocations,
+            ...group
+              .slice(0, 17)
+              .filter((other) => other !== claim)
+              .slice(0, 16)
+              .map((other) => other.location),
+          ],
+          edits: [],
+        });
+      }
+    }
+  coverage.push({
+    stage: 'overlay',
+    subject: 'source-identities',
+    required: true,
+    status: interrupted === 'none' ? 'verified' : 'blocked',
+  });
+  const conflictedLocations = new Set(
+    sourceClaims
+      .filter((claim) => claim.entityRef?.startsWith('location:') && conflicts.has(claim.entityRef))
+      .map((claim) => JSON.stringify([claim.uri, claim.document])),
+  );
+  const acceptedEntities = entities.filter(
+    (entity) =>
+      !conflicts.has(entity.entityRef) &&
+      !entity.document.locations['']?.relatedLocations.some((location) =>
+        conflictedLocations.has(JSON.stringify([location.uri, location.document])),
+      ),
+  );
+  const acceptedRefs = new Set(acceptedEntities.map((entity) => entity.entityRef));
   return deepFreeze({
     adapterId: profile.adapterId,
     sourceDigest: run.source.digest,
     profileDigest: run.profile.digest,
-    entities,
-    references,
+    entities: acceptedEntities,
+    references: references.filter((reference) => acceptedRefs.has(reference.sourceEntityRef)),
     sourceClaims,
     unresolvedSourceIdentities:
       unparsedSources ||
@@ -578,7 +656,7 @@ export async function validateBackstageSources(
       sourceClaims.some((claim) => claim.entityRef === undefined),
     findings,
     coverage,
-    artifacts,
+    artifacts: artifacts.filter((artifact) => acceptedRefs.has(artifact.entityRef)),
     interrupted,
   });
 }

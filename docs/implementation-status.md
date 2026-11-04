@@ -179,9 +179,32 @@ added LSP checks passed. The full `npm run check` passed all 552 tests and requi
 type/lint/format/schema/build checks. The built custom-kind example passed; its
 invalid-tier variant produced a completed schema violation with exit 1.
 
+## Proposed catalog overlay increment
+
+Implemented BC-06 qualified local precedence, invalid-replacement masks, explicit
+canonical identity conflicts and baseline-relative deletion/rename handling.
+Optional request baselines and result baseline digests pin previous input. Source
+and baseline changes are checked before collection; source-derived data uses a
+separate provider/key space and is verified against qualified reports during
+policy binding. Existing remote denial/outage and original-deadline semantics
+remain explicit. See [overlay scope and examples](proposed-overlays.md).
+
+Conflict findings are emitted without an existence rule, and conflicted Location
+children are withheld from artifacts/rule subjects. Diagnostic exhaustion is
+typed resource interruption. The stdio LSP qualifies local buffers and supports
+known-file delete/rename notifications using pinned bytes; epochs suppress stale
+remote results. Host filesystem refresh, actual backend/editor/OS qualification
+and complete deployment processor qualification remain open.
+
+Local qualification on 2026-11-03: 32 overlay checks and nine added LSP checks
+passed, including both native model and API pins. The full `npm run check` passed
+all 593 tests and required type/lint/format/schema/build checks with loopback
+access. The built overlay example passed for a local addition; confirmed deletion
+returned a completed blocking violation with exit 1.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Implement BC-06 qualified proposed overlays and complete BC-07
+1. **Engine and compatibility.** Complete BC-07
    processor blocking, extending the fixture-driven LSP loop for each behavior.
 2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.

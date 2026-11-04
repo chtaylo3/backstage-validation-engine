@@ -61,25 +61,20 @@ Deadline/cancellation, stale retained data or combined snapshot/request exhausti
 omit the evaluation request and set `pinFailure` plus typed interruption. Pinning
 never grants another five-second budget, and input snapshots remain immutable.
 
-## Conservative proposed-state guards
+## Qualified proposed state
 
-Qualified overlays remain BC-06 work. Current guards:
+BC-06 [proposed catalog overlays](proposed-overlays.md) qualify valid local targets
+before backend lookup. Invalid replacements and competing claims block fallback;
+baseline-relative removals produce source-derived missing facts. Known local
+targets need no configured backend. Unclaimed targets remain eligible for catalog
+collection only when relevant source/removal coverage is complete.
 
-- Known local identities, including invalid replacements, block external fallback.
-  Multiple claims produce `competing_claims`. Locally valid targets also stay
-  blocked until overlay qualification. Admission and custom-schema checks now
-  withhold denied/invalid subjects while preserving their identity claims.
-- Unknown identities, malformed/incomplete sources and unresolved substitutions
-  conservatively block fallback. An invalid known identity can be masked while
-  unrelated external targets remain eligible.
-- Deletions block lookup because current tombstones lack prior identities.
-  Baseline-aware deletion/rename handling remains overlay work.
-
-Guards return blocked observations instead of inventing missing-reference violations.
-They do not qualify positive local overlays, deletion or conflict behavior. The host
-supplies the complete proposed snapshot. [Snapshot-local discovery and
-substitutions](substitutions.md) are implemented; additional processor outputs
-retain their own qualification gates.
+Optional request `baseline` pins the previous source snapshot. Source-derived
+facts use their own provider identity/data keys and are verified again during
+policy binding. Baseline digests participate in request/result provenance.
+Unknown current identities and unsupported processing remain conservative guards;
+missing baseline coverage blocks unclaimed fallback after changes. The host
+supplies the complete snapshots and explicit change records.
 
 ## Development and next work
 
@@ -98,7 +93,7 @@ Tests cover both native pins against both fixtures, namespaces/case, escaped pat
 arrays, aliases/defaults, resource bounds, invalid/unknown/deleted/competing claims,
 authorization binding, unavailable data, cancellation, stale retained data and
 overlapping buffer versions. [Catalog rules and the LSP](lsp.md) now consume these
-pins and suppress superseded editor generations. BC-06 and real
+pins and suppress superseded editor generations. Complete processor and real
 backend/IDE qualification remain open.
 
 Local qualification on 2026-10-29: 31 new reference/preparation checks passed;

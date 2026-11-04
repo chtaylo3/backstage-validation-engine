@@ -46,11 +46,13 @@ export function verifyRequestBindings(
   }
   if (
     run.execution.deadlineAt - run.execution.startedAt > profile.limits.requestTimeoutMs ||
-    run.source.files.some(
+    [...run.source.files, ...(run.baseline?.files ?? [])].some(
       (file) => Buffer.byteLength(file.text, 'utf8') > profile.limits.fileBytes,
     ) ||
-    run.source.files.reduce((bytes, file) => bytes + Buffer.byteLength(file.text, 'utf8'), 0) >
-      profile.limits.requestBytes ||
+    [...run.source.files, ...(run.baseline?.files ?? [])].reduce(
+      (bytes, file) => bytes + Buffer.byteLength(file.text, 'utf8'),
+      0,
+    ) > profile.limits.requestBytes ||
     policy.rules.length > profile.limits.rules
   ) {
     reject('limit', '', 'request exceeds assigned profile budgets');

@@ -87,10 +87,12 @@ validators, and records source-attributed normalization separately from authored
 JSON. The [snapshot-local resolver](substitutions.md) implements BC-04 with pinned
 roots/entrypoints and included-file provenance. Required unavailable processors
 and unavailable readers block dependent native checks. The source-level entry
-point composes parsing with BC-01 through BC-05. [Admission and custom schemas](admission-custom-kinds.md)
+point composes parsing with BC-01 through BC-05 and current identity-conflict checks.
+[Admission and custom schemas](admission-custom-kinds.md)
 enforce pinned global/source allowances and immutable custom-kind artifacts after
-native normalization; stock validators remain versioned. It does not attest later compatibility
-or governance stages.
+native normalization; stock validators remain versioned. Reference preparation
+qualifies BC-06 local facts and baseline-relative removals. Complete processing
+and governance stages remain separate.
 
 ## Implemented catalog access boundary
 
@@ -105,8 +107,9 @@ and pins a new evaluation request under the original deadline. Conservative guar
 prevent premature fallback. [Explicit catalog rules and the stdio LSP](lsp.md)
 now consume those pins through `validatePolicySources`. The editor adapter owns
 workspace generations, cancellation and versioned publication; authority remains
-launcher-owned. Qualified positive overlays and real-backend/editor qualification
-remain open.
+launcher-owned. [Proposed overlays](proposed-overlays.md) qualify local targets,
+mask invalid/deleted identities and bind baseline/source/data provenance before
+external lookup. Real-backend/editor qualification remains open.
 
 ## Release breadth
 

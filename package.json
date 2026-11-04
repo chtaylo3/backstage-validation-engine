@@ -55,6 +55,7 @@
     "example:parse": "npm run build && node examples/parse-catalog.mjs",
     "example:backstage": "npm run build && node examples/validate-backstage.mjs",
     "example:custom": "npm run build && node examples/validate-custom-kind.mjs",
+    "example:overlay": "npm run build && node examples/validate-overlay.mjs",
     "example:provider": "npm run build && node examples/read-catalog.mjs",
     "example:references": "npm run build && node examples/prepare-references.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test",

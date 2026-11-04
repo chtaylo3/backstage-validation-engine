@@ -1,7 +1,7 @@
 # Native Backstage compatibility
 
-Status: BC-01/BC-02, declared BC-03 contexts, snapshot-local BC-04 and scoped BC-05 implemented and locally tested,
-2026-10-30. Source parsing is
+Status: BC-01 through BC-06 implemented for the declared source/profile surface and locally tested,
+2026-11-03. Source parsing is
 implemented; this increment adds the exact native catalog-model adapters selected
 by ADR 0002 in the planning repository.
 
@@ -12,7 +12,7 @@ by ADR 0002 in the planning repository.
 | BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                  |
 | BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Passed locally for snapshot-local reader              |
 | BC-05 | Kind/source admission and declared custom schemas                                                                                            | Passed locally for declared schema profile            |
-| BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Pending                                               |
+| BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Passed locally for pinned proposed/baseline sources   |
 | BC-07 | Required unavailable processors block dependent validation without speculative errors                                                        | Native-stage guard implemented; full pipeline pending |
 
 Native schema/policy success covers declared stages only. It does not establish
@@ -148,11 +148,13 @@ Earlier rules-only benchmark
 captures predate these dependencies; full pipeline startup/latency requalification
 remains an open pilot gate.
 
-Next compatibility stages: BC-06 qualified proposed-state overlays and complete
-BC-07 processor blocking.
+The [proposed overlay](proposed-overlays.md) qualifies local entities and masks
+invalid/removed identities, with baseline and source-derived data pinning.
+Next: complete BC-07 processor blocking.
 
 The production provider now uses `adapter.resolveReference` and
 `adapter.entityReference` for pinned native parsing/stringification and envelope
 identity checks. Both package pins and field-specific source contexts are tested.
 [Explicit existence-rule bindings](lsp.md) are implemented alongside the thin LSP
-transport. Qualified positive overlays remain separate BC-06 work.
+transport. Positive overlays now use admitted, validated source subjects; real
+deployment qualification remains open.

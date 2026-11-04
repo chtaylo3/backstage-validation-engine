@@ -117,10 +117,14 @@ messages; startup errors use fixed text on stderr without upstream details.
 
 There is no filesystem discovery/watching, saved-file refresh, dynamic authority
 reload, pull diagnostics, completion, hover, fixes, extension packaging or actual
-IDE installation qualification yet. Closing a buffer restores the immutable base
-snapshot. Restart with a refreshed trusted snapshot to incorporate saved disk
-changes. Locally proposed target entities remain blocked until BC-06 overlays are
-qualified; the server does not silently fall back to their old catalog copies.
+IDE installation qualification yet. Closing a buffer restores the current pinned
+workspace bytes. Restart with a refreshed trusted snapshot to incorporate saved disk
+changes. Qualified local targets now precede external observations. Invalid/competing
+targets block fallback, and pinned-baseline removals mask old catalog copies.
+The launcher may supply an explicit `baseline` source snapshot; an unchanged
+launcher source is otherwise the default. Standard workspace file delete/rename
+notifications update known pinned bytes and revalidate dependents. See
+[overlay/editor scope](proposed-overlays.md).
 
 ## Acceptance
 
@@ -148,3 +152,7 @@ diagnostic provenance; the full local `npm run check` passed all 485 tests.
 
 BC-05 adds seven LSP checks for admission/custom schemas across both native and
 API pins. The full local `npm run check` passed all 552 tests on 2026-10-30.
+
+BC-06 adds nine LSP checks for local precedence, invalid replacements, pinned
+deletions, file/identity renames, conflicts, cancellation and unavailable operation
+bytes. The full local `npm run check` passed all 593 tests on 2026-11-03.

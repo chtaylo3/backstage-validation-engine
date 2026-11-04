@@ -84,7 +84,8 @@ Accepted custom entities retain `customSchema` metadata and artifact provenance
 with `custom-schema/<digest>`. Their declared references flow through the same
 catalog policies as stock entities. Schema-invalid entities are withheld from
 rules; invalid or denied local replacements retain identity claims and block
-fallback to stale catalog entities. Positive local overlays remain BC-06 work.
+fallback to stale catalog entities. [BC-06 overlays](proposed-overlays.md) now
+qualify positive local facts and baseline-relative identity removals.
 
 ## Declared schema surface
 
