@@ -93,6 +93,7 @@ export async function validatePolicySources(
     })),
     {
       ...signal,
+      sourceDocuments: compatibility.entities.map((entity) => entity.document),
       ...(options.runtime ? { runtime: options.runtime } : {}),
       ...(preparation ? { referenceData: preparation } : {}),
     },

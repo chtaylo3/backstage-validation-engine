@@ -22,6 +22,8 @@ digest integrity, temporal relationships, graph consistency, and outcome rules.
 | `coverage`            | Per-stage/subject requiredness, status, and optional explanation                                                                                     |
 | `source-snapshot`     | Effective proposed source files, source revision, file/content digests, buffer versions, and change/deletion records                                 |
 | `data-snapshot`       | Pinned provider observations with availability and authorization/freshness provenance                                                                |
+| `policy-release`      | Signed bounded bundle closure, profile, schemas, activation and validity                                                                             |
+| `policy-trust`        | Host-installed keys, identity, exact generation, mandatory baseline pins and maximum release age                                                     |
 | `policy-bundle`       | Immutable declarative rules, mandatory flags, inherited bundle digests, schema/plugin references                                                     |
 | `activation-manifest` | Installation/repository assignment, policy/profile/bypass digests, generation, activation time, and verification evidence reference                  |
 | `json-value`          | Recursive JSON payload shared by provider data and normalized artifacts                                                                              |
@@ -88,8 +90,9 @@ and consumers are required when using them. See [local resolution](substitutions
 `verifyRequestBindings` checks content digests, IDs, revisions, activation scope/
 generation, and the assigned profile's lower budgets. Hash integrity proves
 content consistency. It does not establish who is authorized to supply that
-content. Signature verification, authoritative assignment, inheritance resolution,
-and mandatory baseline merging remain policy-resolver work. External prerequisite
+content. `verifyPolicyRelease` now verifies signatures and resolves mandatory
+inheritance using separately installed host trust. Authoritative assignment and
+trust/generation refresh remain host responsibilities. External prerequisite
 references in inherited bundles are checked after resolution; `orderRules` checks
 the complete resolved DAG with deterministic ordering and bounded depth.
 
@@ -149,3 +152,13 @@ See [wire examples](../examples/contracts/README.md) for all required result cas
 Catalog-existence policies use the additional pre-release 0.2 `catalog` rule kind
 with `check: "exists"` and a declared `referencePath`. See [catalog rules](lsp.md)
 for pinning, applicability, missing versus unavailable semantics and compatibility.
+
+## Signed policy loading
+
+`policy-release` and `policy-trust` are new contract-0.2 resources. Structural
+parsing does not establish authority. `verifyPolicyRelease` verifies Ed25519
+signatures against separately installed host trust, bounded inheritance,
+mandatory baseline presence, complete schema pins and activation scope/generation.
+Execution pins the resolved bundle digest. `createVerifiedPolicyResult` binds
+reports to that context and narrows freshness to the release validity window;
+expiry adds incomplete required coverage. See [policy and CLI semantics](policy-cli.md).

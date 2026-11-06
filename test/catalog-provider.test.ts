@@ -479,7 +479,8 @@ void test('cached observations cannot bypass the combined snapshot value budget'
     });
     const ref = `group:default/${name}`;
     refs.push(ref);
-    assert.equal(observation(await run(provider, [ref]), ref).status, 'present');
+    const seeded = await run(provider, [ref]);
+    assert.equal(observation(seeded, ref).status, 'present', JSON.stringify(seeded.failures));
   }
   const report = await run(provider, refs);
   assert.equal(report.interrupted, 'resource_limit');

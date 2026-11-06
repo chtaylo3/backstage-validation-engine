@@ -39,3 +39,9 @@ export type {
   BackstageReferenceObservation,
   ReferenceBlockReason,
 } from './core/reference-data.js';
+
+export { resolvePolicyBundles, POLICY_BUNDLE_LIMITS } from './policy/bundles.js';
+export { verifyPolicyRelease, signPolicyRelease } from './policy/releases.js';
+export type { PolicyReleasePayload } from './policy/releases.js';
+export { formatSarif, formatSarifError } from './cli/sarif.js';
+export { createVerifiedPolicyResult } from './policy/verified-result.js';

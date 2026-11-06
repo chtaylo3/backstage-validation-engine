@@ -37,6 +37,8 @@ export interface ResultInput {
   readonly bypass?: Immutable<NonNullable<ValidationResult['bypass']>>;
   readonly completedAt: number;
   readonly authorityCheckedAt: number;
+  /** The verified release validity may narrow the publication window. */
+  readonly authorityExpiresAt?: number;
   readonly interrupted?: ValidationResult['resources']['interrupted'];
 }
 
@@ -61,6 +63,7 @@ export function createValidationResult(input: ResultInput): Immutable<Validation
   });
   const publishBefore = Math.min(
     input.authorityCheckedAt + 60_000,
+    input.authorityExpiresAt ?? Number.MAX_SAFE_INTEGER,
     input.bypass?.expiresAt ?? Number.MAX_SAFE_INTEGER,
     ...request.data.entries.map((entry) => entry.provenance.expiresAt),
   );

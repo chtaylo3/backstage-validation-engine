@@ -153,7 +153,7 @@ void test('failed prerequisites block dependents and unavailable schema rules ne
       [subject()],
       { runtime: pool },
     );
-    assert(unavailable.coverage.some((entry) => entry.status === 'unsupported'));
+    assert(unavailable.coverage.some((entry) => entry.status === 'unavailable'));
     assert.equal(result(unsupported.request, unavailable).outcome, 'incomplete');
     const optional = setup([{ ...schemaRule, mandatory: false }]);
     assert.equal(

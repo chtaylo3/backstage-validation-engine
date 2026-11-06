@@ -215,13 +215,39 @@ inventory remains explicitly empty. See [scope and acceptance](processors.md).
 Local qualification on 2026-11-05: all 24 added checks and the full 617-test
 `npm run check` passed, including required type/lint/format/schema/build checks.
 
+## Signed policy and CLI increment
+
+Implemented externally anchored Ed25519 release verification, exact activation
+scope/generation and flattened policy/profile binding, bounded content-addressed
+inheritance and immutable execution context. Host-required baseline digests cannot
+be omitted; conflicting inherited rules and schema pins fail rather than replacing
+baseline declarations. Signed packages include all policy/custom-kind schema bodies.
+
+General schema rules use the bounded draft-07 engine and normalized subjects,
+respect selectors/prerequisites and preserve included-file locations. The CLI
+loads immutable source/baseline/data snapshots or an original-deadline request,
+uses host catalog configuration and credential environments, and emits JSON or
+SARIF with exits 0/1/2. Release expiry during execution blocks required coverage
+and caps publication freshness. See [scope and usage](policy-cli.md).
+
+Host filesystem/Git source capture, installation hierarchy and authority discovery,
+key/generation refresh, hosted publication/recovery and real backend/IDE/OS
+qualification retain their separate release gates.
+
+Local qualification on 2026-11-05: all 44 added checks and the final full
+`npm run check` passed all 661 tests and required type/lint/format/schema/build
+checks with loopback access. CLI provider integration passed both fake API pins;
+LSP schema repair passed both adapters. The built development example passed,
+and SARIF shapes validated against the official OASIS schema. Two intermittent
+existing provider/LSP cases from the first full run passed isolated checks and
+the full repeat; stronger test preconditions/diagnostics are retained. See the
+[acceptance notes](policy-cli.md#local-qualification).
+
 ## Next increments, in order
 
-1. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
-   inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.
-2. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
+1. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
    completion and extension packaging, and qualify actual VS Code/JetBrains clients.
-3. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
+2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central
    Actions execution, and authoritative GitHub publication.
 

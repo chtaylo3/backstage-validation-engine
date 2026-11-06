@@ -115,8 +115,9 @@ nonboolean results are invalid policy. Evaluation errors remain execution errors
 Resource failures and unavailable runtime work remain incomplete. Failed,
 inapplicable, or incomplete prerequisites block dependent rules.
 
-Schema rules currently report unsupported coverage. Required schema work blocks
-CI. Unresolved inherited bundles are rejected until the policy resolver can
+Schema rules use the shared bounded draft-07 artifact engine and honor CEL
+selectors and prerequisites. Missing artifacts retain incomplete dependency
+coverage; schema failures are policy violations. See [policy loading and CLI](policy-cli.md). Unresolved inherited bundles are rejected; the signed policy resolver must
 produce a verified resolved bundle. The executor does not authenticate identities,
 verify governance signatures, apply bypasses/exceptions, parse YAML, perform
 native Backstage validation, or claim other pipeline stages completed.

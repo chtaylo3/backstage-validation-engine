@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:policy-trust:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "identity",
+    "generation",
+    "keys",
+    "mandatoryDigests",
+    "maxAgeMs"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "installationId",
+        "repositoryId",
+        "authorityRef",
+        "permissionRevision"
+      ],
+      "properties": {
+        "installationId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repositoryId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "authorityRef": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "permissionRevision": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "generation": {
+      "minimum": 1,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "keys": {
+      "minItems": 1,
+      "maxItems": 16,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "publicKey"
+        ],
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "publicKey": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "mandatoryDigests": {
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+        "pattern": "^sha256:[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "maxAgeMs": {
+      "minimum": 1,
+      "maximum": 604800000,
+      "type": "integer"
+    }
+  }
+}

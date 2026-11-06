@@ -1,7 +1,12 @@
 import { Ajv } from 'ajv';
 import type { AnySchema, ValidateFunction } from 'ajv';
 import { RE2JS } from 're2js';
-import type { DeploymentProfile, JsonValue, SchemaArtifact } from '../contracts/schemas.js';
+import type {
+  DeploymentProfile,
+  JsonValue,
+  PolicyBundle,
+  SchemaArtifact,
+} from '../contracts/schemas.js';
 import { SCHEMA_DIALECT } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
 import { canonicalJson, deepFreeze } from '../core/json.js';
@@ -183,10 +188,7 @@ function compile(artifact: Immutable<SchemaArtifact>): ValidateFunction {
 }
 
 /** Only trusted host artifacts, matched by ID/version/content digest; no resolver or network loader. */
-export function createCustomKindRegistry(
-  profile: Immutable<DeploymentProfile>,
-  input: readonly Immutable<SchemaArtifact>[] = [],
-) {
+export function createSchemaRegistry(input: readonly Immutable<SchemaArtifact>[] = []) {
   if (input.length > CUSTOM_SCHEMA_LIMITS.artifacts)
     reject('limit', '/schemaArtifacts', 'too many schema artifacts');
   canonicalJson(input, { maxBytes: CUSTOM_SCHEMA_LIMITS.totalBytes });
@@ -200,35 +202,46 @@ export function createCustomKindRegistry(
     byId.set(key, artifact);
     validators.set(key, compile(artifact));
   }
-  const declarations = new Map(
-    profile.customKinds.map((declaration) => {
-      const key = artifactKey(declaration.schema.id, declaration.schema.version);
+  return {
+    artifacts: deepFreeze(artifacts),
+    get: (pin: Immutable<PolicyBundle['schemas'][number]>) => {
+      const key = artifactKey(pin.id, pin.version);
       const artifact = byId.get(key);
-      if (artifact && artifact.digest !== declaration.schema.digest)
-        reject('integrity', '/customKinds', 'schema artifact does not match the profile pin');
+      if (artifact && artifact.digest !== pin.digest)
+        reject('integrity', '/schemaArtifacts', 'schema artifact does not match its pin');
       const validator = validators.get(key);
-      return [
-        pairKey(declaration.kind, declaration.apiVersion),
-        {
-          schema: declaration.schema,
-          validate: validator
-            ? (value: Immutable<JsonValue>): string | undefined => {
-                if (validator(value)) return undefined;
-                const issue = validator.errors?.[0];
-                const path = issue?.instancePath ?? '';
-                const missing: unknown = issue?.params.missingProperty;
-                return issue?.keyword === 'required' && typeof missing === 'string'
-                  ? childPointer(path, missing)
-                  : path;
-              }
-            : undefined,
-        },
-      ] as const;
-    }),
+      return validator
+        ? (value: Immutable<JsonValue>): string | undefined => {
+            if (validator(value)) return undefined;
+            const issue = validator.errors?.[0];
+            const path = issue?.instancePath ?? '';
+            const missing: unknown = issue?.params.missingProperty;
+            return issue?.keyword === 'required' && typeof missing === 'string'
+              ? childPointer(path, missing)
+              : path;
+          }
+        : undefined;
+    },
+  };
+}
+
+export function createCustomKindRegistry(
+  profile: Immutable<DeploymentProfile>,
+  input: readonly Immutable<SchemaArtifact>[] = [],
+) {
+  const registry = createSchemaRegistry(input);
+  const declarations = new Map(
+    profile.customKinds.map(
+      (declaration) =>
+        [
+          pairKey(declaration.kind, declaration.apiVersion),
+          { schema: declaration.schema, validate: registry.get(declaration.schema) },
+        ] as const,
+    ),
   );
   const kinds = new Set(profile.customKinds.map((row) => row.kind.toLowerCase()));
   return {
-    artifacts: deepFreeze(artifacts),
+    artifacts: registry.artifacts,
     hasKind: (kind: string) => kinds.has(kind.toLowerCase()),
     get: (kind: string, apiVersion: string) => declarations.get(pairKey(kind, apiVersion)),
   };

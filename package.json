@@ -59,7 +59,8 @@
     "example:provider": "npm run build && node examples/read-catalog.mjs",
     "example:references": "npm run build && node examples/prepare-references.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test",
-    "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js"
+    "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js",
+    "example:cli": "npm run build && node examples/create-cli-release.mjs"
   },
   "dependencies": {
     "@backstage/catalog-model": "1.10.2",
@@ -81,6 +82,7 @@
     "typescript-eslint": "8.72.1"
   },
   "bin": {
-    "bve-lsp": "./dist/lsp/stdio.js"
+    "bve-lsp": "./dist/lsp/stdio.js",
+    "bve": "./dist/cli/main.js"
   }
 }

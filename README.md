@@ -3,7 +3,7 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, declared BC-01 through BC-07, catalog policies and stdio LSP implemented.** Contract version
+**Status: source parsing, declared BC-01 through BC-07, signed policies, CLI and stdio LSP implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
@@ -13,8 +13,10 @@ Snapshot-local substitutions preserve included-file ranges and buffer versions.
 Pinned kind/source admission and custom schemas run before rules. Proposed
 overlays now qualify local targets and mask removed/invalid identities before
 catalog lookup. Required unavailable processing blocks all dependent stages.
-Executable processor integrations, organization schema rules, CLI
-and hosted control remain.
+Signed releases preserve host-required baseline inheritance and activate pinned
+schema/CEL/catalog policies. The CLI emits contract JSON or SARIF with explicit
+0/1/2 exits. Executable processor integrations, IDE packaging and hosted control
+remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.
@@ -35,29 +37,30 @@ drift detection, a production build, and the tests. CI schedules the same checks
 on Linux, Windows, and macOS; a configured matrix is not evidence that those runs
 have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 
-| Command                             | Purpose                                                             |
-| ----------------------------------- | ------------------------------------------------------------------- |
-| `npm run build`                     | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
-| `npm test`                          | Compile and run the Node test suite                                 |
-| `npm run test:harness`              | Check version selection, pinned artifacts and concurrent fixtures   |
-| `npm run test:lsp`                  | Exercise catalog policy rules and real stdio editor lifecycle       |
-| `npm run fixtures:serve`            | Start the pinned fake catalog APIs on isolated localhost ports      |
-| `npm run fixtures:refresh`          | Capture latest patches and upstream specs for supported minors      |
-| `npm run fixtures:check-upstream`   | Detect upstream release, package or contract drift                  |
-| `npm run test:coverage`             | Run tests with Node's experimental coverage report                  |
-| `npm run lint`                      | Run ESLint with TypeScript type information                         |
-| `npm run format`                    | Format source, examples, and documentation                          |
-| `npm run schemas:generate`          | Regenerate checked-in JSON Schemas from the contract definitions    |
-| `npm run schemas:check`             | Fail if checked-in schemas differ from the definitions              |
-| `npm run clean`                     | Remove build, test, and coverage output                             |
-| `npm run example:cel`               | Execute a normalized-entity fixture through the managed rules stage |
-| `npm run example:parse`             | Parse an immutable catalog fixture and show source locations        |
-| `npm run example:backstage`         | Parse a fixture, apply native policies and run CEL rules            |
-| `npm run example:custom`            | Validate an admitted custom kind against its pinned schema and CEL  |
-| `npm run example:overlay`           | Qualify proposed local additions or baseline-relative deletions     |
-| `npm run example:provider -- URL`   | Read observations from a running fake catalog API                   |
-| `npm run example:references -- URL` | Prepare source references and pin catalog data for evaluation       |
-| `npm run benchmark:cel`             | Measure fresh-process, warm, and 100-entity rules-stage latency     |
+| Command                                   | Purpose                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `npm run build`                           | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
+| `npm test`                                | Compile and run the Node test suite                                 |
+| `npm run test:harness`                    | Check version selection, pinned artifacts and concurrent fixtures   |
+| `npm run test:lsp`                        | Exercise catalog policy rules and real stdio editor lifecycle       |
+| `npm run fixtures:serve`                  | Start the pinned fake catalog APIs on isolated localhost ports      |
+| `npm run fixtures:refresh`                | Capture latest patches and upstream specs for supported minors      |
+| `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |
+| `npm run test:coverage`                   | Run tests with Node's experimental coverage report                  |
+| `npm run lint`                            | Run ESLint with TypeScript type information                         |
+| `npm run format`                          | Format source, examples, and documentation                          |
+| `npm run schemas:generate`                | Regenerate checked-in JSON Schemas from the contract definitions    |
+| `npm run schemas:check`                   | Fail if checked-in schemas differ from the definitions              |
+| `npm run clean`                           | Remove build, test, and coverage output                             |
+| `npm run example:cel`                     | Execute a normalized-entity fixture through the managed rules stage |
+| `npm run example:parse`                   | Parse an immutable catalog fixture and show source locations        |
+| `npm run example:backstage`               | Parse a fixture, apply native policies and run CEL rules            |
+| `npm run example:custom`                  | Validate an admitted custom kind against its pinned schema and CEL  |
+| `npm run example:cli -- /tmp/bve-example` | Generate a signed local CLI example and separate host trust         |
+| `npm run example:overlay`                 | Qualify proposed local additions or baseline-relative deletions     |
+| `npm run example:provider -- URL`         | Read observations from a running fake catalog API                   |
+| `npm run example:references -- URL`       | Prepare source references and pin catalog data for evaluation       |
+| `npm run benchmark:cel`                   | Measure fresh-process, warm, and 100-entity rules-stage latency     |
 
 ## Use the foundation
 
@@ -121,6 +124,9 @@ For global/source allowances, pinned custom schemas and launcher artifacts, see
 For local catalog precedence, baseline snapshots, deletions/renames and conflicts,
 see [proposed catalog overlays](docs/proposed-overlays.md).
 
+For immutable signed releases, mandatory policy inheritance, schema rules and
+JSON/SARIF commands, see the [policy and CLI guide](docs/policy-cli.md).
+
 ## Structure
 
 ```text
@@ -130,7 +136,8 @@ src/
   parsing/     Bounded YAML normalization, diagnostics and source locations
   compatibility/  Versioned native Backstage adapters and normalization provenance
   lsp/         Stdio transport, trusted host configuration and editor lifecycle
-  policy/      Deployment defaults and bounded rule dependency graphs
+  policy/      Signed releases, mandatory inheritance and bounded rule graphs
+  cli/         Snapshot validation command and JSON/SARIF reporting
   runtime/     Shared supervised CEL/RE2 workers and request budgets
 schemas/       Generated draft-07 JSON Schemas, checked into Git
 examples/      Wire examples for requests, profiles, and result states

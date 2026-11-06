@@ -249,6 +249,37 @@ export const ValidationRequestSchema = schema('validation-request', {
   data: reference(DataSnapshotSchema),
 });
 
+/** The trust document is installed by the host, separately from repository policy. */
+export const PolicyTrustSchema = schema('policy-trust', {
+  contractVersion: version(),
+  identity: ValidationRequestSchema.properties.identity,
+  generation: positive(Number.MAX_SAFE_INTEGER),
+  keys: Type.Array(
+    object({ id: text(), publicKey: Type.String({ minLength: 1, maxLength: 4096 }) }),
+    {
+      minItems: 1,
+      maxItems: 16,
+    },
+  ),
+  mandatoryDigests: Type.Array(digest(), { uniqueItems: true, minItems: 1, maxItems: 64 }),
+  maxAgeMs: positive(7 * 24 * 60 * 60 * 1000),
+});
+export const PolicyReleaseSchema = schema('policy-release', {
+  contractVersion: version(),
+  rootDigest: digest(),
+  bundles: Type.Array(reference(PolicyBundleSchema), { minItems: 1, maxItems: 64 }),
+  profile: reference(DeploymentProfileSchema),
+  schemaArtifacts: Type.Array(reference(SchemaArtifactSchema), { maxItems: 64 }),
+  activation: reference(ActivationManifestSchema),
+  issuedAt: timestamp(),
+  expiresAt: timestamp(),
+  signature: object({
+    algorithm: Type.Literal('ed25519'),
+    keyId: text(),
+    value: Type.String({ pattern: '^[A-Za-z0-9+/]{86}==$' }),
+  }),
+});
+
 const stage = Type.Union([
   Type.Literal('identity'),
   Type.Literal('bypass'),
@@ -413,6 +444,8 @@ export const contractSchemas = {
   'deployment-profile': DeploymentProfileSchema,
   'policy-bundle': PolicyBundleSchema,
   'activation-manifest': ActivationManifestSchema,
+  'policy-trust': PolicyTrustSchema,
+  'policy-release': PolicyReleaseSchema,
   'validation-request': ValidationRequestSchema,
   coverage: CoverageSchema,
   'validation-result': ValidationResultSchema,
@@ -428,6 +461,8 @@ export type DataEntry = Static<typeof dataEntry>;
 export type DeploymentProfile = Static<typeof DeploymentProfileSchema>;
 export type PolicyBundle = Static<typeof PolicyBundleSchema>;
 export type ActivationManifest = Static<typeof ActivationManifestSchema>;
+export type PolicyTrust = Static<typeof PolicyTrustSchema>;
+export type PolicyRelease = Static<typeof PolicyReleaseSchema>;
 export type ValidationRequest = Static<typeof ValidationRequestSchema>;
 export type Coverage = Static<typeof CoverageSchema>;
 export type Finding = Static<typeof finding>;

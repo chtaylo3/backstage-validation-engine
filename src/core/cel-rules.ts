@@ -6,6 +6,7 @@ import type {
   JsonValue,
   PolicyBundle,
   RuleState,
+  SchemaArtifact,
   ValidationRequest,
   ValidationResult,
 } from '../contracts/schemas.js';
@@ -25,6 +26,9 @@ import { bindCatalogReferences } from './catalog-bindings.js';
 import type { CatalogBindings } from './catalog-bindings.js';
 import type { ReferenceDataPreparation } from './reference-data.js';
 import { blockedProcessorRules } from './processing.js';
+import { createSchemaRegistry } from '../compatibility/custom-schemas.js';
+import { locateParsedPath } from '../parsing/locations.js';
+import type { ParsedSourceDocument } from '../parsing/types.js';
 
 export interface RuleSubject {
   readonly id: string;
@@ -107,12 +111,14 @@ export async function executePolicyRules(
     readonly profile: Immutable<DeploymentProfile>;
     readonly policy: Immutable<PolicyBundle>;
     readonly activation: Immutable<ActivationManifest>;
+    readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   },
   subjects: readonly RuleSubject[],
   options: {
     readonly signal?: AbortSignal;
     readonly runtime?: CelRuntime;
     readonly referenceData?: ReferenceDataPreparation;
+    readonly sourceDocuments?: readonly ParsedSourceDocument[];
   } = {},
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
@@ -143,6 +149,20 @@ export async function executePolicyRules(
           : 'cancelled'
         : 'none',
     });
+  }
+  const schemas = createSchemaRegistry(context.schemaArtifacts);
+  const schemaValidators = new Map(
+    policy.rules
+      .filter((rule) => rule.kind === 'schema')
+      .map((rule) => [rule.id, schemas.get(rule.schema)]),
+  );
+  const sourceFiles = new Map(run.source.files.map((file) => [file.uri, file]));
+  const documents = new Map<string, ParsedSourceDocument>();
+  for (const document of options.sourceDocuments ?? []) {
+    const file = sourceFiles.get(document.uri);
+    if (!file || file.digest !== document.sourceDigest || file.version !== document.version)
+      reject('integrity', '/sourceDocuments', 'rule source provenance does not match the snapshot');
+    documents.set(JSON.stringify([document.uri, document.document]), document);
   }
   const rulesById = new Map(policy.rules.map((rule) => [rule.id, rule]));
   const rules = orderRules(policy.rules, profile.limits.graphDepth).map((id) => {
@@ -216,12 +236,6 @@ export async function executePolicyRules(
           state.reason = 'prerequisite_blocked';
           covered.status = 'blocked';
           covered.reason = 'A prerequisite did not pass.';
-        } else if (rule.kind === 'schema') {
-          state.status = 'incomplete';
-          state.reason = 'dependency_unavailable';
-          covered.status = 'unsupported';
-          covered.reason = 'Schema rule runtime is not implemented.';
-          failures.push({ subjectId: subject.id, ruleId: rule.id, code: 'unsupported_rule' });
         } else {
           try {
             budget.throwIfInterrupted();
@@ -230,6 +244,58 @@ export async function executePolicyRules(
               !(await runtime.evaluate(rule.selector, subject.value, evaluationContext))
             ) {
               state.status = 'not_applicable';
+            } else if (rule.kind === 'schema') {
+              const validate = schemaValidators.get(rule.id);
+              const path = validate ? validate(subject.value) : '';
+              budget.throwIfInterrupted();
+              if (!validate || path !== undefined) {
+                const dependency = !validate;
+                state.status = dependency ? 'incomplete' : 'failed';
+                if (dependency) {
+                  state.reason = 'dependency_unavailable';
+                  covered.status = 'unavailable';
+                  covered.reason = 'The pinned policy schema artifact is unavailable.';
+                  failures.push({
+                    subjectId: subject.id,
+                    ruleId: rule.id,
+                    code: 'unsupported_rule',
+                  });
+                }
+                const pointer = path ?? '';
+                const document = documents.get(subject.id);
+                let nearest = pointer;
+                while (document && !document.locations[nearest] && nearest)
+                  nearest = nearest.slice(0, nearest.lastIndexOf('/'));
+                const location = document
+                  ? locateParsedPath(document, pointer)
+                  : { ...subject.location, path: pointer };
+                findings.push({
+                  id: createFindingId({
+                    ruleId: rule.id,
+                    ruleVersion: rule.version,
+                    subjectId: subject.id,
+                    path: pointer,
+                    policyDigest: run.policy.digest,
+                    profileDigest: run.profile.digest,
+                  }),
+                  ruleId: rule.id,
+                  ruleVersion: rule.version,
+                  subjectId: subject.id,
+                  message: dependency
+                    ? 'The pinned policy schema artifact is unavailable.'
+                    : 'Entity does not satisfy the policy schema.',
+                  category: dependency ? 'dependency' : 'policy',
+                  severity: dependency && run.execution.mode === 'ide' ? 'warning' : rule.severity,
+                  enforcement:
+                    run.execution.mode === 'ci' &&
+                    (dependency ? rule.mandatory : rule.mandatory || rule.severity === 'error')
+                      ? 'blocking'
+                      : 'advisory',
+                  location,
+                  relatedLocations: [...(document?.locations[nearest]?.relatedLocations ?? [])],
+                  edits: [],
+                });
+              }
             } else if (rule.kind === 'catalog') {
               const facts = catalogBindings.get(subject.id)?.get(rule.referencePath);
               const unavailable = facts?.find(

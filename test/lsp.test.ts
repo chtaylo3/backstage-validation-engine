@@ -12,7 +12,12 @@ import { parseLspConfig } from '../src/lsp/config.js';
 import { BoundedLspInput, LSP_FRAME_BYTES } from '../src/lsp/framing.js';
 import { URI } from './helpers.js';
 import { BACKSTAGE_ADAPTER_IDS, digestText } from '../src/index.js';
-import { widgetArtifact, widgetProfile, widgetText } from './harness/custom-kind-fixture.js';
+import {
+  schemaArtifact,
+  widgetArtifact,
+  widgetProfile,
+  widgetText,
+} from './harness/custom-kind-fixture.js';
 import { componentText, localTeam, policyMatrix, policyRun } from './harness/policy-fixture.js';
 import { startLspClient } from './harness/lsp-client.js';
 
@@ -672,7 +677,12 @@ void test('over-budget buffers block stale validation until a full bounded repla
   await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
     textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
   });
-  await host.waitFor((item) => item.version === 1);
+  const initial = await host.waitFor((item) => item.version === 1);
+  assert.deepEqual(
+    initial.diagnostics,
+    [],
+    'buffer-limit test requires a successful initial catalog validation',
+  );
   await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
     textDocument: { uri: URI, version: 2 },
     contentChanges: [{ text: componentText() + '# ' + 'a'.repeat(600) }],
@@ -740,5 +750,50 @@ void test('LSP framing preflight bounds headers/bodies, handles split/multiple f
       const error = once(stream, 'error');
       stream.end(invalid);
       await error;
+    });
+});
+
+void test('stdio LSP applies general schema rules and repairs versioned source diagnostics on both adapters', async (t) => {
+  const artifact = schemaArtifact({
+    type: 'object',
+    properties: { spec: { type: 'object', properties: { lifecycle: { const: 'production' } } } },
+  });
+  for (const adapterId of BACKSTAGE_ADAPTER_IDS)
+    await t.test(adapterId, async (t) => {
+      const host = await startLspClient(
+        t,
+        config(undefined, {
+          profile: { adapterId },
+          schemaArtifacts: [artifact],
+          rules: [
+            {
+              id: 'production-only',
+              version: '1',
+              kind: 'schema',
+              schema: { id: artifact.id, version: artifact.version, digest: artifact.digest },
+              mandatory: true,
+              severity: 'error',
+              requires: [],
+            },
+          ],
+        }),
+      );
+      await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: {
+          uri: URI,
+          languageId: 'yaml',
+          version: 1,
+          text: componentText().replace('production', 'experimental'),
+        },
+      });
+      const invalid = await host.waitFor((item) => item.uri === URI && item.version === 1);
+      assert.equal(invalid.diagnostics[0]?.code, 'production-only');
+      assert.equal(invalid.diagnostics[0]?.range.start.line, 5);
+      await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [{ text: componentText() }],
+      });
+      const repaired = await host.waitFor((item) => item.uri === URI && item.version === 2);
+      assert.deepEqual(repaired.diagnostics, []);
     });
 });

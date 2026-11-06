@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:policy-release:0.2",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "rootDigest",
+    "bundles",
+    "profile",
+    "schemaArtifacts",
+    "activation",
+    "issuedAt",
+    "expiresAt",
+    "signature"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.2",
+      "type": "string"
+    },
+    "rootDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "bundles": {
+      "minItems": 1,
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+        "$ref": "urn:backstage-validation:policy-bundle:0.2"
+      }
+    },
+    "profile": {
+      "$ref": "urn:backstage-validation:deployment-profile:0.2"
+    },
+    "schemaArtifacts": {
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+        "$ref": "urn:backstage-validation:schema-artifact:0.2"
+      }
+    },
+    "activation": {
+      "$ref": "urn:backstage-validation:activation-manifest:0.2"
+    },
+    "issuedAt": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "expiresAt": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "signature": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "algorithm",
+        "keyId",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "type": "string"
+        },
+        "keyId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "pattern": "^[A-Za-z0-9+/]{86}==$",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

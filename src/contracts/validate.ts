@@ -7,6 +7,8 @@ import type {
   DeploymentProfile,
   JsonValue,
   PolicyBundle,
+  PolicyRelease,
+  PolicyTrust,
   SchemaArtifact,
   SourceSnapshot,
   ValidationRequest,
@@ -30,6 +32,8 @@ export interface ContractTypes {
   'deployment-profile': DeploymentProfile;
   'policy-bundle': PolicyBundle;
   'activation-manifest': ActivationManifest;
+  'policy-release': PolicyRelease;
+  'policy-trust': PolicyTrust;
   'validation-request': ValidationRequest;
   coverage: Coverage;
   'validation-result': ValidationResult;
@@ -377,11 +381,13 @@ export function parseContract<K extends keyof ContractTypes>(
         bundle.rules.map((rule) => rule.id),
         '/rules',
       );
-      // Inherited prerequisite resolution belongs to the future policy resolver.
+      // The resolver validates prerequisites across the complete inheritance closure.
       if (bundle.extends.length === 0) orderRules(bundle.rules);
       break;
     }
     case 'json-value':
+    case 'policy-release':
+    case 'policy-trust':
     case 'activation-manifest':
     case 'coverage':
       break;
