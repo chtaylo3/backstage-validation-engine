@@ -418,9 +418,9 @@ void test('BC-05 required unavailable processors suppress admission and custom-s
     },
   });
   const report = await validate(state);
-  assert.deepEqual(report.findings, []);
+  assert(report.findings.every((finding) => finding.category === 'dependency'));
   assert.equal(exit(state, report), 2);
-  assert(!report.coverage.some((row) => row.stage === 'admission'));
+  assert(!report.coverage.some((row) => row.stage === 'admission' && row.status === 'verified'));
 });
 
 void test('BC-05 admission and custom kinds propagate through catalog policies on both native pins and both fake APIs', async (t) => {

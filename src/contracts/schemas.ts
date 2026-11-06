@@ -167,7 +167,13 @@ export const DeploymentProfileSchema = schema('deployment-profile', {
     { maxItems: 64 },
   ),
   readers: strings(),
-  requiredProcessors: Type.Array(object({ id: text(), stage: text() })),
+  requiredProcessors: Type.Array(
+    object({
+      id: Type.String({ minLength: 1, maxLength: 128 }),
+      stage: Type.String({ minLength: 1, maxLength: 128 }),
+    }),
+    { maxItems: 64 },
+  ),
   limits: ResourceLimitsSchema,
 });
 

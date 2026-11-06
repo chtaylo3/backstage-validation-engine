@@ -3,7 +3,7 @@
 One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
 IDEs, and hosted GitHub execution.
 
-**Status: source parsing, declared BC-01 through BC-06, catalog policies and stdio LSP implemented.** Contract version
+**Status: source parsing, declared BC-01 through BC-07, catalog policies and stdio LSP implemented.** Contract version
 0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
 and dependency-aware rule execution are available. YAML parsing includes bounded
 normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
@@ -12,7 +12,8 @@ provenance. Explicit catalog rules feed cancellable, versioned LSP diagnostics.
 Snapshot-local substitutions preserve included-file ranges and buffer versions.
 Pinned kind/source admission and custom schemas run before rules. Proposed
 overlays now qualify local targets and mask removed/invalid identities before
-catalog lookup. Complete processor qualification, organization schema rules, CLI
+catalog lookup. Required unavailable processing blocks all dependent stages.
+Executable processor integrations, organization schema rules, CLI
 and hosted control remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.

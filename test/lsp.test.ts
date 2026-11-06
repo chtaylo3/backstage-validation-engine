@@ -609,6 +609,28 @@ void test('BC-06 LSP refuses file operations without pinned bytes and invalidate
   await host.shutdown();
 });
 
+void test('BC-07 LSP reports required processing as a versioned dependency warning before parsing or HTTP', async (t) => {
+  const matrix = await policyMatrix(t);
+  for (const { fixture, target } of matrix.fixtures)
+    await t.test(target.backstageVersion, async (t) => {
+      const host = await startLspClient(
+        t,
+        config(fixture.baseUrl, {
+          profile: { requiredProcessors: [{ id: 'required', stage: 'pre-validation' }] },
+        }),
+      );
+      await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: { uri: URI, languageId: 'yaml', version: 1, text: 'metadata: [broken' },
+      });
+      const report = await host.waitFor((item) => item.uri === URI && item.version === 1);
+      assert.equal(report.diagnostics[0]?.code, 'backstage/processors/unavailable');
+      assert.equal(report.diagnostics[0]?.severity, 2);
+      assert(!report.diagnostics.some((row) => String(row.code).startsWith('yaml/')));
+      assert.equal(fixture.requests().length, 0);
+      await host.shutdown();
+    });
+});
+
 void test('unconfigured dependencies warn and pure CEL/native policies need no API', async (t) => {
   for (const rules of [undefined, []])
     await t.test(rules ? 'native-only' : 'unconfigured', async (t) => {

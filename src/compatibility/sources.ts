@@ -27,6 +27,12 @@ import { BackstageRuntimeError } from './types.js';
 import { admitsKind } from '../policy/admission.js';
 import { createCustomKindRegistry } from './custom-schemas.js';
 import {
+  processingCoverage,
+  processingFinding,
+  PROCESSING_UNAVAILABLE,
+} from '../core/processing.js';
+import { reject } from '../core/errors.js';
+import {
   SnapshotSourceResolver,
   SourceResolutionError,
   SUBSTITUTION_MESSAGES,
@@ -73,6 +79,62 @@ export async function validateBackstageSources(
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
   verifyRequestBindings(run, context);
   const profile = parseContract('deployment-profile', context.profile);
+  if (profile.requiredProcessors.length) {
+    const uris = options.uris ?? run.source.entrypoints;
+    if (
+      uris &&
+      (new Set(uris).size !== uris.length ||
+        uris.some((uri) => !run.source.files.some((file) => file.uri === uri)))
+    )
+      reject(
+        'invalid_contract',
+        '/uris',
+        'source selection contains duplicate or unavailable files',
+      );
+    const selected = run.source.files
+      .filter((file) => !uris || uris.includes(file.uri))
+      .slice(0, profile.limits.entities);
+    const interrupted = budget.interrupted
+      ? budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
+        ? 'timeout'
+        : 'cancelled'
+      : 'none';
+    return deepFreeze({
+      adapterId: profile.adapterId,
+      sourceDigest: run.source.digest,
+      profileDigest: run.profile.digest,
+      entities: [],
+      references: [],
+      sourceClaims: [],
+      unresolvedSourceIdentities: true,
+      findings: selected.map((file) =>
+        processingFinding(
+          run,
+          {
+            uri: file.uri,
+            document: 0,
+            path: '',
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+          },
+          JSON.stringify([file.uri, 0]),
+        ),
+      ),
+      coverage: [
+        ...processingCoverage(profile),
+        ...(['parse', 'substitution', 'compatibility', 'admission', 'overlay'] as const).map(
+          (stage) => ({
+            stage,
+            subject: 'processing',
+            required: true,
+            status: 'blocked' as const,
+            reason: PROCESSING_UNAVAILABLE,
+          }),
+        ),
+      ],
+      artifacts: [],
+      interrupted,
+    });
+  }
   const referencePatterns = compileReferenceContexts(profile.referenceContexts);
   const referenceCounter = { visits: 0, occurrences: 0 };
   const parsed = await parseSourceSnapshot(run.source, {
@@ -156,15 +218,6 @@ export async function validateBackstageSources(
             : 'Parsing did not complete.',
       });
   }
-  for (const processor of profile.requiredProcessors) {
-    coverage.push({
-      stage: 'compatibility',
-      subject: JSON.stringify(['processor', processor.id, processor.stage]),
-      required: true,
-      status: 'unsupported',
-      reason: MESSAGES.unsupported_processor,
-    });
-  }
   let adapter: Awaited<ReturnType<typeof loadBackstageAdapter>> | undefined;
   let customKinds: ReturnType<typeof createCustomKindRegistry> | undefined;
   let unavailable = parsed.interrupted !== 'none';
@@ -227,7 +280,7 @@ export async function validateBackstageSources(
       location: locateParsedPath(document, '/metadata'),
       relatedLocations: document.locations['/metadata']?.relatedLocations ?? [],
     };
-    if (!unavailable && adapter && !profile.requiredProcessors.length) {
+    if (!unavailable && adapter) {
       try {
         const identity = adapter.resolveReference(
           adapter.entityReference(document.value),
@@ -239,13 +292,13 @@ export async function validateBackstageSources(
     }
     const claimIndex = sourceClaims.length;
     sourceClaims.push(claim);
-    if (unavailable || !adapter || !customKinds || profile.requiredProcessors.length) {
+    if (unavailable || !adapter || !customKinds) {
       coverage.push({
         stage: 'compatibility',
         subject,
         required: true,
         status: 'blocked',
-        reason: profile.requiredProcessors.length ? MESSAGES.unsupported_processor : blockedReason,
+        reason: blockedReason,
       });
       continue;
     }

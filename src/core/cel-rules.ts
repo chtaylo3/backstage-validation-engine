@@ -24,6 +24,7 @@ import { createFindingId } from './results.js';
 import { bindCatalogReferences } from './catalog-bindings.js';
 import type { CatalogBindings } from './catalog-bindings.js';
 import type { ReferenceDataPreparation } from './reference-data.js';
+import { blockedProcessorRules } from './processing.js';
 
 export interface RuleSubject {
   readonly id: string;
@@ -38,7 +39,8 @@ export interface RuleExecutionReport {
   readonly failures: readonly {
     readonly subjectId: string;
     readonly ruleId: string;
-    readonly code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable';
+    readonly code:
+      CelErrorCode | 'unsupported_rule' | 'unsupported_processor' | 'catalog_unavailable';
   }[];
   readonly interrupted: ValidationResult['resources']['interrupted'];
 }
@@ -129,6 +131,18 @@ export async function executePolicyRules(
     new Set(sorted.map((subject) => subject.id)).size !== sorted.length
   ) {
     reject('invalid_contract', '/subjects', 'subject identities must be nonempty and unique');
+  }
+  if (profile.requiredProcessors.length) {
+    const report = blockedProcessorRules(run, profile, policy, sorted);
+    return deepFreeze({
+      ...report,
+      interrupted: budget.interrupted
+        ? budget.signal.reason instanceof CelError &&
+          budget.signal.reason.code === 'request_timeout'
+          ? 'timeout'
+          : 'cancelled'
+        : 'none',
+    });
   }
   const rulesById = new Map(policy.rules.map((rule) => [rule.id, rule]));
   const rules = orderRules(policy.rules, profile.limits.graphDepth).map((id) => {

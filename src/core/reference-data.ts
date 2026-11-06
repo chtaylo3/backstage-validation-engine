@@ -173,7 +173,10 @@ export async function prepareBackstageReferenceData(
         stage: 'overlay',
         subject: 'proposed-catalog',
         required: targets.length > 0,
-        status: blocked.size || !proposed ? 'blocked' : 'verified',
+        status:
+          blocked.size || !proposed || context.profile.requiredProcessors.length
+            ? 'blocked'
+            : 'verified',
       },
     ],
   };

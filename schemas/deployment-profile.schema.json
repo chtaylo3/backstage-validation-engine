@@ -219,6 +219,7 @@
       }
     },
     "requiredProcessors": {
+      "maxItems": 64,
       "type": "array",
       "items": {
         "additionalProperties": false,
@@ -230,10 +231,12 @@
         "properties": {
           "id": {
             "minLength": 1,
+            "maxLength": 128,
             "type": "string"
           },
           "stage": {
             "minLength": 1,
+            "maxLength": 128,
             "type": "string"
           }
         }

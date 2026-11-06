@@ -139,7 +139,7 @@ void test('required unavailable processors suppress speculative owner/schema fai
   );
   const report = await validateBackstageSources(run.request, run.context);
   assert.equal(report.entities.length, 0);
-  assert.equal(report.findings.length, 0);
+  assert(report.findings.every((finding) => finding.category === 'dependency'));
   assert(report.coverage.some((entry) => entry.status === 'unsupported' && entry.required));
   assert(
     report.coverage.some((entry) => entry.stage === 'compatibility' && entry.status === 'blocked'),

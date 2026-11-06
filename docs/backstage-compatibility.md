@@ -5,15 +5,15 @@ Status: BC-01 through BC-06 implemented for the declared source/profile surface 
 implemented; this increment adds the exact native catalog-model adapters selected
 by ADR 0002 in the planning repository.
 
-| Case  | Required evidence                                                                                                                            | Status                                                |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| BC-01 | Native envelope/kind parity for Component, API, Group, User, Resource, System, Domain and Location on 1.10.2 and 1.7.5                       | Passed locally                                        |
-| BC-02 | Native namespace defaulting, field-format/root/schema policies and opt-in group-parent defaulting, preserving authored/normalized provenance | Passed locally                                        |
-| BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                  |
-| BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Passed locally for snapshot-local reader              |
-| BC-05 | Kind/source admission and declared custom schemas                                                                                            | Passed locally for declared schema profile            |
-| BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Passed locally for pinned proposed/baseline sources   |
-| BC-07 | Required unavailable processors block dependent validation without speculative errors                                                        | Native-stage guard implemented; full pipeline pending |
+| Case  | Required evidence                                                                                                                            | Status                                                 |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| BC-01 | Native envelope/kind parity for Component, API, Group, User, Resource, System, Domain and Location on 1.10.2 and 1.7.5                       | Passed locally                                         |
+| BC-02 | Native namespace defaulting, field-format/root/schema policies and opt-in group-parent defaulting, preserving authored/normalized provenance | Passed locally                                         |
+| BC-03 | Contextual native entity references and canonical identity                                                                                   | Passed locally for declared contexts                   |
+| BC-04 | Safe local substitutions and Location targets, including missing/cyclic/traversal cases                                                      | Passed locally for snapshot-local reader               |
+| BC-05 | Kind/source admission and declared custom schemas                                                                                            | Passed locally for declared schema profile             |
+| BC-06 | Proposed catalog overlay, invalid replacements, deletions, renames and conflicts                                                             | Passed locally for pinned proposed/baseline sources    |
+| BC-07 | Required unavailable processors block dependent validation without speculative errors                                                        | Passed locally for declared empty executable inventory |
 
 Native schema/policy success covers declared stages only. It does not establish
 complete deployment ingestion, organization policy, catalog persistence or hosted
@@ -150,7 +150,8 @@ remains an open pilot gate.
 
 The [proposed overlay](proposed-overlays.md) qualifies local entities and masks
 invalid/removed identities, with baseline and source-derived data pinning.
-Next: complete BC-07 processor blocking.
+BC-07 [processor blocking](processors.md) now covers source processing, rules-only
+execution, empty input and the LSP, with an explicitly empty executable inventory.
 
 The production provider now uses `adapter.resolveReference` and
 `adapter.entityReference` for pinned native parsing/stringification and envelope

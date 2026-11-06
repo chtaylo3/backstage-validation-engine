@@ -202,15 +202,26 @@ all 593 tests and required type/lint/format/schema/build checks with loopback
 access. The built overlay example passed for a local addition; confirmed deletion
 returned a completed blocking violation with exit 1.
 
+## Required processor blocking increment
+
+BC-07 now blocks source parsing and all dependent native/substitution/admission/
+overlay/rule work before speculative execution when deployment processing is
+required but unavailable. Rules-only execution applies the same gate. Empty input,
+false selectors and zero rules cannot manufacture verified coverage. Fixed IDE
+dependency warnings, CI incomplete/exit 2, cancellation and deadlines propagate
+through both native/API pins and the stdio lifecycle. The executable processor
+inventory remains explicitly empty. See [scope and acceptance](processors.md).
+
+Local qualification on 2026-11-05: all 24 added checks and the full 617-test
+`npm run check` passed, including required type/lint/format/schema/build checks.
+
 ## Next increments, in order
 
-1. **Engine and compatibility.** Complete BC-07
-   processor blocking, extending the fixture-driven LSP loop for each behavior.
-2. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
+1. **Policy, providers, and CLI.** Verify immutable bundles/activation and resolve
    inherited mandatory baselines. Add schema rules, JSON/SARIF output and CLI exits.
-3. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
+2. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
    completion and extension packaging, and qualify actual VS Code/JetBrains clients.
-4. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
+3. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central
    Actions execution, and authoritative GitHub publication.
 

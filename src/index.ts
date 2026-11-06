@@ -12,6 +12,7 @@ export type { SourceInput } from './core/snapshots.js';
 export { createFindingId, createValidationResult, resultExitCode } from './core/results.js';
 export type { FindingIdentity, ResultInput } from './core/results.js';
 export { orderRules } from './policy/rule-graph.js';
+export { SUPPORTED_DEPLOYMENT_PROCESSORS } from './core/processing.js';
 export { DEFAULT_DEPLOYMENT_PROFILE } from './policy/profile.js';
 export { verifyRequestBindings } from './core/bindings.js';
 export { executeCelRules, executePolicyRules } from './core/cel-rules.js';
