@@ -156,3 +156,38 @@ API pins. The full local `npm run check` passed all 552 tests on 2026-10-30.
 BC-06 adds nine LSP checks for local precedence, invalid replacements, pinned
 deletions, file/identity renames, conflicts, cancellation and unavailable operation
 bytes. The full local `npm run check` passed all 593 tests on 2026-11-03.
+
+## Failure evidence and buffer recovery
+
+Incomplete warnings and findings from interrupted work can carry bounded
+`data.execution` evidence: fixed stage/cause labels, monotonic elapsed time, signed
+wall elapsed time and remaining original deadline. The existing `data.version`
+and source digest still identify the publication lifetime. Evidence is capped at
+64 rows and copied through an allowlist before publication; raw exceptions,
+credentials, endpoints, source text and artifacts are excluded. The visible
+warning text and version/epoch suppression remain unchanged.
+
+Unexpected early exceptions now preserve their stage and safe cause through the
+policy pipeline. For example, unresolved policy inheritance produces
+`bindings / invalid_policy` with zero HTTP requests. `BudgetAdmissionError` is a
+`RangeError` subclass identifying invalid or out-of-range deadlines. The existing
+five-second admission limit remains unchanged; a backward clock correction after
+request creation can still cause `deadline_out_of_range`, with signed wall timing
+and remaining-deadline evidence available for diagnosis.
+
+Buffer recovery has separate native-only stdio coverage for oversized replacements,
+rejected incremental edits, and bounded full-replacement repair. A separate HTTP
+integration uses response gates for initial validation and repair, asserts
+successful initial diagnostics, and proves that unavailable-buffer versions issue
+no extra requests. If validation ends before a gate is entered, the test reports
+that diagnostic immediately. No retries or extended production deadlines are used.
+
+The clock-regression tests also prove that a wall-clock rollback after budget
+admission does not extend its monotonic execution deadline. This work implements
+diagnostics and test isolation; it does not claim a historical root cause or
+introduce a new cross-pipeline clock/budget architecture.
+
+Local qualification on 2026-11-07: native-only buffer recovery, gated HTTP recovery
+and early-exception diagnostics passed through the real stdio launcher. The full
+672-test check passed, including unchanged version/epoch, cancellation, framing
+and shutdown coverage.

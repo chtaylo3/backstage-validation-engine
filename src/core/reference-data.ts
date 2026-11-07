@@ -18,6 +18,8 @@ import type {
   CatalogLookupReport,
   CatalogProvider,
 } from '../providers/types.js';
+import { FailureTimer, failureCause } from '../runtime/failure-evidence.js';
+import type { FailureEvidence } from '../runtime/failure-evidence.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';
 import { verifyRequestBindings } from './bindings.js';
@@ -58,6 +60,7 @@ export interface ReferenceDataPreparation {
   readonly interrupted: ValidationResult['resources']['interrupted'];
   readonly collectionStartedAt: number;
   readonly referencePaths: readonly string[];
+  readonly failureEvidence?: readonly FailureEvidence[];
 }
 type Interruption = ReferenceDataPreparation['interrupted'];
 const priority: Record<Interruption, number> = {
@@ -94,6 +97,8 @@ export async function prepareBackstageReferenceData(
     readonly referencePaths?: readonly string[];
   },
 ): Promise<ReferenceDataPreparation> {
+  const timer = new FailureTimer();
+  const failureEvidence: FailureEvidence[] = [];
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
   verifyRequestBindings(run, context);
@@ -189,6 +194,19 @@ export async function prepareBackstageReferenceData(
         signal: budget.signal,
       });
     } catch (error) {
+      failureEvidence.push(
+        timer.capture(
+          'catalog_admission',
+          error instanceof CatalogProviderError
+            ? error.code === 'input_limit'
+              ? 'resource_limit'
+              : error.code === 'closed'
+                ? 'provider_error'
+                : 'invalid_contract'
+            : failureCause(error),
+          run.execution.deadlineAt,
+        ),
+      );
       if (budget.interrupted) interruption = merge(interruption, interrupted(budget));
       else if (error instanceof CatalogProviderError && error.code === 'input_limit')
         interruption = merge(interruption, 'resource_limit');
@@ -282,6 +300,22 @@ export async function prepareBackstageReferenceData(
     pinFailure = 'interrupted';
     interruption = merge(interruption, interrupted(budget));
   }
+  if (pinFailure)
+    failureEvidence.push(
+      timer.capture(
+        'catalog_snapshot',
+        pinFailure === 'resource_limit'
+          ? 'aggregate_limit'
+          : pinFailure === 'stale_data'
+            ? data.entries.some((entry) => entry.provenance.fetchedAt > pinnedAt)
+              ? 'future_observation'
+              : 'observation_expired'
+            : interruption === 'cancelled'
+              ? 'cancelled'
+              : 'request_timeout',
+        run.execution.deadlineAt,
+      ),
+    );
   return deepFreeze({
     compatibility,
     ...(baseline ? { baseline } : {}),
@@ -293,5 +327,6 @@ export async function prepareBackstageReferenceData(
     interrupted: interruption,
     collectionStartedAt: run.execution.startedAt,
     referencePaths,
+    failureEvidence,
   });
 }

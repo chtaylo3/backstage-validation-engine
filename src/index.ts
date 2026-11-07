@@ -27,7 +27,7 @@ export {
   CelError,
 } from './runtime/cel/index.js';
 export type { CelRuntime, CelRuntimeStats, CelErrorCode } from './runtime/cel/index.js';
-export { RequestBudget } from './runtime/request-budget.js';
+export { RequestBudget, BudgetAdmissionError } from './runtime/request-budget.js';
 export type { EvaluationContext } from './runtime/request-budget.js';
 export * from './parsing/index.js';
 export * from './compatibility/index.js';
@@ -45,3 +45,4 @@ export { verifyPolicyRelease, signPolicyRelease } from './policy/releases.js';
 export type { PolicyReleasePayload } from './policy/releases.js';
 export { formatSarif, formatSarifError } from './cli/sarif.js';
 export { createVerifiedPolicyResult } from './policy/verified-result.js';
+export type { FailureEvidence, FailureCause, FailureStage } from './runtime/failure-evidence.js';

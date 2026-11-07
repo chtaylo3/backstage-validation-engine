@@ -243,6 +243,30 @@ existing provider/LSP cases from the first full run passed isolated checks and
 the full repeat; stronger test preconditions/diagnostics are retained. See the
 [acceptance notes](policy-cli.md#local-qualification).
 
+## Failure diagnostics and test isolation increment
+
+Implemented safe stage/cause/timing evidence for provider failures, reference
+preparation, pipeline exceptions and versioned LSP diagnostics. Attempt/request
+timeouts, transport/response failures, future/expired observations and aggregate
+snapshot limits are distinguishable. Evidence is bounded and excludes raw errors,
+source contents, credentials and endpoints. Deadline admission now has a typed
+`RangeError` subclass; existing limits, freshness rejection and enforcement remain.
+
+The aggregate cache-budget proof uses controlled time and in-memory transport,
+with separate real-HTTP cache reuse coverage. Native-only buffer recovery is
+separate from gated HTTP recovery. Injected clock rollback tests preserve rejection
+of future observations and verify that admitted monotonic budgets are not extended.
+See [provider evidence](catalog-provider.md#safe-failure-evidence) and
+[LSP recovery/evidence](lsp.md#failure-evidence-and-buffer-recovery).
+The original intermittent causes remain unconfirmed; a broader clock architecture
+audit remains separate work.
+
+Local qualification on 2026-11-07: the full `npm run check` passed all 672 tests
+(11 added checks) and required type/lint/format/schema/build checks with loopback
+access. After final stage-label refinements, static/schema/build checks were
+repeated and all 71 provider/reference/failure-evidence checks passed. The focused
+stdio/native/HTTP recovery and early-exception run also passed.
+
 ## Next increments, in order
 
 1. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive

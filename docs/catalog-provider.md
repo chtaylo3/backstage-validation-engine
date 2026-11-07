@@ -131,3 +131,44 @@ Local qualification on 2026-10-29: all 31 provider checks passed within the full
 356-test `npm run check`. The built example also passed against the standalone
 1.56 fixture server: two present observations, one missing observation and graceful
 shutdown. Hosted CI and real Backstage deployment runs remain open.
+
+## Safe failure evidence
+
+`CatalogLookupReport.failures[].evidence` adds fixed `stage` and `cause` values,
+monotonic `elapsedMs`, signed `wallElapsedMs`, and `deadlineRemainingMs`. Timings
+are integer milliseconds bounded to 60 seconds in either direction (elapsed time
+is nonnegative). Each timer starts at its component's entry; remaining time always
+uses the original request deadline. Successful lookups add no failure rows.
+
+The existing failure codes and unavailable/outcome behavior are preserved. Evidence
+separates catalog admission/credentials, transport, response validation, freshness
+and snapshot construction. In particular:
+
+- `attempt_timeout` differs from `request_timeout` and `cancelled`.
+- `offline` identifies transport failure; `invalid_response` identifies rejected
+  response data. Upstream error messages and bodies remain excluded.
+- `future_observation` identifies a fetch timestamp later than delivery time;
+  `observation_expired` identifies expiry before delivery. Both retain the existing
+  unavailable/timeout behavior. A wall-clock rollback can produce the first case;
+  the cause label records the observed condition rather than asserting why the
+  host clock changed.
+- `aggregate_limit` identifies combined snapshot rejection, including cache hits.
+  It differs from wire response exhaustion, which remains `resource_limit`.
+
+`validatePolicySources` returns up to 64 allowlisted `failureEvidence` rows and
+accepts a trusted `onFailure` observer for unexpected exceptions. Observer failures
+cannot replace the original error. Reference preparation retains provider-admission
+and snapshot-pinning evidence. Artifact bodies, source text, tokens, endpoints,
+identity fields and arbitrary exception messages are excluded from evidence.
+
+The aggregate cache-budget proof now uses a controlled clock and in-memory
+responses: six individually admissible 20,000-value entities exceed the combined
+100,000-value snapshot ceiling without additional transport. A separate real-HTTP
+check proves large observations are cached and reused. Injected backward-clock,
+transport/response failure, attempt/request deadline and cancellation coverage
+preserves existing protections. This addresses diagnosis and test isolation;
+the cause of the initial 2026-11-05 intermittent failure remains unconfirmed.
+
+Local qualification on 2026-11-07: the full suite passed 672 tests; final targeted
+provider/reference/failure-evidence verification passed 71 checks after stage-label
+refinement. Required type/lint/format/schema/build checks also passed.

@@ -4,6 +4,8 @@ import { deepFreeze, digestJson, digestText, canonicalJson, immutableJson } from
 import type { Immutable } from '../core/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { ContractError } from '../core/errors.js';
+import { FailureTimer } from '../runtime/failure-evidence.js';
+import type { FailureStage } from '../runtime/failure-evidence.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { CatalogAdmission, CatalogRateLimit, abortable } from './async.js';
 import { fetchCatalogBatch, interruptionFailure } from './transport.js';
@@ -212,13 +214,19 @@ export async function createCatalogProvider(
     } catch {
       throw new CatalogProviderError('invalid_reference');
     }
+    const timer = new FailureTimer();
+    let stage: FailureStage = 'catalog_admission';
     const generation = ++epoch;
     using budget = new RequestBudget(
       execution.deadlineAt,
       AbortSignal.any([shutdown.signal, ...(execution.signal ? [execution.signal] : [])]),
     );
     const entries = new Map<string, Immutable<DataEntry>>();
-    const failures: { code: CatalogFailureCode; entityRefs: readonly string[] }[] = [];
+    const failures: {
+      code: CatalogFailureCode;
+      entityRefs: readonly string[];
+      evidence: ReturnType<FailureTimer['capture']>;
+    }[] = [];
     let interrupted: CatalogLookupReport['interrupted'] = 'none';
     const entry = (
       ref: string,
@@ -258,7 +266,15 @@ export async function createCatalogProvider(
         cacheBytes = 0;
         epoch++;
       }
-      failures.push({ code: error.code, entityRefs: missing });
+      failures.push({
+        code: error.code,
+        entityRefs: missing,
+        evidence: timer.capture(
+          error.detail?.stage ?? stage,
+          error.detail?.cause ?? (error.code === 'timeout' ? 'request_timeout' : error.code),
+          execution.deadlineAt,
+        ),
+      });
       if (error.code === 'timeout' || error.code === 'cancelled') interrupted = error.code;
       else if (['resource_limit', 'queue_limit'].includes(error.code) && interrupted === 'none')
         interrupted = 'resource_limit';
@@ -279,6 +295,7 @@ export async function createCatalogProvider(
       if (refs.length) {
         release = await admission.acquire(budget.signal);
         budget.throwIfInterrupted();
+        stage = 'catalog_credentials';
         const credentials = credentialBinding(
           await abortable(resolveCredentials(access, budget.signal), budget.signal),
           access,
@@ -313,6 +330,7 @@ export async function createCatalogProvider(
           budget.throwIfInterrupted();
           const batch = pending.slice(offset, offset + limits.batchSize);
           try {
+            stage = 'catalog_transport';
             const result = await fetchCatalogBatch({
               baseUrl,
               refs: batch,
@@ -324,6 +342,7 @@ export async function createCatalogProvider(
               remaining,
               rateLimit,
             });
+            stage = 'catalog_snapshot';
             for (const [index, observation] of result.observations.entries()) {
               const ref = batch[index]!;
               const value = entry(ref, observation, result.fetchedAt);
@@ -348,7 +367,7 @@ export async function createCatalogProvider(
               }
             }
           } catch (error) {
-            if (budget.interrupted) throw interruptionFailure(budget);
+            if (budget.interrupted) throw interruptionFailure(budget, stage);
             const problem =
               error instanceof CatalogFailure ? error : new CatalogFailure('provider_error');
             // Exhaustion, authentication failure and invalid data block further dependent reads.
@@ -362,10 +381,11 @@ export async function createCatalogProvider(
           }
         }
       }
+      stage = 'catalog_snapshot';
       budget.throwIfInterrupted();
     } catch (error) {
       const problem = budget.interrupted
-        ? interruptionFailure(budget)
+        ? interruptionFailure(budget, stage)
         : error instanceof CatalogFailure
           ? error
           : new CatalogFailure('provider_error');
@@ -376,19 +396,33 @@ export async function createCatalogProvider(
     } finally {
       release?.();
     }
+    stage = 'catalog_freshness';
     const completedAt = Date.now();
     const stale: string[] = [];
+    const future: string[] = [];
     for (const [ref, value] of entries) {
       if (value.status === 'unavailable') {
         // This is the current local lack of usable data, not a renewed upstream observation.
         entries.set(ref, entry(ref, { status: 'unavailable', reason: value.reason }, completedAt));
-      } else if (
-        value.provenance.expiresAt <= completedAt ||
-        value.provenance.fetchedAt > completedAt
-      )
-        stale.push(ref);
+      } else if (value.provenance.fetchedAt > completedAt) future.push(ref);
+      else if (value.provenance.expiresAt <= completedAt) stale.push(ref);
     }
-    if (stale.length) failure(new CatalogFailure('timeout'), stale);
+    if (future.length)
+      failure(
+        new CatalogFailure('timeout', false, undefined, {
+          stage: 'catalog_freshness',
+          cause: 'future_observation',
+        }),
+        future,
+      );
+    if (stale.length)
+      failure(
+        new CatalogFailure('timeout', false, undefined, {
+          stage: 'catalog_freshness',
+          cause: 'observation_expired',
+        }),
+        stale,
+      );
     for (const [key, value] of cache) {
       if (
         value.entry.provenance.expiresAt <= completedAt ||
@@ -398,17 +432,24 @@ export async function createCatalogProvider(
     }
     const finish = (data: CatalogLookupReport['data']): CatalogLookupReport => {
       if (budget.interrupted) {
-        const problem = interruptionFailure(budget);
+        const problem = interruptionFailure(budget, stage);
         if (interrupted !== problem.code) failure(problem, []);
       }
       return deepFreeze({ data, failures, interrupted });
     };
+    stage = 'catalog_snapshot';
     try {
       return finish(createDataSnapshot([...entries.values()]));
     } catch (error) {
       if (!(error instanceof ContractError) || error.code !== 'limit') throw error;
       entries.clear();
-      failure(new CatalogFailure('resource_limit'), refs);
+      failure(
+        new CatalogFailure('resource_limit', false, undefined, {
+          stage: 'catalog_snapshot',
+          cause: 'aggregate_limit',
+        }),
+        refs,
+      );
       return finish(createDataSnapshot([...entries.values()]));
     }
   };

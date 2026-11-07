@@ -11,3 +11,4 @@ export type {
   CatalogFailureCode,
   CatalogLookupReport,
 } from './types.js';
+export type { FailureEvidence } from '../runtime/failure-evidence.js';

@@ -160,3 +160,8 @@ Those two tests now retain seed failure details and explicitly require successfu
 initial validation. No runtime fix or root cause is claimed for these intermittent
 observations. Hosted CI, real backends/editors, host clock/resource stability and
 the existing performance/confinement gates still need release qualification.
+
+The 2026-11-07 follow-up adds [safe failure evidence](catalog-provider.md#safe-failure-evidence)
+and separates deterministic budget/buffer proofs from HTTP integration. Explicit
+clock-regression tests preserve the current deadline and freshness behavior.
+The historical cause remains unconfirmed.

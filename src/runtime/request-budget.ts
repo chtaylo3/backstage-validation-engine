@@ -9,6 +9,14 @@ export interface EvaluationContext {
   readonly executionMs?: number;
 }
 
+/** Typed admission rejection; preserves the existing RangeError and deadline checks. */
+export class BudgetAdmissionError extends RangeError {
+  override readonly name = 'BudgetAdmissionError';
+  constructor(readonly reason: 'invalid_deadline' | 'deadline_out_of_range') {
+    super('Request deadline must be within five seconds');
+  }
+}
+
 /** One scope per validation request, shared by every selector/expression/provider. */
 export class RequestBudget {
   readonly signal: AbortSignal;
@@ -22,13 +30,11 @@ export class RequestBudget {
     readonly deadlineAt: number,
     upstream?: AbortSignal,
   ) {
-    if (
-      !Number.isSafeInteger(deadlineAt) ||
-      deadlineAt < 0 ||
-      deadlineAt - Date.now() > CEL_LIMITS.requestMs
-    ) {
-      throw new RangeError('Request deadline must be within five seconds');
+    if (!Number.isSafeInteger(deadlineAt) || deadlineAt < 0) {
+      throw new BudgetAdmissionError('invalid_deadline');
     }
+    if (deadlineAt - Date.now() > CEL_LIMITS.requestMs)
+      throw new BudgetAdmissionError('deadline_out_of_range');
     this.signal = this.controller.signal;
     this.deadline = performance.now() + Math.max(0, deadlineAt - Date.now());
     this.upstream = upstream;

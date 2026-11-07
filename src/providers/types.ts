@@ -1,5 +1,6 @@
 import type { DataSnapshot, ValidationResult } from '../contracts/schemas.js';
 import type { Immutable } from '../core/json.js';
+import type { FailureEvidence } from '../runtime/failure-evidence.js';
 import type { BackstageAdapterId } from '../compatibility/types.js';
 
 /** Constructed by the trusted host after resolving installation, principal and policy authority. */
@@ -70,6 +71,7 @@ export interface CatalogLookupReport {
   readonly failures: readonly {
     readonly code: CatalogFailureCode;
     readonly entityRefs: readonly string[];
+    readonly evidence?: FailureEvidence;
   }[];
   readonly interrupted: ValidationResult['resources']['interrupted'];
 }
@@ -115,6 +117,7 @@ export class CatalogFailure extends Error {
     readonly code: CatalogFailureCode,
     readonly retryable = false,
     readonly retryAfterMs?: number,
+    readonly detail?: Pick<FailureEvidence, 'stage' | 'cause'>,
   ) {
     super(`Catalog access failed: ${code}.`);
   }

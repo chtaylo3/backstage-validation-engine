@@ -218,6 +218,8 @@ void test('credential binding failures never reach the server or reuse a prior a
   const report = await run(provider);
   unavailable(report, 'permission_denied');
   assert.equal(report.failures[0]?.code, 'credential_binding');
+  assert.equal(report.failures[0]?.evidence?.cause, 'credential_binding');
+  assert.equal(report.failures[0]?.evidence?.stage, 'catalog_credentials');
   assert.equal(fixture.requests().length, 1);
   assert(!JSON.stringify(report).includes('test-all'));
 });
@@ -435,6 +437,8 @@ void test('wire validation rejects swapped, truncated and malformed entity respo
     const report = await run(provider, [TEAM, SERVICE]);
     unavailable(report, 'provider_error');
     assert.equal(report.failures[0]?.code, 'invalid_response');
+    assert.equal(report.failures[0]?.evidence?.cause, 'invalid_response');
+    assert.equal(report.failures[0]?.evidence?.stage, 'catalog_response');
     assert.equal(provider.stats().cacheEntries, 0);
   }
   fixture.failNext({ operation: 'byName' }, { kind: 'invalid-body', body: null });
@@ -466,12 +470,58 @@ void test('aggregate response limits preserve earlier observations and block rem
 });
 
 void test('cached observations cannot bypass the combined snapshot value budget', async (t) => {
-  const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const entities = new Map<string, object>();
+  let calls = 0;
+  const provider = await createCatalogProvider({
+    connectionId: 'primary',
+    baseUrl: 'https://catalog.invalid/api/catalog',
+    adapterId: '@backstage/catalog-model@1.10.2',
+    credentials: (context) => Promise.resolve(credentials(context)),
+    limits: { retries: 0 },
+    transport: (input) => {
+      calls++;
+      const url =
+        typeof input === 'string'
+          ? new URL(input)
+          : input instanceof URL
+            ? input
+            : new URL(input.url);
+      const name = url.pathname.split('/').at(-1)!;
+      return Promise.resolve(Response.json(entities.get(name)));
+    },
+  });
+  t.after(() => provider.close());
   const refs: string[] = [];
   for (let index = 0; index < 6; index++) {
     const name = `large-${index}`;
+    entities.set(name, {
+      ...team,
+      metadata: { ...team.metadata, name },
+      spec: { ...team.spec, payload: Array.from({ length: 20_000 }, () => 0) },
+    });
+    const ref = `group:default/${name}`;
+    refs.push(ref);
+    const seeded = await run(provider, [ref]);
+    assert.equal(observation(seeded, ref).status, 'present', JSON.stringify(seeded.failures));
+  }
+  assert.equal(provider.stats().cacheEntries, 6);
+  const report = await run(provider, refs);
+  assert.equal(report.interrupted, 'resource_limit');
+  assert(report.data.entries.every((entry) => entry.status === 'unavailable'));
+  assert.equal(report.failures.at(-1)?.evidence?.stage, 'catalog_snapshot');
+  assert.equal(report.failures.at(-1)?.evidence?.cause, 'aggregate_limit');
+  assert.equal(calls, 6, 'aggregate rejection must use cached entries without transport');
+});
+
+void test('real HTTP large observations are cached and reused without further wire requests', async (t) => {
+  const state = await setup(t);
+  const fixture = state.fixtures[0]!.fixture;
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const provider = await state.provider(fixture);
+  const refs: string[] = [];
+  for (let index = 0; index < 2; index++) {
+    const name = `wire-large-${index}`;
     fixture.upsert({
       ...team,
       metadata: { ...team.metadata, name },
@@ -482,10 +532,40 @@ void test('cached observations cannot bypass the combined snapshot value budget'
     const seeded = await run(provider, [ref]);
     assert.equal(observation(seeded, ref).status, 'present', JSON.stringify(seeded.failures));
   }
-  const report = await run(provider, refs);
-  assert.equal(report.interrupted, 'resource_limit');
-  assert(report.data.entries.every((entry) => entry.status === 'unavailable'));
-  assert.equal(fixture.requests().length, 6);
+  const cached = await run(provider, refs);
+  assert.equal(cached.interrupted, 'none');
+  assert(cached.data.entries.every((entry) => entry.status === 'present'));
+  assert.equal(fixture.requests().length, 2);
+});
+
+void test('backward wall time rejects future catalog observations with safe freshness evidence and recovers', async (t) => {
+  let wall = Date.now();
+  const initial = wall;
+  t.mock.method(Date, 'now', () => wall);
+  let calls = 0;
+  const provider = await createCatalogProvider({
+    connectionId: 'primary',
+    baseUrl: 'https://catalog.invalid/api/catalog',
+    adapterId: '@backstage/catalog-model@1.10.2',
+    credentials: (context) => Promise.resolve(credentials(context)),
+    limits: { retries: 0 },
+    transport: () => {
+      if (++calls === 1) wall -= 20;
+      return Promise.resolve(Response.json(team));
+    },
+  });
+  t.after(() => provider.close());
+  const report = await run(provider);
+  unavailable(report, 'timeout');
+  assert.equal(report.failures[0]?.evidence?.cause, 'future_observation');
+  assert.equal(report.failures[0]?.evidence?.stage, 'catalog_freshness');
+  assert.equal(report.failures[0]?.evidence?.wallElapsedMs, -20);
+  assert.equal(report.interrupted, 'timeout');
+  assert.equal(provider.stats().cacheEntries, 0);
+  assert(!JSON.stringify(report.failures).includes('test-all'));
+  wall = initial + 1;
+  assert.equal(observation(await run(provider)).status, 'present');
+  assert.equal(calls, 2);
 });
 
 void test('streaming responses with invalid encoding or content type remain unavailable', async (t) => {
@@ -499,6 +579,8 @@ void test('streaming responses with invalid encoding or content type remain unav
     const report = await run(provider);
     unavailable(report, 'provider_error');
     assert.equal(report.failures[0]?.code, 'invalid_response');
+    assert.equal(report.failures[0]?.evidence?.cause, 'invalid_response');
+    assert.equal(report.failures[0]?.evidence?.stage, 'catalog_response');
   }
 });
 
@@ -526,6 +608,8 @@ void test('a stalled response body is cancelled at the attempt deadline', async 
   const report = await run(provider);
   unavailable(report, 'timeout');
   assert.equal(report.interrupted, 'timeout');
+  assert.equal(report.failures[0]?.evidence?.cause, 'attempt_timeout');
+  assert.equal(report.failures[0]?.evidence?.stage, 'catalog_response');
   assert(cancelled);
   assert.equal(provider.stats().active, 0);
 });
@@ -567,6 +651,7 @@ void test('original request deadline aborts the HTTP request and later lookups r
   await gate.cancelled;
   unavailable(report, 'timeout');
   assert.equal(report.interrupted, 'timeout');
+  assert.equal(report.failures[0]?.evidence?.cause, 'request_timeout');
   assert.equal(observation(await run(provider)).status, 'present');
 });
 
@@ -581,6 +666,7 @@ void test('an individual HTTP attempt timeout is bounded separately from the req
   await gate.cancelled;
   unavailable(report, 'timeout');
   assert.equal(report.interrupted, 'timeout');
+  assert.equal(report.failures[0]?.evidence?.cause, 'attempt_timeout');
 });
 
 void test('queue admission is bounded and cancelling a queued caller does not cancel an active lookup', async (t) => {
@@ -600,7 +686,10 @@ void test('queue admission is bounded and cancelling a queued caller does not ca
   assert.equal(rejected.failures[0]?.code, 'queue_limit');
   assert.equal(rejected.interrupted, 'resource_limit');
   controller.abort();
-  assert.equal((await second).interrupted, 'cancelled');
+  const cancelled = await second;
+  assert.equal(cancelled.interrupted, 'cancelled');
+  assert.equal(cancelled.failures[0]?.evidence?.cause, 'cancelled');
+  assert.equal(cancelled.failures[0]?.evidence?.stage, 'catalog_admission');
   assert.equal(provider.stats().queued, 0);
   gate.release();
   assert.equal(observation(await first).status, 'present');

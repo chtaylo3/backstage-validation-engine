@@ -18,6 +18,8 @@ import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { validatePolicySources } from '../core/policy-sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
+import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
+import type { FailureEvidence } from '../runtime/failure-evidence.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 
@@ -26,6 +28,7 @@ function diagnostic(
   digest: string,
   version: number,
   uri: string,
+  evidence: readonly FailureEvidence[] = [],
 ): Diagnostic {
   const projected = finding.location.uri !== uri;
   const location = projected
@@ -48,7 +51,13 @@ function diagnostic(
           })),
         }
       : {}),
-    data: { findingId: finding.id, category: finding.category, sourceDigest: digest, version },
+    data: {
+      findingId: finding.id,
+      category: finding.category,
+      sourceDigest: digest,
+      version,
+      ...(evidence.length ? { execution: evidence } : {}),
+    },
   };
 }
 const validVersion = (version: number) => Number.isSafeInteger(version) && version >= 0;
@@ -95,6 +104,9 @@ export function attachLspServer(
     const current = () => !stopped && !abort.signal.aborted && epoch === generation;
     active = (async () => {
       if (!frame.length) return;
+      const timing = new FailureTimer();
+      const evidence: FailureEvidence[] = [];
+      let deadlineAt: number | undefined;
       try {
         if (unavailable.size || capacityExceeded) {
           for (const document of frame) {
@@ -103,6 +115,7 @@ export function attachLspServer(
               incomplete(
                 unavailable.has(document.uri) ? undefined : digestText(document.getText()),
                 document.version,
+                [timing.capture('buffer', 'buffer_unavailable')],
               ),
             ]);
           }
@@ -117,11 +130,17 @@ export function attachLspServer(
             version: document.version,
           })),
         );
-        const report = await validatePolicySources(createLspRequest(config, source), config, {
+        const request = createLspRequest(config, source);
+        deadlineAt = request.execution.deadlineAt;
+        const report = await validatePolicySources(request, config, {
+          onFailure: (row) => {
+            if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
+          },
           signal: abort.signal,
           ...(options.catalog ? { catalog: options.catalog } : {}),
         });
         if (!current()) return;
+        evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
         for (const document of frame) {
           if (!current()) return;
           const digest = digestText(document.getText());
@@ -131,21 +150,25 @@ export function attachLspServer(
                 finding.location.uri === document.uri ||
                 finding.relatedLocations.some((location) => location.uri === document.uri),
             )
-            .map((finding) => diagnostic(finding, digest, document.version, document.uri));
+            .map((finding) =>
+              diagnostic(finding, digest, document.version, document.uri, evidence),
+            );
           if (
             report.interrupted !== 'none' ||
             (report.coverage.some((row) => row.required && row.status !== 'verified') &&
               diagnostics.length === 0)
           )
-            diagnostics.push(incomplete(digest, document.version));
+            diagnostics.push(incomplete(digest, document.version, evidence));
           await publish(document.uri, document.version, diagnostics);
         }
-      } catch {
+      } catch (error) {
+        if (!evidence.length)
+          evidence.push(timing.capture('validation', failureCause(error), deadlineAt));
         if (current())
           for (const document of frame) {
             if (!current()) return;
             await publish(document.uri, document.version, [
-              incomplete(digestText(document.getText()), document.version),
+              incomplete(digestText(document.getText()), document.version, evidence),
             ]);
           }
       }
@@ -159,7 +182,11 @@ export function attachLspServer(
         if (pending && !timer) drain();
       });
   };
-  function incomplete(digest: string | undefined, version: number): Diagnostic {
+  function incomplete(
+    digest: string | undefined,
+    version: number,
+    evidence: readonly FailureEvidence[] = [],
+  ): Diagnostic {
     return {
       range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
       severity: DiagnosticSeverity.Warning,
@@ -168,6 +195,7 @@ export function attachLspServer(
       message: 'Validation could not complete for this workspace snapshot.',
       data: {
         category: 'execution',
+        ...(evidence.length ? { execution: evidence } : {}),
         ...(digest === undefined ? {} : { sourceDigest: digest }),
         version,
       },

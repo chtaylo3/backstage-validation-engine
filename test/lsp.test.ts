@@ -11,7 +11,7 @@ import {
 import { parseLspConfig } from '../src/lsp/config.js';
 import { BoundedLspInput, LSP_FRAME_BYTES } from '../src/lsp/framing.js';
 import { URI } from './helpers.js';
-import { BACKSTAGE_ADAPTER_IDS, digestText } from '../src/index.js';
+import { BACKSTAGE_ADAPTER_IDS, digestJson, digestText } from '../src/index.js';
 import {
   schemaArtifact,
   widgetArtifact,
@@ -664,7 +664,50 @@ void test('shutdown cancels outstanding HTTP and waits for owned resources befor
   assert.deepEqual(host.diagnostics, []);
 });
 
-void test('over-budget buffers block stale validation until a full bounded replacement resynchronizes the document', async (t) => {
+void test('native-only buffer limits require a full bounded replacement to resynchronize', async (t) => {
+  const run = policyRun();
+  const host = await startLspClient(
+    t,
+    config(undefined, {
+      rules: [],
+      profile: { limits: { ...run.context.profile.limits, fileBytes: 512 } },
+    }),
+  );
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
+  });
+  const initial = await host.waitFor((item) => item.version === 1);
+  assert.deepEqual(
+    initial.diagnostics,
+    [],
+    'buffer-limit test requires successful native validation',
+  );
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ text: componentText() + '# ' + 'a'.repeat(600) }],
+  });
+  const blocked = await host.waitFor((item) => item.version === 2);
+  assert.equal(blocked.diagnostics[0]?.code, 'validation/incomplete');
+  assert.match(JSON.stringify(blocked.diagnostics[0]?.data), /buffer_unavailable/);
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 3 },
+    contentChanges: [
+      { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, text: '#' },
+    ],
+  });
+  assert.equal(
+    (await host.waitFor((item) => item.version === 3)).diagnostics[0]?.code,
+    'validation/incomplete',
+  );
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 4 },
+    contentChanges: [{ text: componentText() }],
+  });
+  assert.deepEqual((await host.waitFor((item) => item.version === 4)).diagnostics, []);
+  await host.shutdown();
+});
+
+void test('buffer rejection suppresses real HTTP until a gated full replacement revalidates', async (t) => {
   const matrix = await policyMatrix(t);
   const fixture = matrix.fixtures[0]!.fixture;
   const run = policyRun();
@@ -674,10 +717,20 @@ void test('over-budget buffers block stale validation until a full bounded repla
       profile: { limits: { ...run.context.profile.limits, fileBytes: 512 } },
     }),
   );
+  const firstGate = fixture.holdNext({ operation: 'byName' });
+  t.after(() => firstGate.release());
+  const firstDiagnostics = host.waitFor((item) => item.version === 1);
   await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
     textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText() },
   });
-  const initial = await host.waitFor((item) => item.version === 1);
+  await Promise.race([
+    firstGate.entered,
+    firstDiagnostics.then((report) => {
+      throw new Error('Validation ended before initial HTTP: ' + JSON.stringify(report));
+    }),
+  ]);
+  firstGate.release();
+  const initial = await firstDiagnostics;
   assert.deepEqual(
     initial.diagnostics,
     [],
@@ -700,11 +753,22 @@ void test('over-budget buffers block stale validation until a full bounded repla
     'validation/incomplete',
   );
   assert.equal(fixture.requests().length, 1);
+  const repairGate = fixture.holdNext({ operation: 'byName' });
+  t.after(() => repairGate.release());
+  const repairDiagnostics = host.waitFor((item) => item.version === 4);
   await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
     textDocument: { uri: URI, version: 4 },
     contentChanges: [{ text: componentText() }],
   });
-  assert.deepEqual((await host.waitFor((item) => item.version === 4)).diagnostics, []);
+  await Promise.race([
+    repairGate.entered,
+    repairDiagnostics.then((report) => {
+      throw new Error('Validation ended before repair HTTP: ' + JSON.stringify(report));
+    }),
+  ]);
+  repairGate.release();
+  assert.deepEqual((await repairDiagnostics).diagnostics, []);
+  assert.equal(fixture.requests().length, 2);
   await host.shutdown();
 });
 
@@ -796,4 +860,34 @@ void test('stdio LSP applies general schema rules and repairs versioned source d
       const repaired = await host.waitFor((item) => item.uri === URI && item.version === 2);
       assert.deepEqual(repaired.diagnostics, []);
     });
+});
+
+void test('stdio early policy exceptions carry safe stage and cause evidence before HTTP', async (t) => {
+  const matrix = await policyMatrix(t);
+  const fixture = matrix.fixtures[0]!.fixture;
+  const base = config(fixture.baseUrl);
+  const policy = { ...base.policy, extends: [digestJson({ unresolved: true })] };
+  const host = await startLspClient(
+    t,
+    parseLspConfig({
+      ...base,
+      policy,
+      activation: { ...base.activation, policyDigest: digestJson(policy) },
+    }),
+  );
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: {
+      uri: URI,
+      languageId: 'yaml',
+      version: 1,
+      text: componentText('private-source-owner'),
+    },
+  });
+  const initial = await host.waitFor((item) => item.version === 1);
+  assert.equal(initial.diagnostics[0]?.code, 'validation/incomplete');
+  assert.match(JSON.stringify(initial.diagnostics[0]?.data), /"stage":"bindings"/);
+  assert.match(JSON.stringify(initial.diagnostics[0]?.data), /"cause":"invalid_policy"/);
+  assert.match(JSON.stringify(initial.diagnostics[0]?.data), /deadlineRemainingMs/);
+  assert(!JSON.stringify(initial).includes('private-source-owner'));
+  assert.equal(fixture.requests().length, 0);
 });

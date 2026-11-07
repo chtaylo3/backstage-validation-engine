@@ -3,6 +3,7 @@ import type { JsonValue } from '../contracts/schemas.js';
 import { ContractError } from '../core/errors.js';
 import { canonicalJson, immutableJson } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
+import type { FailureStage } from '../runtime/failure-evidence.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';
 import { abortable, pause } from './async.js';
@@ -14,12 +15,16 @@ export type CatalogObservation =
   | { readonly status: 'present'; readonly value: Immutable<JsonValue> }
   | { readonly status: 'missing' };
 
-export function interruptionFailure(budget: RequestBudget): CatalogFailure {
-  return new CatalogFailure(
-    budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
-      ? 'timeout'
-      : 'cancelled',
-  );
+export function interruptionFailure(
+  budget: RequestBudget,
+  stage: FailureStage = 'catalog_admission',
+): CatalogFailure {
+  const timeout =
+    budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout';
+  return new CatalogFailure(timeout ? 'timeout' : 'cancelled', false, undefined, {
+    stage,
+    cause: timeout ? 'request_timeout' : 'cancelled',
+  });
 }
 
 async function readJson(
@@ -115,6 +120,7 @@ export async function fetchCatalogBatch(options: {
     const timeout = AbortSignal.timeout(limits.attemptMs);
     const signal = AbortSignal.any([budget.signal, timeout]);
     const fetchedAt = Date.now();
+    let stage: FailureStage = 'catalog_transport';
     try {
       const response = await abortable(
         options.transport(`${options.baseUrl}${suffix}`, {
@@ -133,6 +139,7 @@ export async function fetchCatalogBatch(options: {
           void late.body?.cancel().catch(() => {});
         },
       );
+      stage = 'catalog_response';
       if (single && response.status === 404) {
         const error = record(
           await readJson(response, signal, options.remaining, limits.responseBytes),
@@ -187,12 +194,16 @@ export async function fetchCatalogBatch(options: {
       if (signal.aborted) throw new CatalogFailure('timeout', true);
       return { observations, fetchedAt };
     } catch (error) {
-      if (budget.interrupted) throw interruptionFailure(budget);
-      const failure = timeout.aborted
+      if (budget.interrupted) throw interruptionFailure(budget, stage);
+      const problem = timeout.aborted
         ? new CatalogFailure('timeout', true)
         : error instanceof CatalogFailure
           ? error
           : new CatalogFailure('offline', true);
+      const failure = new CatalogFailure(problem.code, problem.retryable, problem.retryAfterMs, {
+        stage,
+        cause: timeout.aborted || problem.code === 'timeout' ? 'attempt_timeout' : problem.code,
+      });
       const delay = failure.retryAfterMs ?? limits.retryDelayMs * 2 ** attempt;
       if (
         !failure.retryable ||
