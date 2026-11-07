@@ -33,6 +33,23 @@ export class SourceLineIndex {
     return { line: low, character: Math.min(bounded, this.ends[low]!) - this.starts[low]! };
   }
 
+  /** Exact UTF-16 position lookup; invalid positions are rejected rather than clamped. */
+  offset(position: SourceRange['start']): number | undefined {
+    const { line, character } = position;
+    if (
+      !Number.isSafeInteger(line) ||
+      !Number.isSafeInteger(character) ||
+      line < 0 ||
+      character < 0
+    )
+      return undefined;
+    const start = this.starts[line],
+      end = this.ends[line];
+    return start === undefined || end === undefined || character > end - start
+      ? undefined
+      : start + character;
+  }
+
   range(start: number, end: number): SourceRange {
     return { start: this.position(start), end: this.position(Math.max(start, end)) };
   }

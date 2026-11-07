@@ -3,6 +3,8 @@ import {
   PositionEncodingKind,
   TextDocumentSyncKind,
   DidChangeWatchedFilesNotification,
+  ApplyWorkspaceEditRequest,
+  CancellationTokenSource,
 } from 'vscode-languageserver/node';
 import type {
   Connection,
@@ -24,6 +26,7 @@ import { parseContract } from '../contracts/validate.js';
 import { FilesystemSnapshotError, reconcileFilesystemSource } from './filesystem.js';
 import type { FilesystemSource } from './filesystem.js';
 import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
+import { APPLY_FIX_COMMAND, FIX_LIMITS, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 
@@ -33,6 +36,7 @@ function diagnostic(
   version: number,
   uri: string,
   evidence: readonly FailureEvidence[] = [],
+  fixGeneration?: number,
 ): Diagnostic {
   const projected = finding.location.uri !== uri;
   const location = projected
@@ -57,6 +61,7 @@ function diagnostic(
       : {}),
     data: {
       findingId: finding.id,
+      ...(fixGeneration === undefined || !finding.edits.length ? {} : { fixGeneration }),
       category: finding.category,
       sourceDigest: digest,
       version,
@@ -84,6 +89,15 @@ export function attachLspServer(
 ) {
   if (!!config.filesystem !== !!options.filesystem)
     throw new Error('Trusted filesystem reader configuration mismatch.');
+  const fixes = new FixRegistry();
+  let fixesEnabled = false;
+  let atomicTextEdits = false;
+  let applyingFix: CancellationTokenSource | undefined;
+  const fixLimits = () => ({
+    fileBytes: config.profile.limits.fileBytes,
+    requestBytes: config.profile.limits.requestBytes,
+    atomicTextEdits,
+  });
   const approved = new Set(config.filesystem?.files ?? []);
   let diskGeneration = options.filesystem ? 1 : 0;
   let capturedGeneration = 0;
@@ -177,6 +191,27 @@ export function attachLspServer(
         });
         if (!current()) return;
         evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
+        if (
+          fixesEnabled &&
+          report.interrupted === 'none' &&
+          report.rules.failures.length === 0 &&
+          report.coverage.every((row) => !row.required || row.status === 'verified') &&
+          !report.findings.some((row) =>
+            ['configuration', 'dependency', 'execution', 'resource'].includes(row.category),
+          )
+        ) {
+          fixes.replace({
+            generation,
+            findings: report.findings,
+            source: report.request.source,
+            ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
+            documents,
+            expiresAt: Math.min(
+              Date.now() + FIX_LIMITS.ttlMs,
+              ...report.request.data.entries.map((row) => row.provenance.expiresAt),
+            ),
+          });
+        }
         for (const document of frame) {
           if (!current()) return;
           const digest = digestText(document.getText());
@@ -187,7 +222,14 @@ export function attachLspServer(
                 finding.relatedLocations.some((location) => location.uri === document.uri),
             )
             .map((finding) =>
-              diagnostic(finding, digest, document.version, document.uri, evidence),
+              diagnostic(
+                finding,
+                digest,
+                document.version,
+                document.uri,
+                evidence,
+                fixesEnabled ? generation : undefined,
+              ),
             );
           if (
             report.interrupted !== 'none' ||
@@ -198,6 +240,7 @@ export function attachLspServer(
           await publish(document.uri, document.version, diagnostics);
         }
       } catch (error) {
+        fixes.invalidate();
         if (!evidence.length)
           evidence.push(
             timing.capture(
@@ -250,6 +293,7 @@ export function attachLspServer(
     };
   }
   function schedule() {
+    fixes.invalidate();
     epoch++;
     controller?.abort();
     pending = true;
@@ -315,6 +359,8 @@ export function attachLspServer(
   const close = (): Promise<void> => {
     if (disposal) return disposal;
     stopped = true;
+    fixes.invalidate();
+    applyingFix?.cancel();
     epoch++;
     pending = false;
     if (timer) clearTimeout(timer);
@@ -327,6 +373,14 @@ export function attachLspServer(
   };
   connection.onInitialize((params) => {
     if (initialized || stopped) throw new Error('Language server already initialized.');
+    fixesEnabled =
+      params.capabilities.workspace?.applyEdit === true &&
+      params.capabilities.workspace.workspaceEdit?.documentChanges === true &&
+      !!params.capabilities.textDocument?.codeAction?.codeActionLiteralSupport &&
+      params.capabilities.textDocument.publishDiagnostics?.dataSupport === true;
+    atomicTextEdits = ['transactional', 'textOnlyTransactional'].includes(
+      params.capabilities.workspace?.workspaceEdit?.failureHandling ?? '',
+    );
     dynamicWatching =
       !!params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration &&
       !!params.capabilities.workspace.didChangeWatchedFiles.relativePatternSupport;
@@ -342,6 +396,12 @@ export function attachLspServer(
           change: TextDocumentSyncKind.Incremental,
           ...(options.filesystem ? { save: { includeText: false } } : {}),
         },
+        ...(fixesEnabled
+          ? {
+              codeActionProvider: { codeActionKinds: ['quickfix'] },
+              executeCommandProvider: { commands: [APPLY_FIX_COMMAND] },
+            }
+          : {}),
         workspace: {
           fileOperations: {
             didRename: {
@@ -355,6 +415,63 @@ export function attachLspServer(
       },
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
+  });
+  connection.onCodeAction((params) => {
+    if (
+      !initialized ||
+      stopped ||
+      !fixesEnabled ||
+      unavailable.size ||
+      capacityExceeded ||
+      applyingFix
+    )
+      return [];
+    return fixes.actions(params, epoch, documents, fixLimits());
+  });
+  connection.onExecuteCommand((params, token) => {
+    if (
+      !initialized ||
+      stopped ||
+      !fixesEnabled ||
+      unavailable.size ||
+      capacityExceeded ||
+      params.command !== APPLY_FIX_COMMAND ||
+      token.isCancellationRequested
+    )
+      return { applied: false, reason: 'invalid_request' };
+    if (applyingFix) return { applied: false, reason: 'busy' };
+    return fixes.apply(params.arguments, epoch, documents, fixLimits(), async (edit) => {
+      const cancellation = new CancellationTokenSource();
+      applyingFix = cancellation;
+      const timer = setTimeout(() => cancellation.cancel(), FIX_LIMITS.applyMs);
+      const upstream = token.onCancellationRequested(() => cancellation.cancel());
+      const pending = connection.sendRequest(
+        ApplyWorkspaceEditRequest.type,
+        { label: FIX_TITLE, edit },
+        cancellation.token,
+      );
+      // Cancellation alone does not settle a JSON-RPC request. Keep at most one
+      // outstanding client request even after the bounded local wait expires.
+      const release = () => {
+        cancellation.dispose();
+        if (applyingFix === cancellation) applyingFix = undefined;
+      };
+      void pending.then(release, release);
+      let stopWaiting: (() => void) | undefined;
+      const cancelled = new Promise<never>((_resolve, reject) => {
+        const stop = () => reject(new Error('Fix application cancelled.'));
+        const subscription = cancellation.token.onCancellationRequested(stop);
+        stopWaiting = () => subscription.dispose();
+        if (cancellation.token.isCancellationRequested) stop();
+      });
+      try {
+        return await Promise.race([pending, cancelled]);
+      } finally {
+        clearTimeout(timer);
+        upstream.dispose();
+        stopWaiting?.();
+      }
+    });
   });
   connection.onInitialized(() => {
     if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {

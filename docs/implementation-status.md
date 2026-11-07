@@ -280,7 +280,7 @@ results. Shutdown awaits captures and file-handle cleanup. See
 
 Directory discovery, hostile-writer OS confinement, atomic filesystem transactions,
 policy/authority reload and actual backend/editor/OS qualification remain open.
-Version-safe fixes, completion and extension packaging are the next IDE work.
+Version-safe fixes were the next increment; their implementation is recorded below.
 
 Local qualification on 2026-11-07: the full regression check passed 693 tests and
 required type/lint/format/schema/build checks. Final observed-mutation and watch
@@ -289,10 +289,34 @@ mutation test, with repeated static/build/schema verification. Stdio scenarios
 passed both native model pins and both fake API contracts. The development
 filesystem launcher generator captured and pinned a real temporary file.
 
+## Version-safe fixes increment
+
+Implemented source-preserving scalar `const` repairs from unconditional direct
+schema properties, with explicit provenance for structured inclusions. Opaque,
+single-use quick-fix commands recheck the complete workspace epoch, open-buffer
+versions/digests, expiry and edit budgets before sending versioned client edits.
+Closed-file, multi-file, overlapping, unversioned and unsupported edits are
+rejected. A bounded client wait and one outstanding apply request prevent retries
+when the outcome is unknown. Diagnostics change only after editor synchronization.
+See [fix inventory, protocol and limitations](lsp.md#version-safe-scalar-fixes).
+
+The server verifies fingerprints before dispatch; standard LSP provides only the
+client's version check after dispatch. Atomic post-dispatch digest/dependency
+conditions and version reuse during an in-flight close/reopen are not guaranteed.
+Actual editor qualification remains open. Completion and extension packaging are
+the next IDE work.
+
+Local qualification on 2026-11-07: `npm run check` passed all 774 tests, including
+80 new scalar/guard/stdio checks, with no failures or skips. Required
+type/lint/format/schema/build checks passed. Both native model pins passed real
+stdio fix application and subsequent revalidation; freshness tests cover a
+shorter observation lifetime during wall-clock rollback. No actual editor or
+additional OS support is claimed by the protocol fixtures.
+
 ## Next increments, in order
 
-1. **IDE path.** Add version-safe fixes, responsive
-   completion and extension packaging, and qualify actual VS Code/JetBrains clients.
+1. **IDE path.** Add responsive completion and extension packaging, and qualify
+   actual VS Code/JetBrains clients, including in-flight fix/version behavior.
 2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central
    Actions execution, and authoritative GitHub publication.

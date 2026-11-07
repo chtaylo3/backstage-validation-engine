@@ -27,7 +27,10 @@ import type { CatalogBindings } from './catalog-bindings.js';
 import type { ReferenceDataPreparation } from './reference-data.js';
 import { blockedProcessorRules } from './processing.js';
 import { createSchemaRegistry } from '../compatibility/custom-schemas.js';
+import { scalarConstEdit, SCALAR_FIX_LIMITS } from './scalar-fixes.js';
+import type { SourceSubstitution } from '../compatibility/types.js';
 import { locateParsedPath } from '../parsing/locations.js';
+import type { SourceLineIndex } from '../parsing/locations.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
 
 export interface RuleSubject {
@@ -119,6 +122,10 @@ export async function executePolicyRules(
     readonly runtime?: CelRuntime;
     readonly referenceData?: ReferenceDataPreparation;
     readonly sourceDocuments?: readonly ParsedSourceDocument[];
+    readonly sourceSubstitutions?: readonly {
+      readonly subjectId: string;
+      readonly substitutions: readonly SourceSubstitution[];
+    }[];
   } = {},
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
@@ -164,6 +171,11 @@ export async function executePolicyRules(
       reject('integrity', '/sourceDocuments', 'rule source provenance does not match the snapshot');
     documents.set(JSON.stringify([document.uri, document.document]), document);
   }
+  const substitutions = new Map(
+    options.sourceSubstitutions?.map((row) => [row.subjectId, row.substitutions]),
+  );
+  const fixIndexes = new Map<string, SourceLineIndex>();
+  let generatedFixes = 0;
   const rulesById = new Map(policy.rules.map((rule) => [rule.id, rule]));
   const rules = orderRules(policy.rules, profile.limits.graphDepth).map((id) => {
     const rule = rulesById.get(id);
@@ -246,7 +258,8 @@ export async function executePolicyRules(
               state.status = 'not_applicable';
             } else if (rule.kind === 'schema') {
               const validate = schemaValidators.get(rule.id);
-              const path = validate ? validate(subject.value) : '';
+              const issue = validate?.issue(subject.value);
+              const path = validate ? issue?.path : '';
               budget.throwIfInterrupted();
               if (!validate || path !== undefined) {
                 const dependency = !validate;
@@ -269,6 +282,19 @@ export async function executePolicyRules(
                 const location = document
                   ? locateParsedPath(document, pointer)
                   : { ...subject.location, path: pointer };
+                const edit =
+                  !dependency && generatedFixes < SCALAR_FIX_LIMITS.generated
+                    ? scalarConstEdit(
+                        run,
+                        document,
+                        subject.value,
+                        issue,
+                        substitutions.get(subject.id) ?? [],
+                        fixIndexes,
+                      )
+                    : undefined;
+                if (edit) generatedFixes++;
+                budget.throwIfInterrupted();
                 findings.push({
                   id: createFindingId({
                     ruleId: rule.id,
@@ -293,7 +319,7 @@ export async function executePolicyRules(
                       : 'advisory',
                   location,
                   relatedLocations: [...(document?.locations[nearest]?.relatedLocations ?? [])],
-                  edits: [],
+                  edits: edit ? [edit] : [],
                 });
               }
             } else if (rule.kind === 'catalog') {

@@ -119,7 +119,7 @@ stream bounds messages before the SDK parses them. Stdout contains protocol
 messages; startup errors use fixed text on stderr without upstream details.
 
 Optional launcher-approved filesystem refresh is described below. Dynamic authority
-reload, pull diagnostics, completion, hover, fixes, extension packaging and actual
+reload, pull diagnostics, completion, hover, extension packaging and actual
 IDE installation qualification remain open. With filesystem refresh disabled,
 closing a buffer restores pinned workspace bytes; restart with a refreshed trusted
 snapshot to incorporate disk changes. Qualified local targets now precede external observations. Invalid/competing
@@ -285,3 +285,70 @@ After final file-metadata and watch-event refinements, all 22 refresh checks pas
 including an added observed-mutation case. Static/build/schema checks and the
 filesystem launcher example also passed. This evidence uses real stdio and local
 filesystem/HTTP fixtures; actual editor and supported-OS qualification remains open.
+
+## Version-safe scalar fixes
+
+Schema-rule findings can offer **Apply policy-required scalar value**. The first
+inventory handles a failed scalar `const` reached through an unconditional direct
+`properties` chain in a trusted, pinned schema artifact. For example,
+`lifecycle: experimental # keep` becomes `lifecycle: "production" # keep` when the
+schema requires `production`. Exact source spans preserve surrounding comments,
+newlines and UTF-16 positions. JSON literals are valid replacement scalars in both
+JSON and YAML. Applying one fix can leave other policy/native findings; normal
+validation runs again after the editor reports the change.
+
+Only authored single-line scalar values qualify. Structured `$yaml`/`$json`
+inclusions retain their actual target URI, digest and buffer version. Aliases,
+block scalars, `$text`, missing fields, defaults, container constants, alternative/
+conditional branches and `$ref`-based constraints do not generate fixes. There is
+no fix-all action, guessed value, file creation/deletion, or direct disk write.
+Generation is capped at 64 fixes per run and 4096 UTF-8 bytes per scalar.
+
+The server advertises quick fixes only when the client supplies
+`workspace.applyEdit`, `workspace.workspaceEdit.documentChanges`, code-action
+literal support, and diagnostic `dataSupport`. An action carries an opaque,
+single-use `bve.applyFix` command token. The client cannot submit replacement text
+or URIs through that command. At execution the server rechecks the validated
+workspace epoch, every open buffer's version and digest, target edit ranges and
+source fingerprints, profile byte limits and observation freshness. Save/watch,
+edit, close/reopen, rename/delete and other validation-triggering events invalidate
+previous tokens, including when a buffer version is reused. Tokens expire within
+60 seconds, bounded by observation expiry, using wall and monotonic clocks.
+
+The server sends a standard
+[`workspace/applyEdit`](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/workspace/applyEdit.md)
+with `documentChanges` and an exact document version. Targets must be open;
+there is no unversioned fallback. The guard accepts at most 16 nonoverlapping
+edits in one document, at most 16 KiB of replacement text, and requires
+transactional text-edit capability for multiple edits. Current scalar fixes
+contain one edit. Candidate/action/token limits are 64/32/128 respectively;
+oldest tokens are evicted first. Fixes are withheld when required validation is
+incomplete or configuration, dependency, execution or resource failures occur.
+
+Server checks cover the state before dispatch; the editor must enforce the final
+document-version check when applying the edit. Standard LSP does not provide an
+atomic digest/workspace-epoch condition after dispatch. In-flight dependency
+changes, or a close/reopen that reuses the same version after dispatch, therefore
+need actual editor qualification and cannot be claimed safe solely from server
+prechecks. The implementation never treats a matching version as proof of a
+matching digest during its own checks.
+
+Client rejection returns a fixed `client_rejected` result. Errors, cancellation
+or the five-second local apply wait return `client_error`, without publishing raw
+client failure text. Only one client apply request may remain outstanding; a
+silent client blocks additional requests until it responds or disconnects. A
+successful or unknown result suppresses more fixes for that snapshot until an
+editor/workspace event causes revalidation. The server waits for real `didChange`
+notifications to update text or diagnostics. A command token is never retried.
+
+The scalar, guard and real stdio suites are part of `npm run test:lsp` and
+`npm run test:harness`. They cover both native model pins, YAML/JSON and included
+sources, formatting preservation, stale diagnostics and tokens, unchanged-version
+content changes, UTF-16 bounds, edit overlap and byte limits, expiry/clock rollback,
+watch invalidation, client version races/rejection and silent-client shutdown.
+These are protocol-fixture checks; VS Code/JetBrains installation qualification
+remains open. Responsive completion and extension packaging are the next IDE work.
+
+Local qualification on 2026-11-07: all 774 tests and required
+type/lint/format/schema/build checks passed through `npm run check`, including
+80 new scalar, guard and stdio checks. There were no failures or skips.

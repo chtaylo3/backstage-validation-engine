@@ -13,14 +13,25 @@ import {
   ShutdownRequest,
   ExitNotification,
   RegistrationRequest,
+  ApplyWorkspaceEditRequest,
 } from 'vscode-languageserver/node';
-import type { PublishDiagnosticsParams } from 'vscode-languageserver/node';
+import type {
+  ApplyWorkspaceEditParams,
+  ApplyWorkspaceEditResult,
+  PublishDiagnosticsParams,
+} from 'vscode-languageserver/node';
 import type { LspConfig } from '../../src/lsp/config.js';
 
 export async function startLspClient(
   t: TestContext,
   config: LspConfig,
-  options: { watchFiles?: boolean } = {},
+  options: {
+    watchFiles?: boolean;
+    fixes?: boolean;
+    applyEdit?: (
+      params: ApplyWorkspaceEditParams,
+    ) => ApplyWorkspaceEditResult | Promise<ApplyWorkspaceEditResult>;
+  } = {},
 ) {
   const directory = await mkdtemp(path.join(tmpdir(), 'bve-lsp-'));
   const configPath = path.join(directory, 'host.json');
@@ -52,6 +63,11 @@ export async function startLspClient(
   client.onRequest(RegistrationRequest.type, (params) => {
     registrations.push(params);
   });
+  const applyRequests: ApplyWorkspaceEditParams[] = [];
+  client.onRequest(ApplyWorkspaceEditRequest.type, (params) => {
+    applyRequests.push(params);
+    return options.applyEdit?.(params) ?? { applied: false };
+  });
   client.listen();
   let stopped = false;
   async function shutdown() {
@@ -76,10 +92,26 @@ export async function startLspClient(
     rootUri: 'file:///workspace',
     capabilities: {
       general: { positionEncodings: ['utf-16'] },
-      ...(options.watchFiles
-        ? {
-            workspace: {
+      workspace: {
+        ...(options.fixes
+          ? {
+              applyEdit: true,
+              workspaceEdit: { documentChanges: true, failureHandling: 'textOnlyTransactional' },
+            }
+          : {}),
+        ...(options.watchFiles
+          ? {
               didChangeWatchedFiles: { dynamicRegistration: true, relativePatternSupport: true },
+            }
+          : {}),
+      },
+      ...(options.fixes
+        ? {
+            textDocument: {
+              publishDiagnostics: { dataSupport: true },
+              codeAction: {
+                codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } },
+              },
             },
           }
         : {}),
@@ -95,6 +127,7 @@ export async function startLspClient(
     diagnostics,
     initialized,
     registrations,
+    applyRequests,
     shutdown,
     async disconnect(kind: 'eof' | 'exit') {
       stopped = true;

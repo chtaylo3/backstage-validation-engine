@@ -187,6 +187,41 @@ function compile(artifact: Immutable<SchemaArtifact>): ValidateFunction {
   return validate;
 }
 
+export interface SchemaValidationIssue {
+  readonly path: string;
+  readonly keyword: string;
+  readonly expected?: Immutable<JsonValue>;
+}
+export interface PolicySchemaValidator {
+  (value: Immutable<JsonValue>): string | undefined;
+  issue(value: Immutable<JsonValue>): SchemaValidationIssue | undefined;
+}
+
+// A failed branch of anyOf/oneOf/conditionals does not prescribe its const.
+// The first fix inventory accepts only unconditional direct properties chains.
+function directConst(schema: Immutable<JsonValue>, path: string, expected: unknown): boolean {
+  const record = (value: unknown): value is Readonly<Record<string, unknown>> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+  let node: unknown = schema;
+  for (const key of path
+    ? path
+        .slice(1)
+        .split('/')
+        .map((part) => part.replace(/~1/g, '/').replace(/~0/g, '~'))
+    : []) {
+    if (!record(node) || node.$ref !== undefined) return false;
+    const properties = node.properties;
+    if (!record(properties) || !Object.hasOwn(properties, key)) return false;
+    node = properties[key];
+  }
+  return (
+    record(node) &&
+    node.$ref === undefined &&
+    Object.hasOwn(node, 'const') &&
+    node.const === expected
+  );
+}
+
 /** Only trusted host artifacts, matched by ID/version/content digest; no resolver or network loader. */
 export function createSchemaRegistry(input: readonly Immutable<SchemaArtifact>[] = []) {
   if (input.length > CUSTOM_SCHEMA_LIMITS.artifacts)
@@ -210,17 +245,28 @@ export function createSchemaRegistry(input: readonly Immutable<SchemaArtifact>[]
       if (artifact && artifact.digest !== pin.digest)
         reject('integrity', '/schemaArtifacts', 'schema artifact does not match its pin');
       const validator = validators.get(key);
-      return validator
-        ? (value: Immutable<JsonValue>): string | undefined => {
-            if (validator(value)) return undefined;
-            const issue = validator.errors?.[0];
-            const path = issue?.instancePath ?? '';
-            const missing: unknown = issue?.params.missingProperty;
-            return issue?.keyword === 'required' && typeof missing === 'string'
+      if (!validator) return undefined;
+      const issue = (value: Immutable<JsonValue>): SchemaValidationIssue | undefined => {
+        if (validator(value)) return undefined;
+        const error = validator.errors?.[0];
+        const path = error?.instancePath ?? '';
+        const missing: unknown = error?.params.missingProperty;
+        return deepFreeze({
+          path:
+            error?.keyword === 'required' && typeof missing === 'string'
               ? childPointer(path, missing)
-              : path;
-          }
-        : undefined;
+              : path,
+          keyword: error?.keyword ?? 'unknown',
+          ...(error?.keyword === 'const' &&
+          artifact &&
+          directConst(artifact.schema, path, error.params.allowedValue)
+            ? { expected: error.params.allowedValue as JsonValue }
+            : {}),
+        });
+      };
+      return Object.assign((value: Immutable<JsonValue>) => issue(value)?.path, {
+        issue,
+      }) satisfies PolicySchemaValidator;
     },
   };
 }
