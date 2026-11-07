@@ -210,7 +210,7 @@ void test('invalid bodies, references and unsupported fake capabilities return e
       );
       assert.equal((await batch(fixture, { entityRefs: [], fields: ['kind'] })).status, 501);
       assert.equal((await batch(fixture, { entityRefs: [], query: {} })).status, 501);
-      assert.equal((await fetch(`${fixture.baseUrl}/entities/by-query`, { headers })).status, 404);
+      assert.equal((await fetch(`${fixture.baseUrl}/entities/by-query`, { headers })).status, 501);
       assert.equal(
         (await batch(fixture, { entityRefs: ['group:default/' + 'a'.repeat(70_000)] })).status,
         413,

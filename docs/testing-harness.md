@@ -202,8 +202,10 @@ or retiring a supported minor is a separate explicit support-policy change.
 
 ## Remaining work and acceptance
 
-- Add catalog search/pagination and projections when the production provider or
-  completion path needs them, with version-specific semantic fixtures.
+- Catalog identity search now covers the completion path's fixed kind/namespace
+  and name-text filters, identity projection and opaque cursor pagination on both
+  pinned contracts. Broader predicates, arbitrary projections, ordering and search
+  UI remain outside this subset. See [completion acceptance](lsp.md#responsive-reference-completion).
 - The [production provider](catalog-provider.md) is tested against the fixtures for
   availability, identity, deadlines/cancellation, retry/cooldown limits and scoped
   caches. The [reference preparer](source-references.md) exercises both native pins

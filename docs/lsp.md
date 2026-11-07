@@ -119,7 +119,7 @@ stream bounds messages before the SDK parses them. Stdout contains protocol
 messages; startup errors use fixed text on stderr without upstream details.
 
 Optional launcher-approved filesystem refresh is described below. Dynamic authority
-reload, pull diagnostics, completion, hover, extension packaging and actual
+reload, pull diagnostics, hover, extension packaging and actual
 IDE installation qualification remain open. With filesystem refresh disabled,
 closing a buffer restores pinned workspace bytes; restart with a refreshed trusted
 snapshot to incorporate disk changes. Qualified local targets now precede external observations. Invalid/competing
@@ -347,8 +347,90 @@ sources, formatting preservation, stale diagnostics and tokens, unchanged-versio
 content changes, UTF-16 bounds, edit overlap and byte limits, expiry/clock rollback,
 watch invalidation, client version races/rejection and silent-client shutdown.
 These are protocol-fixture checks; VS Code/JetBrains installation qualification
-remains open. Responsive completion and extension packaging are the next IDE work.
+remains open. Completion support is described below; extension packaging remains
+the next IDE work.
 
 Local qualification on 2026-11-07: all 774 tests and required
 type/lint/format/schema/build checks passed through `npm run check`, including
 80 new scalar, guard and stdio checks. There were no failures or skips.
+
+## Responsive reference completion
+
+The server advertises standard
+[`textDocument/completion`](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/language/completion.md)
+with `:` and `/` triggers. Suggestions apply to authored scalar values at the
+deployment profile's declared reference contexts, including wildcard and numeric
+array positions. Defaults come from that context and the entity namespace;
+explicit kind/namespace prefixes override them. Items insert canonical qualified
+references using plain-text edits. Quotes, surrounding comments and UTF-16 ranges
+are preserved. An existing empty YAML value is supported; creating missing fields,
+repairing syntax errors, keys/comments, aliases, block scalars and `$text` payloads
+are outside this inventory. Qualified structured YAML/JSON inclusions retain the
+open payload's actual edit range. Ambiguous shared-payload contexts offer no edits.
+
+A separate source-index task validates native/source compatibility and the pinned
+baseline without CEL or catalog HTTP. It keeps one active task and one latest
+pending snapshot, with cooperative cancellation and the original validation
+deadline. The request path uses the prepared index; it does not parse files,
+read disk, or wait for index preparation or validation's HTTP requests. While the
+index is unavailable, it returns an empty incomplete list. Source preparation
+shares the event loop and adds bounded native/parsing work alongside validation;
+cold indexing and actual editor latency still need qualification.
+
+Qualified workspace identities rank first. Competing claims, invalid replacements
+and baseline-relative deletions mask remote identities through the existing
+proposed-catalog semantics. Incomplete source identity/processing prevents
+speculative suggestions. Every list is incomplete so further typing recomputes
+context, filtering and ranking. There are at most 100 items and 1000 indexed
+reference slots; source/profile admission limits still apply. One line index is
+built per completion request, even when many slots share a large buffer.
+
+An optional catalog connection supplies advisory identity search after at least
+two name characters. Completion waits at most 50 ms for that async search and
+then returns available local results. The current query can continue in the
+background for up to 500 ms; equal queries coalesce, and a new query, source epoch,
+request cancellation or shutdown cancels obsolete work. A caller cancellation
+also cancels a shared equal query; another request can retry. The provider shares
+admission, credentials, rate limits, response budgets and shutdown with validation.
+These are configured wait bounds, not an end-to-end editor latency guarantee.
+
+Search uses a fixed kind/namespace filter and name text search, projects only
+identity fields, follows opaque cursors for at most four pages, and retains at
+most 200 prefix matches. The server applies its prefix and local-overlay filters
+again. Arbitrary client query bodies, URLs and cursors are not accepted. Search
+results are suggestions, not validation observations or proofs of existence,
+absence, ingestion success or policy compliance.
+
+The host keeps at most 32 query results / 256 KiB under its immutable connection,
+installation, principal, permission/credential revision and policy/profile context.
+Reuse obeys `catalog.maxAgeMs`, upstream expiry and a monotonic age bound; backward
+wall-clock changes discard cache entries. Zero max age bypasses reuse. Results
+show `Workspace source` or `Catalog (fresh)`; catalog items carry fetched/expiry
+timestamps, without entity bodies, endpoint or credential data. Denied/outage/
+invalid responses offer local results and are not negative cache entries.
+Authority/credential configuration changes require a new host; this increment
+does not reload configuration or implement authentication refresh.
+
+Epoch and target version/digest checks suppress results when a document changes
+while completion is being computed. Clients remain responsible for discarding
+obsolete completion responses and applying edits to the corresponding buffer;
+standard completion text edits have no document-version precondition. Versioned
+quick fixes use the separate guarded command path above. No completion handler
+writes files, executes commands or changes validation findings.
+
+The completion, catalog-search and stdio suites are included in `test:lsp`,
+`test:harness` and the full check. They cover both native pins and pinned API
+contracts, prefix/default/array contexts, empty and quoted scalars, JSON/CRLF/
+UTF-16, local masks, visibility and pagination, queue/byte limits, freshness,
+typing during held HTTP, cancellation, included payloads and shutdown.
+Extension packaging and actual VS Code/JetBrains qualification are next. Broader
+property/schema completion, search UI, history ranking, hover/navigation and
+real-backend search qualification remain later IDE/release work.
+
+Local qualification on 2026-11-07: `npm run check` passed all 813 tests, including
+39 new completion/search/stdio checks, with no failures or skips. Required
+type/lint/format/schema/build checks passed. Warm local completion over a
+1000-entity snapshot measured p95 0.188 ms across 20 samples after three warmups.
+An 844151-byte buffer with 1000 reference slots took 2.927 ms for one warm request.
+These local measurements exclude cold source-index preparation, validation,
+network and actual editor integration; they are not release latency guarantees.

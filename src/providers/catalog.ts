@@ -8,7 +8,7 @@ import { FailureTimer } from '../runtime/failure-evidence.js';
 import type { FailureStage } from '../runtime/failure-evidence.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { CatalogAdmission, CatalogRateLimit, abortable } from './async.js';
-import { fetchCatalogBatch, interruptionFailure } from './transport.js';
+import { fetchCatalogBatch, fetchCatalogSuggestions, interruptionFailure } from './transport.js';
 import type { CatalogObservation } from './transport.js';
 import { CATALOG_LIMITS, CatalogFailure, CatalogProviderError } from './types.js';
 import type {
@@ -20,6 +20,8 @@ import type {
   CatalogLookupReport,
   CatalogProvider,
   CatalogProviderOptions,
+  CatalogSuggestionQuery,
+  CatalogSuggestionReport,
 } from './types.js';
 
 export function catalogEntityKey(connectionId: string, canonicalRef: string): string {
@@ -170,7 +172,7 @@ export async function createCatalogProvider(
   const admission = new CatalogAdmission(limits.concurrency, limits.outstanding);
   const rateLimit = new CatalogRateLimit();
   const shutdown = new AbortController();
-  const calls = new Set<Promise<CatalogLookupReport>>();
+  const calls = new Set<Promise<unknown>>();
   const cache = new Map<string, { entry: Immutable<DataEntry>; bytes: number }>();
   let cacheBytes = 0;
   let epoch = 0;
@@ -453,11 +455,93 @@ export async function createCatalogProvider(
       return finish(createDataSnapshot([...entries.values()]));
     }
   };
+  const suggest = async (
+    query: CatalogSuggestionQuery,
+    rawAccess: CatalogAccessContext,
+    execution: CatalogExecutionContext,
+  ): Promise<CatalogSuggestionReport> => {
+    if (shutdown.signal.aborted) throw new CatalogProviderError('closed');
+    if (
+      !query ||
+      typeof query.kind !== 'string' ||
+      !/^[a-z][a-z0-9]{0,62}$/u.test(query.kind) ||
+      typeof query.namespace !== 'string' ||
+      !/^[a-z0-9_.-]{1,63}$/u.test(query.namespace) ||
+      typeof query.prefix !== 'string' ||
+      !/^[a-z0-9_.-]{2,63}$/u.test(query.prefix) ||
+      Object.keys(query).some((key) => !['kind', 'namespace', 'prefix'].includes(key))
+    )
+      throw new CatalogProviderError('invalid_reference');
+    const access = normalizeCatalogAccess(rawAccess);
+    using budget = new RequestBudget(
+      execution.deadlineAt,
+      AbortSignal.any([shutdown.signal, ...(execution.signal ? [execution.signal] : [])]),
+    );
+    let release: (() => void) | undefined;
+    try {
+      budget.throwIfInterrupted();
+      release = await admission.acquire(budget.signal);
+      const credentials = credentialBinding(
+        await abortable(resolveCredentials(access, budget.signal), budget.signal),
+        access,
+      );
+      const result = await fetchCatalogSuggestions({
+        baseUrl,
+        query,
+        token: credentials.token,
+        transport,
+        adapter,
+        limits,
+        budget,
+        remaining: { bytes: limits.totalResponseBytes, values: limits.responseValues },
+        rateLimit,
+      });
+      budget.throwIfInterrupted();
+      if (result.fetchedAt > Date.now() || result.fetchedAt + limits.presentTtlMs <= Date.now())
+        throw new CatalogFailure('timeout');
+      return deepFreeze({
+        ...result,
+        status: 'ready',
+        expiresAt: result.fetchedAt + limits.presentTtlMs,
+      });
+    } catch (error) {
+      const failure = budget.interrupted
+        ? interruptionFailure(budget).code
+        : error instanceof CatalogFailure
+          ? error.code
+          : 'provider_error';
+      if (failure === 'permission_denied' || failure === 'credential_binding') {
+        cache.clear();
+        cacheBytes = 0;
+        epoch++;
+      }
+      const now = Date.now();
+      return deepFreeze({
+        status: 'unavailable',
+        refs: [],
+        truncated: false,
+        fetchedAt: now,
+        expiresAt: now,
+        failure,
+      });
+    } finally {
+      release?.();
+    }
+  };
   return Object.freeze<CatalogProvider>({
     connectionId,
     adapterId: adapter.id,
     lookup: (refs, access, execution) => {
       const work = lookup(refs, access, execution);
+      calls.add(work);
+      void work.then(
+        () => calls.delete(work),
+        () => calls.delete(work),
+      );
+      return work;
+    },
+    suggest: (query, access, execution) => {
+      const work = suggest(query, access, execution);
       calls.add(work);
       void work.then(
         () => calls.delete(work),

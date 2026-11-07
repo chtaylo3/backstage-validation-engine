@@ -303,8 +303,8 @@ See [fix inventory, protocol and limitations](lsp.md#version-safe-scalar-fixes).
 The server verifies fingerprints before dispatch; standard LSP provides only the
 client's version check after dispatch. Atomic post-dispatch digest/dependency
 conditions and version reuse during an in-flight close/reopen are not guaranteed.
-Actual editor qualification remains open. Completion and extension packaging are
-the next IDE work.
+Actual editor qualification remains open. Completion is recorded below;
+extension packaging remains IDE work.
 
 Local qualification on 2026-11-07: `npm run check` passed all 774 tests, including
 80 new scalar/guard/stdio checks, with no failures or skips. Required
@@ -313,9 +313,37 @@ stdio fix application and subsequent revalidation; freshness tests cover a
 shorter observation lifetime during wall-clock rollback. No actual editor or
 additional OS support is claimed by the protocol fixtures.
 
+## Responsive completion increment
+
+Implemented declared-reference completion over native-qualified workspace and
+baseline snapshots, plus bounded advisory catalog identity search. A separate
+cooperative source-index task keeps the request path free of parsing, disk I/O,
+CEL and validation HTTP waits. Suggestions honor source masks, kind/namespace
+defaults, arrays and exact UTF-16 scalar ranges, including structured inclusions.
+Remote lookup waits are bounded, equal queries coalesce, stale work is cancelled,
+and authority-scoped freshness caches stay within entry/byte limits. Search shares
+provider admission/credentials/response bounds and uses fixed projections with
+bounded cursor pagination. See [completion scope and protocol](lsp.md#responsive-reference-completion).
+
+Both pinned API fixtures now validate the implemented identity-query parameters
+and projected responses against their stored OpenAPI contracts. Suggestions are
+advisory; standard completion edits cannot enforce post-response buffer versions.
+Actual editor/backend/OS qualification, cold-index resource/latency evidence,
+broader completion/search/history and extension packaging remain open.
+
+Local qualification on 2026-11-07: the full `npm run check` passed 813 tests,
+including 39 new completion/search/stdio checks, with no failures or skips and
+all required type/lint/format/schema/build checks. Both native pins and both API
+contracts passed stdio completion. Held-query tests proved that typing, source
+invalidation, client cancellation and shutdown continue while HTTP is pending.
+Warm completion over 1000 entities measured p95 0.188 ms (20 samples after three
+warmups); one 844151-byte / 1000-slot buffer request measured 2.927 ms. These
+measurements exclude cold index preparation, validation, network and actual IDE
+integration. Extension packaging/installation qualification is the next component.
+
 ## Next increments, in order
 
-1. **IDE path.** Add responsive completion and extension packaging, and qualify
+1. **IDE path.** Add extension packaging and qualify
    actual VS Code/JetBrains clients, including in-flight fix/version behavior.
 2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central

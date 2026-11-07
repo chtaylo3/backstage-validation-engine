@@ -10,6 +10,8 @@ import { abortable, pause } from './async.js';
 import type { CatalogRateLimit } from './async.js';
 import { CatalogFailure } from './types.js';
 import type { CatalogLimits } from './types.js';
+import { CATALOG_SUGGESTION_LIMITS } from './types.js';
+import type { CatalogSuggestionQuery } from './types.js';
 
 export type CatalogObservation =
   | { readonly status: 'present'; readonly value: Immutable<JsonValue> }
@@ -89,6 +91,108 @@ function retryDelay(header: string | null): number | undefined {
   if (/^\d+$/.test(header)) return Number(header) * 1000;
   const date = Date.parse(header);
   return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+/** Bounded identity projection with opaque cursor pagination, sharing transport/admission limits. */
+export async function fetchCatalogSuggestions(
+  options: Omit<Parameters<typeof fetchCatalogBatch>[0], 'refs'> & {
+    query: CatalogSuggestionQuery;
+  },
+) {
+  const { budget, limits, query } = options;
+  const refs = new Set<string>();
+  const cursors = new Set<string>();
+  let cursor: string | undefined;
+  const fetchedAt = Date.now();
+  for (let page = 0; page < CATALOG_SUGGESTION_LIMITS.pages; page++) {
+    budget.throwIfInterrupted();
+    await options.rateLimit.wait(
+      budget.signal,
+      budget.deadlineAt - Date.now(),
+      limits.retryAfterMs,
+    );
+    const timeout = AbortSignal.timeout(limits.attemptMs);
+    const signal = AbortSignal.any([budget.signal, timeout]);
+    const params = new URLSearchParams({
+      fields: 'apiVersion,kind,metadata.name,metadata.namespace',
+      limit: String(CATALOG_SUGGESTION_LIMITS.pageSize),
+    });
+    if (cursor !== undefined) params.set('cursor', cursor);
+    else {
+      params.set('filter', `kind=${query.kind},metadata.namespace=${query.namespace}`);
+      params.set('fullTextFilterTerm', query.prefix);
+      params.set('fullTextFilterFields', 'metadata.name');
+      params.set('orderField', 'metadata.name,asc');
+    }
+    try {
+      const response = await abortable(
+        options.transport(`${options.baseUrl}/entities/by-query?${params.toString()}`, {
+          headers: { authorization: `Bearer ${options.token}`, accept: 'application/json' },
+          redirect: 'manual',
+          signal,
+        }),
+        signal,
+        (late) => {
+          void late.body?.cancel().catch(() => {});
+        },
+      );
+      if (response.status !== 200) {
+        void response.body?.cancel().catch(() => {});
+        if ([401, 403].includes(response.status)) throw new CatalogFailure('permission_denied');
+        const delay = retryDelay(response.headers.get('retry-after'));
+        if (response.status === 429 || (response.status === 503 && delay !== undefined))
+          options.rateLimit.block(delay ?? limits.retryDelayMs);
+        throw new CatalogFailure(response.status === 429 ? 'rate_limited' : 'provider_error');
+      }
+      const body = record(
+        await readJson(response, signal, options.remaining, limits.responseBytes),
+      );
+      if (
+        !Array.isArray(body.items) ||
+        body.items.length > CATALOG_SUGGESTION_LIMITS.pageSize ||
+        !Number.isSafeInteger(body.totalItems) ||
+        (body.totalItems as number) < 0
+      )
+        throw new CatalogFailure('invalid_response');
+      for (const item of body.items as unknown[]) {
+        let ref: string;
+        try {
+          ref = options.adapter.entityReference(immutableJson(item));
+        } catch {
+          throw new CatalogFailure('invalid_response');
+        }
+        const value = options.adapter.resolveReference(ref);
+        if (
+          value.kind !== query.kind ||
+          value.namespace !== query.namespace ||
+          !/^[a-z0-9_.-]+$/u.test(value.name) ||
+          ref.length > 512
+        )
+          throw new CatalogFailure('invalid_response');
+        if (value.name.startsWith(query.prefix)) refs.add(ref);
+      }
+      const next = record(body.pageInfo).nextCursor;
+      if (
+        next !== undefined &&
+        (typeof next !== 'string' || !next.length || next.length > 4096 || cursors.has(next))
+      )
+        throw new CatalogFailure('invalid_response');
+      budget.throwIfInterrupted();
+      if (signal.aborted) throw new CatalogFailure('timeout');
+      cursor = next;
+      if (cursor === undefined || refs.size >= CATALOG_SUGGESTION_LIMITS.results) break;
+      cursors.add(cursor);
+    } catch (error) {
+      if (budget.interrupted) throw interruptionFailure(budget);
+      if (timeout.aborted) throw new CatalogFailure('timeout');
+      throw error instanceof CatalogFailure ? error : new CatalogFailure('offline');
+    }
+  }
+  return {
+    refs: [...refs].sort().slice(0, CATALOG_SUGGESTION_LIMITS.results),
+    truncated: cursor !== undefined || refs.size > CATALOG_SUGGESTION_LIMITS.results,
+    fetchedAt,
+  };
 }
 
 export async function fetchCatalogBatch(options: {

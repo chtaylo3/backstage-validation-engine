@@ -44,7 +44,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 | `npm run build`                           | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
 | `npm test`                                | Compile and run the Node test suite                                 |
 | `npm run test:harness`                    | Check version selection, pinned artifacts and concurrent fixtures   |
-| `npm run test:lsp`                        | Exercise catalog policies, guarded fixes and stdio editor lifecycle |
+| `npm run test:lsp`                        | Exercise catalog policies, fixes, completion and stdio lifecycle    |
 | `npm run fixtures:serve`                  | Start the pinned fake catalog APIs on isolated localhost ports      |
 | `npm run fixtures:refresh`                | Capture latest patches and upstream specs for supported minors      |
 | `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |

@@ -28,6 +28,7 @@ import type { FilesystemSource } from './filesystem.js';
 import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
 import { APPLY_FIX_COMMAND, FIX_LIMITS, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
+import { CompletionService } from './completion.js';
 import type { LspConfig } from './config.js';
 
 function diagnostic(
@@ -90,6 +91,7 @@ export function attachLspServer(
   if (!!config.filesystem !== !!options.filesystem)
     throw new Error('Trusted filesystem reader configuration mismatch.');
   const fixes = new FixRegistry();
+  const completion = new CompletionService(config, options.catalog);
   let fixesEnabled = false;
   let atomicTextEdits = false;
   let applyingFix: CancellationTokenSource | undefined;
@@ -182,6 +184,7 @@ export function attachLspServer(
           ? parseContract('validation-request', { ...original, source })
           : createLspRequest(config, source);
         deadlineAt = request.execution.deadlineAt;
+        void completion.update(request, generation);
         const report = await validatePolicySources(request, config, {
           onFailure: (row) => {
             if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
@@ -294,6 +297,7 @@ export function attachLspServer(
   }
   function schedule() {
     fixes.invalidate();
+    completion.invalidate();
     epoch++;
     controller?.abort();
     pending = true;
@@ -366,6 +370,7 @@ export function attachLspServer(
     if (timer) clearTimeout(timer);
     controller?.abort();
     disposal = (async () => {
+      await completion.close();
       await active;
       await options.dispose?.();
     })();
@@ -391,6 +396,7 @@ export function attachLspServer(
     return {
       capabilities: {
         positionEncoding: PositionEncodingKind.UTF16,
+        completionProvider: { triggerCharacters: [':', '/'], resolveProvider: false },
         textDocumentSync: {
           openClose: true,
           change: TextDocumentSyncKind.Incremental,
@@ -415,6 +421,23 @@ export function attachLspServer(
       },
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
+  });
+  connection.onCompletion(async (params, token) => {
+    if (
+      !initialized ||
+      stopped ||
+      unavailable.size ||
+      capacityExceeded ||
+      token.isCancellationRequested
+    )
+      return { isIncomplete: true, items: [] };
+    const cancellation = new AbortController();
+    const subscription = token.onCancellationRequested(() => cancellation.abort());
+    try {
+      return await completion.complete(params, epoch, documents, cancellation.signal);
+    } finally {
+      subscription.dispose();
+    }
   });
   connection.onCodeAction((params) => {
     if (

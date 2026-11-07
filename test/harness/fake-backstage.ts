@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
@@ -88,7 +89,7 @@ async function jsonBody(request: IncomingMessage): Promise<unknown> {
   }
 }
 
-/** Two read operations only. All controls are local methods, separate from the emulated API. */
+/** Explicit read/query subset. Controls remain local methods, separate from the emulated API. */
 export async function startFakeBackstage(
   artifact: ContractArtifact,
   options: {
@@ -109,6 +110,10 @@ export async function startFakeBackstage(
     released: ReturnType<typeof deferred>;
   }[] = [];
   const activeGates = new Set<(typeof gates)[number]>();
+  const cursors = new Map<
+    string,
+    { principal: FixturePrincipal; kind: string; namespace: string; prefix: string; offset: number }
+  >();
   let closed = false;
   const upsert = (input: unknown): void => {
     const entity = immutableJson(input);
@@ -173,7 +178,9 @@ export async function startFakeBackstage(
         ? 'byName'
         : request.method === 'POST' && url.pathname === '/api/catalog/entities/by-refs'
           ? 'byRefs'
-          : undefined;
+          : request.method === 'GET' && url.pathname === '/api/catalog/entities/by-query'
+            ? 'byQuery'
+            : undefined;
     const log = {
       id: logs.length + 1,
       operation,
@@ -202,9 +209,12 @@ export async function startFakeBackstage(
       log.principalId = principal.principalId;
       if (!principal.canRead)
         throw new HttpError(403, 'Fixture principal cannot read catalog entities');
-      if (url.search)
+      if (url.search && operation !== 'byQuery')
         throw new HttpError(501, 'Query parameters are outside the implemented fixture subset');
       let params: Record<string, string> = {};
+      let queryParams: Record<string, unknown> = {};
+      let queryResult: unknown;
+      let queryRefs: string[] = [];
       let body: unknown;
       if (operation === 'byName') {
         try {
@@ -216,9 +226,100 @@ export async function startFakeBackstage(
         } catch {
           throw new HttpError(400, 'Malformed path encoding');
         }
-      } else body = await jsonBody(request);
+      } else if (operation === 'byRefs') body = await jsonBody(request);
+      else {
+        const allowed = new Set([
+          'fields',
+          'limit',
+          'cursor',
+          'filter',
+          'fullTextFilterTerm',
+          'fullTextFilterFields',
+          'orderField',
+        ]);
+        for (const key of url.searchParams.keys())
+          if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1)
+            throw new HttpError(501, 'Query feature is outside the implemented fixture subset');
+        queryParams = Object.fromEntries(
+          [...url.searchParams].map(([key, value]) => [
+            key,
+            key === 'limit'
+              ? Number(value)
+              : ['fields', 'fullTextFilterFields'].includes(key)
+                ? value.split(',')
+                : ['filter', 'orderField'].includes(key)
+                  ? [value]
+                  : value,
+          ]),
+        );
+        if (url.searchParams.get('fields') !== 'apiVersion,kind,metadata.name,metadata.namespace')
+          throw new HttpError(501, 'Unsupported projection');
+        const limit = Number(url.searchParams.get('limit'));
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          throw new HttpError(400, 'Invalid query limit');
+        const cursor = url.searchParams.get('cursor');
+        const previous = cursor ? cursors.get(cursor) : undefined;
+        let query: { kind: string; namespace: string; prefix: string; offset: number };
+        if (cursor) {
+          if (
+            !previous ||
+            previous.principal !== principal ||
+            [...url.searchParams.keys()].some((key) => !['cursor', 'fields', 'limit'].includes(key))
+          )
+            throw new HttpError(400, 'Invalid query cursor');
+          query = previous;
+        } else {
+          const filter = /^kind=([a-z][a-z0-9]*),metadata.namespace=([a-z0-9_.-]+)$/u.exec(
+            url.searchParams.get('filter') ?? '',
+          );
+          if (
+            !filter ||
+            url.searchParams.get('orderField') !== 'metadata.name,asc' ||
+            url.searchParams.get('fullTextFilterFields') !== 'metadata.name'
+          )
+            throw new HttpError(501, 'Unsupported query filter');
+          const prefix = url.searchParams.get('fullTextFilterTerm');
+          if (prefix === null || !/^[a-z0-9_.-]{2,63}$/u.test(prefix))
+            throw new HttpError(400, 'Invalid search term');
+          query = { kind: filter[1]!, namespace: filter[2]!, prefix, offset: 0 };
+        }
+        const all = [...entities.keys()]
+          .filter(
+            (ref) =>
+              (principal.visibleRefs === '*' || principal.visibleRefs.includes(ref)) &&
+              ref.startsWith(`${query.kind}:${query.namespace}/`) &&
+              ref.slice(ref.indexOf('/') + 1).includes(query.prefix),
+          )
+          .sort();
+        queryRefs = all.slice(query.offset, query.offset + limit);
+        let nextCursor: string | undefined;
+        if (query.offset + limit < all.length) {
+          nextCursor = randomUUID();
+          if (cursors.size >= 128) cursors.delete(cursors.keys().next().value!);
+          cursors.set(nextCursor, { ...query, principal, offset: query.offset + limit });
+        }
+        queryResult = {
+          items: queryRefs.map((ref) => {
+            const entity = entities.get(ref) as {
+              apiVersion: string;
+              kind: string;
+              metadata: { name: string; namespace?: string };
+            };
+            return {
+              apiVersion: entity.apiVersion,
+              kind: entity.kind,
+              metadata: {
+                name: entity.metadata.name,
+                ...(entity.metadata.namespace ? { namespace: entity.metadata.namespace } : {}),
+              },
+            };
+          }),
+          totalItems: all.length,
+          pageInfo: nextCursor ? { nextCursor } : {},
+        };
+      }
       try {
-        contract.assertRequest(operation, params, body);
+        contract.assertRequest(operation, operation === 'byQuery' ? queryParams : params, body);
       } catch (error) {
         if (error instanceof CatalogContractError) throw new HttpError(400, error.message);
         throw error;
@@ -237,7 +338,9 @@ export async function startFakeBackstage(
       const refs =
         operation === 'byName'
           ? [canonical({ kind: params.kind!, namespace: params.namespace!, name: params.name! })]
-          : input!.entityRefs!.map((ref) => canonical(ref));
+          : operation === 'byQuery'
+            ? queryRefs
+            : input!.entityRefs!.map((ref) => canonical(ref));
       const visible = (ref: string): unknown =>
         principal.visibleRefs === '*' || principal.visibleRefs.includes(ref)
           ? (entities.get(ref) ?? null)
@@ -249,7 +352,9 @@ export async function startFakeBackstage(
           ? status === 404
             ? errorBody(status, 'Entity is absent from the authorized catalog view')
             : visible(refs[0]!)
-          : { items: refs.map(visible) };
+          : operation === 'byQuery'
+            ? queryResult
+            : { items: refs.map(visible) };
       const faultIndex = faults.findIndex((entry) => matches(entry.match, operation, refs));
       const fault = faultIndex < 0 ? undefined : faults.splice(faultIndex, 1)[0]!.fault;
       const gateIndex = gates.findIndex((entry) => matches(entry.match, operation, refs));

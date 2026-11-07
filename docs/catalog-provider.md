@@ -172,3 +172,35 @@ the cause of the initial 2026-11-05 intermittent failure remains unconfirmed.
 Local qualification on 2026-11-07: the full suite passed 672 tests; final targeted
 provider/reference/failure-evidence verification passed 71 checks after stage-label
 refinement. Required type/lint/format/schema/build checks also passed.
+
+## Advisory identity search
+
+`createCatalogProvider` also implements the optional `CatalogProvider.suggest`
+method for completion. Inputs are a validated lowercase kind, namespace and
+2–63 character name prefix, the same trusted `CatalogAccessContext`, and an
+execution deadline/signal. No caller selects a URL, projection or cursor.
+
+The GET `/entities/by-query` subset fixes kind/namespace filters, name text search,
+identity-only projection and name ordering. Cursor requests retain projection and
+limit, without resending mutually exclusive filters/order/text-search parameters.
+At most four 100-item pages and 200 prefix matches are retained. Identity,
+kind/namespace, page shape, cursor cycles/size, UTF-8/JSON/value/byte bounds and
+expiry are checked. Redirects are rejected. Search performs no retries, and
+shares lookup admission, credential binding, cooldown and shutdown ownership.
+
+A ready report contains only canonical `refs`, `truncated`, `fetchedAt` and
+`expiresAt`. A failed report has `status: unavailable`, a fixed failure code and
+no candidates. Partial pages are discarded on failure. These reports are advisory
+and do not enter validation `DataSnapshot`s or establish absence/compliance.
+The provider does not cache search results; the LSP host owns its bounded,
+authority-scoped completion cache. See [freshness and client behavior](lsp.md#responsive-reference-completion).
+
+Both pinned OpenAPI fixtures cover this exact search subset. Arbitrary predicates,
+general projection APIs, backend indexing semantics/performance and actual
+Backstage authentication/search smoke qualification remain outside this evidence.
+
+Local qualification on 2026-11-07: the full 813-test check passed with all required
+static/schema/build checks. New search cases cover both pinned contracts, projected
+pagination, scoped visibility, result/page/byte caps, cursor cycles, fixed failure
+codes, shared queue admission, credential binding, deadlines/cancellation and
+shutdown. Existing lookup/provider regressions also passed.

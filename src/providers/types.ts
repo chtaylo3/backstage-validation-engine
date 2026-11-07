@@ -79,6 +79,22 @@ export interface CatalogExecutionContext {
   readonly deadlineAt: number;
   readonly signal?: AbortSignal;
 }
+/** Advisory identity search; never a validation observation or proof of absence. */
+export interface CatalogSuggestionQuery {
+  readonly kind: string;
+  readonly namespace: string;
+  readonly prefix: string;
+}
+export type CatalogSuggestionReport = {
+  readonly refs: readonly string[];
+  readonly truncated: boolean;
+  readonly fetchedAt: number;
+  readonly expiresAt: number;
+} & (
+  | { readonly status: 'ready' }
+  | { readonly status: 'unavailable'; readonly failure: CatalogFailureCode }
+);
+export const CATALOG_SUGGESTION_LIMITS = Object.freeze({ pages: 4, pageSize: 100, results: 200 });
 export interface CatalogProvider {
   readonly connectionId: string;
   readonly adapterId: BackstageAdapterId;
@@ -87,6 +103,11 @@ export interface CatalogProvider {
     access: CatalogAccessContext,
     execution: CatalogExecutionContext,
   ): Promise<CatalogLookupReport>;
+  suggest?(
+    query: CatalogSuggestionQuery,
+    access: CatalogAccessContext,
+    execution: CatalogExecutionContext,
+  ): Promise<CatalogSuggestionReport>;
   stats(): {
     readonly active: number;
     readonly queued: number;

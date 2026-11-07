@@ -3,7 +3,7 @@ import type { AnySchemaObject, ValidateFunction } from 'ajv';
 import { parse } from 'yaml';
 import type { ContractArtifact } from './contract-artifact.js';
 
-export type CatalogOperation = 'byName' | 'byRefs';
+export type CatalogOperation = 'byName' | 'byRefs' | 'byQuery';
 export class CatalogContractError extends Error {}
 
 function object(value: unknown): Record<string, unknown> {
@@ -74,6 +74,7 @@ export function compileCatalogContract(artifact: ContractArtifact) {
       object(object(document.paths)['/entities/by-name/{kind}/{namespace}/{name}']).get,
     ),
     byRefs: resolve(object(object(document.paths)['/entities/by-refs']).post),
+    byQuery: resolve(object(object(document.paths)['/entities/by-query']).get),
   };
   const prepared = new Map<
     CatalogOperation,
@@ -83,15 +84,19 @@ export function compileCatalogContract(artifact: ContractArtifact) {
       responses: ReadonlyMap<string, ValidateFunction>;
     }
   >();
-  for (const operation of ['byName', 'byRefs'] as const) {
+  for (const operation of ['byName', 'byRefs', 'byQuery'] as const) {
     const definition = operations[operation];
     const parameters = definition.parameters ?? [];
     if (!Array.isArray(parameters)) throw new CatalogContractError('Invalid OpenAPI parameters');
     const path = parameters.flatMap((raw: unknown) => {
       const parameter = resolve(raw);
       // Optional query features are explicitly rejected by the fake's HTTP layer.
-      if (parameter.in === 'query' && parameter.required !== true) return [];
-      if (parameter.in !== 'path' || typeof parameter.name !== 'string') {
+      if (operation !== 'byQuery' && parameter.in === 'query' && parameter.required !== true)
+        return [];
+      if (
+        !['path', 'query'].includes(parameter.in as string) ||
+        typeof parameter.name !== 'string'
+      ) {
         throw new CatalogContractError('Unsupported catalog operation parameter');
       }
       return [
@@ -132,7 +137,7 @@ export function compileCatalogContract(artifact: ContractArtifact) {
     },
     assertRequest(
       operation: CatalogOperation,
-      params: Readonly<Record<string, string>>,
+      params: Readonly<Record<string, unknown>>,
       body: unknown,
     ): void {
       const definition = prepared.get(operation)!;
