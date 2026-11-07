@@ -267,9 +267,31 @@ access. After final stage-label refinements, static/schema/build checks were
 repeated and all 71 provider/reference/failure-evidence checks passed. The focused
 stdio/native/HTTP recovery and early-exception run also passed.
 
+## Saved-file refresh increment
+
+Implemented launcher-approved filesystem capture with a pinned root and exact
+file/entrypoint plan, standard save/watched-file refresh, open-buffer precedence,
+baseline-relative additions/deletions/restoration and client watcher registration.
+Reads enforce containment/link/regular-file/UTF-8/size checks and observed-change
+detection. Read failures block stale validation and carry safe filesystem evidence.
+The original deadline includes disk I/O; epochs suppress old captures and HTTP
+results. Shutdown awaits captures and file-handle cleanup. See
+[saved-file setup and scope](lsp.md#saved-file-snapshot-refresh).
+
+Directory discovery, hostile-writer OS confinement, atomic filesystem transactions,
+policy/authority reload and actual backend/editor/OS qualification remain open.
+Version-safe fixes, completion and extension packaging are the next IDE work.
+
+Local qualification on 2026-11-07: the full regression check passed 693 tests and
+required type/lint/format/schema/build checks. Final observed-mutation and watch
+refinements were verified by all 22 refresh checks, including one additional
+mutation test, with repeated static/build/schema verification. Stdio scenarios
+passed both native model pins and both fake API contracts. The development
+filesystem launcher generator captured and pinned a real temporary file.
+
 ## Next increments, in order
 
-1. **IDE path.** Refresh saved-file snapshots, add version-safe fixes, responsive
+1. **IDE path.** Add version-safe fixes, responsive
    completion and extension packaging, and qualify actual VS Code/JetBrains clients.
 2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central

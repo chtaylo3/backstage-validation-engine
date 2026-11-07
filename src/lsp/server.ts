@@ -2,6 +2,7 @@ import {
   DiagnosticSeverity,
   PositionEncodingKind,
   TextDocumentSyncKind,
+  DidChangeWatchedFilesNotification,
 } from 'vscode-languageserver/node';
 import type {
   Connection,
@@ -19,7 +20,10 @@ import { verifyRequestBindings } from '../core/bindings.js';
 import { validatePolicySources } from '../core/policy-sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
-import type { FailureEvidence } from '../runtime/failure-evidence.js';
+import { parseContract } from '../contracts/validate.js';
+import { FilesystemSnapshotError, reconcileFilesystemSource } from './filesystem.js';
+import type { FilesystemSource } from './filesystem.js';
+import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 
@@ -73,10 +77,18 @@ export function attachLspServer(
       readonly provider: CatalogProvider;
       readonly access: CatalogAccessContext;
     };
+    readonly filesystem?: FilesystemSource;
     readonly dispose?: () => Promise<void>;
     readonly exit?: (code: number) => void;
   } = {},
 ) {
+  if (!!config.filesystem !== !!options.filesystem)
+    throw new Error('Trusted filesystem reader configuration mismatch.');
+  const approved = new Set(config.filesystem?.files ?? []);
+  let diskGeneration = options.filesystem ? 1 : 0;
+  let capturedGeneration = 0;
+  let dynamicWatching = false;
+  let watchRequested = false;
   const documents = new Map<string, TextDocument>();
   let workspaceSource = config.source;
   const unavailable = new Set<string>();
@@ -107,7 +119,28 @@ export function attachLspServer(
       const timing = new FailureTimer();
       const evidence: FailureEvidence[] = [];
       let deadlineAt: number | undefined;
+      let phase: FailureStage = 'validation';
       try {
+        // Admission precedes disk I/O; the refreshed request retains this exact budget.
+        const original = options.filesystem ? createLspRequest(config, workspaceSource) : undefined;
+        deadlineAt = original?.execution.deadlineAt;
+        if (options.filesystem && capturedGeneration < diskGeneration) {
+          const requested = diskGeneration;
+          phase = 'filesystem';
+          const refreshed = await options.filesystem.capture(workspaceSource, {
+            deadlineAt: original!.execution.deadlineAt,
+            signal: abort.signal,
+            skip: frame.map((document) => document.uri).filter((uri) => approved.has(uri)),
+          });
+          if (!current()) return;
+          verifyRequestBindings(
+            parseContract('validation-request', { ...original, source: refreshed }),
+            config,
+          );
+          workspaceSource = refreshed;
+          capturedGeneration = requested;
+        }
+        phase = 'validation';
         if (unavailable.size || capacityExceeded) {
           for (const document of frame) {
             if (!current()) return;
@@ -121,7 +154,7 @@ export function attachLspServer(
           }
           return;
         }
-        const source = overlaySourceSnapshot(
+        let source = overlaySourceSnapshot(
           workspaceSource,
           frame.map((document) => ({
             uri: document.uri,
@@ -130,7 +163,10 @@ export function attachLspServer(
             version: document.version,
           })),
         );
-        const request = createLspRequest(config, source);
+        if (options.filesystem) source = reconcileFilesystemSource(config, source);
+        const request = original
+          ? parseContract('validation-request', { ...original, source })
+          : createLspRequest(config, source);
         deadlineAt = request.execution.deadlineAt;
         const report = await validatePolicySources(request, config, {
           onFailure: (row) => {
@@ -163,7 +199,19 @@ export function attachLspServer(
         }
       } catch (error) {
         if (!evidence.length)
-          evidence.push(timing.capture('validation', failureCause(error), deadlineAt));
+          evidence.push(
+            timing.capture(
+              phase,
+              error instanceof FilesystemSnapshotError
+                ? error.reason === 'limit'
+                  ? 'resource_limit'
+                  : error.reason === 'changed'
+                    ? 'source_changed'
+                    : 'snapshot_unavailable'
+                : failureCause(error),
+              deadlineAt,
+            ),
+          );
         if (current())
           for (const document of frame) {
             if (!current()) return;
@@ -279,6 +327,9 @@ export function attachLspServer(
   };
   connection.onInitialize((params) => {
     if (initialized || stopped) throw new Error('Language server already initialized.');
+    dynamicWatching =
+      !!params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration &&
+      !!params.capabilities.workspace.didChangeWatchedFiles.relativePatternSupport;
     const encodings = params.capabilities.general?.positionEncodings;
     if (encodings?.length && !encodings.includes(PositionEncodingKind.UTF16))
       throw new Error('UTF-16 positions are required.');
@@ -286,7 +337,11 @@ export function attachLspServer(
     return {
       capabilities: {
         positionEncoding: PositionEncodingKind.UTF16,
-        textDocumentSync: { openClose: true, change: TextDocumentSyncKind.Incremental },
+        textDocumentSync: {
+          openClose: true,
+          change: TextDocumentSyncKind.Incremental,
+          ...(options.filesystem ? { save: { includeText: false } } : {}),
+        },
         workspace: {
           fileOperations: {
             didRename: {
@@ -300,6 +355,53 @@ export function attachLspServer(
       },
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
+  });
+  connection.onInitialized(() => {
+    if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {
+      watchRequested = true;
+      void connection.client
+        .register(DidChangeWatchedFilesNotification.type, {
+          watchers: [
+            { globPattern: { baseUri: config.source.rootUri!, pattern: '**/*' }, kind: 7 },
+          ],
+        })
+        .catch(() => {
+          if (!stopped)
+            connection.console.warn(
+              'Automatic file-change notifications are unavailable; save notifications still refresh approved files.',
+            );
+        });
+    }
+  });
+  function refresh() {
+    diskGeneration++;
+    schedule();
+  }
+  connection.onDidSaveTextDocument((params) => {
+    if (initialized && !stopped && options.filesystem && approved.has(params?.textDocument?.uri))
+      refresh();
+  });
+  connection.onDidChangeWatchedFiles((params) => {
+    if (!initialized || stopped || !options.filesystem || !Array.isArray(params?.changes)) return;
+    if (params.changes.length > 1000) {
+      // Events are invalidation hints; coalesce large batches to the bounded allowlist.
+      refresh();
+      return;
+    }
+    if (
+      params.changes.some(
+        (row) =>
+          row &&
+          typeof row.uri === 'string' &&
+          isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) &&
+          [1, 2, 3].includes(row.type) &&
+          (approved.has(row.uri) ||
+            [...approved].some((uri) =>
+              uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
+            )),
+      )
+    )
+      refresh();
   });
   connection.onDidOpenTextDocument(({ textDocument: item }) => {
     if (
@@ -347,7 +449,8 @@ export function attachLspServer(
     if (!previous) return;
     documents.delete(item.uri);
     unavailable.delete(item.uri);
-    schedule();
+    if (options.filesystem && approved.has(item.uri)) refresh();
+    else schedule();
     await publish(item.uri, previous.version, []);
   });
   const fileUri = (uri: string) =>
@@ -368,6 +471,9 @@ export function attachLspServer(
         if (
           !row ||
           !fileUri(row.oldUri) ||
+          (options.filesystem &&
+            (!approved.has(row.oldUri) ||
+              (row.newUri !== undefined && !approved.has(row.newUri)))) ||
           seen.has(row.oldUri) ||
           (row.newUri !== undefined &&
             (!fileUri(row.newUri) || seen.has(row.newUri) || row.newUri === row.oldUri))
@@ -396,7 +502,7 @@ export function attachLspServer(
         if (open) cleared.push(open);
       }
       let next = overlaySourceSnapshot(workspaceSource, updates);
-      if (workspaceSource.entrypoints !== undefined)
+      if (!options.filesystem && workspaceSource.entrypoints !== undefined)
         next = createSourceSnapshot({
           ...next,
           entrypoints: workspaceSource.entrypoints
@@ -413,7 +519,8 @@ export function attachLspServer(
     } catch {
       capacityExceeded = true;
     }
-    schedule();
+    if (options.filesystem) refresh();
+    else schedule();
     if (!capacityExceeded)
       for (const document of cleared) await publish(document.uri, document.version, []);
   }

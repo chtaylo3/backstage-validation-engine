@@ -82,6 +82,9 @@ disallowed/schema-invalid entities produce errors, and missing artifacts produce
 dependency warnings. Invalid schema configuration fails startup. See
 [admission and custom kinds](admission-custom-kinds.md).
 
+Optional `filesystem` settings enable [saved-file refresh](#saved-file-snapshot-refresh)
+within a launcher-approved root and file list.
+
 Programmatic hosts can import `parseLspConfig`, `createLspRequest`,
 `createLspCatalog` and `attachLspServer` from the package's `./lsp` export. The host
 supplies the disposal callback and owns provider/runtime lifetime. The stdio
@@ -115,11 +118,11 @@ and the official text-document implementation for UTF-16 edits. The preflight
 stream bounds messages before the SDK parses them. Stdout contains protocol
 messages; startup errors use fixed text on stderr without upstream details.
 
-There is no filesystem discovery/watching, saved-file refresh, dynamic authority
-reload, pull diagnostics, completion, hover, fixes, extension packaging or actual
-IDE installation qualification yet. Closing a buffer restores the current pinned
-workspace bytes. Restart with a refreshed trusted snapshot to incorporate saved disk
-changes. Qualified local targets now precede external observations. Invalid/competing
+Optional launcher-approved filesystem refresh is described below. Dynamic authority
+reload, pull diagnostics, completion, hover, fixes, extension packaging and actual
+IDE installation qualification remain open. With filesystem refresh disabled,
+closing a buffer restores pinned workspace bytes; restart with a refreshed trusted
+snapshot to incorporate disk changes. Qualified local targets now precede external observations. Invalid/competing
 targets block fallback, and pinned-baseline removals mask old catalog copies.
 The launcher may supply an explicit `baseline` source snapshot; an unchanged
 launcher source is otherwise the default. Standard workspace file delete/rename
@@ -191,3 +194,94 @@ Local qualification on 2026-11-07: native-only buffer recovery, gated HTTP recov
 and early-exception diagnostics passed through the real stdio launcher. The full
 672-test check passed, including unchanged version/epoch, cancellation, framing
 and shutdown coverage.
+
+## Saved-file snapshot refresh
+
+The trusted launcher can opt into filesystem capture with `source.rootUri` and
+an exact `filesystem` allowlist. For example, alongside the existing contracts:
+
+```json
+{
+  "filesystem": {
+    "files": [
+      "file:///workspace/catalog-info.yaml",
+      "file:///workspace/spec.yaml",
+      "file:///workspace/team.yaml"
+    ],
+    "entrypoints": ["file:///workspace/catalog-info.yaml", "file:///workspace/team.yaml"]
+  }
+}
+```
+
+`source.rootUri` must be a canonical local directory URI. All initial source and
+baseline files must be approved. The allowlist has at most 1000 canonical,
+contained file URIs and can include currently absent files. `filesystem.entrypoints`
+is an optional fixed catalog-input plan, defaulting to `source.entrypoints`; only
+currently present inputs are selected. Restoring a deleted input also restores
+its selection. Without an explicit plan, the existing all-file parsing behavior
+applies. Payloads should be separate from catalog entrypoints.
+
+The first open-document validation captures approved closed files. Standard
+[`didSave`](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/textDocument/didSave.md)
+and [`didChangeWatchedFiles`](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/workspace/didChangeWatchedFiles.md)
+notifications invalidate the generation and refresh those files as one proposed
+snapshot. Save text supplied in the notification is ignored. Open buffers retain
+precedence, including over invalid or missing disk content; their disk reads are
+deferred until close. Closing an approved buffer captures its latest saved bytes.
+Unrelated notification paths are ignored; ancestor directory events invalidate
+approved descendants. Notification paths never select additional disk reads. Large event batches coalesce to a bounded approved-file refresh without scanning
+all event paths. Newly discovered files need
+launcher approval; there is no recursive directory discovery. File-operation
+rename targets also need prior approval in this mode.
+
+Clients supporting dynamic watched-file registration and relative patterns receive
+one root-relative watcher registration. The client owns the actual watcher; the
+server filters notifications through the exact approved list. Clients without
+those capabilities must configure watched-file notifications themselves; saves
+still refresh approved files. Rejected registration produces a fixed protocol log
+message. Initialization workspace roots/settings cannot redirect the capture root,
+change the list, or replace policy/profile/activation authority.
+
+Disk bytes, immutable baseline-relative changes and entrypoint membership are
+rebuilt before policy/reference execution. The original validation budget starts
+before disk I/O and is retained for parsing, collection and rules. Cancellation is
+checked around filesystem operations and bounded read chunks. Superseded captures
+cannot commit or publish; pending disk generations are recaptured. Existing HTTP
+and worker cancellation, versioned diagnostics and epoch guards remain in force.
+Read failures block dependent work and produce safe `filesystem` evidence rather
+than validating stale pinned bytes. An approved repair/event retries capture.
+
+The reader pins root identity/realpath, rejects symlinks below that root,
+multiply linked files and non-regular files, uses no-follow/nonblocking open flags
+where supported, and compares descriptor/path metadata before and after reads.
+UTF-8 is strict and preserves BOM/newline bytes; profile file/request limits apply.
+These checks detect observed filesystem mutations. They do not establish an atomic
+cross-file transaction or a race-free OS confinement boundary against hostile
+concurrent path replacement. An in-progress OS filesystem call is cooperatively
+awaited; low-latency local filesystem and actual supported OS behavior still need
+qualification. Shutdown cancels captures, awaits completion and closes handles.
+
+Programmatic hosts construct `createFilesystemSource(config)` and pass it as
+`attachLspServer(..., { filesystem })`, owning its `close()` along with provider/
+worker disposal. The stdio launcher constructs and disposes the reader itself.
+Policy and activation files are not reloaded through this mechanism.
+
+A development-only launcher generator captures an existing directory using the
+same reader. The first named file is the catalog entrypoint; other names are
+approved payloads. It writes a new output file and uses synthetic authority:
+
+```sh
+npm run build
+node examples/create-filesystem-lsp-config.mjs /path/to/repository \
+  /tmp/bve-filesystem-lsp.json catalog-info.yaml spec.yaml
+node dist/lsp/stdio.js --config /tmp/bve-filesystem-lsp.json
+```
+
+The final command expects a framed LSP client. Real installation authority,
+filesystem/editor/OS qualification and IDE packaging remain separate gates.
+
+Local qualification on 2026-11-07: the full regression check passed 693 tests.
+After final file-metadata and watch-event refinements, all 22 refresh checks passed,
+including an added observed-mutation case. Static/build/schema checks and the
+filesystem launcher example also passed. This evidence uses real stdio and local
+filesystem/HTTP fixtures; actual editor and supported-OS qualification remains open.

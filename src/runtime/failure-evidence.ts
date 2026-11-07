@@ -4,6 +4,7 @@ import { BudgetAdmissionError } from './request-budget.js';
 
 const STAGES = [
   'buffer',
+  'filesystem',
   'bindings',
   'sources',
   'rules',
@@ -24,6 +25,8 @@ const CAUSES = [
   'resource_limit',
   'worker_failure',
   'buffer_unavailable',
+  'snapshot_unavailable',
+  'source_changed',
   'invalid_json',
   'invalid_contract',
   'integrity',

@@ -110,11 +110,14 @@ snapshot assignment remain separate responsibilities.
 The stdio LSP uses its unchanged launcher snapshot as the default baseline, or an
 explicit trusted `baseline` when the launcher source already represents a proposal.
 Current open buffers qualify additions and replacements. Closing a buffer restores
-the current pinned workspace bytes. Every edit invalidates dependent results;
+the current pinned workspace bytes, or refreshed disk bytes when
+[approved filesystem refresh](lsp.md#saved-file-snapshot-refresh) is enabled. Every edit invalidates dependent results;
 epochs and cancellation suppress superseded remote lookups.
 
 Standard `workspace/didDeleteFiles` and `workspace/didRenameFiles` notifications
-update the pinned workspace view without disk reads. Known file renames preserve
+update the pinned workspace view without disk reads in the default snapshot-only
+mode. With filesystem refresh enabled, approved operations also recapture disk
+state under the original immutable baseline. Known file renames preserve
 available bytes and explicit entrypoints; deletions create baseline-relative
 tombstones. Cleared open documents receive empty diagnostics. Operations are
 bounded to 1,000 files and must use canonical file URIs inside a configured root.

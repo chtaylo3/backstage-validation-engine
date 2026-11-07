@@ -9,6 +9,7 @@ import {
 import { closeSharedCelRuntime } from '../runtime/cel/index.js';
 import { createLspCatalog, parseLspConfig } from './config.js';
 import { BoundedLspInput } from './framing.js';
+import { createFilesystemSource } from './filesystem.js';
 import { attachLspServer } from './server.js';
 
 try {
@@ -24,6 +25,7 @@ try {
     await handle.close();
   }
   const config = parseLspConfig(JSON.parse(text) as unknown);
+  const filesystem = config.filesystem ? await createFilesystemSource(config) : undefined;
   const catalog = await createLspCatalog(config, process.env);
   const input = new BoundedLspInput();
   // The SDK's default Node watchdog exits synchronously on EOF/exit. Own that
@@ -44,9 +46,17 @@ try {
   );
   const server = attachLspServer(connection, config, {
     ...(catalog ? { catalog } : {}),
+    ...(filesystem ? { filesystem } : {}),
     dispose: async () => {
-      await catalog?.provider.close();
-      await closeSharedCelRuntime();
+      try {
+        await catalog?.provider.close();
+      } finally {
+        try {
+          await filesystem?.close();
+        } finally {
+          await closeSharedCelRuntime();
+        }
+      }
     },
   });
   let stopping = false;

@@ -12,11 +12,16 @@ import {
   PublishDiagnosticsNotification,
   ShutdownRequest,
   ExitNotification,
+  RegistrationRequest,
 } from 'vscode-languageserver/node';
 import type { PublishDiagnosticsParams } from 'vscode-languageserver/node';
 import type { LspConfig } from '../../src/lsp/config.js';
 
-export async function startLspClient(t: TestContext, config: LspConfig) {
+export async function startLspClient(
+  t: TestContext,
+  config: LspConfig,
+  options: { watchFiles?: boolean } = {},
+) {
   const directory = await mkdtemp(path.join(tmpdir(), 'bve-lsp-'));
   const configPath = path.join(directory, 'host.json');
   await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
@@ -43,6 +48,10 @@ export async function startLspClient(t: TestContext, config: LspConfig) {
     diagnostics.push(params);
     for (const check of [...waiters]) check();
   });
+  const registrations: unknown[] = [];
+  client.onRequest(RegistrationRequest.type, (params) => {
+    registrations.push(params);
+  });
   client.listen();
   let stopped = false;
   async function shutdown() {
@@ -65,7 +74,16 @@ export async function startLspClient(t: TestContext, config: LspConfig) {
   const initialized = await client.sendRequest(InitializeRequest.type, {
     processId: null,
     rootUri: 'file:///workspace',
-    capabilities: { general: { positionEncodings: ['utf-16'] } },
+    capabilities: {
+      general: { positionEncodings: ['utf-16'] },
+      ...(options.watchFiles
+        ? {
+            workspace: {
+              didChangeWatchedFiles: { dynamicRegistration: true, relativePatternSupport: true },
+            },
+          }
+        : {}),
+    },
     initializationOptions: {
       catalog: { baseUrl: 'http://untrusted.invalid' },
       policy: { rules: [] },
@@ -76,6 +94,7 @@ export async function startLspClient(t: TestContext, config: LspConfig) {
     client,
     diagnostics,
     initialized,
+    registrations,
     shutdown,
     async disconnect(kind: 'eof' | 'exit') {
       stopped = true;

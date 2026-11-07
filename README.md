@@ -13,6 +13,8 @@ Snapshot-local substitutions preserve included-file ranges and buffer versions.
 Pinned kind/source admission and custom schemas run before rules. Proposed
 overlays now qualify local targets and mask removed/invalid identities before
 catalog lookup. Required unavailable processing blocks all dependent stages.
+Optional host-approved filesystem refresh updates saved files and includes through
+LSP save/watch notifications while preserving open buffers and original deadlines.
 Signed releases preserve host-required baseline inheritance and activate pinned
 schema/CEL/catalog policies. The CLI emits contract JSON or SARIF with explicit
 0/1/2 exits. Executable processor integrations, IDE packaging and hosted control

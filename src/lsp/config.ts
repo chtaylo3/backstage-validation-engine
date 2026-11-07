@@ -10,6 +10,7 @@ import { verifyRequestBindings } from '../core/bindings.js';
 import { deepFreeze, digestJson, immutableJson } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
+import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
 
@@ -23,6 +24,15 @@ const schema = Type.Object(
     baseline: Type.Optional(Type.Unknown()),
     schemaArtifacts: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 64 })),
     identity: ValidationRequestSchema.properties.identity,
+    filesystem: Type.Optional(
+      Type.Object(
+        {
+          files: Type.Array(text, { minItems: 1, maxItems: 1000, uniqueItems: true }),
+          entrypoints: Type.Optional(Type.Array(text, { maxItems: 1000, uniqueItems: true })),
+        },
+        { additionalProperties: false },
+      ),
+    ),
     debounceMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 250 })),
     catalog: Type.Optional(
       Type.Object(
@@ -57,18 +67,35 @@ export function parseLspConfig(input: unknown) {
     profile,
     safe.schemaArtifacts as SchemaArtifact[] | undefined,
   );
+  const { baseline: baselineInput, ...settings } = safe;
   const config = deepFreeze({
-    ...safe,
+    ...settings,
     profile,
     schemaArtifacts: schemas.artifacts,
     policy: parseContract('policy-bundle', safe.policy),
     activation: parseContract('activation-manifest', safe.activation),
     source: parseContract('source-snapshot', safe.source),
-    ...(safe.baseline === undefined
+    ...(baselineInput === undefined
       ? {}
-      : { baseline: parseContract('source-snapshot', safe.baseline) }),
+      : { baseline: parseContract('source-snapshot', baselineInput) }),
     debounceMs: safe.debounceMs ?? 25,
   });
+  if (config.filesystem) {
+    const root = config.source.rootUri;
+    const files = new Set(config.filesystem.files);
+    if (
+      !root ||
+      !isCanonicalSourceUri(root, true) ||
+      config.filesystem.files.some((uri) => !isCanonicalSourceUri(uri) || !uri.startsWith(root)) ||
+      [...config.source.files, ...(config.baseline?.files ?? [])].some(
+        (file) => !files.has(file.uri),
+      ) ||
+      (config.filesystem.entrypoints ?? config.source.entrypoints ?? []).some(
+        (uri) => !files.has(uri),
+      )
+    )
+      throw new Error('Invalid trusted filesystem configuration.');
+  }
   verifyRequestBindings(createLspRequest(config, config.source), config);
   return config;
 }
