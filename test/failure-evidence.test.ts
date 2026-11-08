@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   BudgetAdmissionError,
+  CelError,
   ContractError,
   RequestBudget,
   createCatalogProvider,
@@ -15,6 +16,38 @@ import {
 } from '../src/runtime/failure-evidence.js';
 import { makeContext } from './helpers.js';
 import { policyRun, team } from './harness/policy-fixture.js';
+import { ManagedCelPool } from '../src/runtime/cel/pool.js';
+
+void test('pipeline evidence distinguishes a CEL attempt timeout from its request deadline', async (t) => {
+  for (const code of ['execution_timeout', 'request_timeout', 'queue_timeout'] as const)
+    await t.test(code, async (t) => {
+      const runtime = new ManagedCelPool();
+      t.after(() => runtime.close());
+      t.mock.method(runtime, 'evaluate', () => Promise.reject(new CelError(code)));
+      const run = policyRun({
+        rules: [
+          {
+            id: 'required',
+            version: '1',
+            kind: 'cel',
+            expression: 'true',
+            mandatory: true,
+            severity: 'error',
+            requires: [],
+          },
+        ],
+      });
+      const report = await validatePolicySources(run.request, run.context, { runtime });
+      assert.equal(report.interrupted, 'timeout');
+      assert.equal(report.rules.failures[0]?.code, code);
+      assert.equal(report.rules.ruleStates[0]?.status, 'incomplete');
+      assert.equal(
+        report.failureEvidence.find((row) => row.stage === 'rules')?.cause,
+        code === 'execution_timeout' ? 'attempt_timeout' : 'request_timeout',
+      );
+      assert(report.findings.every((finding) => finding.edits.length === 0));
+    });
+});
 
 void test('a backward wall-clock correction still rejects an out-of-range deadline with typed evidence', (t) => {
   let wall = Date.now();

@@ -64,6 +64,26 @@ void test(
   },
 );
 
+void test('fresh production workers execute first selectors within the fixed profile', async () => {
+  for (let generation = 0; generation < 5; generation++) {
+    const pool = new ManagedCelPool();
+    try {
+      await pool.warm();
+      assert.deepEqual(
+        await Promise.all([
+          pool.evaluate('entity.kind == "Component"', { kind: 'Component' }, context('first-a')),
+          pool.evaluate('entity.kind == "Component"', { kind: 'Group' }, context('first-b')),
+        ]),
+        [true, false],
+      );
+      assert.equal(pool.stats().workerStarts, 2, 'Neither first selector replaces a worker.');
+      assert.equal(pool.stats().pending, 0);
+    } finally {
+      await pool.close();
+    }
+  }
+});
+
 void test('CEL admission rejects oversized and non-JSON input without invoking callbacks', () => {
   let calls = 0;
   const getter = Object.defineProperty({}, 'secret', {

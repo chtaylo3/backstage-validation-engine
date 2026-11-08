@@ -172,3 +172,16 @@ reply and verifies native HTTP shutdown cleanup. An HTTP-entry acknowledgement
 from another process cannot prove that cancellation preceded the 50 ms reply.
 Once packaging succeeds, independent native editor and runtime stress checks
 still execute after another test failure, while the aggregate CI job stays red.
+
+At `6bd98e5`, all 11 CI jobs and the full compatibility workflow passed, including
+all six 30-minute soaks and the real SSH, Dev Container and WSL2 sessions. Linux
+and macOS passed all 600 repeated race cases each. Windows passed 597 of 600;
+three sessions published incomplete initial validation and therefore correctly
+withheld guarded fixes. These failures remain qualification failures, even though
+later independent cases passed. Worker readiness now includes a fixed interpreter
+parse/evaluation warmup under the existing startup deadline, rather than deferring
+static compiler initialization to the first bounded repository expression. Fresh
+worker tests exercise both first selectors without replacing a worker. Rule-stage
+evidence also distinguishes the CEL attempt deadline from the overall request
+deadline. No execution, readiness or resource ceiling was raised, and the changed
+candidate requires its own complete qualification.

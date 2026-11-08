@@ -125,6 +125,11 @@ export async function validatePolicySources(
       compatibility.interrupted,
       rules.interrupted,
     ].reduce((a, b) => (priority[a] >= priority[b] ? a : b));
+    const ruleTimeoutCause =
+      rules.failures.some(({ code }) => code === 'request_timeout' || code === 'queue_timeout') ||
+      !rules.failures.some(({ code }) => code === 'execution_timeout')
+        ? 'request_timeout'
+        : 'attempt_timeout';
     const failureEvidence = [
       ...(preparation?.failureEvidence ?? []),
       ...(preparation?.catalog?.failures.flatMap((failure) =>
@@ -145,7 +150,7 @@ export async function validatePolicySources(
         ? [
             timer.capture(
               'rules',
-              rules.interrupted === 'timeout' ? 'request_timeout' : rules.interrupted,
+              rules.interrupted === 'timeout' ? ruleTimeoutCause : rules.interrupted,
               request.execution.deadlineAt,
             ),
           ]

@@ -7,6 +7,12 @@ import type { CelWorkerReply, CelWorkerRequest } from './protocol.js';
 if (!parentPort) throw new Error('CEL worker requires a parent');
 const port = parentPort;
 const evaluate = createCelEvaluator();
+// Constructing the interpreter does not initialize its parser/compiler paths.
+// Prepare those static paths before reporting readiness; the supervisor bounds
+// this work with the existing worker startup deadline. Repository expressions
+// still run under their unchanged execution and request deadlines.
+if (!evaluate('entity.value == "ready" && [1, 2].exists(x, x == 2)', { value: 'ready' }))
+  throw new CelError('worker_failure');
 port.on('message', (request: CelWorkerRequest) => {
   let reply: CelWorkerReply;
   try {
