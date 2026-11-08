@@ -135,6 +135,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     // serializing it a second time before the first native policy can mutate it.
     let candidate = structuredClone(authored) as unknown as Entity;
     let checkpoint: ReturnType<typeof capture> | undefined;
+    let lastYield = -Infinity;
     const mutations: NormalizationChange[] = [];
     const result = (
       status: NativeEntityCheck['status'],
@@ -155,7 +156,13 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
       stage: NativeIssue['stage'],
       operation: () => unknown,
     ): Promise<NativeIssue | undefined> => {
-      await yieldTurn();
+      // Keep the same cooperative eight-millisecond bound as parsing. Each
+      // entity yields before its first native call; synchronous policy steps
+      // between yields still check cancellation and deadlines before/after.
+      if (performance.now() - lastYield >= 8) {
+        await yieldTurn();
+        lastYield = performance.now();
+      }
       budget.throwIfInterrupted();
       try {
         await operation();

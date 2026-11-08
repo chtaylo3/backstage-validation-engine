@@ -119,14 +119,21 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
         fail('changed');
       const chunks: Buffer[] = [];
       let bytes = 0;
+      const expectedBytes = Number(before.size);
       while (bytes <= config.profile.limits.fileBytes) {
         budget.throwIfInterrupted();
         const chunk = Buffer.alloc(
-          Math.min(64 * 1024, config.profile.limits.fileBytes + 1 - bytes),
+          Math.min(
+            64 * 1024,
+            config.profile.limits.fileBytes + 1 - bytes,
+            expectedBytes + 1 - bytes,
+          ),
         );
         const count = (await handle.read(chunk)).bytesRead;
         if (!count) break;
         bytes += count;
+        if (bytes > config.profile.limits.fileBytes) fail('limit');
+        if (bytes > expectedBytes) fail('changed');
         chunks.push(chunk.subarray(0, count));
       }
       if (bytes > config.profile.limits.fileBytes) fail('limit');

@@ -94,6 +94,9 @@ descriptor and named-file identity, links, UTF-8, mutations and cancellation.
 All reads in a failed batch drain before rejection; no partial snapshot is
 published. Native descriptor-barrier tests verify concurrency bounds and awaited
 close, alongside aggregate overflow/recovery and the original deadline tests.
+Read buffers use the checked file length plus one growth-detection byte, capped
+at 64 KiB. Tiny files no longer allocate the full chunk allowance, and a file
+that grows during capture is rejected immediately with its descriptor closed.
 The pinned native adapter and fixed CEL worker slots are prepared during LSP initialization; this static
 dependency preparation remains inside measured cold editor readiness. Source
 capture and all validation still share one original five-second request deadline.
@@ -102,6 +105,9 @@ successive policies. Each policy output still receives full bounded JSON checks;
 unchanged canonical output needs no second serialization/diff. Authored input
 stays detached and frozen, and mutation provenance is checked against both native
 adapter pins. There is no cross-request entity-result cache.
+Native steps yield before each entity and at the same eight-millisecond
+cooperative bound used by parsing, with deadline/cancellation checks around
+every policy call. Tests also inject queued cancellation on both adapter pins.
 Resource comparisons require ten warmup operations per process and at least
 three later samples. A sample at each restart records the new process epoch.
 The 128 MiB RSS, 64-handle and 0.15 MiB/operation growth caps remain unchanged;

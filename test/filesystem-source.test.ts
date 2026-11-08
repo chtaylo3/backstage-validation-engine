@@ -321,3 +321,49 @@ void test('a mutation after descriptor inspection is rejected by the final named
   );
   assert.equal(calls, 2);
 });
+
+void test('small approved files allocate buffers for checked bytes rather than the full file allowance', async (t) => {
+  const f = await filesystemFixture(t, { files: { 'catalog.yaml': 'tiny' } });
+  const reader = await createFilesystemSource(f.config);
+  t.after(() => reader.close());
+  const probe = await open(join(f.root, 'catalog.yaml'), 'r');
+  const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'read'>;
+  const original = prototype.read;
+  await probe.close();
+  const capacities: number[] = [];
+  t.mock.method(prototype, 'read', function (this: FileHandle, buffer: Buffer) {
+    capacities.push(buffer.length);
+    return original.call(this, { buffer });
+  });
+  assert.equal((await capture(reader, f)).files[0]!.text, 'tiny');
+  assert(capacities.length > 0 && capacities.every((size) => size > 0 && size <= 5));
+});
+
+void test('a file growing after inspection is rejected after one sentinel byte and its descriptor is closed', async (t) => {
+  const f = await filesystemFixture(t, { files: { 'catalog.yaml': 'tiny' } });
+  const reader = await createFilesystemSource(f.config);
+  t.after(() => reader.close());
+  const probe = await open(join(f.root, 'catalog.yaml'), 'r');
+  const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'read'>;
+  const original = prototype.read;
+  await probe.close();
+  const handles = new Set<FileHandle>();
+  let calls = 0,
+    bytes = 0;
+  t.mock.method(prototype, 'read', async function (this: FileHandle, buffer: Buffer) {
+    calls++;
+    handles.add(this);
+    await writeFile(join(f.root, 'catalog.yaml'), 'tiny' + 'x'.repeat(100_000));
+    const result = await original.call(this, { buffer });
+    bytes += result.bytesRead;
+    return result;
+  });
+  await assert.rejects(
+    capture(reader, f),
+    (error: unknown) => error instanceof FilesystemSnapshotError && error.reason === 'changed',
+  );
+  assert.equal(calls, 1);
+  assert.equal(bytes, 5);
+  assert.equal(handles.size, 1);
+  assert([...handles].every((handle) => handle.fd === -1));
+});

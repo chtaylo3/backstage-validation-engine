@@ -243,3 +243,21 @@ void test('native policy calls retain deadlines, cancellation and JSON admission
       error instanceof Error && 'code' in error && error.code === 'resource_limit',
   );
 });
+
+void test('native validation yields to queued cancellation before evaluating either pinned adapter', async (t) => {
+  for (const id of BACKSTAGE_ADAPTER_IDS)
+    await t.test(id, async () => {
+      const adapter = await loadBackstageAdapter(id);
+      const abort = new AbortController();
+      const immediate = setImmediate(() => abort.abort());
+      try {
+        await assert.rejects(
+          adapter.validate(fixtures[0]!, settings, { ...execution(), signal: abort.signal }),
+          (error: unknown) =>
+            error instanceof Error && 'code' in error && error.code === 'cancelled',
+        );
+      } finally {
+        clearImmediate(immediate);
+      }
+    });
+});
