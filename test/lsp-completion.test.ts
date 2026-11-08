@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { setTimeout as pause } from 'node:timers/promises';
 import { test } from 'node:test';
+import { PassThrough } from 'node:stream';
+import { createConnection } from 'vscode-languageserver';
 import {
   CompletionRequest,
   DidOpenTextDocumentNotification,
@@ -9,6 +11,9 @@ import {
   DidChangeWatchedFilesNotification,
   FileChangeType,
   CancellationTokenSource,
+  createProtocolConnection,
+  InitializeRequest,
+  PublishDiagnosticsNotification,
 } from 'vscode-languageserver/node';
 import type { CompletionList } from 'vscode-languageserver/node';
 import { BACKSTAGE_ADAPTER_IDS } from '../src/index.js';
@@ -24,6 +29,8 @@ import {
 import { startLspClient } from './harness/lsp-client.js';
 import { filesystemFixture } from './harness/filesystem-fixture.js';
 import { URI } from './helpers.js';
+import { attachLspServer } from '../src/lsp/server.js';
+import type { CatalogProvider } from '../src/index.js';
 
 function config(options: Parameters<typeof policyRun>[0] = {}, baseUrl?: string) {
   const run = policyRun({ text: componentText('te'), rules: [], files: [localTeam], ...options });
@@ -183,7 +190,7 @@ void test('held search does not block typing and changed epochs cancel stale com
   );
 });
 
-void test('client cancellation aborts the remote query and shutdown releases a pending search', async (t) => {
+void test('late client cancellation preserves a completed local reply and shutdown releases a pending search', async (t) => {
   const matrix = await policyMatrix(t),
     fixture = matrix.fixtures[0]!.fixture;
   const host = await startLspClient(t, config({}, fixture.baseUrl));
@@ -197,16 +204,118 @@ void test('client cancellation aborts the remote query and shutdown releases a p
     token.token,
   );
   await gate.entered;
-  token.cancel();
   const result = await pending;
   assert(result && 'items' in result);
-  assert.deepEqual(result.items, []);
+  assert.equal(result.items[0]?.label, 'group:default/team');
+  token.cancel();
   await gate.cancelled;
   token.dispose();
   const shutdownGate = fixture.holdNext({ operation: 'byQuery' });
   const working = complete(host);
   await shutdownGate.entered;
   await Promise.all([host.shutdown(), working, shutdownGate.cancelled]);
+});
+
+void test('LSP cancellation of an entered provider aborts its signal before publishing completion items', async (t) => {
+  const selected = config();
+  const inbound = new PassThrough(),
+    outbound = new PassThrough();
+  const token = new CancellationTokenSource();
+  let entered = 0,
+    cancelled = 0;
+  const provider: CatalogProvider = {
+    connectionId: 'test',
+    adapterId: selected.profile.adapterId,
+    lookup: () => Promise.reject(new Error('Completion must not perform validation lookups.')),
+    suggest: (_query, _access, execution) =>
+      new Promise((resolve) => {
+        entered++;
+        const signal = execution.signal!;
+        signal.addEventListener(
+          'abort',
+          () => {
+            cancelled++;
+            resolve({
+              status: 'unavailable',
+              failure: 'cancelled',
+              refs: [],
+              truncated: false,
+              fetchedAt: Date.now(),
+              expiresAt: Date.now(),
+            });
+          },
+          { once: true },
+        );
+        // The real JSON-RPC cancellation frame is sent at provider entry, in the
+        // same event loop. A cross-process HTTP acknowledgement can arrive after
+        // the intentional 50 ms local fallback and cannot establish this ordering.
+        token.cancel();
+      }),
+    stats: () => ({ active: 0, queued: 0, cacheEntries: 0, cacheBytes: 0 }),
+    close: () => Promise.resolve(),
+  };
+  const connection = createConnection(
+    (logger) => createProtocolConnection(inbound, outbound, logger),
+    { initialize: () => {}, shutdownReceived: false, exit: () => {} },
+  );
+  const server = attachLspServer(connection, selected, {
+    catalog: {
+      provider,
+      access: {
+        installationId: selected.identity.installationId,
+        principalId: 'reader',
+        permissionRevision: selected.identity.permissionRevision,
+        credentialRevision: '1',
+        scope: ['catalog:read'],
+        policyDigest: selected.activation.policyDigest,
+        profileDigest: selected.activation.profileDigest,
+        maxAgeMs: 5000,
+      },
+    },
+    dispose: () => provider.close(),
+  });
+  const client = createProtocolConnection(outbound, inbound);
+  let published!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    published = resolve;
+  });
+  client.onNotification(PublishDiagnosticsNotification.type, () => published());
+  connection.listen();
+  client.listen();
+  t.after(async () => {
+    await server.close();
+    token.dispose();
+    client.dispose();
+    connection.dispose();
+    inbound.destroy();
+    outbound.destroy();
+  });
+  await client.sendRequest(InitializeRequest.type, {
+    processId: null,
+    rootUri: null,
+    capabilities: {},
+  });
+  await client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText('te') },
+  });
+  await ready;
+  await eventually(async () => {
+    const result = await client.sendRequest(CompletionRequest.type, {
+      textDocument: { uri: URI },
+      position: { line: 6, character: 10 },
+    });
+    assert(result && 'items' in result);
+    return result;
+  }, 'group:default/team');
+  const result = await client.sendRequest(
+    CompletionRequest.type,
+    { textDocument: { uri: URI }, position: { line: 6, character: 11 } },
+    token.token,
+  );
+  assert(result && 'items' in result);
+  assert.deepEqual(result.items, []);
+  assert.equal(entered, 1);
+  assert.equal(cancelled, 1);
 });
 
 void test('included YAML completion edits the open payload scalar and watch refreshes invalidate candidates', async (t) => {

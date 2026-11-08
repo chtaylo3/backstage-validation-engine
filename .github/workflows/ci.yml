@@ -90,6 +90,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Package engine, production dependencies and pinned Node runtime
+        id: package_extension
         run: npm run extension:package
       - name: Make the exact candidate available to independent qualification lanes
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -104,25 +105,27 @@ jobs:
           retention-days: 14
       - name: Entire harness using the packaged Node and server
         run: npm run test:packaged
-      - name: Repeat native worker lifecycle with the packaged Windows runtime
-        if: runner.os == 'Windows'
+      - name: Repeat worker and completion lifecycle with the packaged Windows runtime
+        if: ${{ !cancelled() && steps.package_extension.outcome == 'success' && runner.os == 'Windows' }}
         shell: pwsh
         run: |
           $directory = '.artifacts/tests/worker-lifecycle'
           New-Item -ItemType Directory -Force $directory | Out-Null
+          $env:BVE_TEST_LSP_ENTRY = Join-Path $PWD '.artifacts/vscode/stage/server/dist/lsp/stdio.js'
+          $files = @('.test-dist/test/cel-runtime.test.js', '.test-dist/test/lsp-completion.test.js')
           $completed = @()
           foreach ($iteration in 1..20) {
-            & ./.artifacts/vscode/stage/runtime/node.exe --test --test-concurrency=1 --test-timeout=30000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit "--test-reporter-destination=$directory/iteration-$iteration.xml" .test-dist/test/cel-runtime.test.js
+            & ./.artifacts/vscode/stage/runtime/node.exe --test --test-concurrency=1 --test-timeout=30000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit "--test-reporter-destination=$directory/iteration-$iteration.xml" @files
             $exitCode = $LASTEXITCODE
             $completed += @{ iteration = $iteration; exitCode = $exitCode }
-            @{ revision = $env:GITHUB_SHA; expected = 20; completed = $completed } | ConvertTo-Json -Depth 5 | Set-Content "$directory/results.json"
+            @{ revision = $env:GITHUB_SHA; expected = 20; files = $files; completed = $completed } | ConvertTo-Json -Depth 5 | Set-Content "$directory/results.json"
             if ($exitCode -ne 0) { throw "Packaged worker lifecycle failed at iteration $iteration with exit $exitCode" }
           }
       - name: Install and test VSIX in minimum and current VS Code (Linux)
-        if: runner.os == 'Linux'
+        if: ${{ !cancelled() && steps.package_extension.outcome == 'success' && runner.os == 'Linux' }}
         run: xvfb-run -a npm run test:extension
       - name: Install and test VSIX in minimum and current VS Code
-        if: runner.os != 'Linux'
+        if: ${{ !cancelled() && steps.package_extension.outcome == 'success' && runner.os != 'Linux' }}
         run: npm run test:extension
       - name: Verify editor runner failure accounting (Linux)
         if: ${{ !cancelled() && runner.os == 'Linux' }}

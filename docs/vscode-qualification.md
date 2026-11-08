@@ -162,5 +162,13 @@ The Windows packaged harness at `3f09ccc` exposed a native Node 24.20.0 exit
 whose worker Realm cleanup fix shipped in
 [Node 24.22.0](https://nodejs.org/en/blog/release/v24.22.0). The runtime is now
 pinned to security patch 24.22.1, and Windows CI repeats the actual packaged
-worker lifecycle file 20 times. Every iteration must pass; the original failure
+worker and completion lifecycle files 20 times. Every iteration must pass; the original failure
 remains recorded. This pin update must qualify through the same full matrix.
+
+Client cancellation is ordered at provider entry through a real in-process
+JSON-RPC connection, proving abort propagation and suppressed completion items.
+A separate native-process case deliberately cancels after the bounded local
+reply and verifies native HTTP shutdown cleanup. An HTTP-entry acknowledgement
+from another process cannot prove that cancellation preceded the 50 ms reply.
+Once packaging succeeds, independent native editor and runtime stress checks
+still execute after another test failure, while the aggregate CI job stays red.
