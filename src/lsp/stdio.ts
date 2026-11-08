@@ -6,7 +6,7 @@ import {
   StreamMessageReader,
   StreamMessageWriter,
 } from 'vscode-languageserver/node';
-import { closeSharedCelRuntime } from '../runtime/cel/index.js';
+import { closeSharedCelRuntime, getSharedCelRuntime } from '../runtime/cel/index.js';
 import { createLspCatalog, parseLspConfig } from './config.js';
 import { BoundedLspInput } from './framing.js';
 import { createFilesystemSource } from './filesystem.js';
@@ -34,6 +34,13 @@ try {
     await loadBackstageAdapter(config.profile.adapterId).catch(() => undefined);
   const filesystem = config.filesystem ? await createFilesystemSource(config) : undefined;
   const catalog = await createLspCatalog(config, process.env);
+  if (
+    !config.profile.requiredProcessors.length &&
+    config.policy.rules.some((rule) => rule.kind === 'cel' || rule.selector)
+  )
+    await getSharedCelRuntime()
+      .warm()
+      .catch(() => undefined);
   const input = new BoundedLspInput();
   // The SDK's default Node watchdog exits synchronously on EOF/exit. Own that
   // lifecycle through its public factory so provider/worker cleanup can finish.
@@ -91,6 +98,7 @@ try {
     stop(watchdog.shutdownReceived ? 0 : 1);
   });
 } catch {
+  await closeSharedCelRuntime().catch(() => undefined);
   process.stderr.write('Unable to start language server; check trusted launcher configuration.\n');
   process.exitCode = 1;
 }

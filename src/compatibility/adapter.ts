@@ -43,14 +43,18 @@ type Library = Pick<
   GroupDefaultParentEntityPolicy: new (parent: string) => EntityPolicy;
 };
 
-function snapshot(value: unknown): JsonValue {
+function capture(value: unknown): { json: string; value: JsonValue } {
   try {
-    return JSON.parse(canonicalJson(value, { maxBytes: 1024 * 1024 })) as JsonValue;
+    const json = canonicalJson(value, { maxBytes: 1024 * 1024 });
+    return { json, value: JSON.parse(json) as JsonValue };
   } catch (error) {
     if (error instanceof ContractError && error.code === 'limit')
       throw new BackstageRuntimeError('resource_limit');
     throw error;
   }
+}
+function snapshot(value: unknown): JsonValue {
+  return capture(value).value;
 }
 
 function changes(
@@ -127,7 +131,10 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     budget.throwIfInterrupted();
     const parentPolicy = settings ? configuredParent(settings) : undefined;
     const authored = snapshot(value);
-    let candidate = snapshot(authored) as unknown as Entity;
+    // Authored is already our detached, checked plain JSON. Clone it without
+    // serializing it a second time before the first native policy can mutate it.
+    let candidate = structuredClone(authored) as unknown as Entity;
+    let checkpoint: ReturnType<typeof capture> | undefined;
     const mutations: NormalizationChange[] = [];
     const result = (
       status: NativeEntityCheck['status'],
@@ -172,13 +179,17 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
       name: NativePolicyName,
       policy: EntityPolicy,
     ): Promise<NativeIssue | undefined> => {
-      const before = snapshot(candidate);
+      const before = checkpoint ?? capture(candidate);
       const issue = await call(name, async () => {
         const next = await policy.enforce(candidate);
         if (!next) throw new Error('Stock native policy did not handle entity');
         candidate = next;
       });
-      if (!issue) mutations.push(...changes(before, snapshot(candidate), name));
+      if (!issue) {
+        const after = capture(candidate);
+        if (before.json !== after.json) mutations.push(...changes(before.value, after.value, name));
+        checkpoint = after;
+      }
       return issue;
     };
     // An always-on native envelope protects policies that expect metadata to exist.

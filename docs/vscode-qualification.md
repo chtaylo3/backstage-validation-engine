@@ -94,9 +94,14 @@ descriptor and named-file identity, links, UTF-8, mutations and cancellation.
 All reads in a failed batch drain before rejection; no partial snapshot is
 published. Native descriptor-barrier tests verify concurrency bounds and awaited
 close, alongside aggregate overflow/recovery and the original deadline tests.
-The pinned native adapter is loaded during LSP initialization; this static
+The pinned native adapter and fixed CEL worker slots are prepared during LSP initialization; this static
 dependency preparation remains inside measured cold editor readiness. Source
 capture and all validation still share one original five-second request deadline.
+Native policy composition reuses its own detached JSON checkpoint between
+successive policies. Each policy output still receives full bounded JSON checks;
+unchanged canonical output needs no second serialization/diff. Authored input
+stays detached and frozen, and mutation provenance is checked against both native
+adapter pins. There is no cross-request entity-result cache.
 Resource comparisons require ten warmup operations per process and at least
 three later samples. A sample at each restart records the new process epoch.
 The 128 MiB RSS, 64-handle and 0.15 MiB/operation growth caps remain unchanged;
@@ -132,6 +137,12 @@ current-editor launch exposed the newer Windows resources layout. SSH and Dev
 Containers reached their real remote hosts and passed both catalog API versions
 and the editor feature checks, then failed the post-disconnect PID observation.
 Those partial sessions do not qualify the complete remote matrix.
+At `0fa0821`, [CI 42458216928](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42458216928)
+passed all 11 jobs: 862 source/packaged tests on each native target and all 252
+portable editor scenarios. All 12 real remote sessions also passed with one
+Linux VSIX checksum. Subsequent load observations drove the explicit resource
+warmup, initialization preparation and native checkpoint changes described above;
+the final workload qualification must use the corrected candidate's own runs.
 
 The final matrix, repetition, compatibility and soak qualifications must be read
 from their actual candidate runs. Remote lanes remain unqualified until those
