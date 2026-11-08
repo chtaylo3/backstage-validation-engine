@@ -105,6 +105,9 @@ jobs:
           retention-days: 14
       - name: Entire harness using the packaged Node and server
         run: npm run test:packaged
+      - name: Validate the native CLI with literal paths and deprecation errors
+        if: ${{ !cancelled() && steps.package_extension.outcome == 'success' }}
+        run: npm run test:extension:cli
       - name: Repeat worker and completion lifecycle with the packaged Windows runtime
         if: ${{ !cancelled() && steps.package_extension.outcome == 'success' && runner.os == 'Windows' }}
         shell: pwsh
@@ -147,6 +150,7 @@ jobs:
             .artifacts/vscode/editor-results/
             .artifacts/vscode/verification-*/
             .artifacts/vscode/verification-summary.json
+            .artifacts/vscode/cli-results/
             .artifacts/tests/packaged/
             .artifacts/tests/worker-lifecycle/
           include-hidden-files: true

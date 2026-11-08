@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron';
+import { downloadAndUnzipVSCode } from '@vscode/test-electron';
+import { resolveVSCodeCli, runVSCodeCommand } from './extension-test-cli.mjs';
 import { launchEditor } from './extension-test-process.mjs';
 import { debugPort, observeWorkbench } from './extension-test-ui.mjs';
 import { classify, junit } from '../.artifacts/vscode/test/reporting.mjs';
@@ -261,8 +262,7 @@ try {
     const installed = path.join(session, 'local-extensions');
     const installerOptions = {
       version: '1.145.2',
-      reuseMachineInstall: true,
-      spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
+      env: { DONT_PROMPT_WSL_INSTALL: '1' },
     };
     const plugin = {
       'ssh-remote': 'ms-vscode-remote.remote-ssh@0.120.0',
@@ -330,37 +330,7 @@ try {
       const base = path.join(out, version);
       await mkdir(base, { recursive: true });
       const executable = await downloadAndUnzipVSCode({ version });
-      const editorRoot = path.dirname(executable);
-      // Current Windows archives put resources under a ten-character commit
-      // directory; the minimum editor uses the historical flat layout.
-      const roots = [
-        editorRoot,
-        ...(process.platform === 'win32'
-          ? (await readdir(editorRoot))
-              .filter((name) => /^[a-f0-9]{10}$/u.test(name))
-              .map((name) => path.join(editorRoot, name))
-          : []),
-      ];
-      const products = (
-        await Promise.all(
-          roots.map(async (directory) => {
-            const text = await readFile(
-              path.join(directory, 'resources/app/product.json'),
-              'utf8',
-            ).catch((error) => {
-              if (error.code === 'ENOENT') return undefined;
-              throw error;
-            });
-            if (!text) return undefined;
-            const product = JSON.parse(text);
-            if (directory !== editorRoot)
-              assert.equal(path.basename(directory), product.commit.slice(0, 10));
-            return product;
-          }),
-        )
-      ).filter(Boolean);
-      assert.equal(products.length, 1, 'One unambiguous native editor product manifest.');
-      const product = products[0];
+      const { product } = await resolveVSCodeCli(executable);
       const commit = product.commit;
       assert(/^[a-f0-9]{40}$/u.test(commit));
       const remoteSession =

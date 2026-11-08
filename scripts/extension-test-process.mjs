@@ -7,7 +7,7 @@ import { setTimeout, clearTimeout, setInterval, clearInterval } from 'node:timer
 export async function readProgress(file) {
   return JSON.parse(await readFile(file, 'utf8').catch(() => 'null'));
 }
-async function killTree(pid) {
+export async function killTree(pid) {
   if (!pid) return;
   if (process.platform === 'win32') {
     await promisify(execFile)('taskkill', ['/pid', String(pid), '/T', '/F']).catch(() => {});

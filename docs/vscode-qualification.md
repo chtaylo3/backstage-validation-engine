@@ -42,6 +42,21 @@ remote and endurance lanes can run concurrently with portable tests. The release
 verdict still requires the entire CI run to succeed and matches every lane to
 the same checksum in the final CI evidence.
 
+The shared command launcher runs the native VS Code executable with its JavaScript
+command script. It sets `ELECTRON_RUN_AS_NODE=1` and passes each argument without a
+command shell. This avoids `DEP0190` and shell interpretation of argument text.
+The launcher clears `VSCODE_DEV` and `VSCODE_IPC_HOOK_CLI` before it starts a command.
+It keeps the existing isolated profiles and pinned installer version.
+It supports both flat and versioned Windows resource directories.
+
+Run `npm run test:extension:cli` after packaging to test the command launcher.
+CI runs this test on all three OS targets and retains `cli-results/results.json`.
+The test installs, lists, removes and reinstalls the exact candidate package.
+It uses paths with spaces, Unicode and shell characters.
+It also requires a nonzero result for a missing package and rejects `DEP0190`.
+Separate process tests cover literal arguments, output capture, output limits and
+termination of a command and its child process after a timeout.
+
 The compatibility workflow has three manual modes:
 
 - `quick`: coexistence, package lifecycle, virtual workspace, both load sizes and

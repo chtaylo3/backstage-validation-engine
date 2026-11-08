@@ -66,6 +66,7 @@
     "extension:package": "npm run build && node scripts/package-extension.mjs",
     "test:extension": "node scripts/test-extension.mjs",
     "test:extension:verify": "node scripts/test-extension.mjs --verify-failures",
+    "test:extension:cli": "node --throw-deprecation scripts/test-extension-cli.mjs",
     "test:client": "npm run test:compile && node scripts/test-client.mjs",
     "test:extension:races": "node scripts/test-extension.mjs --races",
     "test:extension:compatibility": "node scripts/test-extension.mjs --compat",

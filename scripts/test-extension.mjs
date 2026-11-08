@@ -4,7 +4,8 @@ import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from '
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron';
+import { downloadAndUnzipVSCode } from '@vscode/test-electron';
+import { runVSCodeCommand } from './extension-test-cli.mjs';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
@@ -136,8 +137,7 @@ async function provision(version, yaml = false) {
         ];
         const options = {
           version: installerVersion,
-          reuseMachineInstall: true,
-          spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
+          env: { DONT_PROMPT_WSL_INSTALL: '1' },
         };
         await runVSCodeCommand(['--install-extension', info.vsix, '--force', ...common], options);
         if (yaml)
@@ -493,8 +493,7 @@ async function execute(spec, output, fault, peer) {
         ];
         const options = {
           version: installerVersion,
-          reuseMachineInstall: true,
-          spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
+          env: { DONT_PROMPT_WSL_INSTALL: '1' },
         };
         if (['previous', 'upgraded', 'reinstalled'].includes(stage))
           await runVSCodeCommand(
