@@ -177,15 +177,31 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
       if (skip.size > 1000 || [...skip].some((uri) => !allowed.has(uri))) fail('containment');
       const updates: Parameters<typeof overlaySourceSnapshot>[1][number][] = [];
       let bytes = 0;
-      for (const [uri, path] of paths) {
-        if (skip.has(uri)) continue;
-        const text = await read(path, budget);
-        if (text === undefined) {
-          if (base.files.some((file) => file.uri === uri)) updates.push({ uri, deleted: true });
-        } else {
-          bytes += Buffer.byteLength(text);
-          if (bytes > config.profile.limits.requestBytes) fail('limit');
-          updates.push({ uri, text, origin: 'repository' });
+      // Bound descriptors and in-flight bytes while overlapping independent
+      // native I/O. Every file retains its full before/after containment and
+      // identity checks, and a failed batch drains before capture rejects.
+      const width = Math.min(
+        8,
+        Math.max(
+          1,
+          Math.floor(config.profile.limits.requestBytes / config.profile.limits.fileBytes),
+        ),
+      );
+      const selected = [...paths].filter(([uri]) => !skip.has(uri));
+      for (let offset = 0; offset < selected.length; offset += width) {
+        const batch = selected.slice(offset, offset + width);
+        const reads = await Promise.allSettled(batch.map(([, path]) => read(path, budget)));
+        for (const [index, result] of reads.entries()) {
+          if (result.status === 'rejected') throw result.reason;
+          const [uri] = batch[index]!;
+          const text = result.value;
+          if (text === undefined) {
+            if (base.files.some((file) => file.uri === uri)) updates.push({ uri, deleted: true });
+          } else {
+            bytes += Buffer.byteLength(text);
+            if (bytes > config.profile.limits.requestBytes) fail('limit');
+            updates.push({ uri, text, origin: 'repository' });
+          }
         }
       }
       await checkRoot(budget);

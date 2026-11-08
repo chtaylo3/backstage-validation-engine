@@ -199,6 +199,86 @@ void test('filesystem reads obey original deadlines, cancellation and awaited cl
   );
 });
 
+void test('parallel capture bounds in-flight files by the byte budget and close drains every descriptor', async (t) => {
+  const files = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`file-${i}.txt`, 'old']));
+  const f = await filesystemFixture(t, {
+    files,
+    entrypoints: ['file-0.txt'],
+    profile: {
+      limits: { ...DEFAULT_DEPLOYMENT_PROFILE.limits, fileBytes: 64, requestBytes: 256 },
+    },
+  });
+  const reader = await createFilesystemSource(f.config);
+  const probe = await open(join(f.root, 'file-0.txt'), 'r');
+  const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'read'>;
+  const originalRead = prototype.read;
+  await probe.close();
+  let release!: () => void, entered!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const held = new Set<FileHandle>();
+  t.after(async () => {
+    release();
+    await reader.close();
+  });
+  t.mock.method(prototype, 'read', async function (this: FileHandle, buffer: Buffer) {
+    held.add(this);
+    assert(held.size <= 4, 'At most requestBytes/fileBytes reads may be in flight.');
+    if (held.size === 4) entered();
+    await gate;
+    return originalRead.call(this, { buffer });
+  });
+  const pending = capture(reader, f);
+  await Promise.race([ready, pending.then(() => assert.fail('Reads must reach the barrier.'))]);
+  let drained = false;
+  const stopping = reader.close().then(() => {
+    drained = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(drained, false, 'Close awaits reads whose descriptors are still held.');
+  release();
+  await assert.rejects(pending, /cancelled/i);
+  await stopping;
+  assert.equal(held.size, 4);
+  assert(
+    [...held].every((handle) => handle.fd === -1),
+    'Every held descriptor is closed.',
+  );
+});
+
+void test('parallel batches reject aggregate overflow without a partial result and recover with exact budget bytes', async (t) => {
+  const names = Array.from({ length: 4 }, (_, i) => `file-${i}.txt`);
+  const f = await filesystemFixture(t, {
+    files: Object.fromEntries(names.map((name) => [name, 'old'])),
+    entrypoints: [names[0]!],
+    profile: {
+      limits: { ...DEFAULT_DEPLOYMENT_PROFILE.limits, fileBytes: 128, requestBytes: 256 },
+    },
+  });
+  const reader = await createFilesystemSource(f.config);
+  t.after(() => reader.close());
+  await Promise.all(names.map((name) => writeFile(join(f.root, name), 'x'.repeat(80))));
+  await assert.rejects(
+    capture(reader, f),
+    (error: unknown) => error instanceof FilesystemSnapshotError && error.reason === 'limit',
+  );
+  assert(f.source.files.every((file) => file.text === 'old'));
+  await Promise.all(names.map((name) => writeFile(join(f.root, name), 'x'.repeat(64))));
+  const result = await capture(reader, f);
+  assert.equal(
+    result.files.reduce((sum, file) => sum + Buffer.byteLength(file.text), 0),
+    256,
+  );
+  assert.deepEqual(
+    result.files.map((file) => file.uri),
+    names.map(f.uri).sort(),
+  );
+});
+
 void test('open buffers mask disk read failures and reintroduced baseline files retain coherent change kinds', async (t) => {
   const f = await filesystemFixture(t);
   const reader = await createFilesystemSource(f.config);

@@ -193,6 +193,7 @@ try {
     container = await run('docker', [
       'run',
       '-d',
+      '--init',
       '--name',
       containerName,
       '--hostname',
@@ -329,9 +330,37 @@ try {
       const base = path.join(out, version);
       await mkdir(base, { recursive: true });
       const executable = await downloadAndUnzipVSCode({ version });
-      const product = JSON.parse(
-        await readFile(path.join(path.dirname(executable), 'resources/app/product.json'), 'utf8'),
-      );
+      const editorRoot = path.dirname(executable);
+      // Current Windows archives put resources under a ten-character commit
+      // directory; the minimum editor uses the historical flat layout.
+      const roots = [
+        editorRoot,
+        ...(process.platform === 'win32'
+          ? (await readdir(editorRoot))
+              .filter((name) => /^[a-f0-9]{10}$/u.test(name))
+              .map((name) => path.join(editorRoot, name))
+          : []),
+      ];
+      const products = (
+        await Promise.all(
+          roots.map(async (directory) => {
+            const text = await readFile(
+              path.join(directory, 'resources/app/product.json'),
+              'utf8',
+            ).catch((error) => {
+              if (error.code === 'ENOENT') return undefined;
+              throw error;
+            });
+            if (!text) return undefined;
+            const product = JSON.parse(text);
+            if (directory !== editorRoot)
+              assert.equal(path.basename(directory), product.commit.slice(0, 10));
+            return product;
+          }),
+        )
+      ).filter(Boolean);
+      assert.equal(products.length, 1, 'One unambiguous native editor product manifest.');
+      const product = products[0];
       const commit = product.commit;
       assert(/^[a-f0-9]{40}$/u.test(commit));
       const remoteSession =
@@ -512,7 +541,7 @@ try {
                 assert(progress.serverPids.includes(marker.pid));
                 await remote('/opt/bve-node', [
                   '-e',
-                  `const end=Date.now()+20000;function check(){try{process.kill(${Number(marker.pid)},0)}catch(e){if(e.code==='ESRCH')return;throw e}if(Date.now()>end)process.exit(1);setTimeout(check,30)}check()`,
+                  `const fs=require('fs');const pid=${Number(marker.pid)};const end=Date.now()+20000;function check(){try{process.kill(pid,0)}catch(e){if(e.code==='ESRCH')return;throw e}if(Date.now()>end){console.error(fs.readFileSync('/proc/'+pid+'/status','utf8').split('\\n').filter(s=>/^(Name|State|Pid|PPid|Threads):/.test(s)).join('\\n'));process.exit(1)}setTimeout(check,30)}check()`,
                 ]);
                 await writeFile(
                   path.join(directory, 'disconnect-observation.json'),
@@ -601,6 +630,13 @@ try {
         );
         if (value) await writeFile(path.join(base, 'last-host-' + file), value + '\n');
       }
+  if (remote && hosts.length) {
+    const logs = await remote('/opt/bve-node', [
+      '-e',
+      `const fs=require('fs'),path=require('path');const root='/root/.vscode-server/data/logs';let bytes=0;const rows=[];function visit(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())visit(p);else if(e.name.endsWith('.log')){const size=fs.statSync(p).size;if(size<=512*1024&&(bytes+=size)<=8*1024*1024)rows.push({path:path.relative(root,p),text:fs.readFileSync(p,'utf8')})}}}if(fs.existsSync(root))visit(root);console.log(JSON.stringify(rows))`,
+    ]).catch((error) => JSON.stringify({ collectionError: String(error) }));
+    await writeFile(path.join(out, 'remote-host-logs.json'), logs + '\n');
+  }
   if (container)
     await run('docker', [
       'exec',

@@ -140,18 +140,26 @@ export class Workbench {
       await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
     }
   }
-  async trustPane() {
+  async trustPane(allowPalette = false) {
     await this.call('Page.bringToFront');
-    const tab = await this.rectangle('^Workspace Trust$');
-    if (tab) await this.clickAt(tab);
-    else {
-      const manage = await this.rectangle('^Manage$');
-      if (manage) await this.clickAt(manage);
-      else {
-        const restricted = await this.rectangle('^Restricted Mode$');
-        if (restricted) await this.clickAt(restricted);
-        else await this.palette('Manage Workspace Trust');
-      }
+    // The autonomous driver can request grant before the first banner/status
+    // paint. Wait for a native affordance instead of opening a palette over
+    // the still-initializing workbench and hiding those controls.
+    let affordance;
+    try {
+      await this.wait(async () => {
+        for (const pattern of ['^Workspace Trust$', '^Manage$', '^Restricted Mode$']) {
+          affordance = await this.rectangle(pattern);
+          if (affordance) return true;
+        }
+        return false;
+      }, 'native Workspace Trust affordance');
+      await this.clickAt(affordance);
+    } catch (error) {
+      // A trusted workspace has neither the Restricted Mode banner nor status
+      // control, and the user may have closed the Trust tab since granting.
+      if (!allowPalette) throw error;
+      await this.palette('Manage Workspace Trust');
     }
     let opened;
     await this.wait(async () => {
@@ -283,7 +291,7 @@ export async function controlTrust({ port, base, stage, isExited }) {
         const button = await browser.click('^Trust(?:\\s|$)');
         await record('clicked-grant', { button });
       } else if (state.step === 'revoke') {
-        await browser.trustPane();
+        await browser.trustPane(true);
         const epoch = browser.epoch;
         await browser.screenshot(path.join(base, `${stage}-before-revoke.png`));
         const button = await browser.click("^(?:Don['’]t Trust|Do not trust)(?:\\s|$)");

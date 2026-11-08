@@ -24,6 +24,10 @@ extension version, runner image, revision and VSIX checksum. WSL imports a root
 filesystem exported by the Linux lane and verifies its checksum and revision.
 The container and WSL distribution belong only to the workflow and are removed
 after process-death observations.
+Container hosts use Docker's init process to reap exited descendants. Disconnect
+probes retain process state on failure and collect remote extension-host logs
+before removing the host. Windows editor metadata resolves both flat resources
+and the commit-directory layout used by newer archives.
 
 ## Running the qualification
 
@@ -84,6 +88,12 @@ There is no persistent cross-request source cache. Repeated structural contract
 checks reuse only the parser's own deeply frozen output identities. Mutable
 inputs, clones and caller-frozen counterfeits still receive full validation;
 authority, request bindings, cancellation and deadlines are checked separately.
+Filesystem capture overlaps at most eight approved reads, reduced further by
+the request/file byte budgets. Each read still checks root/path containment,
+descriptor and named-file identity, links, UTF-8, mutations and cancellation.
+All reads in a failed batch drain before rejection; no partial snapshot is
+published. Native descriptor-barrier tests verify concurrency bounds and awaited
+close, alongside aggregate overflow/recovery and the original deadline tests.
 
 Each native process receives its own application shared-data directory as well
 as an isolated user profile and extension directory. Remote extension pins are
@@ -101,13 +111,19 @@ combinations in `b7035e2`, but its overall CI run failed on trust automation:
 command-palette focus and transient Windows evidence-file rename locks. Those
 failures remain recorded in
 [CI 42449939578](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42449939578).
-The follow-up uses the Restricted Mode banner and pins the native Workspace Trust
-tab; the palette is only a fallback. Evidence replacement uses bounded atomic
+The follow-up waits for a visible Restricted Mode banner/status control or the
+native Workspace Trust tab before clicking, then pins the tab. It does not open
+the command palette over a workbench whose first controls have not painted. Evidence replacement uses bounded atomic
 rename retries only for native Windows sharing errors. It does not retry a failed
 scenario into success. Windows virtual/remote launches use `--folder-uri=value`
 to avoid the [upstream Chromium argument filtering issue](https://github.com/microsoft/vscode/blob/main/src/vs/code/node/cli.ts).
 The preliminary WSL lane booted kernel `6.18.54.1-microsoft-standard-WSL2` on
 `windows-2025` image `20261103.298.1`; its editor session still needs to qualify.
+At `a3ac158`, its minimum-editor disconnect and reconnect both passed; the
+current-editor launch exposed the newer Windows resources layout. SSH and Dev
+Containers reached their real remote hosts and passed both catalog API versions
+and the editor feature checks, then failed the post-disconnect PID observation.
+Those partial sessions do not qualify the complete remote matrix.
 
 The final matrix, repetition, compatibility and soak qualifications must be read
 from their actual candidate runs. Remote lanes remain unqualified until those
