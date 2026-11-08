@@ -62,6 +62,9 @@
     "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js",
     "example:cli": "npm run build && node examples/create-cli-release.mjs"
   },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
   "dependencies": {
     "@backstage/catalog-model": "1.10.2",
     "@marcbachmann/cel-js": "8.0.0",
@@ -76,10 +79,15 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "24.10.1",
+    "@types/vscode": "1.145.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.0",
+    "esbuild": "0.28.2",
     "eslint": "10.13.0",
     "prettier": "3.9.10",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.72.1"
+    "typescript-eslint": "8.72.1",
+    "vscode-languageclient": "11.0.0"
   },
   "bin": {
     "bve-lsp": "./dist/lsp/stdio.js",

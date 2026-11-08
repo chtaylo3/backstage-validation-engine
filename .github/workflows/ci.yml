@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +16,7 @@ jobs:
   check:
     name: Node 24 / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +28,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Native URI preflight
+        run: |
+          npm run build
+          node --input-type=module -e "import {tmpdir} from 'node:os'; import {join,sep} from 'node:path'; import {pathToFileURL} from 'node:url'; import {isCanonicalSourceUri} from './dist/core/source-uris.js'; const root=join(tmpdir(),'bve-uri-probe'); const directory=pathToFileURL(root+sep).href; const file=pathToFileURL(join(root,'catalog.yaml')).href; console.log(JSON.stringify({platform:process.platform,root,directory,file,directoryValid:isCanonicalSourceUri(directory,true),fileValid:isCanonicalSourceUri(file)}));"
       - run: npm run check
       - run: npm audit
       - run: npm audit --omit=dev
