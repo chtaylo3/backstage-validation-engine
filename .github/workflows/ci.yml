@@ -104,6 +104,20 @@ jobs:
           retention-days: 14
       - name: Entire harness using the packaged Node and server
         run: npm run test:packaged
+      - name: Repeat native worker lifecycle with the packaged Windows runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $directory = '.artifacts/tests/worker-lifecycle'
+          New-Item -ItemType Directory -Force $directory | Out-Null
+          $completed = @()
+          foreach ($iteration in 1..20) {
+            & ./.artifacts/vscode/stage/runtime/node.exe --test --test-concurrency=1 --test-timeout=30000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit "--test-reporter-destination=$directory/iteration-$iteration.xml" .test-dist/test/cel-runtime.test.js
+            $exitCode = $LASTEXITCODE
+            $completed += @{ iteration = $iteration; exitCode = $exitCode }
+            @{ revision = $env:GITHUB_SHA; expected = 20; completed = $completed } | ConvertTo-Json -Depth 5 | Set-Content "$directory/results.json"
+            if ($exitCode -ne 0) { throw "Packaged worker lifecycle failed at iteration $iteration with exit $exitCode" }
+          }
       - name: Install and test VSIX in minimum and current VS Code (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:extension
@@ -131,6 +145,7 @@ jobs:
             .artifacts/vscode/verification-*/
             .artifacts/vscode/verification-summary.json
             .artifacts/tests/packaged/
+            .artifacts/tests/worker-lifecycle/
           include-hidden-files: true
           if-no-files-found: error
           compression-level: 0

@@ -88,7 +88,7 @@ are retained for 14 days; this workflow does not publish to the Marketplace or
 create releases. Download the appropriate target and install it using VS Code's
 **Extensions: Install from VSIX** command. See [extension setup](../extensions/vscode/README.md).
 
-Run equivalent checks locally with Node 24.20.0:
+Run equivalent checks locally with Node 24.22.1:
 
 ```sh
 npm ci

@@ -155,3 +155,12 @@ from their actual candidate runs. Remote lanes remain unqualified until those
 real sessions pass. Historical-release upgrades remain open because the current
 predecessor is a reproducible fixture. Web/VS Code for the Web is outside the
 current desktop/workspace extension contract and has not been browser-qualified.
+
+The Windows packaged harness at `3f09ccc` exposed a native Node 24.20.0 exit
+`3221225477` (`0xC0000005`) in the CEL worker lifecycle file. This matches the
+[upstream Windows test-process crash pattern](https://github.com/nodejs/node/issues/65756),
+whose worker Realm cleanup fix shipped in
+[Node 24.22.0](https://nodejs.org/en/blog/release/v24.22.0). The runtime is now
+pinned to security patch 24.22.1, and Windows CI repeats the actual packaged
+worker lifecycle file 20 times. Every iteration must pass; the original failure
+remains recorded. This pin update must qualify through the same full matrix.
