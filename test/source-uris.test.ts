@@ -17,6 +17,7 @@ void test('native temporary directory and file URIs retain their canonical platf
 void test('canonical names accept Windows drive roots and ordinary escaped characters on every host', () => {
   for (const root of [
     'file:///C:/Users/runneradmin/',
+    'file:///C:/Users/RUNNER%7E1/',
     'file:///D:/a/project/',
     'file:///workspace/space%20here/',
   ]) {

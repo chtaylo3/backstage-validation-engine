@@ -1,4 +1,6 @@
-/** Snapshot-local names have one file-URI spelling; no filesystem or symlink resolution occurs. */
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+/** Snapshot-local names have one platform spelling; no filesystem/symlink resolution occurs. */
 export function isCanonicalSourceUri(value: string, directory = false): boolean {
   try {
     const uri = new URL(value);
@@ -19,9 +21,10 @@ export function isCanonicalSourceUri(value: string, directory = false): boolean 
         )
     )
       return false;
-    const canonical = new URL('file:///');
-    canonical.pathname = path;
-    return canonical.href === value;
+    // Node encodes Windows short-name tildes as %7E. Use its platform-specific
+    // codec even on other hosts, while keeping POSIX snapshot names portable.
+    const windows = /^\/[A-Za-z]:\//u.test(path);
+    return pathToFileURL(fileURLToPath(uri, { windows }), { windows }).href === value;
   } catch {
     return false;
   }

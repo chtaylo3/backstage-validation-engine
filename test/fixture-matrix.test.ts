@@ -152,23 +152,19 @@ void test('artifact loading rejects traversal and absolute paths on either OS co
   }
 });
 
-void test(
-  'artifact loading rejects a symlink outside the artifact root',
-  { skip: process.platform === 'win32' },
-  async (t) => {
-    const outer = await prepare(t, []);
-    const root = path.join(outer, 'artifacts');
-    await mkdir(root);
-    await writeFile(path.join(outer, 'outside.yaml'), SPEC);
-    await symlink(path.join(outer, 'outside.yaml'), path.join(root, 'link.yaml'));
-    const [base] = createFixtureMatrix({ supportedMinors: ['1.2'], releases: [release('1.2.3')] });
-    assert(base);
-    await assert.rejects(
-      loadContractArtifact({ ...base, openApi: { ...base.openApi, path: 'link.yaml' } }, root),
-      /inside/,
-    );
-  },
-);
+void test('artifact loading rejects a symlink outside the artifact root', async (t) => {
+  const outer = await prepare(t, []);
+  const root = path.join(outer, 'artifacts');
+  await mkdir(root);
+  await writeFile(path.join(outer, 'outside.yaml'), SPEC);
+  await symlink(path.join(outer, 'outside.yaml'), path.join(root, 'link.yaml'), 'file');
+  const [base] = createFixtureMatrix({ supportedMinors: ['1.2'], releases: [release('1.2.3')] });
+  assert(base);
+  await assert.rejects(
+    loadContractArtifact({ ...base, openApi: { ...base.openApi, path: 'link.yaml' } }, root),
+    /inside/,
+  );
+});
 
 // An HTTP lifecycle probe, not an implementation of the Backstage API.
 async function startProbe(artifact: ContractArtifact) {
