@@ -31,7 +31,7 @@ export async function launchEditor(
 ) {
   const log = createWriteStream(directory + '/editor-process.log');
   const child = spawn(executable, args, {
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...env, GH_TOKEN: undefined, GITHUB_TOKEN: undefined },
     detached: process.platform !== 'win32',
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -85,7 +85,9 @@ export async function launchEditor(
         failure = error.message;
         resolve(1);
       });
-      child.once('close', (code) => resolve(code ?? 1));
+      // Remote transports can inherit the editor's pipes after its main
+      // process exits. Observe native process exit, then close our pipe ends.
+      child.once('exit', (code) => resolve(code ?? 1));
     });
   } finally {
     signal?.removeEventListener('abort', abort);
@@ -103,6 +105,8 @@ export async function launchEditor(
     // descendants of a crashed editor cannot outlive this test session.
     if (!killing && process.platform !== 'win32' && (!inspectExit || failure))
       await killTree(child.pid);
+    child.stdout.destroy();
+    child.stderr.destroy();
     await new Promise((resolve, reject) => {
       log.once('error', reject);
       log.end(resolve);

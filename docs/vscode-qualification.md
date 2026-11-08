@@ -66,6 +66,13 @@ in `resource-metrics.json`; observed local timings do not qualify hosted hardwar
 The client baseline is measured after product Stop and includes the loaded client
 module, while cold readiness starts at the parent editor launch timestamp.
 
+The load lane exposed duplicate native source/baseline preparation by validation
+and completion. Catalog-backed LSP generations now share that immutable local
+preparation before catalog HTTP; each still enforces the original deadline and
+generation cancellation. An actual held-HTTP test on both API pins verifies that
+local completion remains available, and a newer edit cancels the old generation.
+There is no persistent cross-request source cache.
+
 ## Current qualification status
 
 Increment 2 is qualified at `d3884ed` by
@@ -75,9 +82,13 @@ combinations in `b7035e2`, but its overall CI run failed on trust automation:
 command-palette focus and transient Windows evidence-file rename locks. Those
 failures remain recorded in
 [CI 42449939578](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42449939578).
-The follow-up waits for actual palette focus/query text and uses bounded atomic
+The follow-up uses the Restricted Mode banner and pins the native Workspace Trust
+tab; the palette is only a fallback. Evidence replacement uses bounded atomic
 rename retries only for native Windows sharing errors. It does not retry a failed
-scenario into success.
+scenario into success. Windows virtual/remote launches use `--folder-uri=value`
+to avoid the [upstream Chromium argument filtering issue](https://github.com/microsoft/vscode/blob/main/src/vs/code/node/cli.ts).
+The preliminary WSL lane booted kernel `6.18.54.1-microsoft-standard-WSL2` on
+`windows-2025` image `20261103.298.1`; its editor session still needs to qualify.
 
 The final matrix, repetition, compatibility and soak qualifications must be read
 from their actual candidate runs. Remote lanes remain unqualified until those

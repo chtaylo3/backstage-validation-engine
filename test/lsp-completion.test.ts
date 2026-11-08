@@ -19,6 +19,7 @@ import {
   policyRun,
   policyMatrix,
   team,
+  ownerRule,
 } from './harness/policy-fixture.js';
 import { startLspClient } from './harness/lsp-client.js';
 import { filesystemFixture } from './harness/filesystem-fixture.js';
@@ -73,6 +74,40 @@ async function eventually(work: () => Promise<CompletionList>, wanted: string) {
   }
   return result;
 }
+
+void test('local completion stays available before held validation HTTP and follows the new source generation', async (t) => {
+  const matrix = await policyMatrix(t);
+  for (const { fixture, target } of matrix.fixtures)
+    await t.test(target.backstageVersion, async (t) => {
+      const gate = fixture.holdNext({ operation: 'byName', entityRef: 'group:default/te' });
+      const host = await startLspClient(t, config({ rules: [ownerRule] }, fixture.baseUrl));
+      try {
+        const after = host.diagnostics.length;
+        await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+          textDocument: { uri: URI, version: 1, text: componentText('te'), languageId: 'yaml' },
+        });
+        await gate.entered;
+        const list = await eventually(() => complete(host), 'group:default/team');
+        assert(list.items.some((row) => row.label === 'group:default/team'));
+        assert.equal(
+          host.diagnostics.length,
+          after,
+          'Local completion does not wait for validation HTTP.',
+        );
+        await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+          textDocument: { uri: URI, version: 2 },
+          contentChanges: [{ text: componentText('team') + '# current\n' }],
+        });
+        await gate.cancelled;
+        gate.release();
+        await host.waitFor((row) => row.uri === URI && row.version === 2, after);
+        await eventually(() => complete(host), 'group:default/team');
+        assert(!host.diagnostics.some((row) => row.uri === URI && row.version === 1));
+      } finally {
+        gate.release();
+      }
+    });
+});
 
 void test('stdio completes declared references from workspace sources on both native pins', async (t) => {
   for (const adapterId of BACKSTAGE_ADAPTER_IDS)

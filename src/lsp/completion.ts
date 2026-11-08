@@ -3,6 +3,7 @@ import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node
 import type { CompletionList, CompletionParams, Range } from 'vscode-languageserver/node';
 import type { ValidationRequest, JsonValue } from '../contracts/schemas.js';
 import type { Immutable } from '../core/json.js';
+import type { LocalCatalogSources } from '../core/reference-data.js';
 import { digestText } from '../core/json.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
@@ -106,7 +107,13 @@ function target(
 export class CompletionService {
   private generation = 0;
   private index: Index | undefined;
-  private pending: { request: Immutable<ValidationRequest>; generation: number } | undefined;
+  private pending:
+    | {
+        request: Immutable<ValidationRequest>;
+        generation: number;
+        local?: Promise<LocalCatalogSources | undefined>;
+      }
+    | undefined;
   private active: Promise<void> | undefined;
   private controller: AbortController | undefined;
   private remote:
@@ -149,9 +156,13 @@ export class CompletionService {
     this.controller?.abort();
     this.remote?.controller.abort();
   }
-  update(request: Immutable<ValidationRequest>, generation: number): Promise<void> {
+  update(
+    request: Immutable<ValidationRequest>,
+    generation: number,
+    local?: Promise<LocalCatalogSources | undefined>,
+  ): Promise<void> {
     if (this.stopped) return Promise.resolve();
-    this.pending = { request, generation };
+    this.pending = { request, generation, ...(local ? { local } : {}) };
     this.drain();
     return this.active ?? Promise.resolve();
   }
@@ -166,19 +177,25 @@ export class CompletionService {
       const request = input.request;
       using budget = new RequestBudget(request.execution.deadlineAt, controller.signal);
       const adapter = await loadBackstageAdapter(this.config.profile.adapterId);
-      const compatibility = await validateBackstageSources(request, this.config, {
-        signal: budget.signal,
-      });
+      const local = input.local ? await abortable(input.local, budget.signal) : undefined;
+      if (input.local && !local) return;
+      const compatibility =
+        local?.compatibility ??
+        (await validateBackstageSources(request, this.config, {
+          signal: budget.signal,
+        }));
       const { baseline: baselineSource, ...baselineRequest } = request;
-      const baseline = baselineSource
-        ? await validateBackstageSources(
-            { ...baselineRequest, source: baselineSource },
-            this.config,
-            {
-              signal: budget.signal,
-            },
-          )
-        : undefined;
+      const baseline = local
+        ? local.baseline
+        : baselineSource
+          ? await validateBackstageSources(
+              { ...baselineRequest, source: baselineSource },
+              this.config,
+              {
+                signal: budget.signal,
+              },
+            )
+          : undefined;
       const proposed = await buildProposedCatalog(request, compatibility, baseline, budget);
       if (
         compatibility.interrupted !== 'none' ||

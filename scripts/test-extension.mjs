@@ -315,7 +315,7 @@ async function execute(spec, output, fault, peer) {
       }
     }
     const args = [
-      ...(virtual ? ['--folder-uri', 'bve-virtual:/workspace'] : [workspaceArgument]),
+      ...(virtual ? ['--folder-uri=bve-virtual:/workspace'] : [workspaceArgument]),
       '--extensions-dir',
       installed,
       '--user-data-dir',

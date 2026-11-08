@@ -62,7 +62,9 @@ export async function run(fixture: Fixture): Promise<void> {
     source: ReturnType<typeof createSourceSnapshot>;
     filesystem: { files: string[]; entrypoints: string[] };
   };
-  const files = config.source.files.slice(0, 2);
+  const approved = new Set([fixture.uri.fsPath, fixture.teamUri.fsPath]);
+  const files = config.source.files.filter((row) => approved.has(vscode.Uri.parse(row.uri).fsPath));
+  assert.equal(files.length, 2, 'Recovery retains the Component and its referenced Group.');
   config.source = createSourceSnapshot({
     repository: config.source.repository,
     revision: config.source.revision,

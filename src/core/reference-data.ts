@@ -63,6 +63,11 @@ export interface ReferenceDataPreparation {
   readonly failureEvidence?: readonly FailureEvidence[];
 }
 type Interruption = ReferenceDataPreparation['interrupted'];
+/** Immutable local work that advisory completion may reuse before catalog HTTP. */
+export interface LocalCatalogSources {
+  readonly compatibility: BackstageCompatibilityReport;
+  readonly baseline?: BackstageCompatibilityReport;
+}
 const priority: Record<Interruption, number> = {
   none: 0,
   resource_limit: 1,
@@ -95,6 +100,7 @@ export async function prepareBackstageReferenceData(
     readonly access: CatalogAccessContext;
     readonly signal?: AbortSignal;
     readonly referencePaths?: readonly string[];
+    readonly onLocalSources?: (sources: LocalCatalogSources) => void;
   },
 ): Promise<ReferenceDataPreparation> {
   const timer = new FailureTimer();
@@ -143,6 +149,7 @@ export async function prepareBackstageReferenceData(
     );
     interruption = merge(interruption, baseline.interrupted);
   }
+  options.onLocalSources?.(Object.freeze({ compatibility, ...(baseline ? { baseline } : {}) }));
   let proposed: Awaited<ReturnType<typeof buildProposedCatalog>> | undefined;
   try {
     if (!run.baseline || baseline)

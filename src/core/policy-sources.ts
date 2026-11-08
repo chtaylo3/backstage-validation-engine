@@ -13,6 +13,7 @@ import { executePolicyRules } from './cel-rules.js';
 import { deepFreeze } from './json.js';
 import type { Immutable } from './json.js';
 import { prepareBackstageReferenceData } from './reference-data.js';
+import type { LocalCatalogSources } from './reference-data.js';
 import { verifyRequestBindings } from './bindings.js';
 import {
   FAILURE_EVIDENCE_LIMIT,
@@ -43,6 +44,7 @@ export async function validatePolicySources(
     readonly runtime?: CelRuntime;
     /** Unexpected-exception observer. Structured failures remain in the returned report. */
     readonly onFailure?: (evidence: FailureEvidence) => void;
+    readonly onLocalSources?: (sources: LocalCatalogSources) => void;
   } = {},
 ) {
   const timer = new FailureTimer();
@@ -86,6 +88,7 @@ export async function validatePolicySources(
           ...catalog,
           ...signal,
           referencePaths: paths,
+          ...(options.onLocalSources ? { onLocalSources: options.onLocalSources } : {}),
         })
       : undefined;
     const compatibility =

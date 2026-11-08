@@ -121,7 +121,7 @@ export class Workbench {
   }
   async rectangle(pattern) {
     return this.evaluate(
-      `(() => { const match = new RegExp(${JSON.stringify(pattern)}, 'i'); const e = Array.from(document.querySelectorAll('[role="button"],button,a.monaco-button')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim())); if (!e) return null; e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,text:e.innerText}; })()`,
+      `(() => { const match = new RegExp(${JSON.stringify(pattern)}, 'i'); const e = Array.from(document.querySelectorAll('[role="button"],[role="tab"],button,a')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim())); if (!e) return null; e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,text:e.innerText}; })()`,
     );
   }
   async click(pattern) {
@@ -133,10 +133,28 @@ export class Workbench {
     await this.clickAt(rectangle);
     return rectangle.text;
   }
-  async clickAt(rectangle) {
-    const point = { x: rectangle.x, y: rectangle.y, button: 'left', clickCount: 1 };
-    await this.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point });
-    await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
+  async clickAt(rectangle, count = 1) {
+    for (let clickCount = 1; clickCount <= count; clickCount++) {
+      const point = { x: rectangle.x, y: rectangle.y, button: 'left', clickCount };
+      await this.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point });
+      await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
+    }
+  }
+  async trustPane() {
+    const tab = await this.rectangle('^Workspace Trust$');
+    if (tab) await this.clickAt(tab);
+    else {
+      const manage = await this.rectangle('^Manage$');
+      if (manage) await this.clickAt(manage);
+      else await this.palette('Manage Workspace Trust');
+    }
+    let opened;
+    await this.wait(async () => {
+      opened = await this.rectangle('^Workspace Trust$');
+      return !!opened;
+    }, 'native Workspace Trust tab');
+    // Keep the native pane open when the driver activates the catalog tab.
+    await this.clickAt(opened, 2);
   }
   async wait(predicate, label) {
     const end = Date.now() + 15_000;
@@ -180,6 +198,30 @@ export async function connectWorkbench(port, isExited = () => false) {
   throw new Error('No owned workbench CDP target.');
 }
 
+/** Passive bootstrap evidence; never changes trust or retries a remote case. */
+export async function observeWorkbench({ port, directory, isExited, signal }) {
+  let workbench;
+  try {
+    for (const [index, delay] of [20_000, 40_000, 60_000].entries()) {
+      await pause(delay, undefined, { signal });
+      if (isExited()) return;
+      if (!workbench || workbench.closed) workbench = await connectWorkbench(port, isExited);
+      await workbench.screenshot(path.join(directory, `connection-${index}.png`));
+      await writeFile(
+        path.join(directory, `connection-${index}.txt`),
+        await workbench.evaluate('document.body.innerText'),
+      );
+    }
+  } catch (error) {
+    if (!signal.aborted)
+      await atomic(path.join(directory, 'connection-observer.json'), {
+        error: error.stack ?? String(error),
+      });
+  } finally {
+    workbench?.close();
+  }
+}
+
 /** Trust changes go exclusively through visible workbench controls and native input. */
 export async function controlTrust({ port, base, stage, isExited }) {
   const control = path.join(base, 'trust-control.json');
@@ -217,12 +259,12 @@ export async function controlTrust({ port, base, stage, isExited }) {
         await atomic(path.join(base, 'trust-ack.json'), { stage, step: state.step });
         await record(state.step, { trusted: state.trusted });
       } else if (state.step === 'grant') {
-        await browser.palette('Workspace: Manage Workspace Trust');
+        await browser.trustPane();
         await browser.screenshot(path.join(base, `${stage}-before-grant.png`));
         const button = await browser.click('^Trust(?:\\s|$)');
         await record('clicked-grant', { button });
       } else if (state.step === 'revoke') {
-        await browser.palette('Workspace: Manage Workspace Trust');
+        await browser.trustPane();
         const epoch = browser.epoch;
         await browser.screenshot(path.join(base, `${stage}-before-revoke.png`));
         const button = await browser.click("^(?:Don['’]t Trust|Do not trust)(?:\\s|$)");

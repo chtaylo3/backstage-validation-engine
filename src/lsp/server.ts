@@ -20,6 +20,7 @@ import type { SourceInput } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { validatePolicySources } from '../core/policy-sources.js';
+import type { LocalCatalogSources } from '../core/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
 import { parseContract } from '../contracts/validate.js';
@@ -184,14 +185,21 @@ export function attachLspServer(
           ? parseContract('validation-request', { ...original, source })
           : createLspRequest(config, source);
         deadlineAt = request.execution.deadlineAt;
-        void completion.update(request, generation);
+        let deliver: ((sources?: LocalCatalogSources) => void) | undefined;
+        const local = config.policy.rules.some((rule) => rule.kind === 'catalog')
+          ? new Promise<LocalCatalogSources | undefined>((resolve) => {
+              deliver = resolve;
+            })
+          : undefined;
+        void completion.update(request, generation, local);
         const report = await validatePolicySources(request, config, {
+          ...(deliver ? { onLocalSources: deliver } : {}),
           onFailure: (row) => {
             if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
           },
           signal: abort.signal,
           ...(options.catalog ? { catalog: options.catalog } : {}),
-        });
+        }).finally(() => deliver?.());
         if (!current()) return;
         evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
         if (

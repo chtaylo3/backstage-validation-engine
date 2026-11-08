@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron';
 import { launchEditor } from './extension-test-process.mjs';
+import { debugPort, observeWorkbench } from './extension-test-ui.mjs';
+import { classify, junit } from '../.artifacts/vscode/test/reporting.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mode = process.argv.find((value) => value.startsWith('--mode='))?.slice(7);
@@ -46,8 +48,51 @@ const evidence = {
   sessions: [],
   runner: { os: process.platform, arch: process.arch, image: process.env.ImageVersion ?? null },
 };
-const save = () =>
-  writeFile(path.join(out, 'results.json'), JSON.stringify(evidence, null, 2) + '\n');
+const save = async () => {
+  const cases = ['1.106.3', '1.145.2'].flatMap((version) =>
+    [0, 1].map((stage) => {
+      const row = evidence.sessions.find(
+        (value) => value.version === version && value.stage === stage,
+      );
+      const state = row
+        ? classify(
+            { id: 'remote-session', version },
+            { ...row.result, ...(row.progress ? { progress: row.progress } : {}) },
+          )
+        : { status: 'unexecuted', phase: 'launch' };
+      return {
+        id: stage === 0 ? 'remote-disconnect' : 'remote-reconnect',
+        version,
+        durationMs: row?.durationMs ?? 0,
+        ...state,
+      };
+    }),
+  );
+  const counts = {
+    discovered: 4,
+    executed: cases.filter((row) => row.status !== 'unexecuted').length,
+    passed: cases.filter((row) => row.status === 'passed').length,
+    failed: cases.filter((row) => row.status === 'failed').length,
+    unexecuted: cases.filter((row) => row.status === 'unexecuted').length,
+  };
+  if (!payload) evidence.counts = counts;
+  await writeFile(path.join(out, 'results.json'), JSON.stringify(evidence, null, 2) + '\n');
+  if (!payload)
+    await writeFile(
+      path.join(out, 'junit.xml'),
+      junit({
+        metadata: { revision: evidence.revision, mode, vsixSha256: evidence.vsixSha256 ?? null },
+        conclusion:
+          evidence.status === 'running'
+            ? 'running'
+            : evidence.status === 'passed'
+              ? 'success'
+              : 'failure',
+        counts,
+        cases,
+      }),
+    );
+};
 const session = await mkdtemp(path.join(tmpdir(), 'bve-remote-'));
 const containerName = 'bve-' + randomUUID();
 const catalogToken = randomUUID();
@@ -63,6 +108,8 @@ const distro = 'BveCI-' + randomUUID();
 let container,
   imported = false;
 let remote;
+const desktops = [];
+const hosts = [];
 let remotePath = (value) => Promise.resolve(value);
 async function preflight(name, work) {
   try {
@@ -242,7 +289,6 @@ try {
       await remote('cp', [key + '.pub', '/root/.ssh/authorized_keys']);
       await remote('chmod', ['600', '/root/.ssh/authorized_keys']);
       // Reserve a loopback port; the container shares this ephemeral runner's network.
-      const { debugPort } = await import('./extension-test-ui.mjs');
       const port = await debugPort();
       await remote('/usr/sbin/sshd', ['-p', String(port)]);
       sshConfig = path.join(session, 'ssh-config');
@@ -267,7 +313,7 @@ try {
         mode === 'wsl' ? '/tmp/bve-' + version + '-' + randomUUID() : path.join(session, version);
       await remote('mkdir', ['-p', remoteSession, '/root/.vscode-server/bin/' + commit]);
       await preflight('Pin workspace server ' + version, async () => {
-        const archive = path.join(remoteSession, 'server.tar.gz');
+        const archive = path.posix.join(remoteSession, 'server.tar.gz');
         await remote('curl', [
           '--fail',
           '--location',
@@ -278,6 +324,7 @@ try {
           archive,
         ]);
         const digest = await remote('sha256sum', [archive]);
+        assert(/^[a-f0-9]{64} /u.test(digest), 'Record the actual remote archive checksum.');
         await remote('tar', [
           '-xzf',
           archive,
@@ -306,6 +353,7 @@ try {
       const fixture = JSON.parse(
         await remote('cat', [path.posix.join(remoteSession, 'fixture.json')]),
       );
+      hosts.push({ remoteSession, base, version });
       // Register the autonomous driver through the real remote extension CLI;
       // copying an unregistered folder can miss the remote profile's inventory.
       const driver = path.join(session, 'driver-' + version);
@@ -355,6 +403,7 @@ try {
           'Remote host must be distinct from the desktop host.',
         );
       const profile = path.join(session, 'profile-' + version);
+      desktops.push({ profile, base });
       await mkdir(path.join(profile, 'User'), { recursive: true });
       await writeFile(
         path.join(profile, 'User/settings.json'),
@@ -370,6 +419,7 @@ try {
           'remote.SSH.useExecServer': false,
           'remote.SSH.useLocalServer': false,
           'remote.SSH.showLoginTerminal': false,
+          'remote.SSH.remotePlatform': { bve: 'linux' },
         }),
       );
       const authority =
@@ -377,10 +427,10 @@ try {
           ? 'ssh-remote+bve'
           : mode === 'wsl'
             ? 'wsl+' + distro
-            : 'attached-container+' + Buffer.from(container).toString('hex');
+            : 'attached-container+' +
+              Buffer.from(JSON.stringify({ containerName: '/' + containerName })).toString('hex');
       const args = [
-        '--folder-uri',
-        `vscode-remote://${authority}${fixture.workspace}`,
+        `--folder-uri=vscode-remote://${authority}${fixture.workspace}`,
         '--extensions-dir',
         installed,
         '--user-data-dir',
@@ -396,9 +446,19 @@ try {
         await remote('rm', ['-f', path.posix.join(remoteSession, 'progress.json')]);
         const directory = path.join(base, 'session-' + stage);
         await mkdir(directory, { recursive: true });
+        const started = Date.now();
+        const port = await debugPort(),
+          observerAbort = new globalThis.AbortController();
+        let exited = false;
+        const observation = observeWorkbench({
+          port,
+          directory,
+          isExited: () => exited,
+          signal: observerAbort.signal,
+        });
         const result = await launchEditor(
           executable,
-          args,
+          [...args, '--remote-debugging-port=' + port, '--remote-debugging-address=127.0.0.1'],
           {
             BVE_EDITOR_CATALOG_TOKEN: catalogToken,
             BVE_LSP_CONFIG: remoteEnvironment.BVE_LSP_CONFIG,
@@ -440,7 +500,11 @@ try {
                   `require('fs').writeFileSync(${JSON.stringify(path.posix.join(remoteSession, 'progress.json'))},${JSON.stringify(JSON.stringify(progress))})`,
                 ]);
               },
-        );
+        ).finally(async () => {
+          exited = true;
+          observerAbort.abort();
+          await observation;
+        });
         const progress = JSON.parse(
           await remote('cat', [path.posix.join(remoteSession, 'progress.json')]).catch(
             () => 'null',
@@ -457,6 +521,7 @@ try {
           hostname: fixture.hostname,
           result,
           progress,
+          durationMs: Date.now() - started,
         });
         await save();
         assert.equal(result.exitCode, 0, result.error);
@@ -494,6 +559,30 @@ try {
   await save();
   throw error;
 } finally {
+  for (const { profile, base } of desktops)
+    await cp(path.join(profile, 'logs'), path.join(base, 'desktop-logs'), {
+      recursive: true,
+    }).catch(() => {});
+  if (remote)
+    for (const { remoteSession, base } of hosts)
+      for (const file of ['progress.json', 'close.json', 'catalog-events.json']) {
+        const value = await remote('cat', [path.posix.join(remoteSession, file)]).catch(
+          () => undefined,
+        );
+        if (value) await writeFile(path.join(base, 'last-host-' + file), value + '\n');
+      }
+  if (container)
+    await run('docker', [
+      'exec',
+      container,
+      'chown',
+      '-R',
+      `${process.getuid()}:${process.getgid()}`,
+      session,
+    ]).catch((error) => {
+      evidence.cleanupError = String(error);
+      process.exitCode = 1;
+    });
   if (container)
     await run('docker', ['rm', '-f', container]).catch((error) => {
       evidence.cleanupError = String(error);

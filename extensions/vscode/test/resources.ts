@@ -35,7 +35,7 @@ export async function ownedServers(extensionPath: string): Promise<number[]> {
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `@(Get-CimInstance Win32_Process -Filter "ParentProcessId=${process.pid}" | Select-Object ProcessId,ExecutablePath) | ConvertTo-Json -Compress`,
+      `ConvertTo-Json -InputObject @(Get-CimInstance Win32_Process -Filter "ParentProcessId=${process.pid}" | Select-Object ProcessId,ExecutablePath) -Compress`,
     ]);
     const rows = JSON.parse(stdout || '[]') as { ProcessId: number; ExecutablePath: string }[];
     return rows
