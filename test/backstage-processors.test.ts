@@ -135,9 +135,10 @@ void test('BC-07 cancellation/deadlines and profile binding still take precedenc
       .interrupted,
     'cancelled',
   );
+  const expiredAt = Date.now() - 1;
   const expired = parseContract('validation-request', {
     ...state.request,
-    execution: { mode: 'ci', startedAt: Date.now() - 5001, deadlineAt: Date.now() - 1 },
+    execution: { mode: 'ci', startedAt: expiredAt - 5000, deadlineAt: expiredAt },
   });
   assert.equal((await validatePolicySources(expired, state.context)).interrupted, 'timeout');
   await assert.rejects(

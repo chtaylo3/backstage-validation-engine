@@ -601,9 +601,10 @@ void test('BC-06 source/overlay budgets and cancellation retain the original req
       .interrupted,
     'cancelled',
   );
+  const expiredAt = Date.now() - 1;
   const expired = parseContract('validation-request', {
     ...state.request,
-    execution: { mode: 'ci', startedAt: Date.now() - 5001, deadlineAt: Date.now() - 1 },
+    execution: { mode: 'ci', startedAt: expiredAt - 5000, deadlineAt: expiredAt },
   });
   assert.equal((await validatePolicySources(expired, state.context)).interrupted, 'timeout');
   const profile: Partial<DeploymentProfile> = {

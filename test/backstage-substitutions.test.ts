@@ -496,9 +496,10 @@ void test('BC-04 cancellation and original deadlines cover resolution without ex
   const abort = new AbortController();
   abort.abort();
   assert.equal((await validate(state, abort.signal)).interrupted, 'cancelled');
+  const expiredAt = Date.now() - 1;
   const expired = parseContract('validation-request', {
     ...state.request,
-    execution: { mode: 'ide', startedAt: Date.now() - 5001, deadlineAt: Date.now() - 1 },
+    execution: { mode: 'ide', startedAt: expiredAt - 5000, deadlineAt: expiredAt },
   });
   assert.equal((await validate({ ...state, request: expired })).interrupted, 'timeout');
 });

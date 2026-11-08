@@ -165,9 +165,10 @@ void test('schema execution does not coerce types, insert defaults, mutate subje
   const report = await executePolicyRules(run.request, run.context, [subject]);
   assert.equal(report.ruleStates[0]?.status, 'failed');
   assert.deepEqual(subject, before);
+  const expiredAt = Date.now() - 1000;
   const expired = parseContract('validation-request', {
     ...run.request,
-    execution: { mode: 'ci', startedAt: Date.now() - 6000, deadlineAt: Date.now() - 1000 },
+    execution: { mode: 'ci', startedAt: expiredAt - 5000, deadlineAt: expiredAt },
   });
   const stopped = await executePolicyRules(expired, run.context, [subject]);
   assert.equal(stopped.interrupted, 'timeout');

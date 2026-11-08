@@ -33,6 +33,10 @@ candidate artifacts, verify the recorded VSIX/runtime checksums and revision,
 extract the installed payload, and compile the driver from the same checkout.
 They do not rebuild another product VSIX for qualification. Fixture predecessors
 are identified separately and cannot count as historical-release coverage.
+The immutable candidate is uploaded immediately after packaging so independent
+remote and endurance lanes can run concurrently with portable tests. The release
+verdict still requires the entire CI run to succeed and matches every lane to
+the same checksum in the final CI evidence.
 
 The compatibility workflow has three manual modes:
 

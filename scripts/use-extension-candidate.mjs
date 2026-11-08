@@ -34,7 +34,9 @@ while (Date.now() < deadline) {
   run = runs.workflow_runs.find((value) => value.head_sha === revision);
   if (run) {
     const artifacts = await api(`actions/runs/${run.id}/artifacts?per_page=100`);
-    selected = artifacts.artifacts.find((value) => value.name === 'vscode-' + os && !value.expired);
+    selected = artifacts.artifacts.find(
+      (value) => value.name === 'vscode-candidate-' + os && !value.expired,
+    );
     if (selected?.digest && selected.size_in_bytes > 0) break;
     assert(run.status !== 'completed', 'Candidate CI finished without the required OS artifact.');
   }

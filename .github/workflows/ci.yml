@@ -91,6 +91,17 @@ jobs:
       - run: npm ci
       - name: Package engine, production dependencies and pinned Node runtime
         run: npm run extension:package
+      - name: Make the exact candidate available to independent qualification lanes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-candidate-${{ matrix.os }}
+          path: |
+            .artifacts/vscode/*.vsix
+            .artifacts/vscode/*.sha256
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
       - name: Entire harness using the packaged Node and server
         run: npm run test:packaged
       - name: Install and test VSIX in minimum and current VS Code (Linux)

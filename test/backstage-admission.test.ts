@@ -475,9 +475,10 @@ void test('BC-05 preserves the original deadline and cancellation before custom 
   const controller = new AbortController();
   controller.abort();
   assert.equal((await validate(state, controller.signal)).interrupted, 'cancelled');
+  const expiredAt = Date.now() - 1;
   const expired = parseContract('validation-request', {
     ...state.request,
-    execution: { mode: 'ci', startedAt: Date.now() - 5001, deadlineAt: Date.now() - 1 },
+    execution: { mode: 'ci', startedAt: expiredAt - 5000, deadlineAt: expiredAt },
   });
   assert.equal((await validate({ ...state, request: expired })).interrupted, 'timeout');
 });
