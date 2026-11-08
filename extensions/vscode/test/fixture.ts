@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 
 export interface Api {
-  status(): { running: boolean; pid?: number };
+  status(): { running: boolean; pid?: number; disconnected?: boolean };
 }
 export const team =
   'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {type: team, children: []}\n';
@@ -54,7 +54,7 @@ export class Fixture {
   readonly teamUri = vscode.Uri.file(
     path.join(process.env.BVE_EXTENSION_TEST_WORKSPACE!, 'team.yaml'),
   );
-  async setup(): Promise<void> {
+  async setup(initialRunning = true): Promise<void> {
     assert.equal(
       vscode.version,
       process.env.BVE_EXTENSION_TEST_VERSION,
@@ -68,8 +68,10 @@ export class Fixture {
       'Test the installed VSIX, not a development override.',
     );
     this.api = await bounded(extension.activate(), 'product activation');
-    await until(() => this.api!.status().running, 'packaged server startup');
-    this.pid();
+    if (initialRunning) {
+      await until(() => this.api!.status().running, 'packaged server startup');
+      this.pid();
+    } else assert.equal(this.api.status().running, false, 'Negative startup must stay stopped.');
   }
   pid(): number {
     const pid = this.api?.status().pid;

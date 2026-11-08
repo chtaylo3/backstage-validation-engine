@@ -2,12 +2,18 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
-import { LanguageClient, RevealOutputChannelOn } from 'vscode-languageclient/node';
+import {
+  CloseAction,
+  ErrorAction,
+  LanguageClient,
+  RevealOutputChannelOn,
+} from 'vscode-languageclient/node';
 import type { LanguageClientOptions } from 'vscode-languageclient/node';
 
 let client: LanguageClient | undefined;
 let pending: Promise<void> = Promise.resolve();
 let output: vscode.LogOutputChannel | undefined;
+let disconnected = false;
 
 function selectedConfig(): string | undefined {
   const settings = vscode.workspace.getConfiguration('backstageValidation');
@@ -72,11 +78,12 @@ async function selectors(
 }
 async function stop(): Promise<void> {
   const previous = client;
-  client = undefined;
   if (previous) await previous.stop();
+  if (client === previous) client = undefined;
 }
 async function start(context: vscode.ExtensionContext): Promise<void> {
   await stop();
+  disconnected = false;
   if (!vscode.workspace.isTrusted) return;
   const config = selectedConfig();
   if (!config) {
@@ -105,6 +112,16 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       outputChannel: output!,
       revealOutputChannelOn: RevealOutputChannelOn.Never,
       initializationFailedHandler: () => false,
+      errorHandler: {
+        error: () => ({ action: ErrorAction.Shutdown, handled: true }),
+        closed: () => {
+          disconnected = true;
+          output?.error(
+            'Validation stopped after the server disconnected. Use Restart Language Server to recover.',
+          );
+          return { action: CloseAction.DoNotRestart, handled: true };
+        },
+      },
     },
   );
   client = next;
@@ -112,8 +129,17 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     await next.start();
     output?.info('Packaged Backstage language server is ready.');
   } catch {
-    if (client === next) client = undefined;
-    await next.stop().catch(() => {});
+    await next.stop().then(
+      () => {
+        if (client === next) client = undefined;
+      },
+      () => {
+        // Retain ownership when cleanup fails so Stop/Restart can retry it.
+        // The SDK can reject stop in startFailed after it has already taken
+        // responsibility for reaping and cleared its process handle.
+        if (client === next && !next.serverProcess) client = undefined;
+      },
+    );
     throw new Error(
       'Unable to start Backstage validation. Check the trusted configuration and output channel.',
     );
@@ -148,7 +174,11 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   }
   return {
-    status: () => ({ running: client?.isRunning() === true, pid: client?.serverProcess?.pid }),
+    status: () => ({
+      running: client?.isRunning() === true,
+      pid: client?.serverProcess?.pid,
+      disconnected,
+    }),
   };
 }
 export async function deactivate(): Promise<void> {

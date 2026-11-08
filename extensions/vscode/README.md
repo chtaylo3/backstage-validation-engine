@@ -22,6 +22,12 @@ buffers; approved saved files refresh through the language client's watchers.
 Diagnostics, reference completion and policy quick fixes use standard VS Code
 language features. A fix must still pass the server's source/version checks.
 
+If the server disconnects unexpectedly, validation stays stopped. Use **Restart
+Language Server** to recover after correcting the cause. This prevents automatic
+crash loops. Failed cleanup retains the client handle for a subsequent Stop or
+Restart; an initialization failure that the SDK has already reaped can recover
+without reloading the editor.
+
 Preview scope: the implemented native model/API pins and declared reference/fix
 inventory. No Marketplace publication, JetBrains integration, production policy
 authority or real Backstage backend qualification is implied by this package.

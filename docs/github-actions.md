@@ -121,9 +121,24 @@ The baseline at `6239437` has
 reported checkpoints, repeated on three operating systems and two editor versions.
 Those checkpoints are not independent tests, and engine LCOV does not measure
 extension-client coverage. Increment 1 now implements independent scenarios,
-incremental reporting and runner failure verification. Client coverage and the
-remaining increments below are still planned. Qualification requires the actual
+incremental reporting and runner failure verification. Increment 2 adds native
+configuration rejection/recovery, server-crash/manual-restart and overlapping
+lifecycle scenarios, plus a separate client coverage job on every OS. Further
+increments below are still planned. Qualification requires the actual
 hosted results for the candidate revision.
+
+The client coverage gate executes the production extension entry point with
+explicit VS Code/language-client adapters under Node's module hooks. It requires
+90% lines and 85% branches, nonzero tests and zero skips. Its LCOV source inventory
+must exactly match every `extensions/vscode/src/*.ts` file after source mapping;
+empty 100% reports, missing sources and dependency/test contamination fail. Clean
+installed-VSIX scenarios remain separate. Native denied-read fixtures use POSIX
+permissions or a Windows ACL and first prove that access is actually denied.
+
+Local debugging can select `npm run test:extension -- --case=<discovered-id>`.
+Focused reports go to `editor-focused/`; CI rejects focused selection and runs the
+complete declared inventory. Fixture-owned delayed-request races and deactivation
+during validation are qualified in increment 3.
 
 Keep the existing full source and packaged suites, dependency audits, native VSIX
 builds and installed-payload assertions. Run behavior tests against the installed

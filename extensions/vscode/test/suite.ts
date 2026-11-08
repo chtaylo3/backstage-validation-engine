@@ -22,10 +22,11 @@ export async function run(): Promise<void> {
   }
   await save();
   try {
-    await fixture.setup();
     const scenario = (await import(pathToFileURL(process.env.BVE_EXTENSION_TEST_MODULE!).href)) as {
+      initialRunning?: boolean;
       run: (fixture: Fixture) => Promise<void>;
     };
+    await fixture.setup(scenario.initialRunning !== false);
     assert.equal(typeof scenario.run, 'function', 'Discovered case must export run().');
     progress.phase = 'run';
     await save();

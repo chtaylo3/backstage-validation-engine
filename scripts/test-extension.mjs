@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
+import { readable } from './extension-test-permissions.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const artifactRoot = path.join(root, '.artifacts/vscode');
@@ -31,6 +32,12 @@ const modules = (await readdir(path.join(testRoot, 'cases')))
 assert(modules.length > 0, 'No installed-extension cases discovered.');
 assert.deepEqual(modules, inventory, 'Compiled case inventory must match the package build.');
 const verify = process.argv.includes('--verify-failures');
+const focused = process.argv.find((value) => value.startsWith('--case='))?.slice(7);
+assert(!focused || !process.env.CI, 'CI must run the complete installed-extension inventory.');
+const selectedModules = focused
+  ? modules.filter((name) => name === focused + '.case.cjs')
+  : modules;
+assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
 // (microsoft/vscode#279806). Use one pinned installer; execute every scenario
@@ -53,6 +60,7 @@ const metadata = {
   vsixSha256: checksum,
   installedPayload: true,
   verification: verify,
+  focused: focused ?? null,
   installerVersion,
 };
 
@@ -102,9 +110,47 @@ async function execute(spec, output, fault) {
   const driver = path.join(session, 'driver');
   const progressFile = path.join(base, 'progress.json');
   let outcome;
+  let denied;
   try {
     await Promise.all([profile, driver].map((directory) => mkdir(directory, { recursive: true })));
     const config = await prepareFixture({ session, workspace, profile, driver });
+    let launchConfig = config;
+    const mode = spec.id.startsWith('config-') ? spec.id.slice('config-'.length) : undefined;
+    if (mode) {
+      const bad = path.join(session, 'invalid-launcher.json');
+      const valid = JSON.parse(await readFile(config, 'utf8'));
+      if (mode === 'absent') launchConfig = '';
+      else if (mode === 'relative') launchConfig = 'relative.json';
+      else if (mode === 'missing') launchConfig = bad;
+      else {
+        let text;
+        if (mode === 'unreadable') text = JSON.stringify(valid);
+        else if (mode === 'malformed') text = '{';
+        else if (mode === 'structure') text = '{}';
+        else if (mode === 'server-init') text = JSON.stringify({ source: valid.source });
+        else if (mode === 'non-file')
+          text = JSON.stringify({ source: { files: [{ uri: 'untitled:blocked' }] } });
+        else if (mode === 'file-limit')
+          text = JSON.stringify({
+            source: {
+              files: Array.from({ length: 1001 }, () => ({ uri: valid.source.files[0].uri })),
+            },
+          });
+        else if (mode === 'byte-limit') text = JSON.stringify(valid) + ' '.repeat(32 * 1024 * 1024);
+        else throw new Error('Unknown configuration fault: ' + mode);
+        await writeFile(bad, text);
+        if (mode === 'unreadable') {
+          await readable(bad, false);
+          denied = bad;
+          await assert.rejects(
+            readFile(bad),
+            (error) => error.code === 'EACCES' || error.code === 'EPERM',
+            'Native file permissions must actually deny access.',
+          );
+        }
+        launchConfig = bad;
+      }
+    }
     const args = [
       workspace,
       '--extensions-dir',
@@ -140,7 +186,8 @@ async function execute(spec, output, fault) {
       executable,
       args,
       {
-        BVE_LSP_CONFIG: config,
+        BVE_LSP_CONFIG: launchConfig,
+        BVE_EXTENSION_TEST_CONFIG: config,
         BVE_EXTENSION_TEST_WORKSPACE: workspace,
         BVE_EXTENSION_TEST_INSTALL: installed,
         BVE_EXTENSION_TEST_CASE: spec.id,
@@ -158,6 +205,7 @@ async function execute(spec, output, fault) {
     const progress = await readProgress(progressFile);
     outcome = { ...result, ...(progress ? { progress } : {}) };
   } finally {
+    if (denied) await readable(denied, true);
     // Keep editor logs for every outcome, including injected failures. Fixtures
     // and profiles contain only synthetic authority and are removed afterwards.
     await cp(path.join(profile, 'logs'), path.join(base, 'editor-logs'), { recursive: true }).catch(
@@ -227,9 +275,9 @@ try {
     );
   } else {
     const specs = versions.flatMap((version) =>
-      modules.map((name) => ({ id: name.replace(/\.case\.cjs$/u, ''), version })),
+      selectedModules.map((name) => ({ id: name.replace(/\.case\.cjs$/u, ''), version })),
     );
-    const report = await runGroup('editor-results', specs);
+    const report = await runGroup(focused ? 'editor-focused' : 'editor-results', specs);
     console.log(JSON.stringify(report.counts));
     if (report.conclusion !== 'success') process.exitCode = 1;
   }

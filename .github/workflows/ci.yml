@@ -124,3 +124,28 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+
+  client:
+    name: VS Code client coverage / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:client
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: client-coverage-${{ matrix.os }}
+          path: .artifacts/tests/client/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
