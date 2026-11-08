@@ -83,6 +83,7 @@ export class Fixture {
       await until(() => this.api!.status().running, 'packaged server startup');
       this.pid();
     } else assert.equal(this.api.status().running, false, 'Negative startup must stay stopped.');
+    await this.checkpoint();
   }
   async trustedActivation(): Promise<void> {
     await until(() => vscode.workspace.isTrusted, 'native Workspace Trust grant');
@@ -178,20 +179,27 @@ export class Fixture {
     assert.equal(await vscode.workspace.applyEdit(edit), true);
   }
   async currentDiagnostic(document: vscode.TextDocument): Promise<void> {
-    await until(
-      () =>
-        vscode.languages
-          .getDiagnostics(document.uri)
-          .some(
-            (row) =>
-              row.code === 'production-only' &&
-              (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
-                document.version,
-          ),
-      'diagnostics for the current editor version',
-    );
+    try {
+      await until(
+        () =>
+          vscode.languages
+            .getDiagnostics(document.uri)
+            .some(
+              (row) =>
+                row.code === 'production-only' &&
+                (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+                  document.version,
+            ),
+        'diagnostics for the current editor version',
+      );
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}; version=${document.version}; status=${JSON.stringify(this.api?.status())}; diagnostics=${JSON.stringify(vscode.languages.getDiagnostics(document.uri).map((row) => ({ code: row.code, message: row.message, data: (row as vscode.Diagnostic & { data?: unknown }).data })))}`,
+        { cause: error },
+      );
+    }
   }
-  async control(value: Record<string, unknown>): Promise<{ id: string }> {
+  async control(value: Record<string, unknown>): Promise<{ id: string; reference?: string }> {
     const response = await fetch(process.env.BVE_EXTENSION_TEST_CONTROL_URL!, {
       method: 'POST',
       headers: { authorization: 'Bearer ' + process.env.BVE_EXTENSION_TEST_CONTROL_TOKEN },
@@ -199,7 +207,7 @@ export class Fixture {
       signal: AbortSignal.timeout(20_000),
     });
     assert.equal(response.status, 200, 'Fixture control request succeeds.');
-    return (await response.json()) as { id: string };
+    return (await response.json()) as { id: string; reference?: string };
   }
   catalogs(): { baseUrl: string; version: string }[] {
     return JSON.parse(process.env.BVE_EXTENSION_TEST_CATALOGS!) as {

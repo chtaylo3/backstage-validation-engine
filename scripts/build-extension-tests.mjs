@@ -27,6 +27,42 @@ export async function buildExtensionTests(root = fileURLToPath(new URL('../', im
     sourcemap: true,
   });
   await build({
+    entryPoints: [path.join(root, 'scripts/extension-remote-fixture.mjs')],
+    outfile: path.join(testDirectory, 'remote-prepare.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    banner: {
+      js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
+    },
+    target: 'node24',
+  });
+  await build({
+    entryPoints: [path.join(root, 'extensions/vscode/test/evidence.ts')],
+    outfile: path.join(testDirectory, 'evidence.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+  });
+  await build({
+    entryPoints: [path.join(root, 'extensions/vscode/test/qualification.ts')],
+    outfile: path.join(testDirectory, 'qualification.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+  });
+  await build({
+    entryPoints: [path.join(root, 'extensions/vscode/test/remote-catalog.ts')],
+    outfile: path.join(testDirectory, 'remote-catalog.cjs'),
+    bundle: true,
+    packages: 'external',
+    platform: 'node',
+    format: 'cjs',
+    target: 'node24',
+  });
+  await build({
     entryPoints: [path.join(root, 'extensions/vscode/test/reporting.ts')],
     outfile: path.join(testDirectory, 'reporting.mjs'),
     bundle: true,

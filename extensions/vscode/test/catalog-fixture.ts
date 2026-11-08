@@ -7,9 +7,8 @@ import { startFakeBackstage } from '../../../test/harness/fake-backstage.js';
 import type { ResponseGate } from '../../../test/harness/fake-backstage.js';
 
 /** Test-only control plane, separate from the pinned catalog wire-contract API. */
-export async function createEditorCatalog(root: string) {
+export async function createEditorCatalog(root: string, token: string = randomUUID()) {
   const artifactRoot = path.join(root, 'test/fixtures/backstage');
-  const token = randomUUID();
   const matrix = await startFixtureMatrix(
     await loadPinnedMatrix(artifactRoot),
     artifactRoot,
@@ -27,6 +26,9 @@ export async function createEditorCatalog(root: string) {
       }),
   );
   const gates = new Map<string, ResponseGate>();
+  let outage = false;
+  let outageNumber = 0;
+  let outageAfter = 0;
   const events: { event: string; id?: string; version?: string; at: number }[] = [];
   const controlToken = randomUUID();
   const server = createServer((request, response) => {
@@ -46,6 +48,7 @@ export async function createEditorCatalog(root: string) {
         operation?: 'byName' | 'byQuery';
         entityRef?: string;
         id?: string;
+        after?: number;
       };
       const index = value.version ?? 0;
       const selected = matrix.fixtures[index];
@@ -76,6 +79,57 @@ export async function createEditorCatalog(root: string) {
           gate.release();
           events.push({ event: 'released', id: value.id!, at: Date.now() });
         } else await gate[value.op];
+      } else if (value.op === 'outage') {
+        outage = true;
+        outageAfter = selected.fixture.requests().at(-1)?.id ?? 0;
+        const reference = 'remote-team-' + ++outageNumber;
+        selected.fixture.upsert({
+          apiVersion: 'backstage.io/v1alpha1',
+          kind: 'Group',
+          metadata: { name: reference },
+          spec: { type: 'team', children: [] },
+        });
+        selected.fixture.setPrincipal({
+          token,
+          principalId: 'editor-reader',
+          canRead: false,
+          visibleRefs: '*',
+        });
+        events.push({ event: 'outage', at: Date.now() });
+        result = { reference };
+      } else if (value.op === 'recover') {
+        if (!outage) throw new Error('Recover requires an observed outage.');
+        if (
+          !selected.fixture
+            .requests()
+            .some(
+              (entry) =>
+                entry.id > outageAfter && entry.operation === 'byName' && entry.status === 403,
+            )
+        )
+          throw new Error('Recover requires a real denied catalog lookup.');
+        selected.fixture.setPrincipal({
+          token,
+          principalId: 'editor-reader',
+          canRead: true,
+          visibleRefs: '*',
+        });
+        outage = false;
+        events.push({ event: 'recovered', at: Date.now() });
+      } else if (value.op === 'cursor')
+        result = { id: String(selected.fixture.requests().at(-1)?.id ?? 0) };
+      else if (value.op === 'assert-read') {
+        const read = selected.fixture
+          .requests()
+          .find(
+            (entry) =>
+              entry.id > (value.after ?? 0) &&
+              entry.operation === 'byName' &&
+              entry.status === 200 &&
+              entry.principalId === 'editor-reader',
+          );
+        if (!read) throw new Error('No new authenticated catalog read.');
+        result = { id: String(read.id) };
       } else if (value.op === 'requests') result = selected.fixture.requests();
       else throw new Error('Unknown control operation.');
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));

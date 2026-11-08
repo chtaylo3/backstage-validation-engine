@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { rename, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import { Fixture, bounded } from './fixture.js';
 import type { Progress } from './reporting.js';
+import { writeEvidence } from './evidence.js';
 
 export async function run(): Promise<void> {
   const fixture = new Fixture();
@@ -19,8 +19,7 @@ export async function run(): Promise<void> {
     progress.serverPids = [...fixture.pids];
     progress.readinessCancellations = fixture.readinessCancellations;
     progress.observations = fixture.observations;
-    await writeFile(file + '.tmp', JSON.stringify(progress, null, 2) + '\n');
-    await rename(file + '.tmp', file);
+    await writeEvidence(file, JSON.stringify(progress, null, 2) + '\n');
   }
   fixture.checkpoint = save;
   await save();
@@ -38,7 +37,15 @@ export async function run(): Promise<void> {
       assert.fail('Injected early assertion failure.');
     if (process.env.BVE_EXTENSION_TEST_FAULT === 'crash')
       await new Promise<void>((resolve) => setTimeout(resolve, 60_000));
-    await bounded(scenario.run(fixture), 'case ' + progress.id, 60_000);
+    await bounded(
+      scenario.run(fixture),
+      'case ' + progress.id,
+      progress.id === 'endurance-soak'
+        ? Number(process.env.BVE_SOAK_SECONDS) * 1000 + 90_000
+        : progress.id.startsWith('endurance-')
+          ? 240_000
+          : 60_000,
+    );
   } catch (error) {
     progress.status = 'failed';
     progress.error = error instanceof Error ? (error.stack ?? error.message) : String(error);

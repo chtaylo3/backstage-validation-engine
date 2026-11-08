@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: vscode-races-${{ github.ref }}
@@ -28,6 +29,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-15]
     env:
+      GH_TOKEN: ${{ github.token }}
       BVE_RACE_REPETITIONS: ${{ inputs.repetitions || '20' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -36,7 +38,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run extension:package
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/use-extension-candidate.mjs --os=${{ matrix.os }}
       - name: Repeat every race in both pinned editor versions (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:extension -- --races

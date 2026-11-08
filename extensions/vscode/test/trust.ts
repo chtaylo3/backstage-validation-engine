@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile, rename } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { writeEvidence } from './evidence.js';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { exited, until } from './fixture.js';
@@ -27,8 +28,7 @@ export async function trustScenario(
       trusted: vscode.workspace.isTrusted,
       ...(pid ? { pid } : {}),
     };
-    await writeFile(file + '.tmp', JSON.stringify(value));
-    await rename(file + '.tmp', file);
+    await writeEvidence(file, JSON.stringify(value));
     fixture.note('trust UI step: ' + step);
     await fixture.checkpoint();
   };

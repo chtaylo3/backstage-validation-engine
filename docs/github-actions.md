@@ -131,6 +131,12 @@ Protocol input events, screenshots and a driver that can inspect Restricted Mode
 Broader compatibility remains in progress. Qualification requires the actual
 hosted results for the candidate revision.
 
+Increment 5 implements separate compatibility, remote, load and endurance lanes,
+plus an exact-artifact release verdict. See the [support/evidence matrix](vscode-qualification.md)
+for commands, environment pins, workload definitions, acceptance checks and
+remaining qualification limits. Long workflows consume the actual CI VSIX rather
+than rebuilding a different artifact with the same source revision.
+
 The first increment 3 matrix at `d8b2f15` passed 74 installed-editor executions
 on Linux and Windows. Its macOS run exposed a transport-error shutdown status
 race and the native behavior where closing the last window leaves the application

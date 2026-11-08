@@ -17,6 +17,7 @@ export async function prepareFixture({
   extraFiles = [],
   authorityId = 'editor-test',
   autonomousSuite,
+  virtual = false,
 }) {
   await mkdir(path.join(profile, 'User'), { recursive: true });
   await writeFile(
@@ -48,14 +49,19 @@ export async function prepareFixture({
       version: '0.0.1',
       engines: { vscode: '^1.106.0' },
       main: 'index.cjs',
-      activationEvents: autonomousSuite ? ['onStartupFinished'] : [],
-      capabilities: { untrustedWorkspaces: { supported: true } },
+      activationEvents: autonomousSuite
+        ? ['onStartupFinished', ...(virtual ? ['onFileSystem:bve-virtual'] : [])]
+        : [],
+      capabilities: {
+        untrustedWorkspaces: { supported: true },
+        virtualWorkspaces: { supported: true },
+      },
     }),
   );
   await writeFile(
     path.join(driver, 'index.cjs'),
     autonomousSuite
-      ? `exports.activate = () => { const vscode = require('vscode'); void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.quit'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.quit'); }).catch(console.error); };\n`
+      ? `exports.activate = (context) => { const vscode = require('vscode'); ${virtual ? `const events=new vscode.EventEmitter(); context.subscriptions.push(events,vscode.workspace.registerFileSystemProvider('bve-virtual',{onDidChangeFile:events.event,watch:()=>new vscode.Disposable(()=>{}),stat:u=>({type:u.path==='/workspace'?vscode.FileType.Directory:vscode.FileType.File,ctime:0,mtime:0,size:256}),readDirectory:()=>[['catalog.yaml',vscode.FileType.File],['team.yaml',vscode.FileType.File]],readFile:u=>require('fs').readFileSync(require('path').join(${JSON.stringify(workspace)},require('path').basename(u.path))),createDirectory:()=>{throw vscode.FileSystemError.NoPermissions()},writeFile:()=>{throw vscode.FileSystemError.NoPermissions()},delete:()=>{throw vscode.FileSystemError.NoPermissions()},rename:()=>{throw vscode.FileSystemError.NoPermissions()}},{isReadonly:true}));` : ''} void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.quit'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.quit'); }).catch(console.error); };\n`
       : 'exports.activate = () => {};\n',
   );
   const component =
@@ -64,12 +70,13 @@ export async function prepareFixture({
     'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {type: team, children: []}\n';
   await writeFile(path.join(workspace, 'catalog.yaml'), component);
   await writeFile(path.join(workspace, 'team.yaml'), team);
+  const extraText = (file) =>
+    component
+      .replace('{name: service}', `{name: ${file.entity}}`)
+      .replace('lifecycle: experimental', 'lifecycle: ' + (file.lifecycle ?? 'experimental'));
   for (const file of extraFiles) {
     await mkdir(path.dirname(path.join(workspace, file.name)), { recursive: true });
-    await writeFile(
-      path.join(workspace, file.name),
-      component.replace('{name: service}', `{name: ${file.entity}}`),
-    );
+    await writeFile(path.join(workspace, file.name), extraText(file));
   }
   const uri = (name) => pathToFileURL(path.join(workspace, name)).href;
   const schema = {
@@ -129,7 +136,7 @@ export async function prepareFixture({
       { uri: uri('team.yaml'), text: team },
       ...extraFiles.map((file) => ({
         uri: uri(file.name),
-        text: component.replace('{name: service}', `{name: ${file.entity}}`),
+        text: extraText(file),
       })),
     ],
   });

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createServer } from 'node:net';
-import { readFile, writeFile, rename } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import path from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { setTimeout, clearTimeout } from 'node:timers';
@@ -21,8 +22,7 @@ export async function debugPort() {
 }
 const read = async (file) => JSON.parse(await readFile(file, 'utf8').catch(() => 'null'));
 async function atomic(file, value) {
-  await writeFile(file + '.tmp', JSON.stringify(value, null, 2) + '\n');
-  await rename(file + '.tmp', file);
+  await writeEvidence(file, JSON.stringify(value, null, 2) + '\n');
 }
 
 export class Workbench {
@@ -96,12 +96,19 @@ export class Workbench {
     await this.wait(
       () =>
         this.evaluate(
-          "!!Array.from(document.querySelectorAll('.quick-input-widget input')).find(e => e.getBoundingClientRect().width > 0)",
+          "document.activeElement?.matches('.quick-input-widget input') && document.activeElement.getBoundingClientRect().width > 0",
         ),
       'command palette',
     );
-    await this.key('a', 'KeyA', 65, process.platform === 'darwin' ? 4 : 2);
+    // Select after the palette owns focus. Ctrl+A is an asynchronous workbench
+    // command and can race Input.insertText; selecting the visible input avoids
+    // typing into the editor or concatenating an old palette prefix.
+    await this.evaluate('document.activeElement.select()');
     await this.call('Input.insertText', { text: '>' + command });
+    await this.wait(
+      () => this.evaluate(`document.activeElement?.value === ${JSON.stringify('>' + command)}`),
+      'command palette query text',
+    );
     const label = command.split(':').at(-1).trim();
     await this.wait(
       () =>
@@ -132,7 +139,7 @@ export class Workbench {
     await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
   }
   async wait(predicate, label) {
-    const end = Date.now() + 20_000;
+    const end = Date.now() + 15_000;
     while (!(await predicate())) {
       if (Date.now() >= end) throw new Error('UI readiness timed out: ' + label);
       await pause(30);

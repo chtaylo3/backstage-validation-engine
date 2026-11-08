@@ -1,16 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  realpath,
-  rename,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -19,6 +9,8 @@ import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
 import { debugPort, controlTrust } from './extension-test-ui.mjs';
+import { previousFixture } from './extension-test-upgrade.mjs';
+import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import { setTimeout as pause } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -37,6 +29,21 @@ const verify = process.argv.includes('--verify-failures');
 const focused = process.argv.find((value) => value.startsWith('--case='))?.slice(7);
 const racesOnly = process.argv.includes('--races');
 const trustOnly = process.argv.includes('--trust');
+const compatibility = process.argv.includes('--compat');
+const endurance = process.argv.includes('--endurance');
+const soak = process.argv.includes('--soak');
+assert(
+  [focused, racesOnly, trustOnly, compatibility, endurance, soak].filter(Boolean).length <= 1,
+  'Select one declared suite.',
+);
+const soakSeconds = Number(process.env.BVE_SOAK_SECONDS ?? 1800);
+assert(
+  !soak ||
+    (Number.isInteger(soakSeconds) &&
+      [60, 1800, 7200].includes(soakSeconds) &&
+      (!process.env.CI || soakSeconds !== 60)),
+  'CI soaks require 30 minutes or two hours.',
+);
 const repeat = Number(
   process.argv.find((value) => value.startsWith('--repeat='))?.slice(9) ??
     process.env.BVE_RACE_REPETITIONS ??
@@ -53,7 +60,13 @@ const selectedModules = focused
     ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
     : trustOnly
       ? modules.filter((name) => name.startsWith('trust-'))
-      : modules;
+      : compatibility
+        ? modules.filter((name) => name.startsWith('compat-'))
+        : endurance
+          ? modules.filter((name) => /^endurance-(100|1000|saturation)\./u.test(name))
+          : soak
+            ? modules.filter((name) => name.startsWith('endurance-soak.'))
+            : modules.filter((name) => !/^(compat-|endurance-|remote-)/u.test(name));
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
@@ -78,13 +91,22 @@ const metadata = {
   installedPayload: true,
   verification: verify,
   focused: focused ?? null,
-  scope: racesOnly ? 'races' : trustOnly ? 'trust' : 'portable',
+  scope: racesOnly
+    ? 'races'
+    : trustOnly
+      ? 'trust'
+      : compatibility
+        ? 'compatibility'
+        : endurance
+          ? 'load'
+          : soak
+            ? 'soak'
+            : 'portable',
   installerVersion,
 };
 
 async function atomic(file, contents) {
-  await writeFile(file + '.tmp', contents);
-  await rename(file + '.tmp', file);
+  await writeEvidence(file, contents);
 }
 async function nativeSession(prefix) {
   return realpath(
@@ -93,10 +115,11 @@ async function nativeSession(prefix) {
 }
 const provisions = new Map();
 const directories = [];
-async function provision(version) {
-  if (!provisions.has(version))
+async function provision(version, yaml = false) {
+  const key = version + (yaml ? '-yaml' : '');
+  if (!provisions.has(key))
     provisions.set(
-      version,
+      key,
       (async () => {
         const session = await nativeSession('bve-install-');
         directories.push(session);
@@ -110,19 +133,26 @@ async function provision(version) {
           spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
         };
         await runVSCodeCommand(['--install-extension', info.vsix, '--force', ...common], options);
+        if (yaml)
+          await runVSCodeCommand(
+            ['--install-extension', 'redhat.vscode-yaml@1.19.1', '--force', ...common],
+            options,
+          );
         const listing = await runVSCodeCommand(['--list-extensions', ...common], options);
         assert(listing.stdout.includes('chtaylo3.backstage-validation-engine'));
         return { installed, executable };
       })(),
     );
-  return provisions.get(version);
+  return provisions.get(key);
 }
 
 async function execute(spec, output, fault, peer) {
   if (spec.id === 'workspace-two-windows' && !peer) return executePeers(spec, output);
   const base = path.join(output, spec.version, spec.id, peer?.id ?? '');
   await mkdir(base, { recursive: true });
-  const { installed, executable } = await provision(spec.version);
+  const provisioned = await provision(spec.version, spec.id === 'compat-yaml');
+  const executable = provisioned.executable;
+  let installed = provisioned.installed;
   const session = await nativeSession('bve-editor-');
   const workspace =
     peer?.workspace ?? (await mkdtemp(path.join(tmpdir(), 'bve editor workspace-')));
@@ -133,19 +163,41 @@ async function execute(spec, output, fault, peer) {
   let outcome;
   let closedCleanly = false;
   const trust = spec.id.startsWith('trust-');
-  const autonomous = trust || ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
+  const lifecycle = spec.id === 'compat-lifecycle';
+  const virtual = spec.id === 'compat-virtual';
+  const autonomous =
+    trust ||
+    lifecycle ||
+    virtual ||
+    ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
   const additionalWorkspaces = [];
   let denied;
   let catalog;
   try {
     await Promise.all([profile, driver].map((directory) => mkdir(directory, { recursive: true })));
+    if (lifecycle) {
+      installed = path.join(session, 'installed');
+      await mkdir(installed, { recursive: true });
+    }
     const multi = spec.id === 'workspace-multi-root';
-    const extraFiles = multi
-      ? [
-          { name: 'other/catalog.yaml', entity: 'other' },
-          { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
-        ]
-      : [];
+    const fileCount = spec.id.startsWith('endurance-')
+      ? spec.id === 'endurance-100'
+        ? 100
+        : 1000
+      : 2;
+    const extraFiles =
+      fileCount > 2
+        ? Array.from({ length: fileCount - 2 }, (_, index) => ({
+            name: `entities/entity-${index}.yaml`,
+            entity: `entity-${index}`,
+            lifecycle: spec.id === 'endurance-saturation' ? 'experimental' : 'production',
+          }))
+        : multi
+          ? [
+              { name: 'other/catalog.yaml', entity: 'other' },
+              { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
+            ]
+          : [];
     const config = await prepareFixture({
       session,
       workspace,
@@ -155,6 +207,7 @@ async function execute(spec, output, fault, peer) {
       expectedLifecycle: peer?.id === 'b' ? 'stable' : 'production',
       authorityId: peer ? 'window-' + peer.id : 'editor-test',
       autonomousSuite: autonomous ? path.join(testRoot, 'suite.cjs') : undefined,
+      virtual,
     });
     let workspaceArgument = workspace;
     if (multi) {
@@ -179,6 +232,7 @@ async function execute(spec, output, fault, peer) {
         'race-shutdown-validation',
         'workspace-close-live',
         'workspace-reload-live',
+        'endurance-soak',
       ].includes(spec.id)
     ) {
       const { createEditorCatalog } = await import(
@@ -198,6 +252,32 @@ async function execute(spec, output, fault, peer) {
       await writeFile(config, JSON.stringify(value));
     }
     let launchConfig = config;
+    if (spec.id.startsWith('endurance-')) {
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      value.debounceMs = spec.id === 'endurance-saturation' ? 0 : 25;
+      await writeFile(config, JSON.stringify(value));
+    }
+    if (spec.id === 'compat-yaml') {
+      const schema = path.join(session, 'yaml-schema.json');
+      await writeFile(
+        schema,
+        JSON.stringify({
+          type: 'object',
+          properties: {
+            metadata: { type: 'object', properties: { name: { const: 'coexistence' } } },
+            spec: { type: 'object', properties: { owner: { enum: ['team-yaml'] } } },
+          },
+        }),
+      );
+      const settings = path.join(profile, 'User/settings.json');
+      const value = JSON.parse(await readFile(settings, 'utf8'));
+      Object.assign(value, {
+        'yaml.schemaStore.enable': false,
+        'yaml.schemas': { [pathToFileURL(schema).href]: ['catalog.yaml'] },
+        'redhat.telemetry.enabled': false,
+      });
+      await writeFile(settings, JSON.stringify(value));
+    }
     const mode = spec.id.startsWith('config-') ? spec.id.slice('config-'.length) : undefined;
     if (mode) {
       const bad = path.join(session, 'invalid-launcher.json');
@@ -235,7 +315,7 @@ async function execute(spec, output, fault, peer) {
       }
     }
     const args = [
-      workspaceArgument,
+      ...(virtual ? ['--folder-uri', 'bve-virtual:/workspace'] : [workspaceArgument]),
       '--extensions-dir',
       installed,
       '--user-data-dir',
@@ -301,6 +381,9 @@ async function execute(spec, output, fault, peer) {
           BVE_EXTENSION_TEST_CONTROL_URL: catalog?.controlUrl ?? '',
           BVE_EXTENSION_TEST_CONTROL_TOKEN: catalog?.controlToken ?? '',
           BVE_EXTENSION_TEST_CATALOGS: JSON.stringify(catalog?.catalogs ?? []),
+          BVE_EXTENSION_TEST_FILE_COUNT: String(fileCount),
+          BVE_EXTENSION_TEST_LAUNCHED_AT: String(Date.now()),
+          BVE_SOAK_SECONDS: String(soakSeconds),
           BVE_EDITOR_CATALOG_TOKEN: catalog?.token ?? '',
           DONT_PROMPT_WSL_INSTALL: '1',
           VSCODE_IPC_HOOK_CLI: '',
@@ -383,7 +466,70 @@ async function execute(spec, output, fault, peer) {
           : undefined,
       );
     let result;
-    if (trust) {
+    if (lifecycle) {
+      const settings = path.join(profile, 'User/settings.json');
+      const value = JSON.parse(await readFile(settings, 'utf8'));
+      value['backstageValidation.configPath'] = config;
+      await writeFile(settings, JSON.stringify(value));
+      const predecessor = await previousFixture(root, info);
+      const sessions = [];
+      const stages = ['previous', 'upgraded', 'disabled', 'enabled', 'uninstalled', 'reinstalled'];
+      for (const stage of stages) {
+        const common = ['--extensions-dir', installed, '--user-data-dir', profile, '--no-sandbox'];
+        const options = {
+          version: installerVersion,
+          reuseMachineInstall: true,
+          spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
+        };
+        if (['previous', 'upgraded', 'reinstalled'].includes(stage))
+          await runVSCodeCommand(
+            [
+              '--install-extension',
+              stage === 'previous' ? predecessor : info.vsix,
+              '--force',
+              ...common,
+            ],
+            options,
+          );
+        if (stage === 'uninstalled')
+          await runVSCodeCommand(
+            ['--uninstall-extension', 'chtaylo3.backstage-validation-engine', ...common],
+            options,
+          );
+        await rm(progressFile, { force: true });
+        const directory = path.join(base, stage);
+        await mkdir(directory, { recursive: true });
+        const sessionArgs =
+          stage === 'disabled'
+            ? [...args, '--disable-extension', 'chtaylo3.backstage-validation-engine']
+            : args;
+        result = await launch(
+          sessionArgs,
+          { BVE_EXTENSION_TEST_LIFECYCLE_STAGE: stage },
+          directory,
+        );
+        const progress = await readProgress(progressFile);
+        sessions.push({ stage, result, progress });
+        await atomic(
+          path.join(base, 'native-sessions.json'),
+          JSON.stringify(
+            {
+              historicalRelease: false,
+              predecessorVersion: '0.0.1',
+              candidateVersion: '0.1.0',
+              predecessorSha256: createHash('sha256')
+                .update(await readFile(predecessor))
+                .digest('hex'),
+              candidateSha256: checksum,
+              sessions,
+            },
+            null,
+            2,
+          ) + '\n',
+        );
+        if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
+      }
+    } else if (trust) {
       const settings = path.join(profile, 'User/settings.json');
       const value = JSON.parse(await readFile(settings, 'utf8'));
       value['security.workspace.trust.enabled'] = true;
@@ -613,7 +759,13 @@ try {
         ? 'editor-focused'
         : racesOnly
           ? `race-results-${iteration}`
-          : 'editor-results';
+          : compatibility
+            ? 'compatibility-results'
+            : endurance
+              ? 'load-results'
+              : soak
+                ? 'soak-results'
+                : 'editor-results';
       const report = await runGroup(name, specs);
       console.log(JSON.stringify(report.counts));
       repetitions.push({ iteration, conclusion: report.conclusion, counts: report.counts });

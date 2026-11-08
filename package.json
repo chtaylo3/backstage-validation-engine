@@ -66,7 +66,13 @@
     "extension:package": "npm run build && node scripts/package-extension.mjs",
     "test:extension": "node scripts/test-extension.mjs",
     "test:extension:verify": "node scripts/test-extension.mjs --verify-failures",
-    "test:client": "npm run test:compile && node scripts/test-client.mjs"
+    "test:client": "npm run test:compile && node scripts/test-client.mjs",
+    "test:extension:races": "node scripts/test-extension.mjs --races",
+    "test:extension:compatibility": "node scripts/test-extension.mjs --compat",
+    "test:extension:load": "node scripts/test-extension.mjs --endurance",
+    "test:extension:soak": "node scripts/test-extension.mjs --soak",
+    "test:extension:remote": "node scripts/test-extension-remote.mjs",
+    "test:extension:qualification": "node scripts/verify-extension-qualification.mjs"
   },
   "overrides": {
     "minimatch": "11.0.1",
@@ -96,7 +102,8 @@
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.1",
-    "vscode-languageclient": "11.0.0"
+    "vscode-languageclient": "11.0.0",
+    "yauzl": "3.4.0"
   },
   "bin": {
     "bve-lsp": "./dist/lsp/stdio.js",

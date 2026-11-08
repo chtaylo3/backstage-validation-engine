@@ -1,0 +1,214 @@
+name: VS Code compatibility and endurance
+
+on:
+  schedule:
+    - cron: '15 7 * * 2'
+  workflow_dispatch:
+    inputs:
+      qualification:
+        description: Quick mechanisms, scheduled 30-minute soaks, or release two-hour soaks
+        type: choice
+        options: [quick, full, release]
+        default: full
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: vscode-compatibility-${{ github.ref }}-${{ inputs.qualification || 'full' }}
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    name: Coexistence, package lifecycle and load / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/use-extension-candidate.mjs --os=${{ matrix.os }}
+      - name: Installed compatibility and load (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a npm run test:extension -- --compat
+          xvfb-run -a npm run test:extension -- --endurance
+      - name: Installed compatibility and load
+        if: runner.os != 'Linux'
+        run: |
+          npm run test:extension -- --compat
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:extension -- --endurance
+        shell: pwsh
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-compatibility-${{ matrix.os }}
+          path: |
+            .artifacts/vscode/compatibility-results/
+            .artifacts/vscode/load-results/
+            .artifacts/vscode/*.sha256
+            .artifacts/vscode/stage/build-info.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  soak:
+    name: Installed editor soak / ${{ matrix.os }}
+    if: github.event_name == 'schedule' || inputs.qualification != 'quick'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    env:
+      BVE_SOAK_SECONDS: ${{ inputs.qualification == 'release' && '7200' || '1800' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/use-extension-candidate.mjs --os=${{ matrix.os }}
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:extension -- --soak
+      - if: runner.os != 'Linux'
+        run: npm run test:extension -- --soak
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-soak-${{ matrix.os }}
+          path: |
+            .artifacts/vscode/soak-results/
+            .artifacts/vscode/*.sha256
+            .artifacts/vscode/stage/build-info.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  remote:
+    name: Real remote workspace / ${{ matrix.mode }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [ssh-remote, dev-container]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/use-extension-candidate.mjs --os=ubuntu-24.04
+      - run: xvfb-run -a node scripts/test-extension-remote.mjs --mode=${{ matrix.mode }}
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-remote-${{ matrix.mode }}
+          path: |
+            .artifacts/vscode/remote-results/
+            .artifacts/vscode/*.sha256
+            .artifacts/vscode/stage/build-info.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  linux-payload:
+    name: Linux runtime and isolated WSL root filesystem
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/use-extension-candidate.mjs --os=ubuntu-24.04
+      - run: node scripts/test-extension-remote.mjs --prepare-wsl-payload
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: remote-linux-payload
+          path: .artifacts/vscode/remote-linux-payload/
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 7
+
+  wsl:
+    name: Windows desktop with actual WSL2 workspace
+    needs: linux-payload
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - name: Download exact-revision Linux payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download $env:GITHUB_RUN_ID --name remote-linux-payload --dir .artifacts/remote-linux-payload
+      - run: node scripts/test-extension-remote.mjs --mode=wsl
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-remote-wsl
+          path: .artifacts/vscode/remote-results/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  qualification:
+    name: Exact-candidate release qualification
+    if: ${{ always() && inputs.qualification == 'release' }}
+    needs: [desktop, soak, remote, linux-payload, wsl]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: All required environment and soak lanes must pass
+        env:
+          QUALIFICATION_NEEDS: ${{ toJSON(needs) }}
+        run: node -e 'const n=JSON.parse(process.env.QUALIFICATION_NEEDS); if(Object.values(n).some(v=>v.result!=="success")) {console.error(n);process.exit(1)}'
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-extension-tests.mjs
+      - run: node scripts/verify-extension-qualification.mjs
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-release-qualification
+          path: .artifacts/vscode/qualification-results.json
+          if-no-files-found: error
+          retention-days: 30

@@ -48,8 +48,13 @@ export async function launchEditor(
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) abort();
   const timer = setTimeout(
-    () => terminate('Editor exceeded the 120-second session bound.'),
-    120_000,
+    () => terminate('Editor exceeded the declared session bound.'),
+    env.BVE_EXTENSION_TEST_CASE === 'endurance-soak'
+      ? Number(env.BVE_SOAK_SECONDS) * 1000 + 120_000
+      : env.BVE_EXTENSION_TEST_CASE.startsWith('endurance-') ||
+          env.BVE_EXTENSION_TEST_CASE === 'remote-session'
+        ? 300_000
+        : 120_000,
   );
   let polling = false;
   const poll = setInterval(() => {
