@@ -74,6 +74,13 @@ every scenario executes in the requested, unmodified editor. This qualifies
 installed behavior on the older editor, not its affected CLI installer. No test
 failure is retried or accepted as a pass because installation appeared to finish.
 
+Code-action readiness uses the existing 20-second bounded wait and the current
+diagnostic on each query, as completion readiness does. Diagnostics can appear
+before the editor's code-action context is ready; the harness must still receive
+an actual guarded command. Crash cleanup sends one process-group kill, avoiding
+a second kill of an already-terminated group on macOS. These changes do not retry
+failed scenarios or increase production deadlines.
+
 Every run retains JUnit/count/inventory artifacts. Coverage includes `lcov.info`.
 The three `vscode-*` artifacts contain native-target VSIX files, checksums, SBOM,
 runtime/revision metadata, packaged-suite reports and editor result JSON. Artifacts

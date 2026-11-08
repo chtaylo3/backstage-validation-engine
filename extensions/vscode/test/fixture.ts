@@ -90,14 +90,24 @@ export class Fixture {
     return vscode.languages.getDiagnostics(this.uri).find((row) => row.code === code)!;
   }
   async fix(): Promise<vscode.Command> {
-    const diagnostic = await this.diagnostic();
-    const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-      'vscode.executeCodeActionProvider',
-      this.uri,
-      diagnostic.range,
-      vscode.CodeActionKind.QuickFix.value,
-    );
-    const command = actions?.find((row) => row.command?.command === 'bve.applyFix')?.command;
+    // Diagnostics and code-action context cross different editor IPC paths.
+    // Query the current diagnostic each time, within the same readiness bound
+    // used for completion; a one-shot early empty result is not readiness.
+    let command: vscode.Command | undefined;
+    await until(async () => {
+      const diagnostic = vscode.languages
+        .getDiagnostics(this.uri)
+        .find((row) => row.code === 'production-only');
+      if (!diagnostic) return false;
+      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+        'vscode.executeCodeActionProvider',
+        this.uri,
+        diagnostic.range,
+        vscode.CodeActionKind.QuickFix.value,
+      );
+      command = actions?.find((row) => row.command?.command === 'bve.applyFix')?.command;
+      return command !== undefined;
+    }, 'installed client offers the guarded fix');
     assert(command, 'Installed client must offer the guarded fix.');
     return command;
   }

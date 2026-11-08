@@ -169,6 +169,8 @@ async function execute(spec, output, fault) {
   console.log(
     `VS Code ${spec.version} / ${spec.id}: exit ${outcome.exitCode}${outcome.error ? ' (' + outcome.error + ')' : ''}`,
   );
+  if (outcome.progress?.error)
+    console.error(`${spec.id} / ${outcome.progress.phase}: ${outcome.progress.error}`);
   return outcome;
 }
 

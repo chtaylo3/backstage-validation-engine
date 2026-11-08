@@ -67,7 +67,7 @@ export async function launchEditor(executable, args, env, directory, crash = fal
     if (killing) await killing;
     // The isolated POSIX process group also owns the packaged runtime. Ensure
     // descendants of a crashed editor cannot outlive this test session.
-    if (process.platform !== 'win32') await killTree(child.pid);
+    if (!killing && process.platform !== 'win32') await killTree(child.pid);
     await new Promise((resolve, reject) => {
       log.once('error', reject);
       log.end(resolve);
