@@ -6,6 +6,8 @@ coverage/
 .agents/
 .codex/
 .aws/
+.artifacts/
+.vscode-test/
 package-lock.json
 schemas/
 LICENSE

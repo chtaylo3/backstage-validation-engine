@@ -13,7 +13,18 @@ if (process.argv.length > (check ? 3 : 2)) throw new Error('Expected no argument
 const configuration = parseSupportConfiguration(
   JSON.parse(await readFile(path.join(root, 'support.json'), 'utf8')) as unknown,
 );
-const refreshed = await refreshReleaseInventory(configuration);
+const refreshed = await refreshReleaseInventory(configuration, (url) =>
+  fetch(url, {
+    headers: {
+      'user-agent': 'backstage-validation-engine-fixtures',
+      ...(new URL(url).origin === 'https://api.github.com' && process.env.GITHUB_TOKEN
+        ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
+        : {}),
+    },
+    signal: AbortSignal.timeout(15_000),
+    redirect: 'error',
+  }),
+);
 if (check) {
   const current = parsePinnedInventory(
     JSON.parse(await readFile(path.join(root, 'inventory.json'), 'utf8')) as unknown,

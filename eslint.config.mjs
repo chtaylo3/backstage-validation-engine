@@ -12,6 +12,8 @@ export default tseslint.config(
       '.agents/**',
       '.codex/**',
       '.aws/**',
+      '.artifacts/**',
+      '.vscode-test/**',
     ],
   },
   eslint.configs.recommended,

@@ -61,7 +61,7 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = process.env)
   return new Promise<{ code: number; stdout: string; stderr: string }>((done, fail) => {
     execFile(
       process.execPath,
-      [resolve('.test-dist/src/cli/main.js'), ...args],
+      [process.env.BVE_TEST_CLI_ENTRY ?? resolve('.test-dist/src/cli/main.js'), ...args],
       { env: environment, encoding: 'utf8', timeout: 20_000, maxBuffer: 4 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error && (error.killed || typeof error.code !== 'number')) {

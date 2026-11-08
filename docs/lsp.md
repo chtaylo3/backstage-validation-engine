@@ -1,5 +1,8 @@
 # Catalog policies and language server
 
+For the packaged VS Code client and hosted test/artifact matrix, see
+[VS Code setup](../extensions/vscode/README.md) and [GitHub Actions](github-actions.md).
+
 `validatePolicySources` composes source/native validation, policy-selected catalog
 observations and the rule DAG. `executePolicyRules` is the lower-level rules-stage
 API; `executeCelRules` remains a compatible alias. This is scoped validation,

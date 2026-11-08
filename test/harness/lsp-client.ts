@@ -38,7 +38,12 @@ export async function startLspClient(
   await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
   const child = spawn(
     process.execPath,
-    [fileURLToPath(new URL('../../src/lsp/stdio.js', import.meta.url)), '--config', configPath],
+    [
+      process.env.BVE_TEST_LSP_ENTRY ??
+        fileURLToPath(new URL('../../src/lsp/stdio.js', import.meta.url)),
+      '--config',
+      configPath,
+    ],
     {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, BVE_TEST_TOKEN: 'policy-test-secret' },

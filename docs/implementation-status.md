@@ -341,10 +341,32 @@ warmups); one 844151-byte / 1000-slot buffer request measured 2.927 ms. These
 measurements exclude cold index preparation, validation, network and actual IDE
 integration. Extension packaging/installation qualification is the next component.
 
+## VS Code packaging and hosted qualification increment
+
+Implemented a self-contained native-target VSIX containing the client, engine,
+production dependencies, schemas, pinned Node runtime/licenses and SBOM. Trusted
+User Settings or launcher environment select configuration; workspace settings
+cannot select authority. The client preserves configured file-URI spellings,
+tracks the server process, and supports stop/restart and standard language features.
+
+The Actions workflow runs the entire source harness on Linux, Windows and macOS,
+full coverage, full/production audits, native VSIX builds, the full harness with
+packaged Node/server entry points, and installed-editor integration on pinned
+minimum/current VS Code versions. Skips fail CI; reports and installable artifacts
+are retained. See [workflow scope and evidence](github-actions.md).
+
+Initial hosted qualification exposed Windows short-name URI encoding and an
+upstream glob advisory; both were corrected. Subsequent source harness/audit
+runs passed on all three OS families. Package/editor qualification is recorded
+in each workflow's retained reports; consult that run for actual results.
+Local installed-VSIX testing exercises real diagnostics, completion, fixes,
+saved-file watchers and process cleanup. Interactive UX/upgrade, JetBrains,
+Marketplace publication and real-backend qualification remain release work.
+
 ## Next increments, in order
 
-1. **IDE path.** Add extension packaging and qualify
-   actual VS Code/JetBrains clients, including in-flight fix/version behavior.
+1. **IDE qualification.** Broaden interactive UX/upgrade and in-flight fix/version
+   tests, qualify JetBrains, and prepare an authorized Marketplace release.
 2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
    SQLite inbox/outbox/controller recovery, generation-aware direct/central
    Actions execution, and authoritative GitHub publication.

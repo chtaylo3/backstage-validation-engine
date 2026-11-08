@@ -1,0 +1,63 @@
+{
+  "name": "backstage-validation-engine",
+  "displayName": "Backstage Validation Engine",
+  "description": "Source-preserving Backstage catalog validation, reference completion and guarded policy fixes.",
+  "version": "0.1.0",
+  "type": "module",
+  "publisher": "chtaylo3",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chtaylo3/backstage-validation-engine.git"
+  },
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./out/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Starts the packaged language server using user-selected trusted configuration."
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "backstageValidation.restart",
+        "title": "Backstage Validation: Restart Language Server"
+      },
+      {
+        "command": "backstageValidation.stop",
+        "title": "Backstage Validation: Stop Language Server"
+      },
+      {
+        "command": "backstageValidation.showOutput",
+        "title": "Backstage Validation: Show Output"
+      }
+    ],
+    "configuration": {
+      "title": "Backstage Validation Engine",
+      "properties": {
+        "backstageValidation.configPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Absolute path to trusted launcher configuration. Set in User Settings; workspace settings are ignored. Alternatively launch VS Code with BVE_LSP_CONFIG."
+        }
+      }
+    }
+  }
+}

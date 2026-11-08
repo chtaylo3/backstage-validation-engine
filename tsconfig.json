@@ -19,6 +19,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "extensions/vscode/**/*.ts"],
   "exclude": ["plan", "node_modules", "dist", ".test-dist"]
 }

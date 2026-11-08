@@ -1,6 +1,13 @@
 name: Backstage API drift
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/backstage-api-drift.yml'
+      - 'test/fixtures/backstage/**'
+      - 'test/harness/release-refresh.ts'
+      - 'test/harness/refresh-cli.ts'
   workflow_dispatch:
   schedule:
     - cron: '17 8 * * 1'
@@ -20,3 +27,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run fixtures:check-upstream
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

@@ -17,8 +17,10 @@ Optional host-approved filesystem refresh updates saved files and includes throu
 LSP save/watch notifications while preserving open buffers and original deadlines.
 Signed releases preserve host-required baseline inheritance and activate pinned
 schema/CEL/catalog policies. The CLI emits contract JSON or SARIF with explicit
-0/1/2 exits. Executable processor integrations, IDE packaging and hosted control
-remain.
+0/1/2 exits. A self-contained VS Code preview packages the engine and Node runtime;
+[GitHub Actions](docs/github-actions.md) runs the full source/packaged harness and
+installed-editor tests across Linux, Windows and macOS, retaining VSIX artifacts.
+Executable processor integrations and hosted governance control remain.
 Bounded catalog HTTP access returns immutable observations with scoped caches,
 retry limits and cancellation, tested against pinned multi-version fixtures.
 This package is private during development.

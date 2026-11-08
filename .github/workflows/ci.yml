@@ -14,13 +14,13 @@ concurrency:
 
 jobs:
   check:
-    name: Node 24 / ${{ matrix.os }}
+    name: Full harness / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-2025, macos-15]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -28,10 +28,91 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Native URI preflight
-        run: |
-          npm run build
-          node --input-type=module -e "import {tmpdir} from 'node:os'; import {join,sep} from 'node:path'; import {pathToFileURL} from 'node:url'; import {isCanonicalSourceUri} from './dist/core/source-uris.js'; const root=join(tmpdir(),'bve-uri-probe'); const directory=pathToFileURL(root+sep).href; const file=pathToFileURL(join(root,'catalog.yaml')).href; console.log(JSON.stringify({platform:process.platform,root,directory,file,directoryValid:isCanonicalSourceUri(directory,true),fileValid:isCanonicalSourceUri(file)}));"
       - run: npm run check
+      - name: Retain full harness reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: harness-${{ matrix.os }}
+          path: .artifacts/tests/source/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  audit:
+    name: Dependency audits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
       - run: npm audit
       - run: npm audit --omit=dev
+
+  coverage:
+    name: Full harness coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:coverage
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: full-harness-coverage
+          path: .artifacts/tests/coverage/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  vscode:
+    name: Installed VSIX and full packaged harness / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Package engine, production dependencies and pinned Node runtime
+        run: npm run extension:package
+      - name: Entire harness using the packaged Node and server
+        run: npm run test:packaged
+      - name: Install and test VSIX in minimum and current VS Code (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:extension
+      - name: Install and test VSIX in minimum and current VS Code
+        if: runner.os != 'Linux'
+        run: npm run test:extension
+      - name: Retain VSIX, checksums, SBOM and qualification reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vscode-${{ matrix.os }}
+          path: |
+            .artifacts/vscode/*.vsix
+            .artifacts/vscode/*.sha256
+            .artifacts/vscode/stage/build-info.json
+            .artifacts/vscode/stage/client-SBOM.cdx.json
+            .artifacts/vscode/stage/server/SBOM.cdx.json
+            .artifacts/vscode/editor-*/results.json
+            .artifacts/tests/packaged/
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
