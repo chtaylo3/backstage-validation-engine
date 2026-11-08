@@ -99,6 +99,12 @@ jobs:
       - name: Install and test VSIX in minimum and current VS Code
         if: runner.os != 'Linux'
         run: npm run test:extension
+      - name: Verify editor runner failure accounting (Linux)
+        if: always() && runner.os == 'Linux'
+        run: xvfb-run -a npm run test:extension:verify
+      - name: Verify editor runner failure accounting
+        if: always() && runner.os != 'Linux'
+        run: npm run test:extension:verify
       - name: Retain VSIX, checksums, SBOM and qualification reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -110,8 +116,9 @@ jobs:
             .artifacts/vscode/stage/build-info.json
             .artifacts/vscode/stage/client-SBOM.cdx.json
             .artifacts/vscode/stage/server/SBOM.cdx.json
-            .artifacts/vscode/editor-*/results.json
-            .artifacts/vscode/editor-*/editor-logs/
+            .artifacts/vscode/editor-results/
+            .artifacts/vscode/verification-*/
+            .artifacts/vscode/verification-summary.json
             .artifacts/tests/packaged/
           include-hidden-files: true
           if-no-files-found: error

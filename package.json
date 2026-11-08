@@ -64,7 +64,8 @@
     "test:compile": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json",
     "test:packaged": "npm run test:compile && node scripts/test.mjs --packaged",
     "extension:package": "npm run build && node scripts/package-extension.mjs",
-    "test:extension": "node scripts/test-extension.mjs"
+    "test:extension": "node scripts/test-extension.mjs",
+    "test:extension:verify": "node scripts/test-extension.mjs --verify-failures"
   },
   "overrides": {
     "minimatch": "11.0.1",

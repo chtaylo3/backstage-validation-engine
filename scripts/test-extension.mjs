@@ -1,260 +1,236 @@
 import assert from 'node:assert/strict';
-import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { downloadAndUnzipVSCode, runTests, runVSCodeCommand } from '@vscode/test-electron';
-import {
-  CONTRACT_VERSION,
-  DEFAULT_DEPLOYMENT_PROFILE,
-  createSourceSnapshot,
-  digestJson,
-} from '../dist/index.js';
+import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron';
+import { prepareFixture } from './extension-test-fixture.mjs';
+import { launchEditor, readProgress } from './extension-test-process.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const info = JSON.parse(
-  await readFile(path.join(root, '.artifacts/vscode/package-info.json'), 'utf8'),
-);
+const artifactRoot = path.join(root, '.artifacts/vscode');
+const testRoot = path.join(artifactRoot, 'test');
+const { runCases, junit } = await import(pathToFileURL(path.join(testRoot, 'reporting.mjs')).href);
+const info = JSON.parse(await readFile(path.join(artifactRoot, 'package-info.json'), 'utf8'));
+const build = JSON.parse(await readFile(path.join(info.stage, 'build-info.json'), 'utf8'));
+const inventory = JSON.parse(await readFile(path.join(testRoot, 'inventory.json'), 'utf8'));
+const modules = (await readdir(path.join(testRoot, 'cases')))
+  .filter((name) => name.endsWith('.case.cjs'))
+  .sort();
+assert(modules.length > 0, 'No installed-extension cases discovered.');
+assert.deepEqual(modules, inventory, 'Compiled case inventory must match the package build.');
+const verify = process.argv.includes('--verify-failures');
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
-for (const version of versions) {
-  const base = path.join(root, '.artifacts/vscode', `editor-${version}`);
-  await rm(base, { recursive: true, force: true });
-  await mkdir(base, { recursive: true });
-  // Darwin Unix-domain sockets have a short path limit. Keep the editor's
-  // profile/install paths out of the much longer Actions checkout path.
-  const session = await realpath(
-    await mkdtemp(path.join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'bve-editor-')),
+// Older Electron CLIs can abort during shutdown after a successful install
+// (microsoft/vscode#279806). Use one pinned installer; execute every scenario
+// with the requested editor's unmodified executable and a fresh profile.
+const installerVersion = '1.145.2';
+assert(
+  versions.length && versions.every((value) => /^\d+\.\d+\.\d+$/u.test(value)),
+  'Pin exact editor versions.',
+);
+assert.equal(new Set(versions).size, versions.length, 'Duplicate editor versions.');
+const checksum = createHash('sha256')
+  .update(await readFile(info.vsix))
+  .digest('hex');
+const metadata = {
+  platform: process.platform,
+  arch: process.arch,
+  target: info.target,
+  revision: build.revision,
+  vsix: path.basename(info.vsix),
+  vsixSha256: checksum,
+  installedPayload: true,
+  verification: verify,
+  installerVersion,
+};
+
+async function atomic(file, contents) {
+  await writeFile(file + '.tmp', contents);
+  await rename(file + '.tmp', file);
+}
+async function nativeSession(prefix) {
+  return realpath(
+    await mkdtemp(path.join(process.platform === 'darwin' ? '/tmp' : tmpdir(), prefix)),
   );
+}
+const provisions = new Map();
+const directories = [];
+async function provision(version) {
+  if (!provisions.has(version))
+    provisions.set(
+      version,
+      (async () => {
+        const session = await nativeSession('bve-install-');
+        directories.push(session);
+        const installed = path.join(session, 'installed');
+        const profile = path.join(session, 'profile');
+        const executable = await downloadAndUnzipVSCode({ version });
+        const common = ['--extensions-dir', installed, '--user-data-dir', profile, '--no-sandbox'];
+        const options = {
+          version: installerVersion,
+          reuseMachineInstall: true,
+          spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
+        };
+        await runVSCodeCommand(['--install-extension', info.vsix, '--force', ...common], options);
+        const listing = await runVSCodeCommand(['--list-extensions', ...common], options);
+        assert(listing.stdout.includes('chtaylo3.backstage-validation-engine'));
+        return { installed, executable };
+      })(),
+    );
+  return provisions.get(version);
+}
+
+async function execute(spec, output, fault) {
+  const base = path.join(output, spec.version, spec.id);
+  await mkdir(base, { recursive: true });
+  const { installed, executable } = await provision(spec.version);
+  const session = await nativeSession('bve-editor-');
   const workspace = await mkdtemp(path.join(tmpdir(), 'bve editor workspace-'));
-  const installed = path.join(session, 'installed');
   const profile = path.join(session, 'profile');
   const driver = path.join(session, 'driver');
-  await Promise.all(
-    [workspace, installed, profile, driver].map((directory) =>
-      mkdir(directory, { recursive: true }),
-    ),
-  );
-  await mkdir(path.join(profile, 'User'), { recursive: true });
-  await writeFile(
-    path.join(profile, 'User/settings.json'),
-    JSON.stringify({
-      'telemetry.telemetryLevel': 'off',
-      'workbench.enableExperiments': false,
-      'extensions.autoUpdate': false,
-      'extensions.ignoreRecommendations': true,
-      'chat.disableAIFeatures': true,
-      'workbench.startupEditor': 'none',
-      'update.mode': 'none',
-    }),
-  );
-  await mkdir(path.join(workspace, '.vscode'), { recursive: true });
-  await writeFile(
-    path.join(workspace, '.vscode/settings.json'),
-    JSON.stringify({
-      'backstageValidation.configPath': path.join(workspace, 'untrusted-selection.json'),
-    }),
-  );
-  await writeFile(
-    path.join(driver, 'package.json'),
-    JSON.stringify({
-      name: 'bve-test-driver',
-      publisher: 'local',
-      version: '0.0.1',
-      engines: { vscode: '^1.106.0' },
-      main: 'index.cjs',
-    }),
-  );
-  await writeFile(path.join(driver, 'index.cjs'), 'exports.activate = () => {};\n');
-  const component =
-    'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: service}\nspec:\n  type: service\n  lifecycle: experimental\n  owner: team\n';
-  const team =
-    'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {type: team, children: []}\n';
-  await writeFile(path.join(workspace, 'catalog.yaml'), component);
-  await writeFile(path.join(workspace, 'team.yaml'), team);
-  const uri = (name) => pathToFileURL(path.join(workspace, name)).href;
-  const schema = {
-    type: 'object',
-    properties: { spec: { type: 'object', properties: { lifecycle: { const: 'production' } } } },
-  };
-  const artifact = {
-    contractVersion: CONTRACT_VERSION,
-    id: 'editor/production',
-    version: '1',
-    schema,
-    digest: digestJson(schema),
-  };
-  const policy = {
-    contractVersion: CONTRACT_VERSION,
-    id: 'editor-test',
-    revision: '1',
-    extends: [],
-    schemas: [],
-    plugins: [],
-    rules: [
-      {
-        id: 'production-only',
-        version: '1',
-        kind: 'schema',
-        mandatory: true,
-        severity: 'error',
-        requires: [],
-        schema: { id: artifact.id, version: artifact.version, digest: artifact.digest },
-      },
-      {
-        id: 'owner-exists',
-        version: '1',
-        kind: 'catalog',
-        mandatory: true,
-        severity: 'error',
-        requires: [],
-        referencePath: '/spec/owner',
-        check: 'exists',
-        selector: 'entity.kind == "Component"',
-      },
-    ],
-  };
-  const source = createSourceSnapshot({
-    repository: 'editor-fixture',
-    revision: '1',
-    rootUri: pathToFileURL(workspace + path.sep).href,
-    entrypoints: [uri('catalog.yaml'), uri('team.yaml')],
-    files: [
-      { uri: uri('catalog.yaml'), text: component },
-      { uri: uri('team.yaml'), text: team },
-    ],
-  });
-  const config = path.join(session, 'trusted-launcher.json');
-  await writeFile(
-    config,
-    JSON.stringify({
-      profile: DEFAULT_DEPLOYMENT_PROFILE,
-      policy,
-      schemaArtifacts: [artifact],
-      source,
-      identity: {
-        installationId: 'editor-test',
-        repositoryId: 'editor-test',
-        authorityRef: 'synthetic-editor-test',
-        permissionRevision: '1',
-      },
-      activation: {
-        contractVersion: CONTRACT_VERSION,
-        generation: 1,
-        installationId: 'editor-test',
-        repositoryId: 'editor-test',
-        policyDigest: digestJson(policy),
-        profileDigest: digestJson(DEFAULT_DEPLOYMENT_PROFILE),
-        bypassDigest: digestJson([]),
-        activatedAt: Date.now() - 1000,
-        authority: {
-          repository: 'synthetic-editor-test',
-          revision: '1',
-          verifierId: 'synthetic-editor-test',
-          evidenceDigest: digestJson({ fixture: true }),
-        },
-      },
-      filesystem: {
-        files: [uri('catalog.yaml'), uri('team.yaml')],
-        entrypoints: [uri('catalog.yaml'), uri('team.yaml')],
-      },
-      debounceMs: 0,
-    }),
-    { mode: 0o600 },
-  );
-  const vscodeExecutablePath = await downloadAndUnzipVSCode({ version });
-  await runVSCodeCommand(
-    [
-      '--install-extension',
-      info.vsix,
-      '--force',
-      '--extensions-dir',
-      installed,
-      '--user-data-dir',
-      profile,
-      '--no-sandbox',
-    ],
-    {
-      version,
-      reuseMachineInstall: true,
-      spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
-    },
-  );
-  const listing = await runVSCodeCommand(
-    [
-      '--list-extensions',
-      '--extensions-dir',
-      installed,
-      '--user-data-dir',
-      profile,
-      '--no-sandbox',
-    ],
-    {
-      version,
-      reuseMachineInstall: true,
-      spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
-    },
-  );
-  assert(listing.stdout.includes('chtaylo3.backstage-validation-engine'));
+  const progressFile = path.join(base, 'progress.json');
+  let outcome;
   try {
-    const exit = await runTests({
-      vscodeExecutablePath,
-      extensionDevelopmentPath: driver,
-      extensionTestsPath: path.join(root, '.artifacts/vscode/test/suite.cjs'),
-      reuseMachineInstall: true,
-      launchArgs: [
-        workspace,
-        '--extensions-dir',
-        installed,
-        '--user-data-dir',
-        profile,
-        '--disable-gpu',
-        '--no-sandbox',
-      ],
-      extensionTestsEnv: {
-        BVE_LSP_CONFIG: config,
-        BVE_EXTENSION_TEST_WORKSPACE: workspace,
-        BVE_EXTENSION_TEST_INSTALL: installed,
-        NODE_PATH: '',
-      },
-    });
-    assert.equal(exit, 0);
-    await writeFile(
-      path.join(base, 'results.json'),
+    await Promise.all([profile, driver].map((directory) => mkdir(directory, { recursive: true })));
+    const config = await prepareFixture({ session, workspace, profile, driver });
+    const args = [
+      workspace,
+      '--extensions-dir',
+      installed,
+      '--user-data-dir',
+      profile,
+      '--extensionDevelopmentPath=' + driver,
+      '--extensionTestsPath=' + path.join(testRoot, 'suite.cjs'),
+      '--disable-workspace-trust',
+      '--disable-gpu',
+      '--disable-gpu-sandbox',
+      '--no-sandbox',
+      '--skip-welcome',
+      '--skip-release-notes',
+      '--disable-updates',
+      '--no-cached-data',
+    ];
+    await atomic(
+      path.join(base, 'launch.json'),
       JSON.stringify(
         {
-          version,
-          target: info.target,
-          vsix: path.basename(info.vsix),
-          installedPayload: true,
-          conclusion: 'success',
-          cases: [
-            'startup',
-            'diagnostics',
-            'reference-completion',
-            'versioned-fix',
-            'stale-fix-replay',
-            'save',
-            'watch-refresh',
-            'watch-repair',
-            'restart',
-            'shutdown',
-          ],
+          editorVersion: spec.version,
+          installerVersion,
+          args,
+          freshProfile: true,
+          freshWorkspace: true,
         },
         null,
         2,
       ) + '\n',
     );
-  } catch (error) {
+    const result = await launchEditor(
+      executable,
+      args,
+      {
+        BVE_LSP_CONFIG: config,
+        BVE_EXTENSION_TEST_WORKSPACE: workspace,
+        BVE_EXTENSION_TEST_INSTALL: installed,
+        BVE_EXTENSION_TEST_CASE: spec.id,
+        BVE_EXTENSION_TEST_MODULE: path.join(testRoot, 'cases', spec.id + '.case.cjs'),
+        BVE_EXTENSION_TEST_PROGRESS: progressFile,
+        BVE_EXTENSION_TEST_FAULT: fault ?? '',
+        DONT_PROMPT_WSL_INSTALL: '1',
+        VSCODE_IPC_HOOK_CLI: '',
+        NODE_PATH: '',
+      },
+      base,
+      fault === 'crash',
+    );
+    const progress = await readProgress(progressFile);
+    outcome = { ...result, ...(progress ? { progress } : {}) };
+  } finally {
+    // Keep editor logs for every outcome, including injected failures. Fixtures
+    // and profiles contain only synthetic authority and are removed afterwards.
     await cp(path.join(profile, 'logs'), path.join(base, 'editor-logs'), { recursive: true }).catch(
       () => {},
     );
-    await writeFile(
-      path.join(base, 'results.json'),
-      JSON.stringify({ version, target: info.target, conclusion: 'failure' }, null, 2) + '\n',
-    );
-    throw error;
-  } finally {
-    await rm(workspace, { recursive: true, force: true });
-    await rm(session, { recursive: true, force: true });
+    await rm(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await rm(session, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
+  console.log(
+    `VS Code ${spec.version} / ${spec.id}: exit ${outcome.exitCode}${outcome.error ? ' (' + outcome.error + ')' : ''}`,
+  );
+  return outcome;
+}
+
+async function runGroup(name, specs, fault) {
+  const directory = path.join(artifactRoot, name);
+  await rm(directory, { recursive: true, force: true });
+  await mkdir(directory, { recursive: true });
+  return runCases(
+    specs,
+    { ...metadata, fault: fault ?? null },
+    (spec) => execute(spec, directory, spec.id === 'startup' ? fault : undefined),
+    async (report) => {
+      await atomic(path.join(directory, 'results.json'), JSON.stringify(report, null, 2) + '\n');
+      await atomic(path.join(directory, 'junit.xml'), junit(report));
+    },
+  );
+}
+try {
+  if (verify) {
+    const version = versions.at(-1);
+    const checks = [];
+    for (const fault of ['assertion', 'crash', 'cleanup']) {
+      const report = await runGroup(
+        'verification-' + fault,
+        [
+          { id: 'startup', version },
+          { id: 'diagnostics', version },
+        ],
+        fault,
+      );
+      const [failed, later] = report.cases;
+      checks.push({
+        fault,
+        passed:
+          report.conclusion === 'failure' &&
+          report.counts.failed === 1 &&
+          report.counts.passed === 1 &&
+          failed.status === 'failed' &&
+          failed.phase === (fault === 'cleanup' ? 'cleanup' : 'run') &&
+          later.status === 'passed' &&
+          (fault !== 'crash' || failed.error.includes('Injected editor crash')),
+      });
+    }
+    await atomic(
+      path.join(artifactRoot, 'verification-summary.json'),
+      JSON.stringify({ metadata, checks }, null, 2) + '\n',
+    );
+    assert(
+      checks.every((row) => row.passed),
+      'Runner must report each injected fault and execute the next independent case.',
+    );
+    console.log(
+      'Installed-editor runner verification passed: early assertion, editor crash, cleanup failure and later-case execution.',
+    );
+  } else {
+    const specs = versions.flatMap((version) =>
+      modules.map((name) => ({ id: name.replace(/\.case\.cjs$/u, ''), version })),
+    );
+    const report = await runGroup('editor-results', specs);
+    console.log(JSON.stringify(report.counts));
+    if (report.conclusion !== 'success') process.exitCode = 1;
+  }
+} finally {
+  for (const directory of directories)
+    await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

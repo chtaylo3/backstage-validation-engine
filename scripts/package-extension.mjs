@@ -90,9 +90,19 @@ await writeFile(
     2,
   ) + '\n',
 );
+const testDirectory = path.join(root, '.artifacts/vscode/test');
+const caseDirectory = path.join(root, 'extensions/vscode/test/cases');
+const caseFiles = (await readdir(caseDirectory)).filter((name) => name.endsWith('.case.ts')).sort();
+if (!caseFiles.length) throw new Error('No installed-extension cases found.');
+await rm(testDirectory, { recursive: true, force: true });
 await build({
-  entryPoints: [path.join(root, 'extensions/vscode/test/suite.ts')],
-  outfile: path.join(root, '.artifacts/vscode/test/suite.cjs'),
+  entryPoints: [
+    path.join(root, 'extensions/vscode/test/suite.ts'),
+    ...caseFiles.map((name) => path.join(caseDirectory, name)),
+  ],
+  outdir: testDirectory,
+  outbase: path.join(root, 'extensions/vscode/test'),
+  outExtension: { '.js': '.cjs' },
   bundle: true,
   platform: 'node',
   format: 'cjs',
@@ -100,6 +110,22 @@ await build({
   external: ['vscode'],
   sourcemap: true,
 });
+await build({
+  entryPoints: [path.join(root, 'extensions/vscode/test/reporting.ts')],
+  outfile: path.join(testDirectory, 'reporting.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+});
+await writeFile(
+  path.join(testDirectory, 'inventory.json'),
+  JSON.stringify(
+    caseFiles.map((name) => name.replace(/\.ts$/u, '.cjs')),
+    null,
+    2,
+  ) + '\n',
+);
 await cp(path.join(root, 'dist'), path.join(stage, 'server/dist'), { recursive: true });
 for (const name of ['package.json', 'package-lock.json', 'LICENSE'])
   await copyFile(path.join(root, name), path.join(stage, 'server', name));
@@ -125,7 +151,7 @@ await new Promise((resolve, reject) => {
     text += chunk;
   });
   child.once('error', reject);
-  child.once('exit', async (code) => {
+  child.once('close', async (code) => {
     try {
       if (code !== 0) throw new Error('Unable to generate packaged dependency SBOM.');
       JSON.parse(text);
