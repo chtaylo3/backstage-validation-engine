@@ -55,7 +55,7 @@ tests also run against these real, pinned fixture targets:
 | Backstage release | Catalog backend package | Catalog model package | Upstream source commit                     |
 | ----------------- | ----------------------- | --------------------- | ------------------------------------------ |
 | 1.55.3            | 4.0.0                   | 1.10.1                | `6c66969256572989ed10ee862b26065a0980c0bd` |
-| 1.56.2            | 4.0.2                   | 1.10.2                | `1e85ac7e08f276f49604202fd7245e0ad0aa63af` |
+| 1.56.3            | 4.0.2                   | 1.10.2                | `7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0` |
 
 These are the latest observed patches of the initial `1.55`/`1.56` fixture minor
 lines, selected from the official release index. Both specs currently have SHA-256
@@ -63,6 +63,10 @@ lines, selected from the official release index. Both specs currently have SHA-2
 Their byte-for-byte equality does not imply identical backend behavior. Specs and
 Apache-2.0 licenses are vendored under `test/fixtures/backstage/<version>/<commit>/`.
 Git attributes and formatter exclusions preserve the spec bytes on all platforms.
+Hosted drift qualification on 2026-11-07 discovered 1.56.3. Its OpenAPI and license
+bytes match the previous 1.56.2 capture, and its model/backend package versions are
+unchanged. The inventory now selects 1.56.3; older bytes remain historical evidence
+and are not additional active fixture targets.
 
 Fixture targets describe wire-contract coverage. Real deployed backend smoke
 qualification remains open. Recorded catalog-model package versions are provenance;

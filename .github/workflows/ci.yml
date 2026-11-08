@@ -111,6 +111,7 @@ jobs:
             .artifacts/vscode/stage/client-SBOM.cdx.json
             .artifacts/vscode/stage/server/SBOM.cdx.json
             .artifacts/vscode/editor-*/results.json
+            .artifacts/vscode/editor-*/editor-logs/
             .artifacts/tests/packaged/
           include-hidden-files: true
           if-no-files-found: error

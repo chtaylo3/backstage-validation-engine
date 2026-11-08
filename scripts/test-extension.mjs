@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -19,10 +19,16 @@ const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.1
 for (const version of versions) {
   const base = path.join(root, '.artifacts/vscode', `editor-${version}`);
   await rm(base, { recursive: true, force: true });
+  await mkdir(base, { recursive: true });
+  // Darwin Unix-domain sockets have a short path limit. Keep the editor's
+  // profile/install paths out of the much longer Actions checkout path.
+  const session = await realpath(
+    await mkdtemp(path.join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'bve-editor-')),
+  );
   const workspace = await mkdtemp(path.join(tmpdir(), 'bve editor workspace-'));
-  const installed = path.join(base, 'installed');
-  const profile = path.join(base, 'profile');
-  const driver = path.join(base, 'driver');
+  const installed = path.join(session, 'installed');
+  const profile = path.join(session, 'profile');
+  const driver = path.join(session, 'driver');
   await Promise.all(
     [workspace, installed, profile, driver].map((directory) =>
       mkdir(directory, { recursive: true }),
@@ -117,7 +123,7 @@ for (const version of versions) {
       { uri: uri('team.yaml'), text: team },
     ],
   });
-  const config = path.join(base, 'trusted-launcher.json');
+  const config = path.join(session, 'trusted-launcher.json');
   await writeFile(
     config,
     JSON.stringify({
@@ -239,6 +245,9 @@ for (const version of versions) {
       ) + '\n',
     );
   } catch (error) {
+    await cp(path.join(profile, 'logs'), path.join(base, 'editor-logs'), { recursive: true }).catch(
+      () => {},
+    );
     await writeFile(
       path.join(base, 'results.json'),
       JSON.stringify({ version, target: info.target, conclusion: 'failure' }, null, 2) + '\n',
@@ -246,5 +255,6 @@ for (const version of versions) {
     throw error;
   } finally {
     await rm(workspace, { recursive: true, force: true });
+    await rm(session, { recursive: true, force: true });
   }
 }

@@ -20,6 +20,12 @@ CEL corpus is exercised by production workers as part of the suite. Historical
 Go/Python comparison programs in the separate ignored planning checkout are
 historical evidence, not production tests or prerequisites for this workflow.
 
+The ordinary catastrophic-shaped RE2 case must return `false`. A separate
+maximum-size stress case accepts only `false` or the typed production
+`execution_timeout`, then requires pool recovery. Coverage/cloud CPU overhead
+cannot guarantee completion at that size within the fixed 100 ms production
+budget. No production deadline is raised and no test is skipped.
+
 The packaged run starts the whole suite with the VSIX's pinned Node executable.
 Real stdio and CLI subprocess cases use the packaged server/CLI entry points;
 the remaining tests still use the compiled production source under test. There
@@ -42,6 +48,8 @@ process shutdown. A conflicting workspace setting proves that workspace content
 cannot select the trusted configuration. User/launcher configuration supplies
 authority; the package contains no policy credentials. Watcher workspaces live
 in native temporary directories rather than the ignored artifact tree.
+Editor profiles use short native temporary paths to stay within macOS socket
+path limits; failures also retain editor logs alongside result JSON.
 
 Every run retains JUnit/count/inventory artifacts. Coverage includes `lcov.info`.
 The three `vscode-*` artifacts contain native-target VSIX files, checksums, SBOM,

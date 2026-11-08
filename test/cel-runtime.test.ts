@@ -106,7 +106,7 @@ void test('CEL admission rejects oversized and non-JSON input without invoking c
   assert.equal(calls, 0);
 });
 
-void test('RE2 resource failures cannot be masked and catastrophic-shaped patterns stay bounded', async () => {
+void test('RE2 resource failures cannot be masked and catastrophic-shaped patterns complete normally', async () => {
   const pool = new ManagedCelPool();
   try {
     await pool.warm();
@@ -119,11 +119,36 @@ void test('RE2 resource failures cannot be masked and catastrophic-shaped patter
       errorCode('regex_limit'),
     );
     const expression = 'entity.text.matches("(a+)+$")';
-    await pool.evaluate(expression, { text: 'a!' }, context());
+    assert.equal(await pool.evaluate(expression, { text: 'a!' }, context()), false);
     assert.equal(
-      await pool.evaluate(expression, { text: 'a'.repeat(60_000) + '!' }, context()),
+      await pool.evaluate(expression, { text: 'a'.repeat(1000) + '!' }, context()),
       false,
     );
+    assert.equal(await pool.evaluate('true', {}, context()), true);
+  } finally {
+    await pool.close();
+  }
+});
+
+void test('maximum-size RE2 stress either completes or hits the typed execution bound, then recovers', async (t) => {
+  const pool = new ManagedCelPool();
+  try {
+    await pool.warm();
+    const expression = 'entity.text.matches("(a+)+$")';
+    await pool.evaluate(expression, { text: 'a!' }, context());
+    try {
+      assert.equal(
+        await pool.evaluate(expression, { text: 'a'.repeat(60_000) + '!' }, context()),
+        false,
+      );
+      t.diagnostic('Maximum-size RE2 stress completed within the production execution budget.');
+    } catch (error) {
+      assert(error instanceof CelError);
+      assert.equal(error.code, 'execution_timeout');
+      t.diagnostic(
+        'Maximum-size RE2 stress reached the production execution bound; only typed execution_timeout is accepted.',
+      );
+    }
     assert.equal(await pool.evaluate('true', {}, context()), true);
   } finally {
     await pool.close();

@@ -1,9 +1,18 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-10-29T02:47:50.427Z",
+  "refreshedAt": "2026-11-08T02:28:53.197Z",
   "releaseIndexUrl": "https://api.github.com/repos/backstage/backstage/releases",
   "supportedMinors": ["1.55", "1.56"],
-  "observedVersions": ["1.55.0", "1.55.1", "1.55.2", "1.55.3", "1.56.0", "1.56.1", "1.56.2"],
+  "observedVersions": [
+    "1.55.0",
+    "1.55.1",
+    "1.55.2",
+    "1.55.3",
+    "1.56.0",
+    "1.56.1",
+    "1.56.2",
+    "1.56.3"
+  ],
   "releases": [
     {
       "backstageVersion": "1.55.3",
@@ -16,12 +25,12 @@
       }
     },
     {
-      "backstageVersion": "1.56.2",
+      "backstageVersion": "1.56.3",
       "catalogBackendVersion": "4.0.2",
       "catalogModelVersion": "1.10.2",
-      "sourceCommit": "1e85ac7e08f276f49604202fd7245e0ad0aa63af",
+      "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
       "openApi": {
-        "path": "1.56.2/1e85ac7e08f276f49604202fd7245e0ad0aa63af/openapi.yaml",
+        "path": "1.56.3/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/openapi.yaml",
         "sha256": "cf26233702b7e9a356ad00edc75b52b57cfc9fad72d39de3d5f37c23a8900719"
       }
     }
