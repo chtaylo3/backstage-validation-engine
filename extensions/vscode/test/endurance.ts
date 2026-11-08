@@ -5,14 +5,8 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 import { until, exited } from './fixture.js';
 import type { Fixture } from './fixture.js';
-import { resources, ownedServers } from './resources.js';
-interface Sample {
-  elapsedMs: number;
-  operation: number;
-  client: { rssMiB: number; handles: number };
-  server: { rssMiB: number; handles: number };
-  pid: number;
-}
+import { resources, ownedServers, verifyResourceGrowth } from './resources.js';
+import type { ResourceSample as Sample } from './resources.js';
 const percentile = (values: number[], p: number) =>
   [...values].sort((a, b) => a - b)[Math.ceil(values.length * p) - 1]!;
 export async function endurance(fixture: Fixture, soak = false): Promise<void> {
@@ -57,6 +51,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
     editP95Ms: 20_000,
     completionP95Ms: 20_000,
     restartP95Ms: 20_000,
+    warmupOperations: 10,
     clientGrowthMiB: 128,
     serverGrowthMiB: 128,
     handleGrowth: 64,
@@ -94,6 +89,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
   try {
     do {
       const before = Date.now();
+      let restarted = false;
       // A burst must coalesce to the current version, without losing the dirty buffer.
       for (let burst = 0; burst < 3; burst++)
         await fixture.replace(document, original + `# operation ${operation}, burst ${burst}\n`);
@@ -190,8 +186,9 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
         await fixture.currentDiagnostic(document);
         restarts.push(Date.now() - restartStarted);
         lastRestart = Date.now();
+        restarted = true;
       }
-      if (soak || operation % 3 === 0) {
+      if (soak || operation % 3 === 0 || restarted) {
         const pid = fixture.pid();
         assert.deepEqual(
           await ownedServers(extension.extensionPath),
@@ -211,47 +208,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
     assert(percentile(completions, 0.95) <= budgets.completionP95Ms);
     assert(restarts.length && percentile(restarts, 0.95) <= budgets.restartP95Ms);
     assert(samples.length >= (duration === 60 ? 3 : 8));
-    // Compare after warmup, and compare each server generation independently.
-    for (const side of ['client', 'server'] as const) {
-      let measuredGenerations = 0;
-      const generations =
-        side === 'client'
-          ? [samples]
-          : [...new Set(samples.map((row) => row.pid))].map((pid) =>
-              samples.filter((row) => row.pid === pid),
-            );
-      for (const generation of generations) {
-        if (generation.length < 5) continue;
-        measuredGenerations++;
-        const warm = generation.slice(Math.floor(generation.length / 4));
-        const first = warm[0]!,
-          last = warm.at(-1)!;
-        const growth = last[side].rssMiB - first[side].rssMiB;
-        assert(
-          growth <= budgets[side === 'client' ? 'clientGrowthMiB' : 'serverGrowthMiB'],
-          side + ' retained RSS must plateau',
-        );
-        assert(
-          last[side].handles - first[side].handles <= budgets.handleGrowth,
-          side + ' handle growth',
-        );
-        if (last.operation - first.operation >= 100) {
-          const meanX = warm.reduce((sum, row) => sum + row.operation, 0) / warm.length;
-          const meanY = warm.reduce((sum, row) => sum + row[side].rssMiB, 0) / warm.length;
-          const slope =
-            warm.reduce(
-              (sum, row) => sum + (row.operation - meanX) * (row[side].rssMiB - meanY),
-              0,
-            ) / warm.reduce((sum, row) => sum + (row.operation - meanX) ** 2, 0);
-          assert(slope <= budgets.growthMiBPerOperation, side + ' growth per operation');
-        }
-      }
-      if (duration !== 60)
-        assert(
-          measuredGenerations > 0,
-          side + ' needs enough samples in a live generation to measure plateau',
-        );
-    }
+    verifyResourceGrowth(samples, budgets, duration !== 60);
     if (soak)
       assert(interruptions > 1, 'A soak must exercise repeated catalog interruption and recovery.');
     completed = true;

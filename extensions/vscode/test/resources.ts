@@ -1,7 +1,67 @@
+import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 const exec = promisify(execFile);
+export interface ResourceSample {
+  elapsedMs: number;
+  operation: number;
+  client: { rssMiB: number; handles: number };
+  server: { rssMiB: number; handles: number };
+  pid: number;
+}
+export interface GrowthBudgets {
+  warmupOperations: number;
+  clientGrowthMiB: number;
+  serverGrowthMiB: number;
+  handleGrowth: number;
+  growthMiBPerOperation: number;
+}
+export function verifyResourceGrowth(
+  samples: ResourceSample[],
+  budgets: GrowthBudgets,
+  requireMeasurement = true,
+): void {
+  for (const side of ['client', 'server'] as const) {
+    let measured = 0;
+    const generations =
+      side === 'client'
+        ? [samples]
+        : [...new Set(samples.map((row) => row.pid))].map((pid) =>
+            samples.filter((row) => row.pid === pid),
+          );
+    for (const generation of generations) {
+      const origin = generation[0]?.operation;
+      if (origin === undefined) continue;
+      const warmed = generation.filter((row) => row.operation - origin >= budgets.warmupOperations);
+      const warm = warmed.slice(Math.floor(warmed.length / 4));
+      if (warm.length < 3) continue;
+      measured++;
+      const first = warm[0]!,
+        last = warm.at(-1)!;
+      const growth = last[side].rssMiB - first[side].rssMiB;
+      const limit = budgets[side === 'client' ? 'clientGrowthMiB' : 'serverGrowthMiB'];
+      assert(
+        growth <= limit,
+        `${side} retained RSS growth ${growth} MiB exceeds ${limit} after warmup`,
+      );
+      assert(
+        last[side].handles - first[side].handles <= budgets.handleGrowth,
+        side + ' handle growth',
+      );
+      if (last.operation - first.operation >= 100) {
+        const meanX = warm.reduce((sum, row) => sum + row.operation, 0) / warm.length;
+        const meanY = warm.reduce((sum, row) => sum + row[side].rssMiB, 0) / warm.length;
+        const slope =
+          warm.reduce((sum, row) => sum + (row.operation - meanX) * (row[side].rssMiB - meanY), 0) /
+          warm.reduce((sum, row) => sum + (row.operation - meanX) ** 2, 0);
+        assert(slope <= budgets.growthMiBPerOperation, side + ' growth per operation');
+      }
+    }
+    if (requireMeasurement)
+      assert(measured > 0, side + ' needs enough samples after warmup in a live generation');
+  }
+}
 export async function resources(pid: number): Promise<{ rssMiB: number; handles: number }> {
   if (process.platform === 'linux') {
     const [status, files] = await Promise.all([

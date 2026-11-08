@@ -11,6 +11,7 @@ import { createLspCatalog, parseLspConfig } from './config.js';
 import { BoundedLspInput } from './framing.js';
 import { createFilesystemSource } from './filesystem.js';
 import { attachLspServer } from './server.js';
+import { loadBackstageAdapter } from '../compatibility/adapter.js';
 
 try {
   if (process.argv.length !== 4 || process.argv[2] !== '--config')
@@ -25,6 +26,12 @@ try {
     await handle.close();
   }
   const config = parseLspConfig(JSON.parse(text) as unknown);
+  // Load the pinned native dependency during server initialization. This is
+  // static runtime preparation, not workspace validation; cold editor readiness
+  // still includes it, and every request keeps its original five-second budget.
+  // Preserve typed dependency warnings if a native adapter is unavailable.
+  if (!config.profile.requiredProcessors.length)
+    await loadBackstageAdapter(config.profile.adapterId).catch(() => undefined);
   const filesystem = config.filesystem ? await createFilesystemSource(config) : undefined;
   const catalog = await createLspCatalog(config, process.env);
   const input = new BoundedLspInput();

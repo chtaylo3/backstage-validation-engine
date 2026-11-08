@@ -94,6 +94,14 @@ descriptor and named-file identity, links, UTF-8, mutations and cancellation.
 All reads in a failed batch drain before rejection; no partial snapshot is
 published. Native descriptor-barrier tests verify concurrency bounds and awaited
 close, alongside aggregate overflow/recovery and the original deadline tests.
+The pinned native adapter is loaded during LSP initialization; this static
+dependency preparation remains inside measured cold editor readiness. Source
+capture and all validation still share one original five-second request deadline.
+Resource comparisons require ten warmup operations per process and at least
+three later samples. A sample at each restart records the new process epoch.
+The 128 MiB RSS, 64-handle and 0.15 MiB/operation growth caps remain unchanged;
+negative checker tests reject post-warmup RSS/handle leaks, persistent slopes and
+insufficient live-process evidence.
 
 Each native process receives its own application shared-data directory as well
 as an isolated user profile and extension directory. Remote extension pins are
