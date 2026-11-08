@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { createSourceSnapshot } from '../../../../src/core/snapshots.js';
-import { until } from '../fixture.js';
+import { until, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   const document = await fixture.document();
@@ -37,13 +37,13 @@ export async function run(fixture: Fixture): Promise<void> {
     });
     assert.equal(document.getText(), original + `# saturation ${operation}:2\n`);
     if (bounded) {
-      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+      const actions = await vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
         'vscode.executeCodeActionProvider',
         document.uri,
         new vscode.Range(5, 0, 5, 30),
       );
       assert(
-        !actions?.some((row) => row.command?.command === 'bve.applyFix'),
+        !actions?.some((row) => guardedCommand(row) !== undefined),
         'Incomplete validation cannot offer a guarded edit.',
       );
       break;

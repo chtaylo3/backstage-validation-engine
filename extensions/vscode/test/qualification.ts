@@ -34,6 +34,7 @@ export interface ResourceMetrics {
   workloadElapsedMs: number;
   operation: number;
   interruptions: number;
+  catalogVersionsObserved: string[];
   samples: {
     pid: number;
     client: { rssMiB: number; handles: number };
@@ -48,6 +49,7 @@ export function verifyMetrics(metrics: ResourceMetrics, duration: number): void 
   assert(metrics.workloadElapsedMs >= duration * 1000);
   assert(metrics.operation >= 100);
   assert(metrics.interruptions >= 2);
+  assert.deepEqual([...metrics.catalogVersionsObserved].sort(), ['1.55.3', '1.56.3']);
   assert(metrics.samples.length >= 8);
   for (const sample of metrics.samples) {
     assert(sample.pid > 1);

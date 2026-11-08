@@ -59,6 +59,7 @@ void test('soak qualification rejects short, interrupted and empty resource repo
     workloadElapsedMs: 7200001,
     operation: 500,
     interruptions: 10,
+    catalogVersionsObserved: ['1.55.3', '1.56.3'],
     samples: Array.from({ length: 8 }, () => ({
       pid: 42,
       client: { rssMiB: 200, handles: 30 },
@@ -84,6 +85,9 @@ void test('soak qualification rejects short, interrupted and empty resource repo
     },
     (m: ResourceMetrics) => {
       m.interruptions = 0;
+    },
+    (m: ResourceMetrics) => {
+      m.catalogVersionsObserved = ['1.55.3'];
     },
   ]) {
     const m = structuredClone(metrics);

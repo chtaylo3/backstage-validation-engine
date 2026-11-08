@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron'
 import { launchEditor } from './extension-test-process.mjs';
 import { debugPort, observeWorkbench } from './extension-test-ui.mjs';
 import { classify, junit } from '../.artifacts/vscode/test/reporting.mjs';
+import semver from 'semver';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mode = process.argv.find((value) => value.startsWith('--mode='))?.slice(7);
@@ -263,7 +264,7 @@ try {
       spawn: { env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1', VSCODE_IPC_HOOK_CLI: '' } },
     };
     const plugin = {
-      'ssh-remote': 'ms-vscode-remote.remote-ssh@0.122.0',
+      'ssh-remote': 'ms-vscode-remote.remote-ssh@0.120.0',
       'dev-container': 'ms-vscode-remote.remote-containers@0.430.0',
       wsl: 'ms-vscode-remote.remote-wsl@0.104.3',
     }[mode];
@@ -277,11 +278,35 @@ try {
           installed,
           '--user-data-dir',
           path.join(session, 'installer-profile'),
+          '--shared-data-dir=' + path.join(session, 'installer-shared-data'),
           '--no-sandbox',
         ],
         installerOptions,
       ).then((result) => result.stdout),
     );
+    await preflight('Remote extension engine compatibility', async () => {
+      const manifests = [];
+      for (const name of await readdir(installed)) {
+        const manifest = await readFile(path.join(installed, name, 'package.json'), 'utf8')
+          .then(JSON.parse)
+          .catch(() => undefined);
+        if (manifest)
+          manifests.push({
+            id: manifest.publisher + '.' + manifest.name,
+            version: manifest.version,
+            engine: manifest.engines.vscode,
+          });
+      }
+      const primary = manifests.find((value) => value.id === plugin.split('@')[0]);
+      assert(primary);
+      assert.equal(primary.version, plugin.split('@')[1]);
+      for (const version of ['1.106.3', '1.145.2'])
+        assert(
+          semver.satisfies(version, primary.engine),
+          `${plugin} requires ${primary.engine}; cannot qualify ${version}`,
+        );
+      return manifests;
+    });
     let sshConfig;
     if (mode === 'ssh-remote') {
       const key = path.join(session, 'id_ed25519');
@@ -414,6 +439,7 @@ try {
           'extensions.ignoreRecommendations': true,
           'chat.disableAIFeatures': true,
           'workbench.startupEditor': 'none',
+          'window.dialogStyle': 'custom',
           'update.mode': 'none',
           'remote.SSH.configFile': sshConfig,
           'remote.SSH.useExecServer': false,
@@ -435,6 +461,7 @@ try {
         installed,
         '--user-data-dir',
         profile,
+        '--shared-data-dir=' + path.join(session, 'shared-' + version),
         '--disable-workspace-trust',
         '--disable-gpu',
         '--no-sandbox',
@@ -455,6 +482,7 @@ try {
           directory,
           isExited: () => exited,
           signal: observerAbort.signal,
+          ownedContainer: mode === 'dev-container' ? containerName : undefined,
         });
         const result = await launchEditor(
           executable,
@@ -473,11 +501,13 @@ try {
           stage !== 0
             ? undefined
             : async () => {
-                const marker = JSON.parse(
-                  await remote('cat', [path.posix.join(remoteSession, 'close.json')]),
-                );
                 const progress = JSON.parse(
                   await remote('cat', [path.posix.join(remoteSession, 'progress.json')]),
+                );
+                if (progress.status === 'failed')
+                  throw new Error(progress.error ?? 'Remote scenario failed before disconnect.');
+                const marker = JSON.parse(
+                  await remote('cat', [path.posix.join(remoteSession, 'close.json')]),
                 );
                 assert(progress.serverPids.includes(marker.pid));
                 await remote('/opt/bve-node', [

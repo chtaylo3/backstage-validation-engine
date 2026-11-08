@@ -46,6 +46,12 @@ export function exited(pid: number): boolean {
     throw error;
   }
 }
+export function guardedCommand(
+  action: vscode.CodeAction | vscode.Command,
+): vscode.Command | undefined {
+  const command = typeof action.command === 'string' ? (action as vscode.Command) : action.command;
+  return command?.command === 'bve.applyFix' ? command : undefined;
+}
 export class Fixture {
   api: Api | undefined;
   readonly pids = new Set<number>();
@@ -132,30 +138,49 @@ export class Fixture {
     // Query the current diagnostic each time, within the same readiness bound
     // used for completion; a one-shot early empty result is not readiness.
     let command: vscode.Command | undefined;
-    await until(async () => {
-      const diagnostic = vscode.languages
-        .getDiagnostics(uri)
-        .find((row) => row.code === 'production-only');
-      if (!diagnostic) return false;
-      let actions: vscode.CodeAction[] | undefined;
-      try {
-        actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-          'vscode.executeCodeActionProvider',
-          uri,
-          diagnostic.range,
-          vscode.CodeActionKind.QuickFix.value,
-        );
-      } catch (error) {
-        if (error instanceof Error && error.name === 'Canceled') {
-          this.readinessCancellations++;
-          this.note('code-action readiness cancelled by editor');
-          return false;
+    let last: Record<string, unknown> = {};
+    try {
+      await until(async () => {
+        const diagnostics = vscode.languages.getDiagnostics(uri);
+        last = {
+          uri: uri.toString(),
+          activeUri: vscode.window.activeTextEditor?.document.uri.toString(),
+          version: vscode.window.activeTextEditor?.document.version,
+          status: this.api?.status(),
+          diagnostics: diagnostics.map((row) => ({
+            code: typeof row.code === 'object' ? row.code.value : row.code,
+            message: row.message,
+            data: (row as vscode.Diagnostic & { data?: unknown }).data,
+          })),
+        };
+        const diagnostic = diagnostics.find((row) => row.code === 'production-only');
+        if (!diagnostic) return false;
+        let actions: (vscode.CodeAction | vscode.Command)[] | undefined;
+        try {
+          actions = await vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
+            'vscode.executeCodeActionProvider',
+            uri,
+            diagnostic.range,
+            vscode.CodeActionKind.QuickFix.value,
+          );
+        } catch (error) {
+          if (error instanceof Error && error.name === 'Canceled') {
+            this.readinessCancellations++;
+            this.note('code-action readiness cancelled by editor');
+            return false;
+          }
+          throw error;
         }
-        throw error;
-      }
-      command = actions?.find((row) => row.command?.command === 'bve.applyFix')?.command;
-      return command !== undefined;
-    }, 'installed client offers the guarded fix');
+        last.actions = actions?.map((row) => ({
+          title: row.title,
+          command: typeof row.command === 'string' ? row.command : row.command?.command,
+        }));
+        command = actions?.map(guardedCommand).find((value) => value !== undefined);
+        return command !== undefined;
+      }, 'installed client offers the guarded fix');
+    } catch (error) {
+      throw new Error(`Guarded fix readiness failed: ${JSON.stringify(last)}`, { cause: error });
+    }
     assert(command, 'Installed client must offer the guarded fix.');
     this.note('guarded fix offered');
     return command;

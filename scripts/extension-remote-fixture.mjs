@@ -62,7 +62,7 @@ const env = {
   BVE_EXTENSION_TEST_MODULE: path.join(session, 'test/cases/remote-session.case.cjs'),
   BVE_EXTENSION_TEST_PROGRESS: path.join(session, 'progress.json'),
   BVE_EXTENSION_TEST_CLOSE_MARKER: path.join(session, 'close.json'),
-  BVE_EXTENSION_TEST_REMOTE_NAME: mode,
+  BVE_EXTENSION_TEST_REMOTE_NAME: mode === 'dev-container' ? 'attached-container' : mode,
   BVE_EXTENSION_TEST_REMOTE_HOSTNAME: os.hostname(),
   BVE_EXTENSION_TEST_REVISION: revision,
   BVE_EXTENSION_TEST_CREDENTIAL_SHA: createHash('sha256')

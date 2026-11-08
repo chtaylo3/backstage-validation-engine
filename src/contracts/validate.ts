@@ -42,6 +42,10 @@ export interface ContractTypes {
 const ajv = new Ajv({ allErrors: true, strict: true, ownProperties: true });
 for (const definition of Object.values(contractSchemas)) ajv.addSchema(definition);
 const validators = new Map<string, ValidateFunction>();
+// Only this parser's deeply frozen outputs can bypass repeated structural
+// work. Caller inputs, clones, proxies and authority/context decisions are
+// never cached. Weak keys cannot retain past workspace generations.
+const checked = new WeakMap<object, keyof ContractTypes>();
 
 function unique(values: readonly string[], path: string): void {
   if (new Set(values).size !== values.length)
@@ -308,6 +312,8 @@ export function parseContract<K extends keyof ContractTypes>(
   name: K,
   input: unknown,
 ): Immutable<ContractTypes[K]> {
+  if (input !== null && typeof input === 'object' && checked.get(input) === name)
+    return input as Immutable<ContractTypes[K]>;
   const value: unknown = JSON.parse(canonicalJson(input));
   let validate = validators.get(name);
   if (!validate) {
@@ -392,5 +398,7 @@ export function parseContract<K extends keyof ContractTypes>(
     case 'coverage':
       break;
   }
-  return deepFreeze(value as ContractTypes[K]);
+  const output = deepFreeze(value as ContractTypes[K]);
+  if (output !== null && typeof output === 'object') checked.set(output, name);
+  return output;
 }

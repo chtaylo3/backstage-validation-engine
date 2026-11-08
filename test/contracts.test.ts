@@ -7,6 +7,40 @@ import { ContractError, contractSchemas, createDataSnapshot, parseContract } fro
 import type { ContractTypes, DataEntry } from '../src/index.js';
 import { NOW, makeRequest } from './helpers.js';
 
+void test('checked immutable contracts reuse their value without trusting the original mutable input', () => {
+  const input = structuredClone(makeRequest());
+  const checked = parseContract('validation-request', input);
+  assert.notEqual(checked, input);
+  assert.equal(parseContract('validation-request', checked), checked);
+  assert(Object.isFrozen(checked.source.files[0]));
+  Object.assign(input, { authorized: true });
+  assert.throws(() => parseContract('validation-request', input), ContractError);
+  assert.equal(Object.hasOwn(checked, 'authorized'), false);
+});
+void test('frozen counterfeits and different contract names cannot reuse validation', () => {
+  const request = makeRequest();
+  assert.throws(
+    () => parseContract('validation-request', Object.freeze({ ...request, authorized: true })),
+    ContractError,
+  );
+  assert.throws(
+    () =>
+      parseContract(
+        'validation-request',
+        Object.freeze({
+          ...request,
+          source: { ...request.source, digest: 'sha256:' + '0'.repeat(64) },
+        }),
+      ),
+    ContractError,
+  );
+  assert.throws(() => parseContract('policy-bundle', request), ContractError);
+  const cloned = structuredClone(request);
+  assert.notEqual(parseContract('validation-request', cloned), cloned);
+  Object.assign(cloned.run, { generation: request.run.generation + 1 });
+  assert.throws(() => parseContract('validation-request', cloned), ContractError);
+});
+
 void test('rejects prototype contracts and caller-supplied authority flags', () => {
   assert.throws(
     () => parseContract('validation-request', { ...makeRequest(), contractVersion: '0.1' }),

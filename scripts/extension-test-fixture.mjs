@@ -31,6 +31,7 @@ export async function prepareFixture({
       'workbench.startupEditor': 'none',
       'update.mode': 'none',
       'files.autoSave': 'off',
+      'window.dialogStyle': 'custom',
       'files.saveConflictResolution': 'askUser',
     }),
   );

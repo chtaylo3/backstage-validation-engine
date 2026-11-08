@@ -121,7 +121,7 @@ export class Workbench {
   }
   async rectangle(pattern) {
     return this.evaluate(
-      `(() => { const match = new RegExp(${JSON.stringify(pattern)}, 'i'); const e = Array.from(document.querySelectorAll('[role="button"],[role="tab"],button,a')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim())); if (!e) return null; e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,text:e.innerText}; })()`,
+      `(() => { const match = new RegExp(${JSON.stringify(pattern)}, 'i'); const e = Array.from(document.querySelectorAll('[role="button"],[role="tab"],[role="link"],button,a')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim())); if (!e) return null; e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,text:e.innerText}; })()`,
     );
   }
   async click(pattern) {
@@ -141,12 +141,17 @@ export class Workbench {
     }
   }
   async trustPane() {
+    await this.call('Page.bringToFront');
     const tab = await this.rectangle('^Workspace Trust$');
     if (tab) await this.clickAt(tab);
     else {
       const manage = await this.rectangle('^Manage$');
       if (manage) await this.clickAt(manage);
-      else await this.palette('Manage Workspace Trust');
+      else {
+        const restricted = await this.rectangle('^Restricted Mode$');
+        if (restricted) await this.clickAt(restricted);
+        else await this.palette('Manage Workspace Trust');
+      }
     }
     let opened;
     await this.wait(async () => {
@@ -198,8 +203,8 @@ export async function connectWorkbench(port, isExited = () => false) {
   throw new Error('No owned workbench CDP target.');
 }
 
-/** Passive bootstrap evidence; never changes trust or retries a remote case. */
-export async function observeWorkbench({ port, directory, isExited, signal }) {
+/** Bootstrap evidence, with visible attach consent only for our owned container. */
+export async function observeWorkbench({ port, directory, isExited, signal, ownedContainer }) {
   let workbench;
   try {
     for (const [index, delay] of [20_000, 40_000, 60_000].entries()) {
@@ -211,6 +216,20 @@ export async function observeWorkbench({ port, directory, isExited, signal }) {
         path.join(directory, `connection-${index}.txt`),
         await workbench.evaluate('document.body.innerText'),
       );
+      if (ownedContainer) {
+        const consent = await workbench.evaluate(
+          `Array.from(document.querySelectorAll('[role="dialog"]')).some(e => e.getBoundingClientRect().width > 0 && e.innerText.includes('Attaching to a container may execute arbitrary code.') && e.innerText.includes('Only attach to a container if you trust its origin.'))`,
+        );
+        if (consent) {
+          const button = await workbench.click('^Got It$');
+          await atomic(path.join(directory, 'attach-consent.json'), {
+            container: ownedContainer,
+            visibleDialog: true,
+            button,
+            at: Date.now(),
+          });
+        }
+      }
     }
   } catch (error) {
     if (!signal.aborted)

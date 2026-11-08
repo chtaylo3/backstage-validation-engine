@@ -40,13 +40,16 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
   await fixture.currentDiagnostic(document);
   const workloadStarted = Date.now();
   const original = document.getText();
+  const teamText = await readFile(fixture.teamUri.fsPath, 'utf8');
   const samples: Sample[] = [];
   const edits: number[] = [],
     completions: number[] = [],
     restarts: number[] = [];
   const directory = path.dirname(process.env.BVE_EXTENSION_TEST_PROGRESS!);
   let operation = 0,
-    lastRestart = 0,
+    lastRestart = workloadStarted,
+    lastInterruption = 0,
+    catalogIndex = 0,
     interruptions = 0,
     completed = false;
   const budgets = {
@@ -60,6 +63,8 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
     growthMiBPerOperation: 0.15,
   };
   const cadenceMs = duration === 60 ? 15_000 : 60_000;
+  const restartCadenceMs = duration === 60 ? 15_000 : 15 * 60_000;
+  const catalogVersions = new Set<string>();
   async function persist(complete = false) {
     const report = {
       complete,
@@ -72,6 +77,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
       fixture: { components: size - 1, groups: 1, initialPolicyViolations: 1 },
       operation,
       interruptions,
+      catalogVersionsObserved: [...catalogVersions],
       baseline,
       coldMs,
       budgets,
@@ -105,15 +111,15 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
       completions.push(Date.now() - completionStarted);
       if (operation % 5 === 0) {
         // Native watcher burst in another configured file while the main document is dirty.
-        const text = await readFile(fixture.teamUri.fsPath, 'utf8');
         for (let burst = 0; burst < 3; burst++)
-          await writeFile(fixture.teamUri.fsPath, text + `# watcher ${operation}:${burst}\n`);
+          await writeFile(fixture.teamUri.fsPath, teamText + `# watcher ${operation}:${burst}\n`);
         await fixture.currentDiagnostic(document);
         assert(document.getText().includes(`# operation ${operation}, burst 2`));
       }
-      if (soak && (interruptions === 0 || Date.now() - lastRestart > cadenceMs)) {
+      if (soak && (interruptions === 0 || Date.now() - lastInterruption > cadenceMs)) {
         const outage = await fixture.control({
           op: 'outage',
+          version: catalogIndex,
           operation: 'byName',
           entityRef: 'group:default/remote-team',
         });
@@ -137,10 +143,12 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
               ),
           'catalog interruption is reported as incomplete',
         );
-        await fixture.control({ op: 'recover' });
-        await vscode.commands.executeCommand('backstageValidation.restart');
-        await until(() => fixture.api!.status().running, 'catalog recovery restart');
-        fixture.pid();
+        const pid = fixture.pid();
+        const recovery = await fixture.control({ op: 'recover', version: catalogIndex });
+        await fixture.replace(
+          document,
+          document.getText() + `# catalog recovered ${interruptions}\n`,
+        );
         await until(
           () =>
             !vscode.languages
@@ -148,17 +156,32 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
               .some((row) => row.code === 'validation/incomplete' || row.code === 'owner-exists'),
           'recovered catalog finding clears',
         );
+        await fixture.control({
+          op: 'assert-read',
+          version: catalogIndex,
+          after: Number(recovery.id),
+        });
+        assert.equal(
+          fixture.pid(),
+          pid,
+          'Catalog recovery does not hide growth by restarting the server.',
+        );
+        catalogVersions.add(fixture.catalogs()[catalogIndex]!.version);
         await fixture.replace(document, original + `# operation ${operation}\n`);
         await fixture.currentDiagnostic(document);
         interruptions++;
+        lastInterruption = Date.now();
       }
       if (
         (!soak && [20, 40].includes(operation)) ||
-        (soak && Date.now() - lastRestart > cadenceMs)
+        (soak && Date.now() - lastRestart > restartCadenceMs)
       ) {
         const pid = fixture.pid(),
           restartStarted = Date.now();
-        await vscode.commands.executeCommand('backstageValidation.restart');
+        if (soak) {
+          catalogIndex = (catalogIndex + 1) % fixture.catalogs().length;
+          await fixture.useCatalog(catalogIndex);
+        } else await vscode.commands.executeCommand('backstageValidation.restart');
         await until(
           () => exited(pid) && fixture.api!.status().running,
           'bounded restart under workload',

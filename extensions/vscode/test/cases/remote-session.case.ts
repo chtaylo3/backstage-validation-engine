@@ -93,14 +93,15 @@ export async function run(fixture: Fixture): Promise<void> {
     await fixture.replace(document, original);
     assert.equal(await document.save(), true);
     await fixture.currentDiagnostic(document);
+    const closingPid = fixture.pid();
     await writeFile(
       process.env.BVE_EXTENSION_TEST_CLOSE_MARKER!,
       JSON.stringify({
-        pid: fixture.pid(),
+        pid: closingPid,
         remoteName: vscode.env.remoteName,
         hostname: os.hostname(),
         uri: document.uri.toString(),
-        runtime: await realpath(`/proc/${pid}/exe`),
+        runtime: await realpath(`/proc/${closingPid}/exe`),
       }),
     );
     // The parent observes process death on the remote host before stopping it.

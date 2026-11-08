@@ -126,7 +126,14 @@ async function provision(version, yaml = false) {
         const installed = path.join(session, 'installed');
         const profile = path.join(session, 'profile');
         const executable = await downloadAndUnzipVSCode({ version });
-        const common = ['--extensions-dir', installed, '--user-data-dir', profile, '--no-sandbox'];
+        const common = [
+          '--extensions-dir',
+          installed,
+          '--user-data-dir',
+          profile,
+          '--shared-data-dir=' + path.join(session, 'installer-shared-data'),
+          '--no-sandbox',
+        ];
         const options = {
           version: installerVersion,
           reuseMachineInstall: true,
@@ -320,6 +327,7 @@ async function execute(spec, output, fault, peer) {
       installed,
       '--user-data-dir',
       profile,
+      '--shared-data-dir=' + path.join(session, 'shared-data'),
       '--extensionDevelopmentPath=' + driver,
       ...(autonomous ? [] : ['--extensionTestsPath=' + path.join(testRoot, 'suite.cjs')]),
       ...(trust ? ['--locale', 'en'] : ['--disable-workspace-trust']),
@@ -331,7 +339,7 @@ async function execute(spec, output, fault, peer) {
       '--disable-updates',
       '--no-cached-data',
     ];
-    if (spec.id === 'race-apply-delivery') {
+    if (['race-apply-delivery', 'save'].includes(spec.id)) {
       args.push('--log', 'chtaylo3.backstage-validation-engine:trace');
       const settings = path.join(profile, 'User/settings.json');
       const value = JSON.parse(await readFile(settings, 'utf8'));
@@ -475,7 +483,14 @@ async function execute(spec, output, fault, peer) {
       const sessions = [];
       const stages = ['previous', 'upgraded', 'disabled', 'enabled', 'uninstalled', 'reinstalled'];
       for (const stage of stages) {
-        const common = ['--extensions-dir', installed, '--user-data-dir', profile, '--no-sandbox'];
+        const common = [
+          '--extensions-dir',
+          installed,
+          '--user-data-dir',
+          profile,
+          '--shared-data-dir=' + path.join(session, 'installer-shared-data'),
+          '--no-sandbox',
+        ];
         const options = {
           version: installerVersion,
           reuseMachineInstall: true,

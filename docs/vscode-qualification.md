@@ -12,7 +12,7 @@ qualification requirement.
 | YAML coexistence           | Red Hat YAML 1.19.1, independent findings, overlapping completions, guarded fix and formatting, continued YAML validation after product Stop                          | Both editor versions on all three OS targets                                                                                                                                      |
 | Package lifecycle          | Fixture predecessor 0.0.1 → candidate 0.1.0, disable/re-enable, uninstall/reinstall, persistent User Settings and one native server                                   | Both versions on all three OS targets; a real historical release remains unqualified until a supported predecessor exists                                                         |
 | Virtual workspace          | Native custom filesystem workspace; installed product stays inactive without diagnostics, fixes or completions                                                        | Both versions on all three OS targets; this is not a browser test                                                                                                                 |
-| Remote SSH                 | Native Linux desktop, Remote SSH 0.122.0, authenticated ephemeral container host                                                                                      | Assert `remoteName`, hostname, host-target installed VSIX/revision, bundled runtime, visible User Setting, URI behavior, watcher/fix/completion, disconnect cleanup and reconnect |
+| Remote SSH                 | Native Linux desktop, Remote SSH 0.120.0, authenticated ephemeral container host                                                                                      | Assert `remoteName`, hostname, host-target installed VSIX/revision, bundled runtime, visible User Setting, URI behavior, watcher/fix/completion, disconnect cleanup and reconnect |
 | Dev Containers             | Native Linux desktop, Dev Containers 0.430.0, actual attached container workspace                                                                                     | Same remote assertions; running local tests inside Docker cannot satisfy this lane                                                                                                |
 | WSL                        | Native Windows desktop, WSL extension 0.104.3, isolated imported WSL2 distro containing the Linux candidate                                                           | Actual WSL2 kernel and remote extension host; failed virtualization/import preflight fails the required lane                                                                      |
 | Load and endurance         | 100/1000 configured files, cold editor readiness, dirty edit and native watcher bursts, completion, periodic restarts and catalog authorization interruption/recovery | Native client/server RSS and handles, one owned server, latency percentiles and post-warmup growth checks; full 30-minute scheduled and two-hour release workloads                |
@@ -65,13 +65,28 @@ capacity to complete every zero-debounce 1000-violation workload. Performance bu
 in `resource-metrics.json`; observed local timings do not qualify hosted hardware.
 The client baseline is measured after product Stop and includes the loaded client
 module, while cold readiness starts at the parent editor launch timestamp.
+Catalog authorization is interrupted and recovered live each minute, with a new
+denied and then successful authenticated read required; recovery must keep the
+same server PID. Fifteen-minute process epochs allow post-warmup growth to be
+measured before periodic restarts switch between both pinned catalog versions.
+Watcher files have bounded, stable content size throughout the workload.
 
 The load lane exposed duplicate native source/baseline preparation by validation
 and completion. Catalog-backed LSP generations now share that immutable local
 preparation before catalog HTTP; each still enforces the original deadline and
 generation cancellation. An actual held-HTTP test on both API pins verifies that
 local completion remains available, and a newer edit cancels the old generation.
-There is no persistent cross-request source cache.
+There is no persistent cross-request source cache. Repeated structural contract
+checks reuse only the parser's own deeply frozen output identities. Mutable
+inputs, clones and caller-frozen counterfeits still receive full validation;
+authority, request bindings, cancellation and deadlines are checked separately.
+
+Each native process receives its own application shared-data directory as well
+as an isolated user profile and extension directory. Remote extension pins are
+checked against both editor versions before launching. Dev Containers attach
+consent uses a visible native workbench dialog and records the click for the
+workflow-owned container; it does not modify the extension's private consent
+storage.
 
 ## Current qualification status
 

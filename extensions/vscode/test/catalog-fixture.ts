@@ -95,7 +95,7 @@ export async function createEditorCatalog(root: string, token: string = randomUU
           canRead: false,
           visibleRefs: '*',
         });
-        events.push({ event: 'outage', at: Date.now() });
+        events.push({ event: 'outage', version: selected.target.backstageVersion, at: Date.now() });
         result = { reference };
       } else if (value.op === 'recover') {
         if (!outage) throw new Error('Recover requires an observed outage.');
@@ -115,7 +115,12 @@ export async function createEditorCatalog(root: string, token: string = randomUU
           visibleRefs: '*',
         });
         outage = false;
-        events.push({ event: 'recovered', at: Date.now() });
+        events.push({
+          event: 'recovered',
+          version: selected.target.backstageVersion,
+          at: Date.now(),
+        });
+        result = { id: String(selected.fixture.requests().at(-1)?.id ?? 0) };
       } else if (value.op === 'cursor')
         result = { id: String(selected.fixture.requests().at(-1)?.id ?? 0) };
       else if (value.op === 'assert-read') {
