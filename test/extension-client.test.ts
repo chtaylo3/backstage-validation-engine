@@ -285,9 +285,11 @@ void test('concurrent command queue honors the last requested state and ignores 
 });
 void test('server disconnect and transport errors never trigger an automatic restart loop', async () => {
   editorState.selected = config;
-  await extension.activate(context);
+  const api = await extension.activate(context);
   const handler: NonNullable<LanguageClientOptions['errorHandler']> = options().errorHandler!;
   assert.equal((await handler.error(new Error(), undefined, 10)).action, 2);
+  assert.equal(api.status().disconnected, true);
+  assert.equal(api.status().running, false);
   assert.equal((await handler.closed()).action, 1);
   assert.match(editorState.messages.join('\n'), /Restart Language Server/u);
   assert.equal(clients.length, 1);

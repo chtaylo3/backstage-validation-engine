@@ -19,7 +19,16 @@ async function killTree(pid) {
     }
   }
 }
-export async function launchEditor(executable, args, env, directory, crash = false, inspectExit) {
+export async function launchEditor(
+  executable,
+  args,
+  env,
+  directory,
+  crash = false,
+  inspectExit,
+  signal,
+  windowClosed,
+) {
   const log = createWriteStream(directory + '/editor-process.log');
   const child = spawn(executable, args, {
     env: { ...process.env, ...env },
@@ -35,24 +44,36 @@ export async function launchEditor(executable, args, env, directory, crash = fal
     failure ??= message;
     killing ??= killTree(child.pid);
   }
+  const abort = () => terminate('Editor stopped after controller failure.');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) abort();
   const timer = setTimeout(
     () => terminate('Editor exceeded the 120-second session bound.'),
     120_000,
   );
   let polling = false;
   const poll = setInterval(() => {
-    if (!crash || polling || killing) return;
+    if ((!crash && !windowClosed) || polling || killing) return;
     polling = true;
     void readProgress(env.BVE_EXTENSION_TEST_PROGRESS)
-      .then((progress) => {
-        if (progress?.phase === 'run') terminate('Injected editor crash during case execution.');
+      .then(async (progress) => {
+        if (crash && progress?.phase === 'run')
+          terminate('Injected editor crash during case execution.');
+        if (windowClosed && (await windowClosed())) {
+          await inspectExit();
+          observedClose = true;
+          child.kill('SIGTERM');
+        }
       })
-      .catch(() => {})
+      .catch((error) => {
+        if (windowClosed) terminate(error.stack ?? String(error));
+      })
       .finally(() => {
         polling = false;
       });
   }, 20);
   let exitCode;
+  let observedClose = false;
   try {
     exitCode = await new Promise((resolve) => {
       child.once('error', (error) => {
@@ -62,10 +83,11 @@ export async function launchEditor(executable, args, env, directory, crash = fal
       child.once('close', (code) => resolve(code ?? 1));
     });
   } finally {
+    signal?.removeEventListener('abort', abort);
     clearTimeout(timer);
     clearInterval(poll);
     if (killing) await killing;
-    if (!killing && exitCode === 0 && inspectExit) {
+    if (!killing && !observedClose && exitCode === 0 && inspectExit) {
       try {
         await inspectExit();
       } catch (error) {
@@ -81,5 +103,5 @@ export async function launchEditor(executable, args, env, directory, crash = fal
       log.end(resolve);
     });
   }
-  return { exitCode, ...(failure ? { error: failure } : {}) };
+  return { exitCode: observedClose ? 0 : exitCode, ...(failure ? { error: failure } : {}) };
 }

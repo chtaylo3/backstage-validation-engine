@@ -51,6 +51,7 @@ export class Fixture {
   readonly pids = new Set<number>();
   readinessCancellations = 0;
   readonly observations: { event: string; at: number }[] = [];
+  checkpoint: () => Promise<void> = () => Promise.resolve();
   note(event: string): void {
     if (this.observations.length < 128) this.observations.push({ event, at: Date.now() });
   }
@@ -60,24 +61,47 @@ export class Fixture {
   readonly teamUri = vscode.Uri.file(
     path.join(process.env.BVE_EXTENSION_TEST_WORKSPACE!, 'team.yaml'),
   );
-  async setup(initialRunning = true): Promise<void> {
+  async setup(initialRunning = true, activate = true): Promise<void> {
     assert.equal(
       vscode.version,
       process.env.BVE_EXTENSION_TEST_VERSION,
       'Execute in the requested editor, independently of the CLI installer.',
     );
     const extension = vscode.extensions.getExtension<Api>('chtaylo3.backstage-validation-engine');
-    assert(extension, 'Installed VSIX must be discoverable.');
+    if (!extension) {
+      assert(!activate, 'Installed VSIX must be discoverable.');
+      return;
+    }
     const installed = process.env.BVE_EXTENSION_TEST_INSTALL!;
     assert(
       path.resolve(extension.extensionPath).startsWith(path.resolve(installed) + path.sep),
       'Test the installed VSIX, not a development override.',
     );
+    if (!activate) return;
     this.api = await bounded(extension.activate(), 'product activation');
     if (initialRunning) {
       await until(() => this.api!.status().running, 'packaged server startup');
       this.pid();
     } else assert.equal(this.api.status().running, false, 'Negative startup must stay stopped.');
+  }
+  async trustedActivation(): Promise<void> {
+    await until(() => vscode.workspace.isTrusted, 'native Workspace Trust grant');
+    await until(
+      () =>
+        vscode.extensions.getExtension<Api>('chtaylo3.backstage-validation-engine')?.isActive ===
+        true,
+      'product automatically activates after consent',
+    );
+    const extension = vscode.extensions.getExtension<Api>('chtaylo3.backstage-validation-engine')!;
+    assert(
+      path
+        .resolve(extension.extensionPath)
+        .startsWith(path.resolve(process.env.BVE_EXTENSION_TEST_INSTALL!) + path.sep),
+    );
+    this.api = extension.exports;
+    await until(() => this.api!.status().running, 'trusted packaged server startup');
+    this.pid();
+    await this.checkpoint();
   }
   pid(): number {
     const pid = this.api?.status().pid;

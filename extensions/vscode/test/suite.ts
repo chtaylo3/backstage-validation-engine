@@ -22,13 +22,15 @@ export async function run(): Promise<void> {
     await writeFile(file + '.tmp', JSON.stringify(progress, null, 2) + '\n');
     await rename(file + '.tmp', file);
   }
+  fixture.checkpoint = save;
   await save();
   try {
     const scenario = (await import(pathToFileURL(process.env.BVE_EXTENSION_TEST_MODULE!).href)) as {
       initialRunning?: boolean;
+      activate?: boolean;
       run: (fixture: Fixture) => Promise<void>;
     };
-    await fixture.setup(scenario.initialRunning !== false);
+    await fixture.setup(scenario.initialRunning !== false, scenario.activate !== false);
     assert.equal(typeof scenario.run, 'function', 'Discovered case must export run().');
     progress.phase = 'run';
     await save();

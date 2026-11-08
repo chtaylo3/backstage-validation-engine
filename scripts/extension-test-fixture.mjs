@@ -55,7 +55,7 @@ export async function prepareFixture({
   await writeFile(
     path.join(driver, 'index.cjs'),
     autonomousSuite
-      ? `exports.activate = () => { const vscode = require('vscode'); void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.closeWindow'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.closeWindow'); }).catch(console.error); };\n`
+      ? `exports.activate = () => { const vscode = require('vscode'); void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.quit'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.quit'); }).catch(console.error); };\n`
       : 'exports.activate = () => {};\n',
   );
   const component =

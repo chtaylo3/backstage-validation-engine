@@ -113,7 +113,13 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       revealOutputChannelOn: RevealOutputChannelOn.Never,
       initializationFailedHandler: () => false,
       errorHandler: {
-        error: () => ({ action: ErrorAction.Shutdown, handled: true }),
+        error: () => {
+          disconnected = true;
+          output?.error(
+            'Validation stopped after a transport error. Use Restart Language Server to recover.',
+          );
+          return { action: ErrorAction.Shutdown, handled: true };
+        },
         closed: () => {
           disconnected = true;
           output?.error(
@@ -175,7 +181,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   return {
     status: () => ({
-      running: client?.isRunning() === true,
+      running: !disconnected && client?.isRunning() === true,
       pid: client?.serverProcess?.pid,
       disconnected,
     }),

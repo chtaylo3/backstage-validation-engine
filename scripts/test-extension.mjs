@@ -18,6 +18,7 @@ import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron'
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
+import { debugPort, controlTrust } from './extension-test-ui.mjs';
 import { setTimeout as pause } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -35,6 +36,7 @@ assert.deepEqual(modules, inventory, 'Compiled case inventory must match the pac
 const verify = process.argv.includes('--verify-failures');
 const focused = process.argv.find((value) => value.startsWith('--case='))?.slice(7);
 const racesOnly = process.argv.includes('--races');
+const trustOnly = process.argv.includes('--trust');
 const repeat = Number(
   process.argv.find((value) => value.startsWith('--repeat='))?.slice(9) ??
     process.env.BVE_RACE_REPETITIONS ??
@@ -49,7 +51,9 @@ const selectedModules = focused
   ? modules.filter((name) => name === focused + '.case.cjs')
   : racesOnly
     ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
-    : modules;
+    : trustOnly
+      ? modules.filter((name) => name.startsWith('trust-'))
+      : modules;
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
@@ -74,7 +78,7 @@ const metadata = {
   installedPayload: true,
   verification: verify,
   focused: focused ?? null,
-  scope: racesOnly ? 'races' : 'portable',
+  scope: racesOnly ? 'races' : trustOnly ? 'trust' : 'portable',
   installerVersion,
 };
 
@@ -128,7 +132,9 @@ async function execute(spec, output, fault, peer) {
   const closeMarker = path.join(base, 'native-window-state.json');
   let outcome;
   let closedCleanly = false;
-  const autonomous = ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
+  const trust = spec.id.startsWith('trust-');
+  const autonomous = trust || ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
+  const additionalWorkspaces = [];
   let denied;
   let catalog;
   try {
@@ -236,7 +242,7 @@ async function execute(spec, output, fault, peer) {
       profile,
       '--extensionDevelopmentPath=' + driver,
       ...(autonomous ? [] : ['--extensionTestsPath=' + path.join(testRoot, 'suite.cjs')]),
-      '--disable-workspace-trust',
+      ...(trust ? ['--locale', 'en'] : ['--disable-workspace-trust']),
       '--disable-gpu',
       '--disable-gpu-sandbox',
       '--no-sandbox',
@@ -252,6 +258,13 @@ async function execute(spec, output, fault, peer) {
       value['backstageValidation.trace.server'] = 'verbose';
       await writeFile(settings, JSON.stringify(value));
     }
+    const closePort =
+      spec.id === 'workspace-close-live' && process.platform === 'darwin'
+        ? await debugPort()
+        : undefined;
+    if (closePort)
+      args.push('--remote-debugging-port=' + closePort, '--remote-debugging-address=127.0.0.1');
+    let seenCloseWindow = false;
     await atomic(
       path.join(base, 'launch.json'),
       JSON.stringify(
@@ -267,82 +280,175 @@ async function execute(spec, output, fault, peer) {
         2,
       ) + '\n',
     );
-    const result = await launchEditor(
-      executable,
-      args,
-      {
-        BVE_LSP_CONFIG: launchConfig,
-        BVE_EXTENSION_TEST_CONFIG: config,
-        BVE_EXTENSION_TEST_WORKSPACE: workspace,
-        BVE_EXTENSION_TEST_INSTALL: installed,
-        BVE_EXTENSION_TEST_CASE: spec.id,
-        BVE_EXTENSION_TEST_VERSION: spec.version,
-        BVE_EXTENSION_TEST_MODULE: path.join(testRoot, 'cases', spec.id + '.case.cjs'),
-        BVE_EXTENSION_TEST_PROGRESS: progressFile,
-        BVE_EXTENSION_TEST_PROFILE: profile,
-        BVE_EXTENSION_TEST_CLOSE_MARKER: closeMarker,
-        BVE_EXTENSION_TEST_FAULT: fault ?? '',
-        BVE_EXTENSION_TEST_PEER: peer?.id ?? '',
-        BVE_EXTENSION_TEST_PEER_CONTROL: peer?.control ?? '',
-        BVE_EXTENSION_TEST_CONTROL_URL: catalog?.controlUrl ?? '',
-        BVE_EXTENSION_TEST_CONTROL_TOKEN: catalog?.controlToken ?? '',
-        BVE_EXTENSION_TEST_CATALOGS: JSON.stringify(catalog?.catalogs ?? []),
-        BVE_EDITOR_CATALOG_TOKEN: catalog?.token ?? '',
-        DONT_PROMPT_WSL_INSTALL: '1',
-        VSCODE_IPC_HOOK_CLI: '',
-        NODE_PATH: '',
-      },
-      base,
-      fault === 'crash',
-      spec.id !== 'workspace-close-live'
-        ? undefined
-        : async () => {
-            const marker = JSON.parse(await readFile(closeMarker, 'utf8'));
-            assert.equal(marker.id, spec.id);
-            assert.equal(marker.command, 'workbench.action.closeWindow');
-            const state = await readProgress(progressFile);
-            assert(
-              state?.serverPids.includes(marker.pid),
-              'Observe only the owned packaged server.',
-            );
-            assert(
-              catalog &&
+    const launch = async (sessionArgs, env, directory, signal) =>
+      launchEditor(
+        executable,
+        sessionArgs,
+        {
+          BVE_LSP_CONFIG: launchConfig,
+          BVE_EXTENSION_TEST_CONFIG: config,
+          BVE_EXTENSION_TEST_WORKSPACE: workspace,
+          BVE_EXTENSION_TEST_INSTALL: installed,
+          BVE_EXTENSION_TEST_CASE: spec.id,
+          BVE_EXTENSION_TEST_VERSION: spec.version,
+          BVE_EXTENSION_TEST_MODULE: path.join(testRoot, 'cases', spec.id + '.case.cjs'),
+          BVE_EXTENSION_TEST_PROGRESS: progressFile,
+          BVE_EXTENSION_TEST_PROFILE: profile,
+          BVE_EXTENSION_TEST_CLOSE_MARKER: closeMarker,
+          BVE_EXTENSION_TEST_FAULT: fault ?? '',
+          BVE_EXTENSION_TEST_PEER: peer?.id ?? '',
+          BVE_EXTENSION_TEST_PEER_CONTROL: peer?.control ?? '',
+          BVE_EXTENSION_TEST_CONTROL_URL: catalog?.controlUrl ?? '',
+          BVE_EXTENSION_TEST_CONTROL_TOKEN: catalog?.controlToken ?? '',
+          BVE_EXTENSION_TEST_CATALOGS: JSON.stringify(catalog?.catalogs ?? []),
+          BVE_EDITOR_CATALOG_TOKEN: catalog?.token ?? '',
+          DONT_PROMPT_WSL_INSTALL: '1',
+          VSCODE_IPC_HOOK_CLI: '',
+          NODE_PATH: '',
+          ...env,
+        },
+        directory,
+        fault === 'crash',
+        spec.id !== 'workspace-close-live'
+          ? undefined
+          : async () => {
+              const marker = JSON.parse(await readFile(closeMarker, 'utf8'));
+              assert.equal(marker.id, spec.id);
+              assert.equal(marker.command, 'workbench.action.closeWindow');
+              const state = await readProgress(progressFile);
+              assert(
+                state?.serverPids.includes(marker.pid),
+                'Observe only the owned packaged server.',
+              );
+              assert(
+                catalog &&
+                  catalog
+                    .evidence()
+                    .events.some(
+                      (event) => event.id === marker.gateId && event.event === 'entered',
+                    ),
+                'Close must interrupt an actually held validation request.',
+              );
+              const end = Date.now() + 20_000;
+              while (true) {
+                try {
+                  process.kill(marker.pid, 0);
+                } catch (error) {
+                  if (error.code === 'ESRCH') break;
+                  throw error;
+                }
+                if (Date.now() >= end)
+                  throw new Error(
+                    'Window close left the packaged server alive before parent cleanup.',
+                  );
+                await pause(30);
+              }
+              assert(
                 catalog
                   .evidence()
-                  .events.some((event) => event.id === marker.gateId && event.event === 'entered'),
-              'Close must interrupt an actually held validation request.',
-            );
-            const end = Date.now() + 20_000;
-            while (true) {
-              try {
-                process.kill(marker.pid, 0);
-              } catch (error) {
-                if (error.code === 'ESRCH') break;
-                throw error;
-              }
-              if (Date.now() >= end)
-                throw new Error(
-                  'Window close left the packaged server alive before parent cleanup.',
-                );
-              await pause(30);
+                  .events.some(
+                    (event) => event.id === marker.gateId && event.event === 'cancelled',
+                  ),
+                'Close cancels validation before fixture cleanup.',
+              );
+              await atomic(
+                path.join(base, 'parent-observation.json'),
+                JSON.stringify(
+                  {
+                    editorExited: !closePort,
+                    windowClosed: true,
+                    serverExitedBeforeParentCleanup: true,
+                    pid: marker.pid,
+                  },
+                  null,
+                  2,
+                ) + '\n',
+              );
+              closedCleanly = true;
+            },
+        signal,
+        closePort
+          ? async () => {
+              const targets = await globalThis
+                .fetch(`http://127.0.0.1:${closePort}/json/list`)
+                .then((response) => response.json())
+                .catch(() => null);
+              if (!targets) return false;
+              const visible = targets.some(
+                (target) => target.type === 'page' && target.url.includes('workbench'),
+              );
+              if (visible) seenCloseWindow = true;
+              return seenCloseWindow && !visible && !!(await readProgress(closeMarker));
             }
-            assert(
-              catalog
-                .evidence()
-                .events.some((event) => event.id === marker.gateId && event.event === 'cancelled'),
-              'Close cancels validation before fixture cleanup.',
+          : undefined,
+      );
+    let result;
+    if (trust) {
+      const settings = path.join(profile, 'User/settings.json');
+      const value = JSON.parse(await readFile(settings, 'utf8'));
+      value['security.workspace.trust.enabled'] = true;
+      value['security.workspace.trust.startupPrompt'] = 'never';
+      await writeFile(settings, JSON.stringify(value));
+      const sessions = [];
+      const count = ['trust-persisted', 'trust-unrelated'].includes(spec.id) ? 2 : 1;
+      let currentWorkspace = workspace;
+      for (let stage = 0; stage < count; stage++) {
+        if (stage === 1) {
+          await atomic(
+            path.join(base, 'session-0-progress.json'),
+            await readFile(progressFile, 'utf8'),
+          );
+          await rm(progressFile, { force: true });
+          if (spec.id === 'trust-unrelated') {
+            currentWorkspace = await nativeSession('bve-unrelated-');
+            additionalWorkspaces.push(currentWorkspace);
+            await Promise.all(
+              ['catalog.yaml', 'team.yaml'].map((name) =>
+                cp(path.join(workspace, name), path.join(currentWorkspace, name)),
+              ),
             );
-            await atomic(
-              path.join(base, 'parent-observation.json'),
-              JSON.stringify(
-                { editorExited: true, serverExitedBeforeParentCleanup: true, pid: marker.pid },
-                null,
-                2,
-              ) + '\n',
-            );
-            closedCleanly = true;
+          }
+        }
+        const port = await debugPort();
+        const sessionArgs = [
+          currentWorkspace,
+          ...args.slice(1),
+          '--remote-debugging-port=' + port,
+          '--remote-debugging-address=127.0.0.1',
+        ];
+        const directory = path.join(base, 'session-' + stage);
+        await mkdir(directory, { recursive: true });
+        const abort = new globalThis.AbortController();
+        let exited = false;
+        const editor = launch(
+          sessionArgs,
+          {
+            BVE_EXTENSION_TEST_CONTROL_DIRECTORY: base,
+            BVE_EXTENSION_TEST_TRUST_STAGE: String(stage),
+            BVE_EXTENSION_TEST_WORKSPACE: currentWorkspace,
           },
-    );
+          directory,
+          abort.signal,
+        ).finally(() => {
+          exited = true;
+        });
+        const ui = controlTrust({ port, base, stage, isExited: () => exited }).catch((error) => {
+          abort.abort();
+          throw error;
+        });
+        const completed = await Promise.allSettled([editor, ui]);
+        const failed = completed.find((entry) => entry.status === 'rejected');
+        if (failed) throw failed.reason;
+        result = completed[0].value;
+        const progress = await readProgress(progressFile);
+        sessions.push({ stage, workspace: currentWorkspace, result, progress });
+        await atomic(
+          path.join(base, 'native-sessions.json'),
+          JSON.stringify(sessions, null, 2) + '\n',
+        );
+        if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
+      }
+    } else result = await launch(args, {}, base);
     const progress = await readProgress(progressFile);
     if (closedCleanly && !result.error && progress) {
       progress.status = 'passed';
@@ -380,7 +486,7 @@ async function execute(spec, output, fault, peer) {
       () => {},
     );
     const removed = await Promise.allSettled(
-      (peer ? [session] : [workspace, session]).map((directory) =>
+      [...(peer ? [session] : [workspace, session]), ...additionalWorkspaces].map((directory) =>
         rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
       ),
     );

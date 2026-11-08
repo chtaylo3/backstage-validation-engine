@@ -125,9 +125,27 @@ incremental reporting and runner failure verification. Increment 2 adds native
 configuration rejection/recovery, server-crash/manual-restart and overlapping
 lifecycle scenarios, plus a separate client coverage job on every OS. Increment 3
 adds deterministic document races, simultaneous windows, multi-root workspaces,
-native close/reload and a weekly/manual repetition workflow. Trust and broader
-compatibility increments below remain planned. Qualification requires the actual
+native close/reload and a weekly/manual repetition workflow. Increment 4 adds five
+native Workspace Trust cases using visible controls through Chrome DevTools
+Protocol input events, screenshots and a driver that can inspect Restricted Mode.
+Broader compatibility remains in progress. Qualification requires the actual
 hosted results for the candidate revision.
+
+The first increment 3 matrix at `d8b2f15` passed 74 installed-editor executions
+on Linux and Windows. Its macOS run exposed a transport-error shutdown status
+race and the native behavior where closing the last window leaves the application
+running. The follow-up marks transport failures disconnected immediately, uses
+Quit for autonomous suite completion, and observes the actual closed workbench
+and dead server before terminating the remaining owned macOS application. The
+failed run is retained as evidence, not counted as qualification.
+
+Trust cases omit `--disable-workspace-trust`, assert enforcement and the absence
+of a product trust override, and never call product activation while restricted.
+Grant and revoke use native pointer input on the visible Trust pane; revocation
+must cause the editor's real reload and reap the previous server. Persistence and
+unrelated-folder cases launch a second editor process with the same profile.
+`native-sessions.json`, asserted API state, UI action records and screenshots are
+retained. The product's Restricted Mode declaration remains unchanged.
 
 Increment 2 qualified at `d3884ed`: [all eleven jobs passed](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42445289384),
 including 851 full-harness tests, 44 installed-editor executions per OS and client
