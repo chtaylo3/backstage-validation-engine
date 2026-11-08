@@ -8,7 +8,16 @@ import {
   digestJson,
 } from '../dist/index.js';
 
-export async function prepareFixture({ session, workspace, profile, driver }) {
+export async function prepareFixture({
+  session,
+  workspace,
+  profile,
+  driver,
+  expectedLifecycle = 'production',
+  extraFiles = [],
+  authorityId = 'editor-test',
+  autonomousSuite,
+}) {
   await mkdir(path.join(profile, 'User'), { recursive: true });
   await writeFile(
     path.join(profile, 'User/settings.json'),
@@ -20,6 +29,8 @@ export async function prepareFixture({ session, workspace, profile, driver }) {
       'chat.disableAIFeatures': true,
       'workbench.startupEditor': 'none',
       'update.mode': 'none',
+      'files.autoSave': 'off',
+      'files.saveConflictResolution': 'askUser',
     }),
   );
   await mkdir(path.join(workspace, '.vscode'), { recursive: true });
@@ -37,19 +48,35 @@ export async function prepareFixture({ session, workspace, profile, driver }) {
       version: '0.0.1',
       engines: { vscode: '^1.106.0' },
       main: 'index.cjs',
+      activationEvents: autonomousSuite ? ['onStartupFinished'] : [],
+      capabilities: { untrustedWorkspaces: { supported: true } },
     }),
   );
-  await writeFile(path.join(driver, 'index.cjs'), 'exports.activate = () => {};\n');
+  await writeFile(
+    path.join(driver, 'index.cjs'),
+    autonomousSuite
+      ? `exports.activate = () => { const vscode = require('vscode'); void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.closeWindow'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.closeWindow'); }).catch(console.error); };\n`
+      : 'exports.activate = () => {};\n',
+  );
   const component =
     'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: service}\nspec:\n  type: service\n  lifecycle: experimental\n  owner: team\n';
   const team =
     'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {type: team, children: []}\n';
   await writeFile(path.join(workspace, 'catalog.yaml'), component);
   await writeFile(path.join(workspace, 'team.yaml'), team);
+  for (const file of extraFiles) {
+    await mkdir(path.dirname(path.join(workspace, file.name)), { recursive: true });
+    await writeFile(
+      path.join(workspace, file.name),
+      component.replace('{name: service}', `{name: ${file.entity}}`),
+    );
+  }
   const uri = (name) => pathToFileURL(path.join(workspace, name)).href;
   const schema = {
     type: 'object',
-    properties: { spec: { type: 'object', properties: { lifecycle: { const: 'production' } } } },
+    properties: {
+      spec: { type: 'object', properties: { lifecycle: { const: expectedLifecycle } } },
+    },
   };
   const artifact = {
     contractVersion: CONTRACT_VERSION,
@@ -92,10 +119,18 @@ export async function prepareFixture({ session, workspace, profile, driver }) {
     repository: 'editor-fixture',
     revision: '1',
     rootUri: pathToFileURL(workspace + path.sep).href,
-    entrypoints: [uri('catalog.yaml'), uri('team.yaml')],
+    entrypoints: [
+      uri('catalog.yaml'),
+      uri('team.yaml'),
+      ...extraFiles.map((file) => uri(file.name)),
+    ],
     files: [
       { uri: uri('catalog.yaml'), text: component },
       { uri: uri('team.yaml'), text: team },
+      ...extraFiles.map((file) => ({
+        uri: uri(file.name),
+        text: component.replace('{name: service}', `{name: ${file.entity}}`),
+      })),
     ],
   });
   const config = path.join(session, 'trusted-launcher.json');
@@ -107,16 +142,16 @@ export async function prepareFixture({ session, workspace, profile, driver }) {
       schemaArtifacts: [artifact],
       source,
       identity: {
-        installationId: 'editor-test',
-        repositoryId: 'editor-test',
+        installationId: authorityId,
+        repositoryId: authorityId,
         authorityRef: 'synthetic-editor-test',
         permissionRevision: '1',
       },
       activation: {
         contractVersion: CONTRACT_VERSION,
         generation: 1,
-        installationId: 'editor-test',
-        repositoryId: 'editor-test',
+        installationId: authorityId,
+        repositoryId: authorityId,
         policyDigest: digestJson(policy),
         profileDigest: digestJson(DEFAULT_DEPLOYMENT_PROFILE),
         bypassDigest: digestJson([]),
@@ -129,8 +164,12 @@ export async function prepareFixture({ session, workspace, profile, driver }) {
         },
       },
       filesystem: {
-        files: [uri('catalog.yaml'), uri('team.yaml')],
-        entrypoints: [uri('catalog.yaml'), uri('team.yaml')],
+        files: [uri('catalog.yaml'), uri('team.yaml'), ...extraFiles.map((file) => uri(file.name))],
+        entrypoints: [
+          uri('catalog.yaml'),
+          uri('team.yaml'),
+          ...extraFiles.map((file) => uri(file.name)),
+        ],
       },
       debounceMs: 0,
     }),

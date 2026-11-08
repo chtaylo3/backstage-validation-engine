@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import * as vscode from 'vscode';
 
 export interface Api {
@@ -48,6 +49,11 @@ export function exited(pid: number): boolean {
 export class Fixture {
   api: Api | undefined;
   readonly pids = new Set<number>();
+  readinessCancellations = 0;
+  readonly observations: { event: string; at: number }[] = [];
+  note(event: string): void {
+    if (this.observations.length < 128) this.observations.push({ event, at: Date.now() });
+  }
   readonly uri = vscode.Uri.file(
     path.join(process.env.BVE_EXTENSION_TEST_WORKSPACE!, 'catalog.yaml'),
   );
@@ -80,9 +86,14 @@ export class Fixture {
     return pid;
   }
   async document(): Promise<vscode.TextDocument> {
-    const document = await vscode.workspace.openTextDocument(this.uri);
-    await vscode.window.showTextDocument(document);
-    return document;
+    // Opening through the workbench avoids openTextDocument's retained model
+    // reference, so closing the tab exercises an actual didClose lifetime.
+    await vscode.commands.executeCommand('vscode.open', this.uri, { preview: false });
+    await until(
+      () => vscode.window.activeTextEditor?.document.uri.fsPath === this.uri.fsPath,
+      'workbench opens the configured document',
+    );
+    return vscode.window.activeTextEditor!.document;
   }
   has(code: string): boolean {
     return vscode.languages.getDiagnostics(this.uri).some((row) => row.code === code);
@@ -91,30 +102,109 @@ export class Fixture {
     await until(() => this.has(code), `diagnostic ${code}`);
     return vscode.languages.getDiagnostics(this.uri).find((row) => row.code === code)!;
   }
-  async fix(): Promise<vscode.Command> {
+  async fix(uri = this.uri): Promise<vscode.Command> {
     // Diagnostics and code-action context cross different editor IPC paths.
     // Query the current diagnostic each time, within the same readiness bound
     // used for completion; a one-shot early empty result is not readiness.
     let command: vscode.Command | undefined;
     await until(async () => {
       const diagnostic = vscode.languages
-        .getDiagnostics(this.uri)
+        .getDiagnostics(uri)
         .find((row) => row.code === 'production-only');
       if (!diagnostic) return false;
-      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-        'vscode.executeCodeActionProvider',
-        this.uri,
-        diagnostic.range,
-        vscode.CodeActionKind.QuickFix.value,
-      );
+      let actions: vscode.CodeAction[] | undefined;
+      try {
+        actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          'vscode.executeCodeActionProvider',
+          uri,
+          diagnostic.range,
+          vscode.CodeActionKind.QuickFix.value,
+        );
+      } catch (error) {
+        if (error instanceof Error && error.name === 'Canceled') {
+          this.readinessCancellations++;
+          this.note('code-action readiness cancelled by editor');
+          return false;
+        }
+        throw error;
+      }
       command = actions?.find((row) => row.command?.command === 'bve.applyFix')?.command;
       return command !== undefined;
     }, 'installed client offers the guarded fix');
     assert(command, 'Installed client must offer the guarded fix.');
+    this.note('guarded fix offered');
     return command;
   }
   async apply(command: vscode.Command): Promise<unknown> {
-    return vscode.commands.executeCommand(command.command, ...(command.arguments as unknown[]));
+    this.note('executing guarded command');
+    const result: unknown = await vscode.commands.executeCommand(
+      command.command,
+      ...(command.arguments as unknown[]),
+    );
+    this.note('guarded command returned');
+    return result;
+  }
+  async replace(document: vscode.TextDocument, text: string): Promise<void> {
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(
+      document.uri,
+      new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+      text,
+    );
+    assert.equal(await vscode.workspace.applyEdit(edit), true);
+  }
+  async currentDiagnostic(document: vscode.TextDocument): Promise<void> {
+    await until(
+      () =>
+        vscode.languages
+          .getDiagnostics(document.uri)
+          .some(
+            (row) =>
+              row.code === 'production-only' &&
+              (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+                document.version,
+          ),
+      'diagnostics for the current editor version',
+    );
+  }
+  async control(value: Record<string, unknown>): Promise<{ id: string }> {
+    const response = await fetch(process.env.BVE_EXTENSION_TEST_CONTROL_URL!, {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + process.env.BVE_EXTENSION_TEST_CONTROL_TOKEN },
+      body: JSON.stringify(value),
+      signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(response.status, 200, 'Fixture control request succeeds.');
+    return (await response.json()) as { id: string };
+  }
+  catalogs(): { baseUrl: string; version: string }[] {
+    return JSON.parse(process.env.BVE_EXTENSION_TEST_CATALOGS!) as {
+      baseUrl: string;
+      version: string;
+    }[];
+  }
+  async useCatalog(index: number): Promise<void> {
+    const config = process.env.BVE_EXTENSION_TEST_CONFIG!;
+    const value = JSON.parse(await readFile(config, 'utf8')) as { catalog: { baseUrl: string } };
+    value.catalog.baseUrl = this.catalogs()[index]!.baseUrl;
+    await writeFile(config, JSON.stringify(value));
+    await vscode.commands.executeCommand('backstageValidation.restart');
+    await until(() => this.api!.status().running, 'restart with selected pinned catalog');
+    this.pid();
+  }
+  async trace(): Promise<string> {
+    async function find(directory: string): Promise<string[]> {
+      const entries = await readdir(directory, { withFileTypes: true }).catch(() => []);
+      const files: string[] = [];
+      for (const entry of entries) {
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) files.push(...(await find(file)));
+        else if (entry.name === 'Backstage Validation.log') files.push(file);
+      }
+      return files;
+    }
+    const files = await find(path.join(process.env.BVE_EXTENSION_TEST_PROFILE!, 'logs'));
+    return (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n');
   }
   async cleanup(): Promise<void> {
     const pid = this.api?.status().pid;

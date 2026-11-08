@@ -19,7 +19,7 @@ async function killTree(pid) {
     }
   }
 }
-export async function launchEditor(executable, args, env, directory, crash = false) {
+export async function launchEditor(executable, args, env, directory, crash = false, inspectExit) {
   const log = createWriteStream(directory + '/editor-process.log');
   const child = spawn(executable, args, {
     env: { ...process.env, ...env },
@@ -65,9 +65,17 @@ export async function launchEditor(executable, args, env, directory, crash = fal
     clearTimeout(timer);
     clearInterval(poll);
     if (killing) await killing;
+    if (!killing && exitCode === 0 && inspectExit) {
+      try {
+        await inspectExit();
+      } catch (error) {
+        failure = error.stack ?? String(error);
+      }
+    }
     // The isolated POSIX process group also owns the packaged runtime. Ensure
     // descendants of a crashed editor cannot outlive this test session.
-    if (!killing && process.platform !== 'win32') await killTree(child.pid);
+    if (!killing && process.platform !== 'win32' && (!inspectExit || failure))
+      await killTree(child.pid);
     await new Promise((resolve, reject) => {
       log.once('error', reject);
       log.end(resolve);

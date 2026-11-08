@@ -100,10 +100,10 @@ jobs:
         if: runner.os != 'Linux'
         run: npm run test:extension
       - name: Verify editor runner failure accounting (Linux)
-        if: always() && runner.os == 'Linux'
+        if: ${{ !cancelled() && runner.os == 'Linux' }}
         run: xvfb-run -a npm run test:extension:verify
       - name: Verify editor runner failure accounting
-        if: always() && runner.os != 'Linux'
+        if: ${{ !cancelled() && runner.os != 'Linux' }}
         run: npm run test:extension:verify
       - name: Retain VSIX, checksums, SBOM and qualification reports
         if: always()

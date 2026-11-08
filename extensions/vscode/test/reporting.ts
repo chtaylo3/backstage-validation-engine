@@ -10,6 +10,8 @@ export interface Progress {
   status: 'running' | 'passed' | 'failed';
   error?: string;
   serverPids: number[];
+  readinessCancellations?: number;
+  observations?: { event: string; at: number }[];
 }
 export interface Outcome {
   exitCode: number;

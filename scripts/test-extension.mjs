@@ -18,6 +18,7 @@ import { downloadAndUnzipVSCode, runVSCodeCommand } from '@vscode/test-electron'
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
+import { setTimeout as pause } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const artifactRoot = path.join(root, '.artifacts/vscode');
@@ -33,10 +34,22 @@ assert(modules.length > 0, 'No installed-extension cases discovered.');
 assert.deepEqual(modules, inventory, 'Compiled case inventory must match the package build.');
 const verify = process.argv.includes('--verify-failures');
 const focused = process.argv.find((value) => value.startsWith('--case='))?.slice(7);
+const racesOnly = process.argv.includes('--races');
+const repeat = Number(
+  process.argv.find((value) => value.startsWith('--repeat='))?.slice(9) ??
+    process.env.BVE_RACE_REPETITIONS ??
+    1,
+);
+assert(
+  Number.isInteger(repeat) && repeat >= 1 && repeat <= 20 && (repeat === 1 || racesOnly),
+  'Only the race suite can request 1–20 independent repetitions.',
+);
 assert(!focused || !process.env.CI, 'CI must run the complete installed-extension inventory.');
 const selectedModules = focused
   ? modules.filter((name) => name === focused + '.case.cjs')
-  : modules;
+  : racesOnly
+    ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
+    : modules;
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
@@ -61,6 +74,7 @@ const metadata = {
   installedPayload: true,
   verification: verify,
   focused: focused ?? null,
+  scope: racesOnly ? 'races' : 'portable',
   installerVersion,
 };
 
@@ -100,20 +114,83 @@ async function provision(version) {
   return provisions.get(version);
 }
 
-async function execute(spec, output, fault) {
-  const base = path.join(output, spec.version, spec.id);
+async function execute(spec, output, fault, peer) {
+  if (spec.id === 'workspace-two-windows' && !peer) return executePeers(spec, output);
+  const base = path.join(output, spec.version, spec.id, peer?.id ?? '');
   await mkdir(base, { recursive: true });
   const { installed, executable } = await provision(spec.version);
   const session = await nativeSession('bve-editor-');
-  const workspace = await mkdtemp(path.join(tmpdir(), 'bve editor workspace-'));
+  const workspace =
+    peer?.workspace ?? (await mkdtemp(path.join(tmpdir(), 'bve editor workspace-')));
   const profile = path.join(session, 'profile');
   const driver = path.join(session, 'driver');
   const progressFile = path.join(base, 'progress.json');
+  const closeMarker = path.join(base, 'native-window-state.json');
   let outcome;
+  let closedCleanly = false;
+  const autonomous = ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
   let denied;
+  let catalog;
   try {
     await Promise.all([profile, driver].map((directory) => mkdir(directory, { recursive: true })));
-    const config = await prepareFixture({ session, workspace, profile, driver });
+    const multi = spec.id === 'workspace-multi-root';
+    const extraFiles = multi
+      ? [
+          { name: 'other/catalog.yaml', entity: 'other' },
+          { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
+        ]
+      : [];
+    const config = await prepareFixture({
+      session,
+      workspace,
+      profile,
+      driver,
+      extraFiles,
+      expectedLifecycle: peer?.id === 'b' ? 'stable' : 'production',
+      authorityId: peer ? 'window-' + peer.id : 'editor-test',
+      autonomousSuite: autonomous ? path.join(testRoot, 'suite.cjs') : undefined,
+    });
+    let workspaceArgument = workspace;
+    if (multi) {
+      workspaceArgument = path.join(session, 'multi.code-workspace');
+      await writeFile(
+        workspaceArgument,
+        JSON.stringify({
+          folders: [{ path: workspace }, { path: path.join(workspace, 'other') }],
+          settings: { 'backstageValidation.configPath': 'workspace-cannot-select-authority' },
+        }),
+      );
+      await mkdir(path.join(workspace, 'unapproved'), { recursive: true });
+      await cp(
+        path.join(workspace, 'catalog.yaml'),
+        path.join(workspace, 'unapproved/catalog.yaml'),
+      );
+    }
+    if (
+      [
+        'race-delayed-validation',
+        'race-delayed-completion',
+        'race-shutdown-validation',
+        'workspace-close-live',
+        'workspace-reload-live',
+      ].includes(spec.id)
+    ) {
+      const { createEditorCatalog } = await import(
+        pathToFileURL(path.join(testRoot, 'catalog-fixture.cjs')).href
+      );
+      catalog = await createEditorCatalog(root);
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      value.catalog = {
+        connectionId: 'editor-primary',
+        baseUrl: catalog.catalogs[0].baseUrl,
+        principalId: 'editor-reader',
+        credentialRevision: '1',
+        scope: ['catalog:read'],
+        maxAgeMs: 5000,
+        tokenEnv: 'BVE_EDITOR_CATALOG_TOKEN',
+      };
+      await writeFile(config, JSON.stringify(value));
+    }
     let launchConfig = config;
     const mode = spec.id.startsWith('config-') ? spec.id.slice('config-'.length) : undefined;
     if (mode) {
@@ -152,13 +229,13 @@ async function execute(spec, output, fault) {
       }
     }
     const args = [
-      workspace,
+      workspaceArgument,
       '--extensions-dir',
       installed,
       '--user-data-dir',
       profile,
       '--extensionDevelopmentPath=' + driver,
-      '--extensionTestsPath=' + path.join(testRoot, 'suite.cjs'),
+      ...(autonomous ? [] : ['--extensionTestsPath=' + path.join(testRoot, 'suite.cjs')]),
       '--disable-workspace-trust',
       '--disable-gpu',
       '--disable-gpu-sandbox',
@@ -168,6 +245,13 @@ async function execute(spec, output, fault) {
       '--disable-updates',
       '--no-cached-data',
     ];
+    if (spec.id === 'race-apply-delivery') {
+      args.push('--log', 'chtaylo3.backstage-validation-engine:trace');
+      const settings = path.join(profile, 'User/settings.json');
+      const value = JSON.parse(await readFile(settings, 'utf8'));
+      value['backstageValidation.trace.server'] = 'verbose';
+      await writeFile(settings, JSON.stringify(value));
+    }
     await atomic(
       path.join(base, 'launch.json'),
       JSON.stringify(
@@ -177,6 +261,7 @@ async function execute(spec, output, fault) {
           args,
           freshProfile: true,
           freshWorkspace: true,
+          driverMode: autonomous ? 'normal-workbench' : 'extension-tests',
         },
         null,
         2,
@@ -194,25 +279,126 @@ async function execute(spec, output, fault) {
         BVE_EXTENSION_TEST_VERSION: spec.version,
         BVE_EXTENSION_TEST_MODULE: path.join(testRoot, 'cases', spec.id + '.case.cjs'),
         BVE_EXTENSION_TEST_PROGRESS: progressFile,
+        BVE_EXTENSION_TEST_PROFILE: profile,
+        BVE_EXTENSION_TEST_CLOSE_MARKER: closeMarker,
         BVE_EXTENSION_TEST_FAULT: fault ?? '',
+        BVE_EXTENSION_TEST_PEER: peer?.id ?? '',
+        BVE_EXTENSION_TEST_PEER_CONTROL: peer?.control ?? '',
+        BVE_EXTENSION_TEST_CONTROL_URL: catalog?.controlUrl ?? '',
+        BVE_EXTENSION_TEST_CONTROL_TOKEN: catalog?.controlToken ?? '',
+        BVE_EXTENSION_TEST_CATALOGS: JSON.stringify(catalog?.catalogs ?? []),
+        BVE_EDITOR_CATALOG_TOKEN: catalog?.token ?? '',
         DONT_PROMPT_WSL_INSTALL: '1',
         VSCODE_IPC_HOOK_CLI: '',
         NODE_PATH: '',
       },
       base,
       fault === 'crash',
+      spec.id !== 'workspace-close-live'
+        ? undefined
+        : async () => {
+            const marker = JSON.parse(await readFile(closeMarker, 'utf8'));
+            assert.equal(marker.id, spec.id);
+            assert.equal(marker.command, 'workbench.action.closeWindow');
+            const state = await readProgress(progressFile);
+            assert(
+              state?.serverPids.includes(marker.pid),
+              'Observe only the owned packaged server.',
+            );
+            assert(
+              catalog &&
+                catalog
+                  .evidence()
+                  .events.some((event) => event.id === marker.gateId && event.event === 'entered'),
+              'Close must interrupt an actually held validation request.',
+            );
+            const end = Date.now() + 20_000;
+            while (true) {
+              try {
+                process.kill(marker.pid, 0);
+              } catch (error) {
+                if (error.code === 'ESRCH') break;
+                throw error;
+              }
+              if (Date.now() >= end)
+                throw new Error(
+                  'Window close left the packaged server alive before parent cleanup.',
+                );
+              await pause(30);
+            }
+            assert(
+              catalog
+                .evidence()
+                .events.some((event) => event.id === marker.gateId && event.event === 'cancelled'),
+              'Close cancels validation before fixture cleanup.',
+            );
+            await atomic(
+              path.join(base, 'parent-observation.json'),
+              JSON.stringify(
+                { editorExited: true, serverExitedBeforeParentCleanup: true, pid: marker.pid },
+                null,
+                2,
+              ) + '\n',
+            );
+            closedCleanly = true;
+          },
     );
     const progress = await readProgress(progressFile);
+    if (closedCleanly && !result.error && progress) {
+      progress.status = 'passed';
+      progress.phase = 'complete';
+      progress.parentObservedWindowClose = true;
+      await atomic(progressFile, JSON.stringify(progress, null, 2) + '\n');
+    }
     outcome = { ...result, ...(progress ? { progress } : {}) };
+  } catch (error) {
+    const progress = await readProgress(progressFile).catch(() => undefined);
+    outcome = {
+      exitCode: 1,
+      error: error.stack ?? String(error),
+      ...(progress ? { progress } : {}),
+    };
   } finally {
-    if (denied) await readable(denied, true);
+    const cleanups = await Promise.allSettled([
+      (async () => {
+        if (catalog) {
+          try {
+            await catalog.close();
+          } finally {
+            await atomic(
+              path.join(base, 'catalog-events.json'),
+              JSON.stringify(catalog.evidence(), null, 2) + '\n',
+            );
+          }
+        }
+      })(),
+      denied ? readable(denied, true) : Promise.resolve(),
+    ]);
     // Keep editor logs for every outcome, including injected failures. Fixtures
     // and profiles contain only synthetic authority and are removed afterwards.
     await cp(path.join(profile, 'logs'), path.join(base, 'editor-logs'), { recursive: true }).catch(
       () => {},
     );
-    await rm(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-    await rm(session, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    const removed = await Promise.allSettled(
+      (peer ? [session] : [workspace, session]).map((directory) =>
+        rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
+      ),
+    );
+    const errors = [...cleanups, ...removed].flatMap((value) =>
+      value.status === 'rejected' ? [String(value.reason)] : [],
+    );
+    if (errors.length) {
+      outcome ??= { exitCode: 1 };
+      outcome.exitCode = 1;
+      outcome.error = [outcome.error, ...errors].filter(Boolean).join('\n');
+      outcome.progress = {
+        ...outcome.progress,
+        id: spec.id,
+        phase: 'cleanup',
+        status: 'failed',
+        serverPids: outcome.progress?.serverPids ?? [],
+      };
+    }
   }
   console.log(
     `VS Code ${spec.version} / ${spec.id}: exit ${outcome.exitCode}${outcome.error ? ' (' + outcome.error + ')' : ''}`,
@@ -220,6 +406,44 @@ async function execute(spec, output, fault) {
   if (outcome.progress?.error)
     console.error(`${spec.id} / ${outcome.progress.phase}: ${outcome.progress.error}`);
   return outcome;
+}
+
+async function executePeers(spec, output) {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'bve shared workspace-'));
+  const control = await nativeSession('bve-peers-');
+  let outcomes;
+  try {
+    const results = await Promise.allSettled(
+      ['a', 'b'].map((id) => execute(spec, output, undefined, { id, workspace, control })),
+    );
+    outcomes = results.map((value) =>
+      value.status === 'fulfilled' ? value.value : { exitCode: 1, error: String(value.reason) },
+    );
+    const failed = outcomes.find(
+      (value) => value.exitCode !== 0 || value.error || value.progress?.status !== 'passed',
+    );
+    const base = path.join(output, spec.version, spec.id);
+    await atomic(path.join(base, 'peer-results.json'), JSON.stringify(outcomes, null, 2) + '\n');
+    await cp(control, path.join(base, 'peer-observations'), { recursive: true });
+    return (
+      failed ?? {
+        exitCode: 0,
+        progress: {
+          id: spec.id,
+          editorVersion: spec.version,
+          phase: 'complete',
+          status: 'passed',
+          serverPids: outcomes.flatMap((value) => value.progress.serverPids),
+        },
+      }
+    );
+  } finally {
+    await Promise.all(
+      [workspace, control].map((directory) =>
+        rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
+      ),
+    );
+  }
 }
 
 async function runGroup(name, specs, fault) {
@@ -277,9 +501,23 @@ try {
     const specs = versions.flatMap((version) =>
       selectedModules.map((name) => ({ id: name.replace(/\.case\.cjs$/u, ''), version })),
     );
-    const report = await runGroup(focused ? 'editor-focused' : 'editor-results', specs);
-    console.log(JSON.stringify(report.counts));
-    if (report.conclusion !== 'success') process.exitCode = 1;
+    const repetitions = [];
+    for (let iteration = 1; iteration <= repeat; iteration++) {
+      const name = focused
+        ? 'editor-focused'
+        : racesOnly
+          ? `race-results-${iteration}`
+          : 'editor-results';
+      const report = await runGroup(name, specs);
+      console.log(JSON.stringify(report.counts));
+      repetitions.push({ iteration, conclusion: report.conclusion, counts: report.counts });
+      if (report.conclusion !== 'success') process.exitCode = 1;
+    }
+    if (racesOnly)
+      await atomic(
+        path.join(artifactRoot, 'race-summary.json'),
+        JSON.stringify({ metadata, repetitions }, null, 2) + '\n',
+      );
   }
 } finally {
   for (const directory of directories)

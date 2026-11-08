@@ -17,6 +17,8 @@ export async function run(): Promise<void> {
   const file = process.env.BVE_EXTENSION_TEST_PROGRESS!;
   async function save() {
     progress.serverPids = [...fixture.pids];
+    progress.readinessCancellations = fixture.readinessCancellations;
+    progress.observations = fixture.observations;
     await writeFile(file + '.tmp', JSON.stringify(progress, null, 2) + '\n');
     await rename(file + '.tmp', file);
   }

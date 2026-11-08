@@ -123,9 +123,15 @@ Those checkpoints are not independent tests, and engine LCOV does not measure
 extension-client coverage. Increment 1 now implements independent scenarios,
 incremental reporting and runner failure verification. Increment 2 adds native
 configuration rejection/recovery, server-crash/manual-restart and overlapping
-lifecycle scenarios, plus a separate client coverage job on every OS. Further
-increments below are still planned. Qualification requires the actual
+lifecycle scenarios, plus a separate client coverage job on every OS. Increment 3
+adds deterministic document races, simultaneous windows, multi-root workspaces,
+native close/reload and a weekly/manual repetition workflow. Trust and broader
+compatibility increments below remain planned. Qualification requires the actual
 hosted results for the candidate revision.
+
+Increment 2 qualified at `d3884ed`: [all eleven jobs passed](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42445289384),
+including 851 full-harness tests, 44 installed-editor executions per OS and client
+coverage on all three operating systems, with no skipped tests.
 
 The client coverage gate executes the production extension entry point with
 explicit VS Code/language-client adapters under Node's module hooks. It requires
@@ -139,6 +145,35 @@ Local debugging can select `npm run test:extension -- --case=<discovered-id>`.
 Focused reports go to `editor-focused/`; CI rejects focused selection and runs the
 complete declared inventory. Fixture-owned delayed-request races and deactivation
 during validation are qualified in increment 3.
+
+Race scenarios use authenticated, fixture-owned loopback controls separate from
+the two pinned catalog APIs. `catalog-events.json` records request entry,
+cancellation/release and version provenance; a race without the required gate
+observation fails. Stale diagnostics are checked against current editor versions.
+Edit-delivery races suspend only the owned packaged server, record execute/didChange
+ordering in its protocol trace, then require the actual VS Code client to reject
+the old-version edit. POSIX uses process stop/continue; Windows uses documented
+OpenThread/SuspendThread/ResumeThread APIs through a fixture-only PowerShell helper.
+
+Two-window scenarios share one approved disk path but use separate profiles,
+authorities, buffers and server PIDs. Their barrier evidence proves unsaved edits
+and Stop do not cross windows. Multi-root cases include matching basenames,
+literal glob metacharacters and an unapproved file. Dirty-buffer cases explicitly
+preserve VS Code's external-edit save-conflict protection.
+
+Native close/reload scenarios use a normal workbench driver because VS Code's
+extension-test mode terminates when its test host reloads. The product still comes
+from the installed VSIX. Close success requires parent-observed editor exit and
+owned-server death **before** parent process cleanup; reload requires a distinct
+server PID and fresh diagnostics. These observations are retained with the case.
+
+`VS Code race repetition` runs weekly/manual on all three OS targets and both
+pinned editor versions. Its default is 20 fresh repetitions, with separate reports
+for every iteration. Any failed repetition fails the job even if later repetitions
+pass. A manual one-repetition mode supports infrastructure qualification; it must
+not be described as the full repetition gate. Run locally with
+`npm run test:extension -- --races --repeat=20`. `scripts/build-extension-tests.mjs`
+rebuilds only the test driver when debugging test changes against an unchanged VSIX.
 
 Keep the existing full source and packaged suites, dependency audits, native VSIX
 builds and installed-payload assertions. Run behavior tests against the installed
