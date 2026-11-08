@@ -55,6 +55,11 @@ export class Fixture {
     path.join(process.env.BVE_EXTENSION_TEST_WORKSPACE!, 'team.yaml'),
   );
   async setup(): Promise<void> {
+    assert.equal(
+      vscode.version,
+      process.env.BVE_EXTENSION_TEST_VERSION,
+      'Execute in the requested editor, independently of the CLI installer.',
+    );
     const extension = vscode.extensions.getExtension<Api>('chtaylo3.backstage-validation-engine');
     assert(extension, 'Installed VSIX must be discoverable.');
     const installed = process.env.BVE_EXTENSION_TEST_INSTALL!;

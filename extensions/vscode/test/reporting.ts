@@ -5,6 +5,7 @@ export interface CaseSpec {
 export type Phase = 'launch' | 'setup' | 'run' | 'cleanup' | 'complete';
 export interface Progress {
   id: string;
+  editorVersion?: string;
   phase: Phase;
   status: 'running' | 'passed' | 'failed';
   error?: string;

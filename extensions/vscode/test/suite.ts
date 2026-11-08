@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { rename, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import * as vscode from 'vscode';
 import { Fixture, bounded } from './fixture.js';
 import type { Progress } from './reporting.js';
 
@@ -8,6 +9,7 @@ export async function run(): Promise<void> {
   const fixture = new Fixture();
   const progress: Progress = {
     id: process.env.BVE_EXTENSION_TEST_CASE!,
+    editorVersion: vscode.version,
     phase: 'setup',
     status: 'running',
     serverPids: [],

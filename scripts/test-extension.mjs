@@ -144,6 +144,7 @@ async function execute(spec, output, fault) {
         BVE_EXTENSION_TEST_WORKSPACE: workspace,
         BVE_EXTENSION_TEST_INSTALL: installed,
         BVE_EXTENSION_TEST_CASE: spec.id,
+        BVE_EXTENSION_TEST_VERSION: spec.version,
         BVE_EXTENSION_TEST_MODULE: path.join(testRoot, 'cases', spec.id + '.case.cjs'),
         BVE_EXTENSION_TEST_PROGRESS: progressFile,
         BVE_EXTENSION_TEST_FAULT: fault ?? '',
