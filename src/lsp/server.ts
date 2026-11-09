@@ -1,3 +1,6 @@
+import { RequestContexts, SessionOperations } from './request-context.js';
+import type { CompletionList, Hover, Location, CodeAction } from 'vscode-languageserver/node';
+import type { FixApplicationResult } from './fixes.js';
 import { ValidationCoordinator } from './validation-coordinator.js';
 import { runValidation } from './validation-run.js';
 import { WorkspaceState } from './workspace-state.js';
@@ -57,6 +60,8 @@ export function attachLspServer(
   let configurationUnavailable = false;
   let reloading: Promise<{ reloaded: boolean }> | undefined;
   let reloadAgain = false;
+  let requestGeneration = 0;
+  let operations = new SessionOperations();
   let fixesEnabled = false;
   let atomicTextEdits = false;
   const clientEdits = new ClientEdits((edit, token) =>
@@ -195,118 +200,110 @@ export function attachLspServer(
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
   });
-  connection.onCompletion(async (params, token) => {
-    if (
-      !initialized ||
-      stopped ||
-      workspace.unavailableSources ||
-      configurationUnavailable ||
-      workspace.capacityExceeded ||
-      token.isCancellationRequested
-    )
-      return { isIncomplete: true, items: [] };
-    const cancellation = new AbortController();
-    const generation = coordinator.generation;
-    const subscription = token.onCancellationRequested(() => cancellation.abort());
-    try {
-      const references = await completion.complete(
-        params,
-        generation,
-        workspace.documents,
-        cancellation.signal,
-      );
-      if (stopped || configurationUnavailable || coordinator.generation !== generation)
-        return { isIncomplete: true, items: [] };
-      references.items = references.items.filter((item) =>
-        editor.acceptsReference(params, item.label, generation, workspace.documents),
-      );
-      if (references.items.length || cancellation.signal.aborted) return references;
-      return editor.complete(params, generation, workspace.documents);
-    } finally {
-      subscription.dispose();
-    }
-  });
+  const requests = new RequestContexts(workspace, () => ({
+    initialized,
+    stopped,
+    available: !configurationUnavailable,
+    session: {
+      generation: requestGeneration,
+      operations,
+      config,
+      completion,
+      editor,
+      filesystem: options.filesystem,
+    },
+  }));
+  connection.onCompletion((params, token) =>
+    requests.execute<CompletionList>(
+      token,
+      params?.textDocument?.uri,
+      () => ({ isIncomplete: true, items: [] }),
+      async (context) => {
+        const generation = coordinator.generation;
+        const { completion, editor } = context.session;
+        const documents = context.snapshot.allDocuments;
+        const references = await completion.complete(params, generation, documents, context.signal);
+        if (!context.current()) return { isIncomplete: true, items: [] };
+        references.items = references.items.filter((item) =>
+          editor.acceptsReference(params, item.label, generation, documents),
+        );
+        if (references.items.length || context.signal.aborted) return references;
+        return editor.complete(params, generation, documents);
+      },
+    ),
+  );
   connection.onHover((params, token) =>
-    initialized &&
-    !stopped &&
-    !configurationUnavailable &&
-    !workspace.unavailableSources &&
-    !workspace.capacityExceeded &&
-    !token.isCancellationRequested
-      ? editor.hover(
+    requests.execute<Hover | null>(
+      token,
+      params?.textDocument?.uri,
+      () => null,
+      (context) =>
+        context.session.editor.hover(
           params.textDocument.uri,
           params.position,
           coordinator.generation,
-          workspace.documents,
-        )
-      : null,
+          context.snapshot.allDocuments,
+        ),
+    ),
   );
   connection.onDefinition((params, token) =>
-    initialized &&
-    !stopped &&
-    !configurationUnavailable &&
-    !workspace.unavailableSources &&
-    !workspace.capacityExceeded &&
-    !token.isCancellationRequested
-      ? editor.definition(
+    requests.execute<Location[]>(
+      token,
+      params?.textDocument?.uri,
+      () => [],
+      (context) =>
+        context.session.editor.definition(
           params.textDocument.uri,
           params.position,
           coordinator.generation,
-          workspace.documents,
-        )
-      : [],
+          context.snapshot.allDocuments,
+        ),
+    ),
   );
   connection.onNotification('bve/recordSelection', (input: unknown) => {
     if (!initialized || stopped || typeof input !== 'string' || input.length > 512) return;
     completion.record(input);
     editor.record(input);
   });
-  connection.onRequest('bve/searchReferences', async (input: unknown, token: CancellationToken) => {
-    if (
-      !initialized ||
-      stopped ||
-      configurationUnavailable ||
-      workspace.unavailableSources ||
-      workspace.capacityExceeded ||
-      token.isCancellationRequested
-    )
-      return [];
-    const cancellation = new AbortController();
-    const subscription = token.onCancellationRequested(() => cancellation.abort());
-    try {
-      if (!workspace.documents.size) {
+  connection.onRequest('bve/searchReferences', (input: unknown, token: CancellationToken) =>
+    requests.execute<readonly { reference: string; source: string }[]>(
+      token,
+      undefined,
+      () => [],
+      async (context) => {
+        const { config, completion, filesystem } = context.session;
         const generation = coordinator.generation;
-        const original = createLspRequest(config, workspace.source);
-        if (options.filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
-          const disk = workspace.diskGeneration;
-          const sourceGeneration = workspace.generation;
-          const source = await options.filesystem.capture(workspace.source, {
-            deadlineAt: original.execution.deadlineAt,
-            signal: cancellation.signal,
+        if (!context.snapshot.allDocuments.size) {
+          const created = createLspRequest(config, workspace.source);
+          const original = parseContract('validation-request', {
+            ...created,
+            execution: { ...created.execution, deadlineAt: context.deadlineAt },
           });
-          if (stopped || coordinator.generation !== generation || cancellation.signal.aborted)
-            return [];
-          verifyRequestBindings(
-            parseContract('validation-request', { ...original, source }),
-            config,
+          if (filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
+            const disk = workspace.diskGeneration;
+            const sourceGeneration = workspace.generation;
+            const source = await filesystem.capture(workspace.source, {
+              deadlineAt: context.deadlineAt,
+              signal: context.signal,
+            });
+            if (!context.current()) return [];
+            verifyRequestBindings(
+              parseContract('validation-request', { ...original, source }),
+              config,
+            );
+            if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
+          }
+          await completion.update(
+            parseContract('validation-request', { ...original, source: workspace.source }),
+            generation,
           );
-          if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
+          await completion.ready(generation, context.signal);
+          if (!context.current()) return [];
         }
-        await completion.update(
-          parseContract('validation-request', { ...original, source: workspace.source }),
-          generation,
-        );
-        await completion.ready(generation, cancellation.signal);
-        if (stopped || coordinator.generation !== generation || cancellation.signal.aborted)
-          return [];
-      }
-      return await completion.searchReferences(input, coordinator.generation, cancellation.signal);
-    } catch {
-      return [];
-    } finally {
-      subscription.dispose();
-    }
-  });
+        return completion.searchReferences(input, generation, context.signal);
+      },
+    ),
+  );
   async function reloadConfiguration(): Promise<{ reloaded: boolean }> {
     if (!initialized || stopped || !options.reload) return { reloaded: false };
     if (reloading) {
@@ -357,6 +354,8 @@ export function attachLspServer(
         replacement = undefined;
         completion = nextCompletion;
         editor = nextEditor;
+        requestGeneration++;
+        operations = new SessionOperations();
         workspace.replaceConfiguration(config);
         configurationUnavailable = false;
         options.configurationChanged?.(config);
@@ -387,40 +386,42 @@ export function attachLspServer(
     return reloading;
   }
   connection.onRequest('bve/reloadConfiguration', reloadConfiguration);
-  connection.onCodeAction((params) => {
-    if (
-      !initialized ||
-      stopped ||
-      !fixesEnabled ||
-      workspace.unavailableSources ||
-      configurationUnavailable ||
-      workspace.capacityExceeded ||
-      clientEdits.busy
-    )
-      return [];
-    return fixes.actions(params, coordinator.generation, workspace.documents, fixLimits());
-  });
-  connection.onExecuteCommand((params, token) => {
-    if (
-      !initialized ||
-      stopped ||
-      !fixesEnabled ||
-      workspace.unavailableSources ||
-      configurationUnavailable ||
-      workspace.capacityExceeded ||
-      params.command !== APPLY_FIX_COMMAND ||
-      token.isCancellationRequested
-    )
-      return { applied: false, reason: 'invalid_request' };
-    if (clientEdits.busy) return { applied: false, reason: 'busy' };
-    return fixes.apply(
-      params.arguments,
-      coordinator.generation,
-      workspace.documents,
-      fixLimits(),
-      (edit) => clientEdits.apply(edit, token),
-    );
-  });
+  connection.onCodeAction((params, token) =>
+    requests.execute<CodeAction[]>(
+      token,
+      params?.textDocument?.uri,
+      () => [],
+      (context) => {
+        if (!fixesEnabled || clientEdits.busy) return [];
+        return fixes.actions(
+          params,
+          coordinator.generation,
+          context.snapshot.allDocuments,
+          fixLimits(),
+        );
+      },
+    ),
+  );
+  connection.onExecuteCommand((params, token) =>
+    requests.execute<FixApplicationResult>(
+      token,
+      undefined,
+      () => ({ applied: false, reason: 'invalid_request' }),
+      (context) => {
+        if (!fixesEnabled || params.command !== APPLY_FIX_COMMAND)
+          return { applied: false, reason: 'invalid_request' };
+        if (clientEdits.busy) return { applied: false, reason: 'busy' };
+        return fixes.apply(
+          params.arguments,
+          coordinator.generation,
+          context.snapshot.allDocuments,
+          fixLimits(),
+          (edit) => clientEdits.apply(edit, token),
+        );
+      },
+      false,
+    ),
+  );
   function watchFiles() {
     if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {
       watchRequested = true;

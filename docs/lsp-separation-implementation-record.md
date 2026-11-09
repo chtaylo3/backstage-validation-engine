@@ -75,7 +75,14 @@ The coordinator owns debounce, cancellation, one active run, latest pending work
 It also supports pause and resume for session replacement. It owns neither providers nor client edit settlement.
 Twenty-four focused scheduler, budget, completion, and reload assertions pass.
 Type checking, lint, and architectural boundaries pass.
-Phases 6 through 9 remain pending.
+Phase 6 routes feature requests through typed readiness and captured request contexts.
+Contexts retain the admitted deadline, immutable workspace view, and an independent session generation value.
+Completion, search, hover, definitions, code actions, and repairs register their asynchronous resource use.
+Repair results preserve actual post-dispatch client acknowledgements.
+Thirty-two existing completion/reload/fix assertions and three focused context assertions pass.
+A focused case caught identity aliasing in the initial context implementation. Capturing the generation value corrects it.
+Session-wide cancellation and disposal will use this tracking in phase 7.
+Phases 7 through 9 remain pending.
 
 ### Baseline measurements
 
