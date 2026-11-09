@@ -65,7 +65,12 @@ A new stdio test leaves the edit unresolved through graceful shutdown and passes
 Existing LSP and fix integration scenarios pass. All three focused owner assertions pass.
 An initial owner assertion observed promise settlement too early. It now waits for the event-loop turn that settles the response.
 The workspace extraction will supply explicit document lifetime identifiers to the publisher.
-Phases 4 through 9 remain pending.
+Phase 4 moves open, change, close, rename, delete, synchronization, and source ownership into `WorkspaceState`.
+Features receive frozen document views through a map without mutation methods. Text and digests are cached per immutable document revision.
+Lifetimes survive edits and change after close and reopen. Disk captures commit only against their captured generation.
+Seventy existing LSP/filesystem/reload assertions and four focused workspace assertions pass.
+An initial cache test exposed a missing cache insertion, which is corrected.
+Phases 5 through 9 remain pending.
 
 ### Baseline measurements
 

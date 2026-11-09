@@ -1,3 +1,6 @@
+import { overlaySourceSnapshot } from '../core/snapshots.js';
+import { WorkspaceState } from './workspace-state.js';
+import type { SourceFileOperation } from './workspace-state.js';
 import { diagnostic, incomplete } from './diagnostics.js';
 import { DiagnosticPublisher } from './diagnostic-publisher.js';
 import { ClientEdits } from './client-edits.js';
@@ -7,16 +10,8 @@ import {
   TextDocumentSyncKind,
   DidChangeWatchedFilesNotification,
 } from 'vscode-languageserver/node';
-import type {
-  Connection,
-  Diagnostic,
-  TextDocumentContentChangeEvent,
-  CancellationToken,
-} from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { Connection, Diagnostic, CancellationToken } from 'vscode-languageserver/node';
 import { digestText } from '../core/json.js';
-import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
-import type { SourceInput } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { validatePolicySources } from '../core/policy-sources.js';
@@ -32,11 +27,7 @@ import { createLspRequest } from './config.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
 import type { LspConfig } from './config.js';
-import { approvedFilesystemUri, filesystemEvent } from './discovery.js';
-
-const validVersion = (version: number) => Number.isSafeInteger(version) && version >= 0;
-const validUri = (uri: string) =>
-  typeof uri === 'string' && uri.length <= 4096 && /^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$/.test(uri);
+import { filesystemEvent } from './discovery.js';
 
 export interface LspServerResources {
   readonly config: LspConfig;
@@ -82,17 +73,10 @@ export function attachLspServer(
     requestBytes: config.profile.limits.requestBytes,
     atomicTextEdits,
   });
-  const approved = { has: (uri: string) => approvedFilesystemUri(config, uri) };
-  const selectedDocument = (uri: string) => !config.filesystem || approved.has(uri);
-  let diskGeneration = options.filesystem ? 1 : 0;
-  let capturedGeneration = 0;
+  const workspace = new WorkspaceState(config);
+  const approved = { has: (uri: string) => workspace.approved(uri) };
   let dynamicWatching = false;
   let watchRequested = false;
-  const documents = new Map<string, TextDocument>();
-  let workspaceSource = config.source;
-  const unavailable = new Set<string>();
-  const unavailableSources = () => [...unavailable].some(selectedDocument);
-  let capacityExceeded = false;
   let epoch = 0;
   let initialized = false;
   let stopped = false;
@@ -104,16 +88,17 @@ export function attachLspServer(
   let disposal: Promise<void> | undefined;
 
   const publisher = new DiagnosticPublisher((params) => connection.sendDiagnostics(params));
-  const publish = (uri: string, version: number, diagnostics: Diagnostic[]) => {
+  const publish = (uri: string, version: number, diagnostics: Diagnostic[], lifetime?: number) => {
     const generation = epoch;
-    const document = documents.get(uri);
+    const document = workspace.documents.get(uri);
     return publisher.publish(
       {
         uri,
         version,
         generation,
-        lifetime: uri,
-        current: () => !stopped && epoch === generation && documents.get(uri) === document,
+        lifetime: lifetime ?? document?.lifetime ?? 0,
+        current: () =>
+          !stopped && epoch === generation && workspace.documents.get(uri) === document,
       },
       diagnostics,
     );
@@ -122,7 +107,7 @@ export function attachLspServer(
     if (active || !pending || stopped) return;
     pending = false;
     const generation = epoch;
-    const frame = [...documents.values()].filter((document) => selectedDocument(document.uri));
+    const frame = workspace.snapshot().documents;
     const abort = new AbortController();
     controller = abort;
     const current = () => !stopped && !abort.signal.aborted && epoch === generation;
@@ -134,12 +119,15 @@ export function attachLspServer(
       let phase: FailureStage = 'validation';
       try {
         // Admission precedes disk I/O; the refreshed request retains this exact budget.
-        const original = options.filesystem ? createLspRequest(config, workspaceSource) : undefined;
+        const original = options.filesystem
+          ? createLspRequest(config, workspace.source)
+          : undefined;
         deadlineAt = original?.execution.deadlineAt;
-        if (options.filesystem && capturedGeneration < diskGeneration) {
-          const requested = diskGeneration;
+        if (options.filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
+          const requested = workspace.diskGeneration;
+          const sourceGeneration = workspace.generation;
           phase = 'filesystem';
-          const refreshed = await options.filesystem.capture(workspaceSource, {
+          const refreshed = await options.filesystem.capture(workspace.source, {
             deadlineAt: original!.execution.deadlineAt,
             signal: abort.signal,
             skip: frame.map((document) => document.uri).filter((uri) => approved.has(uri)),
@@ -149,16 +137,19 @@ export function attachLspServer(
             parseContract('validation-request', { ...original, source: refreshed }),
             config,
           );
-          workspaceSource = refreshed;
-          capturedGeneration = requested;
+          if (!workspace.commitCapture(refreshed, requested, sourceGeneration)) return;
         }
         phase = 'validation';
-        if (unavailableSources() || capacityExceeded || configurationUnavailable) {
+        if (
+          workspace.unavailableSources ||
+          workspace.capacityExceeded ||
+          configurationUnavailable
+        ) {
           for (const document of frame) {
             if (!current()) return;
             await publish(document.uri, document.version, [
               incomplete(
-                unavailable.has(document.uri) ? undefined : digestText(document.getText()),
+                workspace.isUnavailable(document.uri) ? undefined : digestText(document.getText()),
                 document.version,
                 [timing.capture('buffer', 'buffer_unavailable')],
               ),
@@ -167,7 +158,7 @@ export function attachLspServer(
           return;
         }
         let source = overlaySourceSnapshot(
-          workspaceSource,
+          workspace.source,
           frame.map((document) => ({
             uri: document.uri,
             text: document.getText(),
@@ -214,10 +205,10 @@ export function attachLspServer(
           fixes.replace({
             generation,
             findings: report.findings,
-            suggestions: editor.repairs(report.findings, generation, documents),
+            suggestions: editor.repairs(report.findings, generation, workspace.documents),
             source: report.request.source,
             ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
-            documents,
+            documents: workspace.documents,
             expiresAt: Math.min(
               Date.now() + FIX_LIMITS.ttlMs,
               ...report.request.data.entries.map((row) => row.provenance.expiresAt),
@@ -290,6 +281,7 @@ export function attachLspServer(
     completion.invalidate();
     editor.invalidate();
     epoch++;
+    workspace.invalidate();
     controller?.abort();
     pending = true;
     if (timer) clearTimeout(timer);
@@ -297,59 +289,6 @@ export function attachLspServer(
       timer = undefined;
       drain();
     }, config.debounceMs);
-  }
-  // Validate notification edits before TextDocument.update (which deliberately clamps positions).
-  function changed(
-    document: TextDocument,
-    changes: TextDocumentContentChangeEvent[],
-    version: number,
-  ): TextDocument | undefined {
-    if (!Array.isArray(changes) || !changes.length || changes.length > 1000) return undefined;
-    let updated = TextDocument.create(
-      document.uri,
-      document.languageId,
-      document.version,
-      document.getText(),
-    );
-    for (const change of changes) {
-      if (
-        !change ||
-        typeof change !== 'object' ||
-        typeof change.text !== 'string' ||
-        Buffer.byteLength(change.text) > config.profile.limits.fileBytes
-      )
-        return undefined;
-      if ('range' in change) {
-        const range = change.range;
-        if (!range?.start || !range.end) return undefined;
-        for (const position of [range.start, range.end]) {
-          if (
-            !Number.isSafeInteger(position.line) ||
-            !Number.isSafeInteger(position.character) ||
-            position.line < 0 ||
-            position.character < 0
-          )
-            return undefined;
-          const actual = updated.positionAt(updated.offsetAt(position));
-          if (actual.line !== position.line || actual.character !== position.character)
-            return undefined;
-        }
-        if (updated.offsetAt(range.start) > updated.offsetAt(range.end)) return undefined;
-      }
-      updated = TextDocument.update(updated, [change], version);
-      if (Buffer.byteLength(updated.getText()) > config.profile.limits.fileBytes) return undefined;
-    }
-    const files = new Map(
-      workspaceSource.files.map((file) => [file.uri, Buffer.byteLength(file.text)]),
-    );
-    for (const item of documents.values()) files.set(item.uri, Buffer.byteLength(item.getText()));
-    files.set(updated.uri, Buffer.byteLength(updated.getText()));
-    if (
-      files.size > 1000 ||
-      [...files.values()].reduce((a, b) => a + b, 0) > config.profile.limits.requestBytes
-    )
-      return undefined;
-    return updated;
   }
   const close = (): Promise<void> => {
     if (disposal) return disposal;
@@ -359,6 +298,7 @@ export function attachLspServer(
     editor.invalidate();
     const closeEdits = clientEdits.close();
     publisher.close();
+    workspace.close();
     epoch++;
     pending = false;
     if (timer) clearTimeout(timer);
@@ -424,9 +364,9 @@ export function attachLspServer(
     if (
       !initialized ||
       stopped ||
-      unavailableSources() ||
+      workspace.unavailableSources ||
       configurationUnavailable ||
-      capacityExceeded ||
+      workspace.capacityExceeded ||
       token.isCancellationRequested
     )
       return { isIncomplete: true, items: [] };
@@ -437,16 +377,16 @@ export function attachLspServer(
       const references = await completion.complete(
         params,
         generation,
-        documents,
+        workspace.documents,
         cancellation.signal,
       );
       if (stopped || configurationUnavailable || epoch !== generation)
         return { isIncomplete: true, items: [] };
       references.items = references.items.filter((item) =>
-        editor.acceptsReference(params, item.label, generation, documents),
+        editor.acceptsReference(params, item.label, generation, workspace.documents),
       );
       if (references.items.length || cancellation.signal.aborted) return references;
-      return editor.complete(params, generation, documents);
+      return editor.complete(params, generation, workspace.documents);
     } finally {
       subscription.dispose();
     }
@@ -455,20 +395,20 @@ export function attachLspServer(
     initialized &&
     !stopped &&
     !configurationUnavailable &&
-    !unavailableSources() &&
-    !capacityExceeded &&
+    !workspace.unavailableSources &&
+    !workspace.capacityExceeded &&
     !token.isCancellationRequested
-      ? editor.hover(params.textDocument.uri, params.position, epoch, documents)
+      ? editor.hover(params.textDocument.uri, params.position, epoch, workspace.documents)
       : null,
   );
   connection.onDefinition((params, token) =>
     initialized &&
     !stopped &&
     !configurationUnavailable &&
-    !unavailableSources() &&
-    !capacityExceeded &&
+    !workspace.unavailableSources &&
+    !workspace.capacityExceeded &&
     !token.isCancellationRequested
-      ? editor.definition(params.textDocument.uri, params.position, epoch, documents)
+      ? editor.definition(params.textDocument.uri, params.position, epoch, workspace.documents)
       : [],
   );
   connection.onNotification('bve/recordSelection', (input: unknown) => {
@@ -481,20 +421,21 @@ export function attachLspServer(
       !initialized ||
       stopped ||
       configurationUnavailable ||
-      unavailableSources() ||
-      capacityExceeded ||
+      workspace.unavailableSources ||
+      workspace.capacityExceeded ||
       token.isCancellationRequested
     )
       return [];
     const cancellation = new AbortController();
     const subscription = token.onCancellationRequested(() => cancellation.abort());
     try {
-      if (!documents.size) {
+      if (!workspace.documents.size) {
         const generation = epoch;
-        const original = createLspRequest(config, workspaceSource);
-        if (options.filesystem && capturedGeneration < diskGeneration) {
-          const disk = diskGeneration;
-          const source = await options.filesystem.capture(workspaceSource, {
+        const original = createLspRequest(config, workspace.source);
+        if (options.filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
+          const disk = workspace.diskGeneration;
+          const sourceGeneration = workspace.generation;
+          const source = await options.filesystem.capture(workspace.source, {
             deadlineAt: original.execution.deadlineAt,
             signal: cancellation.signal,
           });
@@ -503,11 +444,10 @@ export function attachLspServer(
             parseContract('validation-request', { ...original, source }),
             config,
           );
-          workspaceSource = source;
-          capturedGeneration = disk;
+          if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
         }
         await completion.update(
-          parseContract('validation-request', { ...original, source: workspaceSource }),
+          parseContract('validation-request', { ...original, source: workspace.source }),
           generation,
         );
         await completion.ready(generation, cancellation.signal);
@@ -571,12 +511,10 @@ export function attachLspServer(
         replacement = undefined;
         completion = nextCompletion;
         editor = nextEditor;
-        workspaceSource = config.source;
-        diskGeneration++;
-        capturedGeneration = 0;
+        workspace.replaceConfiguration(config);
         configurationUnavailable = false;
         options.configurationChanged?.(config);
-        for (const [uri, document] of documents)
+        for (const [uri, document] of workspace.documents)
           if (config.filesystem && !approved.has(uri)) {
             await publish(uri, document.version, []);
           }
@@ -608,28 +546,28 @@ export function attachLspServer(
       !initialized ||
       stopped ||
       !fixesEnabled ||
-      unavailableSources() ||
+      workspace.unavailableSources ||
       configurationUnavailable ||
-      capacityExceeded ||
+      workspace.capacityExceeded ||
       clientEdits.busy
     )
       return [];
-    return fixes.actions(params, epoch, documents, fixLimits());
+    return fixes.actions(params, epoch, workspace.documents, fixLimits());
   });
   connection.onExecuteCommand((params, token) => {
     if (
       !initialized ||
       stopped ||
       !fixesEnabled ||
-      unavailableSources() ||
+      workspace.unavailableSources ||
       configurationUnavailable ||
-      capacityExceeded ||
+      workspace.capacityExceeded ||
       params.command !== APPLY_FIX_COMMAND ||
       token.isCancellationRequested
     )
       return { applied: false, reason: 'invalid_request' };
     if (clientEdits.busy) return { applied: false, reason: 'busy' };
-    return fixes.apply(params.arguments, epoch, documents, fixLimits(), (edit) =>
+    return fixes.apply(params.arguments, epoch, workspace.documents, fixLimits(), (edit) =>
       clientEdits.apply(edit, token),
     );
   });
@@ -652,7 +590,7 @@ export function attachLspServer(
   }
   connection.onInitialized(watchFiles);
   function refresh() {
-    diskGeneration++;
+    workspace.invalidateDisk();
     schedule();
   }
   connection.onDidSaveTextDocument((params) => {
@@ -682,126 +620,26 @@ export function attachLspServer(
       refresh();
   });
   connection.onDidOpenTextDocument(({ textDocument: item }) => {
-    if (
-      !initialized ||
-      stopped ||
-      !item ||
-      !validUri(item.uri) ||
-      (options.filesystem && !approved.has(item.uri)) ||
-      !validVersion(item.version) ||
-      documents.has(item.uri) ||
-      typeof item.text !== 'string'
-    )
-      return;
-    if (documents.size >= 1000) {
-      capacityExceeded = true;
-      schedule();
-      return;
-    }
-    const seed = TextDocument.create(item.uri, 'yaml', item.version, '');
-    const document = changed(seed, [{ text: item.text }], item.version);
-    if (!document) unavailable.add(item.uri);
-    documents.set(item.uri, document ?? seed);
-    schedule();
+    if (initialized && !stopped && workspace.open(item)) schedule();
   });
   connection.onDidChangeTextDocument(({ textDocument: item, contentChanges }) => {
-    if (!initialized || stopped || !item) return;
-    const previous = documents.get(item.uri);
-    if (!previous || !validVersion(item.version) || item.version <= previous.version) return;
-    const first = Array.isArray(contentChanges) ? contentChanges[0] : undefined;
-    const resynchronizing = first && typeof first === 'object' && !('range' in first);
-    const document =
-      unavailable.has(item.uri) && !resynchronizing
-        ? undefined
-        : changed(previous, contentChanges, item.version);
-    if (document) unavailable.delete(item.uri);
-    else unavailable.add(item.uri);
-    documents.set(
-      item.uri,
-      document ?? TextDocument.create(item.uri, previous.languageId, item.version, ''),
-    );
-    schedule();
+    if (initialized && !stopped && workspace.change(item, contentChanges)) schedule();
   });
   connection.onDidCloseTextDocument(async ({ textDocument: item }) => {
     if (stopped || !item) return;
-    const previous = documents.get(item.uri);
+    const previous = workspace.closeDocument(item.uri);
     if (!previous) return;
-    documents.delete(item.uri);
-    unavailable.delete(item.uri);
     if (options.filesystem && approved.has(item.uri)) refresh();
     else schedule();
-    await publish(item.uri, previous.version, []);
+    await publish(item.uri, previous.version, [], previous.lifetime);
   });
-  const fileUri = (uri: string) =>
-    validUri(uri) &&
-    isCanonicalSourceUri(uri) &&
-    (!config.source.rootUri || uri.startsWith(config.source.rootUri));
-  type SourceFileOperation = { readonly oldUri: string; readonly newUri?: string };
   async function fileOperations(rows: readonly SourceFileOperation[]) {
     if (!initialized || stopped) return;
-    const cleared: TextDocument[] = [];
-    try {
-      if (!Array.isArray(rows) || rows.length === 0 || rows.length > 1000)
-        throw new Error('Invalid file operations');
-      const seen = new Set<string>();
-      const updates: (SourceInput | { uri: string; deleted: true })[] = [];
-      const renamed = new Map<string, string>();
-      for (const row of rows as readonly SourceFileOperation[]) {
-        if (
-          !row ||
-          !fileUri(row.oldUri) ||
-          (options.filesystem &&
-            (!approved.has(row.oldUri) ||
-              (row.newUri !== undefined && !approved.has(row.newUri)))) ||
-          seen.has(row.oldUri) ||
-          (row.newUri !== undefined &&
-            (!fileUri(row.newUri) || seen.has(row.newUri) || row.newUri === row.oldUri))
-        )
-          throw new Error('Invalid file operation');
-        seen.add(row.oldUri);
-        if (row.newUri !== undefined) seen.add(row.newUri);
-        const open = documents.get(row.oldUri);
-        const file = workspaceSource.files.find((file) => file.uri === row.oldUri);
-        if (!open && !file) throw new Error('Source bytes are unavailable');
-        if (file) updates.push({ uri: row.oldUri, deleted: true });
-        if (row.newUri !== undefined) {
-          if (unavailable.has(row.oldUri)) throw new Error('Source buffer is not synchronized');
-          if (
-            documents.has(row.newUri) ||
-            workspaceSource.files.some((file) => file.uri === row.newUri)
-          )
-            throw new Error('Conflicting rename');
-          updates.push(
-            open
-              ? { uri: row.newUri, text: open.getText(), origin: 'buffer', version: open.version }
-              : { ...file!, uri: row.newUri },
-          );
-          renamed.set(row.oldUri, row.newUri);
-        }
-        if (open) cleared.push(open);
-      }
-      let next = overlaySourceSnapshot(workspaceSource, updates);
-      if (!options.filesystem && workspaceSource.entrypoints !== undefined)
-        next = createSourceSnapshot({
-          ...next,
-          entrypoints: workspaceSource.entrypoints
-            .map((uri) => renamed.get(uri) ?? uri)
-            .filter((uri) => next.files.some((file) => file.uri === uri)),
-        });
-      if (next.files.length > 1000) throw new Error('Source limit exceeded');
-      verifyRequestBindings(createLspRequest(config, next), config);
-      workspaceSource = next;
-      for (const document of cleared) {
-        documents.delete(document.uri);
-        unavailable.delete(document.uri);
-      }
-    } catch {
-      capacityExceeded = true;
-    }
+    const cleared = workspace.applyOperations(rows);
     if (options.filesystem) refresh();
     else schedule();
-    if (!capacityExceeded)
-      for (const document of cleared) await publish(document.uri, document.version, []);
+    for (const document of cleared)
+      await publish(document.uri, document.version, [], document.lifetime);
   }
   connection.workspace.onDidDeleteFiles((params) =>
     fileOperations(
