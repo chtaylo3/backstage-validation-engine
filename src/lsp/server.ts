@@ -1,7 +1,7 @@
-import { overlaySourceSnapshot } from '../core/snapshots.js';
+import { ValidationCoordinator } from './validation-coordinator.js';
+import { runValidation } from './validation-run.js';
 import { WorkspaceState } from './workspace-state.js';
 import type { SourceFileOperation } from './workspace-state.js';
-import { diagnostic, incomplete } from './diagnostics.js';
 import { DiagnosticPublisher } from './diagnostic-publisher.js';
 import { ClientEdits } from './client-edits.js';
 import { ApplyWorkspaceEditRequest } from 'vscode-languageserver/node';
@@ -11,18 +11,12 @@ import {
   DidChangeWatchedFilesNotification,
 } from 'vscode-languageserver/node';
 import type { Connection, Diagnostic, CancellationToken } from 'vscode-languageserver/node';
-import { digestText } from '../core/json.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { validatePolicySources } from '../core/policy-sources.js';
-import type { LocalCatalogSources } from '../core/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
-import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
 import { parseContract } from '../contracts/validate.js';
-import { FilesystemSnapshotError, reconcileFilesystemSource } from './filesystem.js';
 import type { FilesystemSource } from './filesystem.js';
-import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
-import { APPLY_FIX_COMMAND, FIX_LIMITS, FIX_TITLE, FixRegistry } from './fixes.js';
+import { APPLY_FIX_COMMAND, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
@@ -77,19 +71,14 @@ export function attachLspServer(
   const approved = { has: (uri: string) => workspace.approved(uri) };
   let dynamicWatching = false;
   let watchRequested = false;
-  let epoch = 0;
   let initialized = false;
   let stopped = false;
   let requestedShutdown = false;
-  let timer: NodeJS.Timeout | undefined;
-  let controller: AbortController | undefined;
-  let active: Promise<void> | undefined;
-  let pending = false;
   let disposal: Promise<void> | undefined;
 
   const publisher = new DiagnosticPublisher((params) => connection.sendDiagnostics(params));
   const publish = (uri: string, version: number, diagnostics: Diagnostic[], lifetime?: number) => {
-    const generation = epoch;
+    const generation = coordinator.generation;
     const document = workspace.documents.get(uri);
     return publisher.publish(
       {
@@ -98,198 +87,47 @@ export function attachLspServer(
         generation,
         lifetime: lifetime ?? document?.lifetime ?? 0,
         current: () =>
-          !stopped && epoch === generation && workspace.documents.get(uri) === document,
+          !stopped &&
+          coordinator.generation === generation &&
+          workspace.documents.get(uri) === document,
       },
       diagnostics,
     );
   };
-  const drain = (): void => {
-    if (active || !pending || stopped) return;
-    pending = false;
-    const generation = epoch;
-    const frame = workspace.snapshot().documents;
-    const abort = new AbortController();
-    controller = abort;
-    const current = () => !stopped && !abort.signal.aborted && epoch === generation;
-    active = (async () => {
-      if (!frame.length) return;
-      const timing = new FailureTimer();
-      const evidence: FailureEvidence[] = [];
-      let deadlineAt: number | undefined;
-      let phase: FailureStage = 'validation';
-      try {
-        // Admission precedes disk I/O; the refreshed request retains this exact budget.
-        const original = options.filesystem
-          ? createLspRequest(config, workspace.source)
-          : undefined;
-        deadlineAt = original?.execution.deadlineAt;
-        if (options.filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
-          const requested = workspace.diskGeneration;
-          const sourceGeneration = workspace.generation;
-          phase = 'filesystem';
-          const refreshed = await options.filesystem.capture(workspace.source, {
-            deadlineAt: original!.execution.deadlineAt,
-            signal: abort.signal,
-            skip: frame.map((document) => document.uri).filter((uri) => approved.has(uri)),
-          });
-          if (!current()) return;
-          verifyRequestBindings(
-            parseContract('validation-request', { ...original, source: refreshed }),
-            config,
-          );
-          if (!workspace.commitCapture(refreshed, requested, sourceGeneration)) return;
-        }
-        phase = 'validation';
-        if (
-          workspace.unavailableSources ||
-          workspace.capacityExceeded ||
-          configurationUnavailable
-        ) {
-          for (const document of frame) {
-            if (!current()) return;
-            await publish(document.uri, document.version, [
-              incomplete(
-                workspace.isUnavailable(document.uri) ? undefined : digestText(document.getText()),
-                document.version,
-                [timing.capture('buffer', 'buffer_unavailable')],
-              ),
-            ]);
-          }
-          return;
-        }
-        let source = overlaySourceSnapshot(
-          workspace.source,
-          frame.map((document) => ({
-            uri: document.uri,
-            text: document.getText(),
-            origin: 'buffer',
-            version: document.version,
-          })),
-        );
-        if (options.filesystem) source = reconcileFilesystemSource(config, source);
-        const request = original
-          ? parseContract('validation-request', { ...original, source })
-          : createLspRequest(config, source);
-        deadlineAt = request.execution.deadlineAt;
-        let deliver: ((sources?: LocalCatalogSources) => void) | undefined;
-        const local = config.policy.rules.some((rule) => rule.kind === 'catalog')
-          ? new Promise<LocalCatalogSources | undefined>((resolve) => {
-              deliver = resolve;
-            })
-          : undefined;
-        void completion.update(request, generation, local);
-        const prepared = editor.update(request, generation);
-        const report = await validatePolicySources(request, config, {
-          ...(deliver ? { onLocalSources: deliver } : {}),
-          onFailure: (row) => {
-            if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
-          },
-          signal: abort.signal,
-          ...(options.catalog ? { catalog: options.catalog } : {}),
-        }).finally(() => deliver?.());
-        if (!current()) return;
-        await prepared;
-        if (!current()) return;
-        await editor.refine(report, generation);
-        if (!current()) return;
-        evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
-        if (
-          fixesEnabled &&
-          report.interrupted === 'none' &&
-          report.rules.failures.length === 0 &&
-          report.coverage.every((row) => !row.required || row.status === 'verified') &&
-          !report.findings.some((row) =>
-            ['configuration', 'dependency', 'execution', 'resource'].includes(row.category),
-          )
-        ) {
-          fixes.replace({
-            generation,
-            findings: report.findings,
-            suggestions: editor.repairs(report.findings, generation, workspace.documents),
-            source: report.request.source,
-            ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
-            documents: workspace.documents,
-            expiresAt: Math.min(
-              Date.now() + FIX_LIMITS.ttlMs,
-              ...report.request.data.entries.map((row) => row.provenance.expiresAt),
-            ),
-          });
-        }
-        for (const document of frame) {
-          if (!current()) return;
-          const digest = digestText(document.getText());
-          const diagnostics = report.findings
-            .filter(
-              (finding) =>
-                finding.location.uri === document.uri ||
-                finding.relatedLocations.some((location) => location.uri === document.uri),
-            )
-            .map((finding) =>
-              diagnostic(
-                finding,
-                digest,
-                document.version,
-                document.uri,
-                evidence,
-                fixesEnabled ? generation : undefined,
-              ),
-            );
-          if (
-            report.interrupted !== 'none' ||
-            (report.coverage.some((row) => row.required && row.status !== 'verified') &&
-              diagnostics.length === 0)
-          )
-            diagnostics.push(incomplete(digest, document.version, evidence));
-          await publish(document.uri, document.version, diagnostics);
-        }
-      } catch (error) {
-        fixes.invalidate();
-        if (!evidence.length)
-          evidence.push(
-            timing.capture(
-              phase,
-              error instanceof FilesystemSnapshotError
-                ? error.reason === 'limit'
-                  ? 'resource_limit'
-                  : error.reason === 'changed'
-                    ? 'source_changed'
-                    : 'snapshot_unavailable'
-                : failureCause(error),
-              deadlineAt,
-            ),
-          );
-        if (current())
-          for (const document of frame) {
-            if (!current()) return;
-            await publish(document.uri, document.version, [
-              incomplete(digestText(document.getText()), document.version, evidence),
-            ]);
-          }
-      }
-    })()
-      .catch(() => {
-        /* Transport errors cannot publish another diagnostic. */
-      })
-      .finally(() => {
-        active = undefined;
-        controller = undefined;
-        if (pending && !timer) drain();
-      });
-  };
-  function schedule() {
-    fixes.invalidate();
-    completion.invalidate();
-    editor.invalidate();
-    epoch++;
-    workspace.invalidate();
-    controller?.abort();
-    pending = true;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = undefined;
-      drain();
-    }, config.debounceMs);
-  }
+  const coordinator = new ValidationCoordinator(
+    (context) =>
+      runValidation(context, {
+        config,
+        snapshot: workspace.snapshot(),
+        workspace,
+        filesystem: options.filesystem,
+        catalog: options.catalog,
+        completion,
+        editor,
+        fixes,
+        fixesEnabled,
+        configurationUnavailable,
+        publish: (uri, version, diagnostics) =>
+          publisher.publish(
+            {
+              uri,
+              version,
+              generation: context.generation,
+              lifetime: workspace.document(uri)?.lifetime ?? 0,
+              current: context.current,
+            },
+            diagnostics,
+          ),
+      }),
+    () => config.debounceMs,
+    () => {
+      fixes.invalidate();
+      completion.invalidate();
+      editor.invalidate();
+      workspace.invalidate();
+    },
+  );
+  const schedule = () => coordinator.invalidate('buffer');
   const close = (): Promise<void> => {
     if (disposal) return disposal;
     stopped = true;
@@ -299,15 +137,12 @@ export function attachLspServer(
     const closeEdits = clientEdits.close();
     publisher.close();
     workspace.close();
-    epoch++;
-    pending = false;
-    if (timer) clearTimeout(timer);
-    controller?.abort();
+    const closeValidation = coordinator.close();
     disposal = (async () => {
       await closeEdits;
       await reloading;
       await completion.close();
-      await active;
+      await closeValidation;
       await options.dispose?.();
     })();
     return disposal;
@@ -371,7 +206,7 @@ export function attachLspServer(
     )
       return { isIncomplete: true, items: [] };
     const cancellation = new AbortController();
-    const generation = epoch;
+    const generation = coordinator.generation;
     const subscription = token.onCancellationRequested(() => cancellation.abort());
     try {
       const references = await completion.complete(
@@ -380,7 +215,7 @@ export function attachLspServer(
         workspace.documents,
         cancellation.signal,
       );
-      if (stopped || configurationUnavailable || epoch !== generation)
+      if (stopped || configurationUnavailable || coordinator.generation !== generation)
         return { isIncomplete: true, items: [] };
       references.items = references.items.filter((item) =>
         editor.acceptsReference(params, item.label, generation, workspace.documents),
@@ -398,7 +233,12 @@ export function attachLspServer(
     !workspace.unavailableSources &&
     !workspace.capacityExceeded &&
     !token.isCancellationRequested
-      ? editor.hover(params.textDocument.uri, params.position, epoch, workspace.documents)
+      ? editor.hover(
+          params.textDocument.uri,
+          params.position,
+          coordinator.generation,
+          workspace.documents,
+        )
       : null,
   );
   connection.onDefinition((params, token) =>
@@ -408,7 +248,12 @@ export function attachLspServer(
     !workspace.unavailableSources &&
     !workspace.capacityExceeded &&
     !token.isCancellationRequested
-      ? editor.definition(params.textDocument.uri, params.position, epoch, workspace.documents)
+      ? editor.definition(
+          params.textDocument.uri,
+          params.position,
+          coordinator.generation,
+          workspace.documents,
+        )
       : [],
   );
   connection.onNotification('bve/recordSelection', (input: unknown) => {
@@ -430,7 +275,7 @@ export function attachLspServer(
     const subscription = token.onCancellationRequested(() => cancellation.abort());
     try {
       if (!workspace.documents.size) {
-        const generation = epoch;
+        const generation = coordinator.generation;
         const original = createLspRequest(config, workspace.source);
         if (options.filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
           const disk = workspace.diskGeneration;
@@ -439,7 +284,8 @@ export function attachLspServer(
             deadlineAt: original.execution.deadlineAt,
             signal: cancellation.signal,
           });
-          if (stopped || epoch !== generation || cancellation.signal.aborted) return [];
+          if (stopped || coordinator.generation !== generation || cancellation.signal.aborted)
+            return [];
           verifyRequestBindings(
             parseContract('validation-request', { ...original, source }),
             config,
@@ -451,9 +297,10 @@ export function attachLspServer(
           generation,
         );
         await completion.ready(generation, cancellation.signal);
-        if (stopped || epoch !== generation || cancellation.signal.aborted) return [];
+        if (stopped || coordinator.generation !== generation || cancellation.signal.aborted)
+          return [];
       }
-      return await completion.searchReferences(input, epoch, cancellation.signal);
+      return await completion.searchReferences(input, coordinator.generation, cancellation.signal);
     } catch {
       return [];
     } finally {
@@ -486,8 +333,7 @@ export function attachLspServer(
           throw new Error('Invalid host resources.');
         const nextCompletion = new CompletionService(replacement.config, replacement.catalog);
         const nextEditor = new EditorService(replacement.config);
-        controller?.abort();
-        await active;
+        await coordinator.cancelActive();
         if (stopped) {
           await nextCompletion.close();
           return { reloaded: false };
@@ -552,7 +398,7 @@ export function attachLspServer(
       clientEdits.busy
     )
       return [];
-    return fixes.actions(params, epoch, workspace.documents, fixLimits());
+    return fixes.actions(params, coordinator.generation, workspace.documents, fixLimits());
   });
   connection.onExecuteCommand((params, token) => {
     if (
@@ -567,8 +413,12 @@ export function attachLspServer(
     )
       return { applied: false, reason: 'invalid_request' };
     if (clientEdits.busy) return { applied: false, reason: 'busy' };
-    return fixes.apply(params.arguments, epoch, workspace.documents, fixLimits(), (edit) =>
-      clientEdits.apply(edit, token),
+    return fixes.apply(
+      params.arguments,
+      coordinator.generation,
+      workspace.documents,
+      fixLimits(),
+      (edit) => clientEdits.apply(edit, token),
     );
   });
   function watchFiles() {

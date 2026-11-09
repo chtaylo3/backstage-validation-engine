@@ -70,7 +70,12 @@ Features receive frozen document views through a map without mutation methods. T
 Lifetimes survive edits and change after close and reopen. Disk captures commit only against their captured generation.
 Seventy existing LSP/filesystem/reload assertions and four focused workspace assertions pass.
 An initial cache test exposed a missing cache insertion, which is corrected.
-Phases 5 through 9 remain pending.
+Phase 5 extracts the validation coordinator and the existing validation-run orchestration.
+The coordinator owns debounce, cancellation, one active run, latest pending work, and validation quiescence.
+It also supports pause and resume for session replacement. It owns neither providers nor client edit settlement.
+Twenty-four focused scheduler, budget, completion, and reload assertions pass.
+Type checking, lint, and architectural boundaries pass.
+Phases 6 through 9 remain pending.
 
 ### Baseline measurements
 
