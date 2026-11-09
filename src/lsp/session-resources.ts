@@ -46,6 +46,7 @@ export class SessionGeneration {
     readonly generation: number,
     private readonly resources: LspServerResources,
     private readonly closeMs = 5000,
+    private readonly cleanupFailed: () => void = () => {},
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
@@ -81,6 +82,7 @@ export class SessionGeneration {
             .then(() => resource.dispose())
             .catch(() => {
               this.registrationFailed = true;
+              this.cleanupFailed();
             });
         } else this.registrations.add(resource);
       },
@@ -149,13 +151,27 @@ export class SessionResources {
     private readonly load?: () => Promise<LspServerResources>,
     private readonly closeMs = 5000,
   ) {
-    this.active = new SessionGeneration(this.sequence, initial, closeMs);
+    this.active = this.createGeneration(initial);
+  }
+  private createGeneration(resources: LspServerResources): SessionGeneration {
+    return new SessionGeneration(this.sequence, resources, this.closeMs, () => {
+      this.failed = true;
+      this.usable = false;
+      this.active.operations.cancel();
+      if (!this.terminal) {
+        try {
+          this.ports.invalidate();
+        } catch {
+          // The session already requires reconnection; no adapter error escapes cleanup.
+        }
+      }
+    });
   }
   get current() {
     return this.active;
   }
   get available() {
-    return this.usable && !this.terminal;
+    return this.usable && !this.terminal && !this.failed;
   }
   get stopped() {
     return this.terminal;
@@ -195,7 +211,8 @@ export class SessionResources {
               JSON.stringify(previous.config.source.files.map((file) => file.uri).sort()))
         )
           throw new Error('The client must reconnect after a source scope change.');
-        candidate = new SessionGeneration(++this.sequence, replacement, this.closeMs);
+        this.sequence++;
+        candidate = this.createGeneration(replacement);
         this.prepared = candidate;
         replacement = undefined;
         await bounded(pausing, this.closeMs);
@@ -203,13 +220,13 @@ export class SessionResources {
           this.failed = true;
           throw new Error('Retired resource cleanup failed.');
         });
-        if (this.terminal) return { reloaded: false };
+        if (this.terminal || this.failed) return { reloaded: false };
         // No asynchronous work can observe half of this activation while requests are unavailable.
         this.active = candidate;
         this.prepared = undefined;
         this.ports.commit(candidate);
         await this.ports.activated(candidate);
-        if (this.terminal) return { reloaded: false };
+        if (this.terminal || this.failed) return { reloaded: false };
         this.usable = true;
         this.ports.resume();
         this.ports.ready();

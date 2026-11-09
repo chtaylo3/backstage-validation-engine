@@ -224,3 +224,36 @@ void test('readiness and resume faults retain candidate ownership until cleanup 
     assert.deepEqual(f.closes, ['initial', 'candidate']);
   }
 });
+
+void test('a failed late registration disposer invalidates activation and retains bounded failure evidence', async () => {
+  for (const duringActivation of [false, true]) {
+    const f = fixture();
+    const registration = deferred<SessionRegistration>();
+    const activation = deferred<void>();
+    const manager = new SessionResources(
+      f.resources('initial'),
+      { ...f.ports, activated: () => (duringActivation ? activation.promise : undefined) },
+      () => Promise.resolve(f.resources('candidate')),
+    );
+    manager.current.own(registration.promise);
+    const reload = manager.reload();
+    await turn();
+    if (!duringActivation) assert.deepEqual(await reload, { reloaded: true });
+    registration.resolve({
+      dispose: () => Promise.reject(new Error('private registration detail')),
+    });
+    await turn();
+    activation.resolve();
+    if (duringActivation) {
+      assert.deepEqual(await reload, { reloaded: false });
+      assert(!f.events.includes('ready'));
+      assert(manager.current.closed);
+    }
+    assert.equal(manager.available, false);
+    assert(manager.cleanupFailed);
+    assert(manager.current.operations.signal.aborted);
+    assert.deepEqual(await manager.reload(), { reloaded: false });
+    await assert.rejects(manager.close(), /^Error: Session cleanup failed\.$/u);
+    assert.deepEqual(f.closes, ['initial', 'candidate']);
+  }
+});

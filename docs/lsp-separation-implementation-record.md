@@ -112,7 +112,10 @@ Fresh packages built at `8981d22` pass all 973 packaged source assertions.
 The native search picker passes in both pinned editors.
 Final review found that an unexpected readiness or resume callback exception could transfer candidate ownership before activation completed.
 The candidate now remains owned until both callbacks succeed. A repeated resume failure remains unavailable and requires reconnection.
-Nine controlled session assertions pass, including injected readiness and resume failures with exactly one candidate disposal.
+Ten controlled session assertions pass, including injected readiness and resume failures with exactly one candidate disposal.
+A late registration disposer failure now reaches the manager after its original generation is retired.
+Failures during or after replacement activation remain unavailable, invalidate current work, retain a bounded cleanup-failure flag, and require reconnection.
+The full source gate at `87b9a16` passes 974 source assertions plus the unchanged 42 client assertions.
 The final source gate, rebuilt packages, full installed-editor inventory, and Backstage development checks remain in progress.
 
 ### Measurement comparison
