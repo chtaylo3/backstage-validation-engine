@@ -51,7 +51,11 @@ Source and client results do not establish installed-extension or real-Backstage
 
 ## Implementation phases
 
-Phases 1 through 9 remain pending. Each completed phase will record changed boundaries and executed evidence here.
+Phase 1 adds a TypeScript-based import graph to `npm run check`.
+It checks aliases, re-exports, type imports, dynamic imports, and literal module loaders.
+The existing CLI configuration edges and root SARIF edge are exact temporary exceptions.
+The current graph passes. The representative forbidden-import test passes.
+Phases 2 through 9 remain pending.
 
 ### Baseline measurements
 
