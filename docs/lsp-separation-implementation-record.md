@@ -95,7 +95,14 @@ The follow-up keeps the fixed configuration watch with the process and transfers
 Retired credential callbacks cannot trigger a reload. Invalid configuration does not remove the fixed recovery watch.
 Startup failure also closes resources already constructed before connection startup.
 Seventeen focused watch, session, reload, and credential assertions pass.
-Phases 8 and 9 remain pending.
+Phase 8 centralizes native package pin admission and immutable presentation artifacts in the compatibility layer.
+Native adapter loading reads package identity but never requests optional presentation schemas.
+Editor artifacts carry a digest identity and policy/custom hints retain their approved schema digest.
+Presentation loading can fail independently without selecting another native version.
+Seventeen focused compatibility and editor assertions pass on both pins.
+The missing-presentation test injects a reader failure while leaving native SDK exports intact. It also validates an actual suggested edit.
+Fresh packaged execution remains part of phase 9.
+Phase 9 remains pending.
 
 ### Baseline measurements
 

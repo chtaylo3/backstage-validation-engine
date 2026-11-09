@@ -1,5 +1,5 @@
+import { resolveNativePackage } from './schema-artifacts.js';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
-import { createRequire } from 'node:module';
 import type { Entity, EntityPolicy } from '@backstage/catalog-model';
 import type * as NativeLibrary from '@backstage/catalog-model';
 import type { JsonValue } from '../contracts/schemas.js';
@@ -296,21 +296,9 @@ export async function loadBackstageAdapter(id: BackstageAdapterId): Promise<Back
   if (cached) return cached;
   const loading = (async () => {
     try {
-      const packageName =
-        id === '@backstage/catalog-model@1.10.2'
-          ? '@backstage/catalog-model'
-          : 'backstage-catalog-model-older';
-      const metadata: unknown = createRequire(import.meta.url)(`${packageName}/package.json`);
-      const expectedVersion = id.slice(id.lastIndexOf('@') + 1);
-      if (
-        !metadata ||
-        typeof metadata !== 'object' ||
-        !('version' in metadata) ||
-        metadata.version !== expectedVersion
-      )
-        throw new BackstageRuntimeError('adapter_unavailable');
+      const native = resolveNativePackage(id);
       const library: Library =
-        id === '@backstage/catalog-model@1.10.2'
+        native.packageName === '@backstage/catalog-model'
           ? await import('@backstage/catalog-model')
           : await import('backstage-catalog-model-older');
       return createAdapter(id, library);
