@@ -124,6 +124,19 @@ The launcher retains authority. [Proposed overlays](proposed-overlays.md) establ
 targets, hide invalid or deleted identities, and bind baseline, source, and data before external
 lookup. Real-backend and editor qualification remain open.
 
+## Future rule and editor plugins
+
+The [capability plan](plugin-capabilities-plan.md) defines proposed versioned interfaces for validation,
+field metadata, values, hover, references, repairs, search, and source discovery. Existing CEL and
+RE2 evaluation retains its qualified execution profiles. A validator supplies editor functions only
+through declared metadata or a qualified capability provider.
+
+The host owns authority, preparation, candidate evidence, source rendering, resource admission, and
+edit guards. Capability declarations cannot grant credentials, bypass dependencies, or weaken
+mandatory coverage. Missing required evaluation remains incomplete. Optional editor failures do
+not suppress validation findings. The plan includes separate conformance and delivery gates before
+generic executable plugins can be enabled.
+
 ## Release breadth
 
 The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and central Actions.

@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { open } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { isAbsolute } from 'node:path';
 import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
@@ -13,6 +16,7 @@ import { createDataSnapshot } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
+import { approvedFilesystemUri } from './discovery.js';
 
 const text = Type.String({ minLength: 1, maxLength: 4096 });
 const schema = Type.Object(
@@ -27,8 +31,18 @@ const schema = Type.Object(
     filesystem: Type.Optional(
       Type.Object(
         {
-          files: Type.Array(text, { minItems: 1, maxItems: 1000, uniqueItems: true }),
+          files: Type.Array(text, { maxItems: 1000, uniqueItems: true }),
           entrypoints: Type.Optional(Type.Array(text, { maxItems: 1000, uniqueItems: true })),
+          discovery: Type.Optional(
+            Type.Object(
+              {
+                roots: Type.Array(text, { minItems: 1, maxItems: 16, uniqueItems: true }),
+                include: Type.Array(text, { minItems: 1, maxItems: 32, uniqueItems: true }),
+                exclude: Type.Optional(Type.Array(text, { maxItems: 32, uniqueItems: true })),
+              },
+              { additionalProperties: false },
+            ),
+          ),
         },
         { additionalProperties: false },
       ),
@@ -47,7 +61,8 @@ const schema = Type.Object(
             uniqueItems: true,
           }),
           maxAgeMs: Type.Integer({ minimum: 0, maximum: 30_000 }),
-          tokenEnv: Type.String({ pattern: '^[A-Za-z_][A-Za-z0-9_]{0,127}$' }),
+          tokenEnv: Type.Optional(Type.String({ pattern: '^[A-Za-z_][A-Za-z0-9_]{0,127}$' })),
+          tokenFile: Type.Optional(text),
         },
         { additionalProperties: false },
       ),
@@ -89,14 +104,31 @@ export function parseLspConfig(input: unknown) {
       !isCanonicalSourceUri(root, true) ||
       config.filesystem.files.some((uri) => !isCanonicalSourceUri(uri) || !uri.startsWith(root)) ||
       [...config.source.files, ...(config.baseline?.files ?? [])].some(
-        (file) => !files.has(file.uri),
+        (file) => !approvedFilesystemUri(config, file.uri),
       ) ||
       (config.filesystem.entrypoints ?? config.source.entrypoints ?? []).some(
-        (uri) => !files.has(uri),
+        (uri) => !approvedFilesystemUri(config, uri),
+      ) ||
+      (!files.size && !config.filesystem.discovery) ||
+      config.filesystem.discovery?.roots.some(
+        (uri) => !isCanonicalSourceUri(uri, true) || !uri.startsWith(root),
+      ) ||
+      [
+        ...(config.filesystem.discovery?.include ?? []),
+        ...(config.filesystem.discovery?.exclude ?? []),
+      ].some(
+        (pattern) =>
+          pattern.startsWith('/') || pattern.includes('\\') || pattern.split('/').includes('..'),
       )
     )
       throw new Error('Invalid trusted filesystem configuration.');
   }
+  if (
+    config.catalog &&
+    (!!config.catalog.tokenEnv === !!config.catalog.tokenFile ||
+      (config.catalog.tokenFile && !isAbsolute(config.catalog.tokenFile)))
+  )
+    throw new Error('Select exactly one trusted catalog credential source.');
   verifyRequestBindings(createLspRequest(config, config.source), config);
   return config;
 }
@@ -132,8 +164,42 @@ export function createLspRequest(
 export async function createLspCatalog(config: LspConfig, environment: NodeJS.ProcessEnv) {
   if (!config.catalog) return undefined;
   const settings = config.catalog;
-  const token = environment[settings.tokenEnv];
-  if (!token) throw new Error('Configured catalog credential is unavailable.');
+  const credential = async () => {
+    if (settings.tokenEnv) {
+      const token = environment[settings.tokenEnv];
+      if (!token) throw new Error('Configured catalog credential is unavailable.');
+      return token;
+    }
+    const handle = await open(
+      settings.tokenFile!,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    try {
+      const stat = await handle.stat();
+      if (!stat.isFile() || stat.size < 1 || stat.size > 16 * 1024 || stat.nlink !== 1)
+        throw new Error('Configured catalog credential is unavailable.');
+      const buffer = Buffer.alloc(16 * 1024 + 1);
+      const { bytesRead } = await handle.read(buffer);
+      const after = await handle.stat();
+      if (
+        bytesRead !== stat.size ||
+        after.nlink !== 1 ||
+        after.size !== stat.size ||
+        after.mtimeMs !== stat.mtimeMs ||
+        after.ctimeMs !== stat.ctimeMs
+      )
+        throw new Error('Configured catalog credential changed during capture.');
+      const token = new TextDecoder('utf-8', { fatal: true })
+        .decode(buffer.subarray(0, bytesRead))
+        .trim();
+      if (!token || bytesRead > 16 * 1024 || /[\r\n]/u.test(token))
+        throw new Error('Configured catalog credential is unavailable.');
+      return token;
+    } finally {
+      await handle.close();
+    }
+  };
+  await credential();
   const provider: CatalogProvider = await createCatalogProvider({
     connectionId: settings.connectionId,
     baseUrl: settings.baseUrl,
@@ -141,15 +207,14 @@ export async function createLspCatalog(config: LspConfig, environment: NodeJS.Pr
       ? {}
       : { allowInsecureHttp: settings.allowInsecureHttp }),
     adapterId: config.profile.adapterId,
-    credentials: (access) =>
-      Promise.resolve({
-        token,
-        installationId: access.installationId,
-        principalId: access.principalId,
-        permissionRevision: access.permissionRevision,
-        credentialRevision: access.credentialRevision,
-        scope: access.scope,
-      }),
+    credentials: async (access) => ({
+      token: await credential(),
+      installationId: access.installationId,
+      principalId: access.principalId,
+      permissionRevision: access.permissionRevision,
+      credentialRevision: access.credentialRevision,
+      scope: access.scope,
+    }),
   });
   return {
     provider,

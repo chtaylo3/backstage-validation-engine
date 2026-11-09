@@ -14,6 +14,9 @@ export function onStop(action?: () => Promise<void>) {
 }
 export class LanguageClient {
   running = false;
+  readonly requests: string[] = [];
+  readonly notifications: { method: string; value: unknown }[] = [];
+  readonly notificationHandlers = new Map<string, () => void>();
   serverProcess: { pid: number } | undefined = { pid: 1000 + clients.length };
   constructor(
     readonly id: string,
@@ -33,5 +36,21 @@ export class LanguageClient {
   }
   isRunning() {
     return this.running;
+  }
+  onNotification(method: string, handler: () => void) {
+    this.notificationHandlers.set(method, handler);
+    return {
+      dispose: () => {
+        this.notificationHandlers.delete(method);
+      },
+    };
+  }
+  sendNotification(method: string, value: unknown) {
+    this.notifications.push({ method, value });
+    return Promise.resolve();
+  }
+  sendRequest(method: string) {
+    this.requests.push(method);
+    return Promise.resolve({ reloaded: true });
   }
 }

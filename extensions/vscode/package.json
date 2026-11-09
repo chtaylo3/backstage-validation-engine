@@ -46,6 +46,14 @@
       {
         "command": "backstageValidation.showOutput",
         "title": "Backstage Validation: Show Output"
+      },
+      {
+        "command": "backstageValidation.reloadConfiguration",
+        "title": "Backstage Validation: Reload Trusted Configuration"
+      },
+      {
+        "command": "backstageValidation.searchReferences",
+        "title": "Backstage Validation: Search Entity References"
       }
     ],
     "configuration": {

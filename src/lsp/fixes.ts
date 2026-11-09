@@ -125,8 +125,13 @@ export function checkedFixEdit(
     ],
   };
 }
+export interface SuggestedFix {
+  readonly title: string;
+  readonly finding: Immutable<Finding>;
+}
 interface Candidate {
   readonly finding: Immutable<Finding>;
+  readonly title: string;
 }
 interface State {
   readonly generation: number;
@@ -159,6 +164,7 @@ export class FixRegistry {
   replace(input: {
     readonly generation: number;
     readonly findings: readonly Immutable<Finding>[];
+    readonly suggestions?: readonly SuggestedFix[];
     readonly source: Immutable<SourceSnapshot>;
     readonly baseline?: Immutable<SourceSnapshot>;
     readonly documents: ReadonlyMap<string, FixDocument>;
@@ -172,9 +178,12 @@ export class FixRegistry {
       ]),
     );
     const sources = new Map(input.source.files.map((file) => [file.uri, file]));
-    const candidates = input.findings
+    const candidates = [
+      ...input.findings.map((finding) => ({ finding, title: FIX_TITLE })),
+      ...(input.suggestions ?? []),
+    ]
       .filter(
-        (finding) =>
+        ({ finding }) =>
           finding.edits.length &&
           finding.edits.every((edit) => {
             const source = sources.get(edit.uri);
@@ -182,7 +191,7 @@ export class FixRegistry {
           }),
       )
       .slice(0, FIX_LIMITS.candidates)
-      .map((finding) => ({ finding }));
+      .map(({ finding, title }) => ({ finding, title }));
     const wall = this.clock.wall();
     this.state = {
       generation: input.generation,
@@ -299,10 +308,10 @@ export class FixRegistry {
         this.tokens.delete(this.tokens.keys().next().value!);
       this.tokens.set(id, candidate);
       result.push({
-        title: FIX_TITLE,
+        title: candidate.title,
         kind: 'quickfix',
         diagnostics: [shown],
-        command: { title: FIX_TITLE, command: APPLY_FIX_COMMAND, arguments: [id] },
+        command: { title: candidate.title, command: APPLY_FIX_COMMAND, arguments: [id] },
       });
       if (result.length >= FIX_LIMITS.actions) break;
     }

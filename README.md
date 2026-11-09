@@ -135,6 +135,13 @@ Its full suite runs during release qualification or explicit local tests.
 For catalog-existence policies, trusted launcher setup, and the stdio language server, see the
 [LSP guide](docs/lsp.md).
 
+For field and value suggestions, hover, definitions, schema repairs, catalog search, discovery,
+configuration reload, and JetBrains setup, see [editor features](docs/editor-features.md).
+
+For future CEL, RE2, and plugin contributions, see the
+[rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
+execution controls, and conformance tests for each supported function.
+
 For safe local includes, file Locations, source roots and catalog entrypoints, see
 [snapshot-local substitutions](docs/substitutions.md).
 

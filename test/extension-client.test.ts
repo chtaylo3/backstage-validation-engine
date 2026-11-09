@@ -109,6 +109,19 @@ void test('launcher environment is accepted when no User Setting exists', async 
   process.env.BVE_LSP_CONFIG = config;
   assert((await extension.activate(context)).status().running);
 });
+
+void test('restart and stop dispose the previous configuration notification handler', async () => {
+  editorState.selected = config;
+  await extension.activate(context);
+  const first = clients[0]!;
+  assert(first.notificationHandlers.has('bve/configurationReloaded'));
+  await command('restart');
+  assert.equal(first.notificationHandlers.size, 0);
+  const second = clients.at(-1)!;
+  assert(second.notificationHandlers.has('bve/configurationReloaded'));
+  await command('stop');
+  assert.equal(second.notificationHandlers.size, 0);
+});
 for (const [name, value] of [
   ['malformed JSON', '{'],
   ['null', null],

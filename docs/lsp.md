@@ -370,6 +370,10 @@ failures or skips.
 
 ## Responsive reference completion
 
+The later [editor features increment](editor-features.md) adds field and schema-value completion,
+recovery while typing, hover, local definitions, broader repairs, search, history, discovery, and
+trusted configuration reload. The inventory below records the original reference-completion increment.
+
 The server advertises standard
 [`textDocument/completion`](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/language/completion.md)
 with `:` and `/` triggers. Suggestions apply to authored scalar values at the deployment profile's

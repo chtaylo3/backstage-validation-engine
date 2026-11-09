@@ -128,6 +128,7 @@ export async function startLspClient(
   });
   await client.sendNotification(InitializedNotification.type, {});
   return {
+    configPath,
     client,
     diagnostics,
     initialized,
