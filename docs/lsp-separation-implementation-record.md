@@ -108,7 +108,12 @@ Architecture and LSP documentation describe the implemented owners.
 An installed-editor case now drives the native search picker through selection, cancellation, and a stale captured selection.
 The full source gate passes 973 source assertions and 42 client assertions.
 Client coverage remains 100% lines and 95.88% branches.
-Fresh package, installed-editor, and Backstage development checks remain in progress.
+Fresh packages built at `8981d22` pass all 973 packaged source assertions.
+The native search picker passes in both pinned editors.
+Final review found that an unexpected readiness or resume callback exception could transfer candidate ownership before activation completed.
+The candidate now remains owned until both callbacks succeed. A repeated resume failure remains unavailable and requires reconnection.
+Nine controlled session assertions pass, including injected readiness and resume failures with exactly one candidate disposal.
+The final source gate, rebuilt packages, full installed-editor inventory, and Backstage development checks remain in progress.
 
 ### Measurement comparison
 

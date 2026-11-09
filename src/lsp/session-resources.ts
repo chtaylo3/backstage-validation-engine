@@ -210,10 +210,10 @@ export class SessionResources {
         this.ports.commit(candidate);
         await this.ports.activated(candidate);
         if (this.terminal) return { reloaded: false };
-        candidate = undefined;
         this.usable = true;
         this.ports.resume();
         this.ports.ready();
+        candidate = undefined;
         activated = true;
         return { reloaded: true };
       } catch {
@@ -229,8 +229,12 @@ export class SessionResources {
         this.reloading = undefined;
         if (!this.terminal) {
           if (!activated) {
-            this.ports.invalidate();
-            this.ports.resume();
+            try {
+              this.ports.invalidate();
+              this.ports.resume();
+            } catch {
+              this.failed = true;
+            }
           }
           if (this.again) {
             this.again = false;

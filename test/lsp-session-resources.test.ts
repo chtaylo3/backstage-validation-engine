@@ -199,3 +199,28 @@ void test('shutdown disposes a prepared generation even when the old coordinator
   assert.equal(manager.stopped, true);
   assert(!f.events.includes('ready'));
 });
+
+void test('readiness and resume faults retain candidate ownership until cleanup completes', async () => {
+  for (const port of ['ready', 'resume'] as const) {
+    const f = fixture();
+    const manager = new SessionResources(
+      f.resources('initial'),
+      {
+        ...f.ports,
+        [port]: () => {
+          throw new Error('private readiness detail');
+        },
+      },
+      () => Promise.resolve(f.resources('candidate')),
+    );
+    assert.deepEqual(await manager.reload(), { reloaded: false });
+    assert.equal(manager.available, false);
+    assert(manager.current.closed);
+    assert.deepEqual(f.closes, ['initial', 'candidate']);
+    if (port === 'resume') {
+      assert(manager.cleanupFailed);
+      await assert.rejects(manager.close(), /^Error: Session cleanup failed\.$/u);
+    } else await manager.close();
+    assert.deepEqual(f.closes, ['initial', 'candidate']);
+  }
+});
