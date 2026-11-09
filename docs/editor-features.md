@@ -53,6 +53,11 @@ Accepted selections rank future eligible values. History cannot add an ineligibl
 VS Code stores at most 128 selections locally, scoped to the workspace, trusted configuration, and authority context.
 Other clients use the server's bounded session history.
 
+Catalog cache expiry currently triggers fresh reads on later requests. It does not schedule idle-buffer revalidation after a remote catalog change.
+The [live dependency refresh plan](plugin-capabilities-plan.md#live-changes-to-catalog-data) specifies background refresh,
+optional change notifications, same-version diagnostics, and invalidation of affected suggestions and repairs.
+These continuous remote-refresh mechanisms remain implementation work.
+
 ## File discovery
 
 Exact approval remains the default. To discover files, add trusted roots and patterns:

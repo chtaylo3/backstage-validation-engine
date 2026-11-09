@@ -391,6 +391,11 @@ interfaces for each editor function, candidate/repair evidence, runtime requirem
 through PC-10 conformance gates. These proposed interfaces and general executable-plugin support
 are not implemented by the current schema-focused editor increment.
 
+The plan also specifies live catalog dependency refresh and PC-11 qualification. Cache expiry alone
+does not currently revalidate idle editor buffers. Bounded background refresh, optional change
+notifications, remote dependency generations, query/absence invalidation, and same-version
+diagnostic publication remain required implementation work.
+
 ## Next increments, in order
 
 1. IDE qualification. Broaden interactive UX/upgrade and in-flight fix/version tests, qualify

@@ -62,6 +62,7 @@ type CapabilityId =
   | 'references'
   | 'repairs'
   | 'search'
+  | 'dependency-changes'
   | 'source-discovery';
 
 interface ContextBinding {
@@ -75,6 +76,7 @@ interface ContextBinding {
   readonly dependencyDigest: string;
   readonly authorityContextDigest: string;
   readonly generation: number;
+  readonly dependencyGeneration: number;
 }
 
 interface BoundRequest<T> {
@@ -138,6 +140,7 @@ An adapter can derive a function from another declared interface only after qual
 | Navigation: `ReferenceProvider`            | Declared reference occurrences produce canonical identities, default kind/namespace rules, dependency paths, and target identities.                           | The host must resolve targets against qualified workspace state and approved catalog scope. Preserve inclusion ranges, invalid replacements, deletions, and conflicts. Ambiguous targets remain explicit. |
 | Repairs: `RepairProvider`                  | A specific finding and pinned subject produce explicit choices or logical repair proposals with target rules and semantic preconditions.                      | Use only host-supported operations. The host must validate applicability, source mapping, candidate evidence, versions, digests, expiry, and budgets before creating an action.                           |
 | Catalog or domain search: `SearchProvider` | A typed scoped query produces bounded identities or candidates with source, freshness, pagination, and completeness.                                          | Use approved connections and host credential brokers. Apply authorization, overlays, cursor limits, cancellation, and cache boundaries. Search results are advisory data.                                 |
+| Remote changes: `DependencyChangeProvider` | An approved scope and optional cursor produce bounded invalidation hints, a next cursor, and any reset requirement.                                           | Declare the observation mechanism and coverage. Hints invalidate data but do not prove current contents or authorize access. The host must recover gaps through fresh reads.                              |
 | File discovery: `SourceDiscoveryProvider`  | Host-approved roots and patterns produce bounded source identities and their observed revisions.                                                              | Enforce containment, link rules, file types, byte/count/depth limits, and cancellation. Proposal content cannot add roots or entrypoints outside host approval.                                           |
 
 Field descriptors and value candidates must identify the rule/artifact that supplied each constraint.
@@ -274,24 +277,98 @@ The host must attach artifact provenance, applicability, freshness, and candidat
 It must reject undeclared paths, unsupported operations, mismatched finding/subject IDs, and plugin claims that contradict host evidence.
 If the host cannot prove that an edit reaches the intended authored value, it must omit the repair.
 
+## Live changes to catalog data
+
+An LSP session outlives individual catalog observations. Remote changes must trigger work even when the author leaves a document unchanged.
+Cache expiry limits reuse, but expiry alone does not schedule validation or change existing editor diagnostics.
+The current implementation refreshes expired catalog data on subsequent requests. It does not yet revalidate idle buffers when remote data expires or changes.
+Setting `maxAgeMs` to zero does not provide that missing schedule.
+
+Every external-data provider must declare freshness bounds, observation scope, and the data dependencies that it supplies.
+The host must track entity lookups, missing-reference observations, search queries, and collection membership dependencies.
+A newly added team can change a previously empty search result or repair a missing-reference finding.
+Watching only identities that already exist is insufficient.
+Search identity projections cannot detect every entity-body change. Rules that consume membership or other fields need their own declared data dependencies.
+
+| Remote event                               | Required editor behavior after a fresh observation                                                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Team added                                 | Invalidate affected query and absence caches. Include the team in the next matching completion/search result. Revalidate references previously reported missing. |
+| Team deleted                               | Remove it from refreshed candidates. Revalidate affected references and publish a missing-reference finding only when an applicable rule requires existence.     |
+| Team renamed                               | Treat the old identity as removed and the new identity as added. Offer the new identity without rewriting the author's existing value.                           |
+| Team body modified                         | Refresh affected metadata and rerun rules that depend on changed fields. An unchanged identity does not prove unchanged validation inputs.                       |
+| Permissions revoked or catalog unavailable | Discard affected authority-scoped cached results. Report unavailable or incomplete dependency state instead of inventing absence.                                |
+
+### Observation and refresh scheduling
+
+The baseline must use bounded background refresh for the configured open-source dependencies and active search scopes.
+A proposed default is a 30-second refresh cadence, shortened by the assigned freshness policy or an earlier observation expiry.
+This is a design target for qualification, not a latency guarantee established by the current implementation.
+Healthy change-to-result latency includes the refresh interval and the new request budget. The current request ceiling is five seconds.
+The host must expire claims and repair eligibility at their freshness bound even when a refresh cannot complete in time.
+
+An approved event adapter can implement `DependencyChangeProvider` to reduce detection latency.
+Its versioned contract must declare coverage, scope, cursor/revision semantics, ordering, replay, heartbeat, gaps, and reconnect behavior.
+The host must validate, bound, debounce, and coalesce change batches. It must not assume that a Backstage deployment supplies a universal change stream.
+A sequence gap, cursor reset, or uncertain coverage requires invalidation and fresh reads within the approved scope.
+Periodic reconciliation must recover missed events. Event hints cannot replace authorized provider observations.
+
+Polling must batch and deduplicate required reads, obey rate limits, add jitter, and use bounded backoff after failures.
+Conditional reads can reduce traffic only when the provider declares and qualifies their revision semantics.
+The host must not fetch the complete catalog on every keystroke.
+Clients that explicitly suspend background work must refresh on resume or focus before presenting expired data as current.
+The host must not infer visibility from LSP open/close ownership notifications alone.
+
+### Invalidation and LSP publication
+
+A remote invalidation must advance a host-owned dependency generation even when document versions remain unchanged.
+The host must revoke affected completion caches, candidate evidence, and repair tokens and cancel obsolete dependent work.
+It must collect a new immutable data snapshot and admit a new validation request with its own original deadline.
+It must never mutate the data snapshot of an existing invocation or extend that invocation's deadline.
+Every response and cache entry must bind to the dependency generation and data digest as well as the source version.
+An older response cannot restore a deleted team, outdated diagnostic, or revoked edit.
+
+The first implementation can rerun the bounded workspace validation pipeline after coalescing invalidations.
+Selective reevaluation requires a qualified dependency graph that covers queries, absence, memberships, CEL selectors, and rule prerequisites.
+Native or schema-only work can be reused only when its actual inputs and required processing remain unchanged.
+Local proposed entities, invalid replacements, conflicts, and deletion masks must retain precedence throughout refresh.
+
+The current push-diagnostics adapter must publish updated findings for the same document version after remote-only changes.
+A future negotiated pull-diagnostics adapter can request client refresh instead.
+The server must remove obsolete findings when a fresh run no longer reports them.
+Expired observations must not leave a result presented as freshly verified. Refreshing or unavailable states must remain visible without changing authored text.
+
+Completion lists are client-requested in standard LSP. Refreshed choices must appear on the next matching completion request.
+Updating an already open completion popup requires client cooperation. The baseline must not promise an unsolicited standard completion-list replacement.
+A client-specific retrigger can be negotiated separately. It must preserve typing, selection, cancellation, and source versions.
+An item accepted just before a remote deletion becomes known requires subsequent validation rather than a silent document rewrite.
+
+CLI runs must still collect and pin observations under their freshness policy and preserve mid-run expiry checks.
+They do not normally need a continuous subscription after exit. Snapshot replay remains a separate explicit mode.
+Neither interface implies an atomic transaction with all catalog changes.
+
+Protocol references: [push diagnostics](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/language/publishDiagnostics.md),
+[pull diagnostics](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/language/pullDiagnostics.md), and
+[completion requests](https://github.com/microsoft/language-server-protocol/blob/gh-pages/_specifications/lsp/3.17/language/completion.md).
+
 ## Conformance requirements
 
 Conformance means that a provider passes the required behavior tests for every capability it advertises.
 Every case below needs positive, rejection, cancellation, and stale-result coverage where applicable.
 Claims must identify the tested artifact, API version, runtime profile, client versions, and supported platform.
 
-| Acceptance ID                         | Required evidence                                                                                                                                                                                                                            |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-01: registration                   | Reject tampered artifacts, unknown required capability versions, unsupported isolation, undeclared dependencies, and malformed requests/responses.                                                                                           |
-| PC-02: validation                     | Preserve existing CEL/schema/catalog outcomes, rule ordering, required coverage, native pins, and shared CLI/editor semantics. Run the frozen CEL corpus through the actual production workers.                                              |
-| PC-03: fields and values              | Test missing/null, required/optional/conditional fields, kind/API-version selection, arrays, escaped pointers, unusual keys, finite candidates, and conflicting constraints. A validator without editor metadata supplies no invented hints. |
-| PC-04: CEL and RE2                    | Test false versus execution error, unsupported functions and regex syntax, substring semantics, profile-specific limits, expensive work, queue pressure, cancellation, worker replacement, and recovery.                                     |
-| PC-05: hover and navigation           | Test bounded safe text, descriptions from the correct artifact, namespaces, qualified identities, includes, conflicts, invalid replacements, deletions, and denied targets.                                                                  |
-| PC-06: repairs                        | Test explicit alternatives, candidate evidence, changed applicability, unavailable dependencies, unsupported operations, source rendering, stale versions/digests, expiry, single-use tokens, client rejection, and synchronization.         |
-| PC-07: search and history             | Test permission and credential changes, pagination, byte/count limits, expiry, partial results, local precedence, outages, and ranking that cannot reveal or introduce ineligible results.                                                   |
-| PC-08: discovery and host services    | Test containment, links, mutation, source budgets, credential redaction, fixed configuration authority, and denial of source-selected paths or endpoints.                                                                                    |
-| PC-09: lifecycle and resources        | Test initialization failure, bounded queues and caches, repeated reload/restart, no listener/worker/handle growth, shutdown with active work, and late or malformed replies.                                                                 |
-| PC-10: client and release integration | Test installed VS Code and supported JetBrains clients with concurrent rules, typing, completion, navigation, and guarded edits. Preserve real-backend and exact-candidate release gates.                                                    |
+| Acceptance ID                         | Required evidence                                                                                                                                                                                                                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PC-01: registration                   | Reject tampered artifacts, unknown required capability versions, unsupported isolation, undeclared dependencies, and malformed requests/responses.                                                                                                                                               |
+| PC-02: validation                     | Preserve existing CEL/schema/catalog outcomes, rule ordering, required coverage, native pins, and shared CLI/editor semantics. Run the frozen CEL corpus through the actual production workers.                                                                                                  |
+| PC-03: fields and values              | Test missing/null, required/optional/conditional fields, kind/API-version selection, arrays, escaped pointers, unusual keys, finite candidates, and conflicting constraints. A validator without editor metadata supplies no invented hints.                                                     |
+| PC-04: CEL and RE2                    | Test false versus execution error, unsupported functions and regex syntax, substring semantics, profile-specific limits, expensive work, queue pressure, cancellation, worker replacement, and recovery.                                                                                         |
+| PC-05: hover and navigation           | Test bounded safe text, descriptions from the correct artifact, namespaces, qualified identities, includes, conflicts, invalid replacements, deletions, and denied targets.                                                                                                                      |
+| PC-06: repairs                        | Test explicit alternatives, candidate evidence, changed applicability, unavailable dependencies, unsupported operations, source rendering, stale versions/digests, expiry, single-use tokens, client rejection, and synchronization.                                                             |
+| PC-07: search and history             | Test permission and credential changes, pagination, byte/count limits, expiry, partial results, local precedence, outages, and ranking that cannot reveal or introduce ineligible results.                                                                                                       |
+| PC-08: discovery and host services    | Test containment, links, mutation, source budgets, credential redaction, fixed configuration authority, and denial of source-selected paths or endpoints.                                                                                                                                        |
+| PC-09: lifecycle and resources        | Test initialization failure, bounded queues and caches, repeated reload/restart, no listener/worker/handle growth, shutdown with active work, and late or malformed replies.                                                                                                                     |
+| PC-10: client and release integration | Test installed VS Code and supported JetBrains clients with concurrent rules, typing, completion, navigation, and guarded edits. Preserve real-backend and exact-candidate release gates.                                                                                                        |
+| PC-11: live remote dependencies       | Add, delete, rename, and modify teams without document edits. Test unchanged-identity body changes, absence/query invalidation, same-version diagnostic replacement, dependency generations, stale replies and fixes, expiry, stream gaps, reconnect reconciliation, and polling/backoff limits. |
 
 Executable plugins remain disabled until their approved isolation profile passes the required denial and resource tests.
 Worker threads and a capability manifest alone do not provide operating-system isolation.
@@ -299,14 +376,15 @@ Optional editor-provider failure must not suppress required validation findings 
 
 ## Delivery increments
 
-| Increment                                  | Required implementation                                                                                                                                                            | Exit condition                                                                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Freeze capability contracts             | Define lifecycle, manifests, bindings, typed artifacts, capability schemas, negotiation, and any wire-version migration.                                                           | PC-01 and protocol rejection tests pass. No arbitrary plugin loading is enabled.                                                  |
-| 2. Adapt current providers                 | Put existing schema, native field metadata, catalog references/search, and source discovery behind the interfaces. Keep host history, rendering, guards, and credentials separate. | Existing source, packaged, and installed-editor behavior remains covered. PC-03, PC-05, PC-07, and PC-08 pass for those adapters. |
-| 3. Add CEL editor contributions            | Connect declared metadata, candidates, applicability, candidate validation, and repair proposals to the shared managed runtime.                                                    | PC-02, PC-04, and PC-06 pass with actual selectors, prerequisites, provider facts, and production workers.                        |
-| 4. Add RE2 editor contributions            | Supply explicit pattern metadata and bounded examples/generators. Design a standalone rule contract only if needed.                                                                | Qualified matching semantics and limits remain unchanged. PC-03, PC-04, and PC-06 pass without an alternate regex engine.         |
-| 5. Enable approved executable providers    | Implement process transport, supervision, permission brokers, and supported isolation profiles.                                                                                    | PC-01 through PC-09 and profile-specific denial tests pass before capability activation.                                          |
-| 6. Qualify supported clients and workloads | Run installed editors, real catalog integration, combined CEL/RE2 loads, restart/endurance, and exact-candidate release suites.                                                    | PC-10 passes for the declared support matrix. Missing environment evidence remains open.                                          |
+| Increment                                  | Required implementation                                                                                                                                                            | Exit condition                                                                                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Freeze capability contracts             | Define lifecycle, manifests, bindings, typed artifacts, capability schemas, negotiation, and any wire-version migration.                                                           | PC-01 and protocol rejection tests pass. No arbitrary plugin loading is enabled.                                                                     |
+| 2. Adapt current providers                 | Put existing schema, native field metadata, catalog references/search, and source discovery behind the interfaces. Keep host history, rendering, guards, and credentials separate. | Existing source, packaged, and installed-editor behavior remains covered. PC-03, PC-05, PC-07, and PC-08 pass for those adapters.                    |
+| 3. Add live dependency refresh             | Implement bounded background refresh, optional change hints, query/absence dependencies, dependency generations, cache/edit invalidation, and same-version diagnostics.            | PC-11 passes against a mutable catalog with no source-edit trigger. Qualify the refresh target and fallback behavior before claiming live freshness. |
+| 4. Add CEL editor contributions            | Connect declared metadata, candidates, applicability, candidate validation, and repair proposals to the shared managed runtime.                                                    | PC-02, PC-04, and PC-06 pass with actual selectors, prerequisites, provider facts, and production workers.                                           |
+| 5. Add RE2 editor contributions            | Supply explicit pattern metadata and bounded examples/generators. Design a standalone rule contract only if needed.                                                                | Qualified matching semantics and limits remain unchanged. PC-03, PC-04, and PC-06 pass without an alternate regex engine.                            |
+| 6. Enable approved executable providers    | Implement process transport, supervision, permission brokers, and supported isolation profiles.                                                                                    | PC-01 through PC-09 and profile-specific denial tests pass. External-data providers must also pass PC-11.                                            |
+| 7. Qualify supported clients and workloads | Run installed editors, real catalog integration, combined CEL/RE2 loads, restart/endurance, and exact-candidate release suites.                                                    | PC-10 passes for the declared support matrix. Missing environment evidence remains open.                                                             |
 
 This plan extends the [current editor implementation](editor-features.md) and [managed CEL runtime](cel-runtime.md).
 The [architecture](architecture.md) retains one validation engine and trusted host authority.
