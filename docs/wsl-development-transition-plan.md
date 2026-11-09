@@ -8,11 +8,11 @@ procedure does not install the planned containers or change workflow triggers.
 ## 1. Current state and destination
 
 The current machine runs Ubuntu 24.04.3 on WSL 2 with x64 architecture. The distribution name is
-`Ubuntu`. The checkout is `/mnt/example-drive/code/backstage-validation-engine`. WSL accesses it through a
+`Ubuntu`. The checkout is `/mnt/<drv>/code/backstage-validation-engine`. WSL accesses it through a
 Windows filesystem mount reported as `9p` with `drvfs`. The user identifies the underlying Windows
 partition as a Dev Drive.
 
-The WSL home directory already uses ext4. Use `/home/developer/code/backstage-validation-engine` as
+The WSL home directory already uses ext4. Use `~/code/backstage-validation-engine` as
 the proposed active path. The Windows VS Code interface connects to that directory through Remote
 WSL. Git, Node and shell commands execute in Ubuntu.
 
