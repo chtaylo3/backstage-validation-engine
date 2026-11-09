@@ -1,0 +1,25 @@
+{
+  "name": "bve-backstage-1-55-3",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "yarn@4.13.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:app": "yarn workspace app build",
+    "start": "node packages/backend/src/index.mjs --config app-config.test.yaml"
+  },
+  "devDependencies": {
+    "@backstage/cli": "0.36.6",
+    "typescript": "5.8.3"
+  },
+  "resolutions": {
+    "@types/react": "18.3.26",
+    "@types/react-dom": "18.3.7",
+    "@backstage/catalog-model": "1.10.1"
+  }
+}

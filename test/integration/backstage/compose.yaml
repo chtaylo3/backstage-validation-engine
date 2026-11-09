@@ -1,0 +1,75 @@
+services:
+  backstage:
+    image: ${BVE_BACKSTAGE_IMAGE}
+    init: true
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}
+    environment:
+      BVE_BACKSTAGE_PUBLIC_URL: ${BVE_BACKSTAGE_PUBLIC_URL}
+      BVE_BACKSTAGE_READER_TOKEN: ${BVE_BACKSTAGE_READER_TOKEN}
+      BVE_BACKSTAGE_ADMIN_TOKEN: ${BVE_BACKSTAGE_ADMIN_TOKEN}
+      BVE_BACKSTAGE_DENIED_TOKEN: ${BVE_BACKSTAGE_DENIED_TOKEN}
+    ports:
+      - 127.0.0.1:${BVE_BACKSTAGE_PORT}:7007
+    volumes:
+      - sqlite:/state
+      - type: volume
+        source: catalog
+        target: /catalog
+        read_only: true
+        volume:
+          nocopy: true
+    stop_grace_period: 20s
+  test:
+    image: ${BVE_TEST_IMAGE}
+    init: true
+    working_dir: /run/work
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}
+    environment:
+      HOME: /run/work/home
+      npm_config_cache: /run/work/npm-cache
+      BVE_BACKSTAGE_VSIX: /candidate/product.vsix
+      BVE_BACKSTAGE_URL: http://backstage:7007
+      BVE_BACKSTAGE_READER_TOKEN: ${BVE_BACKSTAGE_READER_TOKEN}
+      BVE_BACKSTAGE_ADMIN_TOKEN: ${BVE_BACKSTAGE_ADMIN_TOKEN}
+      BVE_BACKSTAGE_DENIED_TOKEN: ${BVE_BACKSTAGE_DENIED_TOKEN}
+      BVE_REVISION: ${BVE_REVISION}
+      BVE_TARGET: ${BVE_TARGET}
+    volumes:
+      - type: volume
+        source: catalog
+        target: /catalog
+        volume:
+          nocopy: true
+      - type: volume
+        source: work
+        target: /run/work
+        volume:
+          nocopy: true
+      - ${BVE_REPORT_DIRECTORY}:/reports
+      - ${BVE_CLI_ARCHIVE}:/candidate/cli.tgz:ro
+      - ${BVE_VSIX_ARCHIVE}:/candidate/product.vsix:ro
+      - ${BVE_SEED_FILE}:/run/input/seed.json:ro
+    shm_size: 1gb
+volumes:
+  sqlite:
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}
+  catalog:
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}
+  work:
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}
+
+networks:
+  default:
+    labels:
+      io.bve.integration.run: ${BVE_RUN_ID}
+      io.bve.integration.owner: ${BVE_OWNER}

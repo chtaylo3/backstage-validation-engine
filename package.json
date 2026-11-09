@@ -73,7 +73,19 @@
     "test:extension:load": "node scripts/test-extension.mjs --endurance",
     "test:extension:soak": "node scripts/test-extension.mjs --soak",
     "test:extension:remote": "node scripts/test-extension-remote.mjs",
-    "test:extension:qualification": "node scripts/verify-extension-qualification.mjs"
+    "test:extension:qualification": "node scripts/verify-extension-qualification.mjs",
+    "cli:package": "npm run build && node scripts/package-cli.mjs",
+    "backstage:test:check": "node scripts/backstage-test-env.mjs check",
+    "backstage:test:build": "node scripts/backstage-test-env.mjs build",
+    "backstage:test:up": "node scripts/backstage-test-env.mjs up",
+    "backstage:test:status": "node scripts/backstage-test-env.mjs status",
+    "backstage:test:seed": "node scripts/backstage-test-env.mjs seed",
+    "backstage:test:reset": "node scripts/backstage-test-env.mjs reset",
+    "backstage:test:down": "node scripts/backstage-test-env.mjs down",
+    "backstage:test:clean": "node scripts/backstage-test-env.mjs clean",
+    "backstage:test:editor": "node scripts/backstage-test-env.mjs editor",
+    "test:backstage:development": "node scripts/backstage-test-env.mjs development",
+    "test:backstage:release": "node scripts/backstage-test-env.mjs release"
   },
   "overrides": {
     "minimatch": "11.0.1",

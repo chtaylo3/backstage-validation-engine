@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+**/.yarn
+.artifacts
+.vscode-test
+.test-dist
+plan
+.agents
+.codex
+.aws
+.env
+.env.*
+test/integration/backstage/apps/*/packages/app/dist

@@ -5,6 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       'plan/**',
+      'test/integration/backstage/apps/**',
       'dist/**',
       '.test-dist/**',
       'node_modules/**',

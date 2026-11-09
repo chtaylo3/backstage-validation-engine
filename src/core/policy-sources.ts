@@ -4,13 +4,14 @@ import type {
   PolicyBundle,
   SchemaArtifact,
   ValidationRequest,
+  Coverage,
 } from '../contracts/schemas.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { CatalogProviderError } from '../providers/types.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
 import { executePolicyRules } from './cel-rules.js';
-import { deepFreeze } from './json.js';
+import { canonicalJson, deepFreeze } from './json.js';
 import type { Immutable } from './json.js';
 import { prepareBackstageReferenceData } from './reference-data.js';
 import type { LocalCatalogSources } from './reference-data.js';
@@ -162,13 +163,23 @@ export async function validatePolicySources(
       .map(sanitizeFailureEvidence)
       .filter((row) => row !== undefined)
       .slice(0, FAILURE_EVIDENCE_LIMIT);
+    // Source and rule gates both report a required unavailable processor. Retain
+    // one identical observation per stage/subject without hiding disagreements.
+    const coverage = new Map<string, Immutable<Coverage>>();
+    for (const row of [...compatibility.coverage, ...rules.coverage]) {
+      const key = JSON.stringify([row.stage, row.subject]);
+      const previous = coverage.get(key);
+      if (previous && canonicalJson(previous) !== canonicalJson(row))
+        reject('integrity', '/coverage', 'pipeline stages reported conflicting coverage');
+      coverage.set(key, row);
+    }
     return deepFreeze({
       request: pinned,
       failureEvidence,
       compatibility,
       rules,
       findings: [...compatibility.findings, ...rules.findings],
-      coverage: [...compatibility.coverage, ...rules.coverage],
+      coverage: [...coverage.values()],
       ruleStates: rules.ruleStates,
       interrupted,
       ...(preparation ? { preparation } : {}),

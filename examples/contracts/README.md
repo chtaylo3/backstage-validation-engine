@@ -1,15 +1,14 @@
 # Contract examples
 
-These JSON files demonstrate the production 0.2 wire format. Tests validate every
-file against the emitted draft-07 resources and production semantic checks.
-Authority references and receipts are synthetic documentation fixtures, not
-credentials or verified authorization.
+These JSON files show the production 0.2 wire format, the data exchanged between components. Tests
+compare every file with the generated draft-07 schemas and production semantic checks. Authority
+references and receipts are synthetic examples. They are not credentials or verified authorization.
 
-`validation-request.json` pins the adjacent source/data snapshots, policy bundle,
-deployment profile, and activation manifest by content digest. The sample source
-omits an owner. `result-rule-false.json` illustrates the corresponding violation;
-the other results illustrate synthetic execution evidence and alternative
-outcomes. They are not outputs from an implemented entity-validation engine.
+`validation-request.json` pins the adjacent source and data snapshots, policy bundle, deployment
+profile, and activation manifest by content digest. The sample source omits an owner.
+`result-rule-false.json` shows the corresponding violation. The other results show synthetic
+execution evidence and alternative outcomes. They are illustrative results, not captured engine
+output.
 
 | File                                | Expected outcome | Enforcement                     |
 | ----------------------------------- | ---------------- | ------------------------------- |
@@ -21,12 +20,12 @@ outcomes. They are not outputs from an implemented entity-validation engine.
 | `result-timeout.json`               | `incomplete`     | `block`                         |
 | `result-bypassed.json`              | `bypassed`       | `allow`, with emergency receipt |
 
-Unsupported transformation blocks dependent stages and has no speculative
-missing-owner finding. A bypassed result explicitly records unexecuted coverage.
-The examples do not attest compatibility or authorize GitHub publication.
+If a required transformation is unsupported, dependent stages stop without a speculative
+missing-owner finding. A bypassed result records which work did not run. The examples do not prove
+compatibility or authorize GitHub publication.
 
 `schema-artifact.json` supplies a pinned draft-07 Widget schema. The runnable
-`npm run example:custom` example admits it explicitly and evaluates native
-normalization, custom validation and CEL policy. `-- --invalid` demonstrates a
-completed schema violation with exit 1. Schema artifacts are trusted launcher/
-context input; entity content cannot replace their profile pins.
+`npm run example:custom` example admits that kind and runs native normalization, custom validation,
+and CEL policy. With `-- --invalid`, it produces a completed schema violation and exit 1. Schema
+artifacts come from trusted launcher or context input. Entity content cannot replace their profile
+pins.

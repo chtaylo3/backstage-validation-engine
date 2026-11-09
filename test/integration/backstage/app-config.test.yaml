@@ -1,0 +1,61 @@
+app:
+  title: Backstage release tests
+  baseUrl: ${BVE_BACKSTAGE_PUBLIC_URL}
+backend:
+  baseUrl: ${BVE_BACKSTAGE_PUBLIC_URL}
+  listen:
+    port: 7007
+    host: 0.0.0.0
+  cors:
+    origin: ${BVE_BACKSTAGE_PUBLIC_URL}
+    credentials: true
+  database:
+    client: better-sqlite3
+    connection:
+      directory: /state
+    plugin:
+      catalog:
+        connection:
+          filename: catalog.sqlite
+      auth:
+        connection:
+          filename: auth.sqlite
+      app:
+        connection:
+          filename: app.sqlite
+  auth:
+    externalAccess:
+      - type: static
+        options:
+          token: ${BVE_BACKSTAGE_READER_TOKEN}
+          subject: bve-reader
+        accessRestrictions:
+          - plugin: catalog
+            permission: catalog.entity.read
+      - type: static
+        options:
+          token: ${BVE_BACKSTAGE_ADMIN_TOKEN}
+          subject: bve-administrator
+      - type: static
+        options:
+          token: ${BVE_BACKSTAGE_DENIED_TOKEN}
+          subject: bve-denied
+        accessRestrictions:
+          - plugin: app
+auth:
+  environment: development
+  providers:
+    guest:
+      dangerouslyAllowOutsideDevelopment: true
+catalog:
+  rules:
+    - allow: [Group, User, Component, API, System, Domain, Resource, Location]
+  locations:
+    - type: file
+      target: /catalog/entities.yaml
+  processingInterval:
+    seconds: 1
+  orphanStrategy: delete
+  orphanProviderStrategy: delete
+organization:
+  name: Release test fixture

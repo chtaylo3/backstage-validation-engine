@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "entities", "entityFiles", "expected"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "entities": {
+      "type": "array",
+      "maxItems": 1000,
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/entity"
+      }
+    },
+    "entityFiles": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["filename", "entities"],
+        "properties": {
+          "filename": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}\\.yaml$"
+          },
+          "entities": {
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/entity"
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityRefs", "relations", "absentEntityRefs"],
+      "properties": {
+        "entityRefs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*:[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "absentEntityRefs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*:[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "type", "target"],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "entity": {
+      "type": "object",
+      "required": ["apiVersion", "kind", "metadata", "spec"],
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["Group", "User", "Component", "API", "System", "Domain", "Resource", "Location"]
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["name", "namespace"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            },
+            "namespace": {
+              "const": "bve-demo"
+            }
+          }
+        },
+        "spec": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

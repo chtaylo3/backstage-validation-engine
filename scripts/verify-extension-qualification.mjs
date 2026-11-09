@@ -5,6 +5,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
+import { verifyCliArchive } from './cli-candidate.mjs';
+import {
+  loadBackstageExpectations,
+  verifyBackstageEvidence,
+} from './backstage-release-evidence.mjs';
 import {
   verifyMetrics,
   verifyReport,
@@ -29,6 +35,7 @@ const result = {
   ciRun: null,
   raceRun: null,
   compatibilityRun: Number(process.env.GITHUB_RUN_ID),
+  backstageRun: null,
   operatingSystems: [],
   remote: [],
   historicalReleaseUpgrade: 'unqualified: fixture predecessor only',
@@ -147,6 +154,59 @@ try {
     ]);
     result.remote.push({ mode, status: 'passed', remoteExtension: remote.remoteExtension });
   }
+  const ciArtifacts = await api(`actions/runs/${result.ciRun}/artifacts?per_page=100`);
+  const embeddedEvidence = ciArtifacts.artifacts.some(
+    (artifact) =>
+      artifact.name === 'backstage-release-qualification' &&
+      !artifact.expired &&
+      artifact.size_in_bytes > 0,
+  );
+  result.backstageRun = embeddedEvidence
+    ? result.ciRun
+    : await latest('backstage-release-qualification.yml');
+  const cliDirectory = await download(result.ciRun, 'cli-candidate');
+  const cliArchives = (await files(cliDirectory)).filter((file) => file.endsWith('.tgz'));
+  assert.equal(cliArchives.length, 1, 'Require exactly one CLI candidate archive.');
+  const cli = await verifyCliArchive(cliArchives[0], revision);
+  assert.equal(
+    cli.packageLockSha256,
+    createHash('sha256')
+      .update(await readFile(path.join(root, 'package-lock.json')))
+      .digest('hex'),
+    'The CLI archive must use the candidate dependency lock.',
+  );
+  const backstageDirectory = await download(result.backstageRun, 'backstage-release-qualification');
+  const backstage = JSON.parse(
+    await readFile(path.join(backstageDirectory, 'results.json'), 'utf8'),
+  );
+  assert.equal(backstage.workflow.repository, repository);
+  assert.equal(backstage.workflow.runId, result.backstageRun);
+  assert.equal(backstage.workflow.sha, revision);
+  assert.equal(backstage.workflow.event, 'workflow_dispatch');
+  assert(Number.isSafeInteger(backstage.workflow.runAttempt) && backstage.workflow.runAttempt > 0);
+  assert(
+    typeof backstage.workflow.ref === 'string' &&
+      ['ci.yml', 'backstage-release-qualification.yml'].some((file) =>
+        backstage.workflow.ref.startsWith(`${repository}/.github/workflows/${file}@`),
+      ),
+  );
+  verifyBackstageEvidence(
+    backstage,
+    await loadBackstageExpectations(root, {
+      revision,
+      cliSha256: cli.sha256,
+      vsixSha256: linuxChecksum,
+    }),
+  );
+  result.backstage = {
+    status: 'passed',
+    cliSha256: cli.sha256,
+    vsixSha256: linuxChecksum,
+    inventoryDigest: backstage.inventoryDigest,
+    seedDigests: backstage.seedDigests,
+    policyDigest: backstage.policyDigest,
+    counts: backstage.counts,
+  };
   result.status = 'passed';
 } catch (error) {
   result.status = 'failed';

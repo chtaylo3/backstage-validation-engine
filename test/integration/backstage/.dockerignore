@@ -1,0 +1,4 @@
+apps/*/node_modules
+apps/*/.yarn
+apps/*/packages/app/dist
+apps/*/dist-types

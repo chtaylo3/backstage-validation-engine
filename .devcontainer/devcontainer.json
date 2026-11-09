@@ -1,0 +1,10 @@
+{
+  "name": "Backstage integration tools",
+  "remoteUser": "pwuser",
+  "runArgs": ["--entrypoint=/bin/sh"],
+  "overrideCommand": true,
+  "build": {
+    "context": "..",
+    "dockerfile": "../test/integration/backstage/test-runner.Dockerfile"
+  }
+}

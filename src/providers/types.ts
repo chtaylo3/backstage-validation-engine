@@ -46,6 +46,8 @@ export interface CatalogProviderOptions {
   readonly connectionId: string;
   /** Complete trusted catalog base URL, e.g. https://backstage.example/api/catalog. */
   readonly baseUrl: string;
+  /** Host-approved unencrypted HTTP beyond loopback. Defaults to false. */
+  readonly allowInsecureHttp?: boolean;
   readonly adapterId: BackstageAdapterId;
   readonly credentials: (
     access: CatalogAccessContext,

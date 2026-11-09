@@ -1,4 +1,8 @@
 plan/
+test/integration/backstage/apps/*/yarn.lock
+test/integration/backstage/apps/*/node_modules/
+test/integration/backstage/apps/*/.yarn/
+test/integration/backstage/apps/*/packages/app/dist/
 node_modules/
 dist/
 .test-dist/
