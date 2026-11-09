@@ -385,6 +385,11 @@ VS Code 1.106.3 and 1.145.2 on Linux x64. Initial GUI launches stopped before th
 because the host supplied `ELECTRON_RUN_AS_NODE=1`. Clearing that inherited flag allowed both
 editor cases to execute. These development results do not qualify the complete release matrix.
 
+The PR follow-up adds 15 client tests and corrects document selection after configuration reload.
+Explicit file approval does not approve neighboring documents. Root matching uses path containment.
+The source suite passes 947 tests. The separate client gate passes 42 tests with 100% line coverage
+and 95.88% branch coverage. `npm run check` now enforces that gate too.
+
 The [rule and editor capability plan](plugin-capabilities-plan.md) specifies the next contract work
 for CEL, RE2, and approved providers. It defines shared lifecycle and result bindings, separate
 interfaces for each editor function, candidate/repair evidence, runtime requirements, and PC-01

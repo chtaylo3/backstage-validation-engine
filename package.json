@@ -59,7 +59,7 @@
     "example:provider": "npm run build && node examples/read-catalog.mjs",
     "example:references": "npm run build && node examples/prepare-references.mjs",
     "jetbrains:template": "npm run build && node scripts/jetbrains-template.mjs",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test && node scripts/test-client.mjs",
     "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js .test-dist/test/editor-intelligence.test.js .test-dist/test/editor-workspace.test.js",
     "example:cli": "npm run build && node examples/create-cli-release.mjs",
     "test:compile": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json",

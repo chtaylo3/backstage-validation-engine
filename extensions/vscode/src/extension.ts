@@ -311,14 +311,26 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
         const uri = selection.uriConverters!.code2Protocol(document.uri);
         const key =
           process.platform === 'win32' ? document.uri.fsPath.toLowerCase() : document.uri.fsPath;
-        const rooted = selection.documentSelector?.some(
-          (filter) =>
-            record(filter) &&
-            'pattern' in filter &&
-            record(filter.pattern) &&
-            typeof filter.pattern.baseUri === 'string' &&
-            uri.startsWith(filter.pattern.baseUri),
-        );
+        const rooted = selection.documentSelector?.some((filter) => {
+          if (
+            !record(filter) ||
+            !('pattern' in filter) ||
+            !record(filter.pattern) ||
+            filter.pattern.pattern !== '**/*' ||
+            typeof filter.pattern.baseUri !== 'string'
+          )
+            return false;
+          const relative = path.relative(
+            vscode.Uri.parse(filter.pattern.baseUri, true).fsPath,
+            document.uri.fsPath,
+          );
+          return (
+            relative === '' ||
+            (!path.isAbsolute(relative) &&
+              relative !== '..' &&
+              !relative.startsWith('..' + path.sep))
+          );
+        });
         if (configured.has(key) || rooted)
           await next.sendNotification('textDocument/didOpen', {
             textDocument: {

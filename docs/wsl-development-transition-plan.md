@@ -8,11 +8,11 @@ procedure does not install the planned containers or change workflow triggers.
 ## 1. Current state and destination
 
 The current machine runs Ubuntu 24.04.3 on WSL 2 with x64 architecture. The distribution name is
-`Ubuntu`. The checkout is `/mnt/example-drive/code/backstage-validation-engine`. WSL accesses it through a
+`Ubuntu`. The checkout is `/mnt/<drv>/code/backstage-validation-engine`. WSL accesses it through a
 Windows filesystem mount reported as `9p` with `drvfs`. The user identifies the underlying Windows
 partition as a Dev Drive.
 
-The WSL home directory already uses ext4. Use `/home/developer/code/backstage-validation-engine` as
+The WSL home directory already uses ext4. Use `~/code/backstage-validation-engine` as
 the proposed active path. The Windows VS Code interface connects to that directory through Remote
 WSL. Git, Node and shell commands execute in Ubuntu.
 
@@ -103,11 +103,12 @@ with Linux containers. Keep Docker Desktop as the Docker engine for this baselin
 competing Docker daemon inside Ubuntu.
 
 From an Ubuntu terminal, open the new checkout with `code .`. Make sure that VS Code displays a WSL
-connection and that its terminal starts in `/home/developer/code/backstage-validation-engine`. An
-optional Dev Container can be added when the shared test image exists.
+connection and that its terminal starts in the right location, such as
+`~/code/backstage-validation-engine`. An optional Dev Container can be added when the shared test
+image exists.
 
 Open the new checkout as the agent workspace and update its writable workspace root. At planning
-time, the agent session pointed at `/mnt/example-drive/code/backstage-validation-engine`. Changing a terminal
+time, the agent session pointed at `/mnt/<drv>/code/backstage-validation-engine`. Changing a terminal
 directory does not update every editor or agent permission root. Do not continue edits through an
 old workspace after cutover.
 
