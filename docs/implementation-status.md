@@ -1,394 +1,387 @@
 # Implementation status
 
+This document records implementation increments in order. Each section retains the scope and test
+results from its checkpoint. Later increments can complete work that an earlier section lists as
+open.
+
 ## Foundation increment
 
 Implemented in this repository:
 
-- Strict TypeScript ESM library with declarations/source maps, pinned dependencies,
-  Node tests, typed ESLint, Prettier, and CI configuration.
-- Production contract 0.2 definitions, inferred types, generated draft-07 schemas,
-  strict parsing, and immutable return types.
-- Source/data snapshot creation, canonical hashing, integrity verification,
-  open-buffer overlays, deletion records, and admission budgets.
+- Strict TypeScript ESM library with declarations/source maps, pinned dependencies, Node tests,
+  typed ESLint, Prettier, and CI configuration.
+- Production contract 0.2 definitions, inferred types, generated draft-07 schemas, strict parsing,
+  and immutable return types.
+- Source/data snapshot creation, canonical hashing, integrity verification, open-buffer overlays,
+  deletion records, and admission budgets.
 - Distinct provider availability/freshness/authorization provenance.
-- Bounded rule DAG validation, default deployment profile, pinned artifact checks,
-  stable finding IDs, and fail-closed outcome/exit-code aggregation.
-- Examples for pass, false rule, invalid policy, unsupported processor, catalog
-  unavailable, timeout, and emergency bypass.
+- Bounded rule DAG validation, default deployment profile, pinned artifact checks, stable finding
+  IDs, and fail-closed outcome/exit-code aggregation.
+- Examples for pass, false rule, invalid policy, unsupported processor, catalog unavailable,
+  timeout, and emergency bypass.
 
-The historical planning repository records 331 comparison checks, 67 managed CEL
-checks, and 84 Go differential checks. These are retained historical observations.
-They have not been rerun against this foundation, which does not yet implement
-the entity-validation engine. No production runtime or live-integration release
-gate is claimed by these contracts.
+The historical planning repository records 331 comparison checks, 67 managed CEL checks, and 84 Go
+differential checks. These are historical observations. They were not rerun against the foundation
+increment, which did not yet implement entity validation. The foundation contracts alone do not
+qualify a production runtime or live integration for release.
 
 ## Managed CEL increment
 
-The managed CEL/rules increment is also implemented: exact interpreter/RE2 pins,
-two shared worker slots, global 64-job admission, request fairness, queue/execution/
-startup deadlines, cancellation, awaited replacement, protocol validation, and
-shutdown. `executeCelRules` connects managed selectors/expressions, pinned bindings,
-the rule DAG, typed failures/coverage, and whole-request budgets. The 43-case
-qualification corpus is copied verbatim and exercised through production workers.
-See [runtime details and measurement](cel-runtime.md).
+The managed CEL and rules increment is implemented with exact interpreter and RE2 pins. It uses two
+shared worker slots and admits at most 64 jobs globally. It distributes work fairly among requests
+and enforces queue, execution, and startup deadlines. Cancellation awaits worker replacement. The
+runtime also checks its protocol and handles shutdown.
 
-The [initial benchmark](evidence/cel-runtime-benchmark.md) records local p95 values
-of 1.67 ms for one warm entity, 14.89 ms for 100 warm entities, and 2,649.13 ms for
-fresh-process execution. The cold result exceeds the provisional 2,500 ms target;
-startup profiling/packaging remains an open pilot performance gate.
+`executeCelRules` combines managed selectors and expressions, pinned bindings, the rule dependency
+graph, typed failures and coverage, and whole-request budgets. The 43-case qualification corpus
+remains unchanged and runs through production workers. See
+[runtime details and measurement](cel-runtime.md).
+
+The [initial benchmark](evidence/cel-runtime-benchmark.md) records local p95 values for warm and
+fresh-process execution. They are 1.67 ms for one warm entity, 14.89 ms for 100 warm entities, and
+2,649.13 ms for a fresh process. The cold result exceeds the provisional 2,500 ms target. Startup
+profiling and packaging remain open pilot performance requirements.
 
 ## Source-preserving parsing increment
 
-Implemented multi-file/document YAML 1.2 parsing with immutable source provenance,
-UTF-16 JSON Pointer locations, alias provenance, strict CI withholding and
-document-level IDE recovery. Syntax/alias/expansion/source budgets, safe numeric
-normalization, duplicate/merge-key and unsupported tag/version rejection,
-cancellation and deadline coverage are exercised by 48 parser checks. That
-increment brought the local suite to 138 checks. See the [parsing acceptance register](parsing.md).
+The parsing increment implements YAML 1.2 parsing across files and documents with immutable source
+history and UTF-16 JSON Pointer locations. It tracks aliases, excludes invalid files in CI, and
+retains unaffected documents in editors. The 48 parser checks cover syntax, aliases, expansion,
+source budgets, safe numbers, duplicate and merge keys, unsupported tags and versions, cancellation,
+and deadlines. This increment brought the local suite to 138 checks. See the
+[parsing acceptance register](parsing.md).
 
-The [post-parser rules-stage capture](evidence/cel-runtime-after-parsing.md) records
-p95 of 1.69 ms for one warm entity, 16.47 ms for 100 entities and 2,788.98 ms for a
-fresh process. It excludes YAML execution; the cold-start target remains open.
+The [post-parser rules-stage capture](evidence/cel-runtime-after-parsing.md) records p95 of 1.69 ms
+for one warm entity, 16.47 ms for 100 entities and 2,788.98 ms for a fresh process. It excludes YAML
+execution. The cold-start target remains open.
 
 ## Native compatibility increment
 
-Implemented and locally tested BC-01/BC-02 on catalog-model 1.10.2 and 1.7.5:
-native envelopes/kinds, explicit native policy composition, immutable authored and
-normalized entities, and source-attributed defaults. The parser/native pipeline
-blocks unsupported processors and unresolved substitutions before dependent
-checks. The native/source suites add 130 checks, bringing the local total to 268.
-See [compatibility scope and acceptance](backstage-compatibility.md).
+BC-01/BC-02 are implemented and locally tested on catalog-model 1.10.2 and 1.7.5. They cover native
+envelopes and kinds, explicit native policy composition, immutable authored and normalized entities,
+and defaults with source locations. The parser and native pipeline block unsupported processors and
+unresolved substitutions before dependent checks. The native and source suites add 130 checks,
+bringing the local total to 268. See
+[compatibility scope and acceptance](backstage-compatibility.md).
 
-The optional group-parent default requires a pinned `groupDefaultParentRef` in
-the pre-release deployment profile. Existing disabled configurations are unchanged.
-Historical rules-stage benchmarks remain scoped evidence; integrated native
-pipeline performance still needs qualification before pilot release.
+The optional group-parent default requires a pinned `groupDefaultParentRef` in the pre-release
+deployment profile. Existing disabled configurations are unchanged. Historical rules-stage
+benchmarks remain scoped evidence. Integrated native pipeline performance still needs qualification
+before pilot release.
 
 ## Versioned test-harness plumbing
 
-Implemented numeric latest-patch selection for explicitly supported Backstage
-major.minor lines across concurrent majors/minors, immutable package/spec pins,
-offline OpenAPI artifact integrity verification, and concurrent fixture lifecycle
-with isolated HTTP probe coverage and cleanup after partial startup. The convention
-is to test only the latest stable patch in each supported minor. Synthetic matrix
-tests prove multi-major selection independently of upstream releases. See
-[harness design and acceptance](testing-harness.md).
-All 28 new harness checks passed locally, bringing the suite to 296 tests; the
-full `npm run check` passed with loopback socket access enabled for HTTP probes.
+The versioned harness selects the numerically latest patch for each explicitly supported Backstage
+major.minor line. It supports multiple majors and minors concurrently and pins immutable packages
+and specifications. Tests verify OpenAPI artifact integrity offline, isolated HTTP probes,
+concurrent fixture startup, and cleanup after partial startup. The convention is to test only the
+latest stable patch in each supported minor.
 
-The subsequent catalog harness increment captures official Backstage 1.55.3 and
-1.56.2 OpenAPI specs/licenses and exact package/source provenance. The fake now
-validates the implemented full-entity single/batch lookup subset against those
-specs, with scoped fixture identities, mutation controls, one-shot failures,
-response gates, cancellation and isolated listeners. Release refresh and read-only
-upstream drift commands are implemented; a separate weekly/manual drift workflow
-is configured. Provider/source-reference integration is covered by subsequent
-increments below; real-backend smoke tests remain open. Native adapter
-support is unchanged.
-The full `npm run check` passed locally with 325 tests, including 57 harness
-checks. Hosted CI and real Backstage backend runs are not claimed.
+Synthetic matrix tests prove multi-major selection independently of upstream releases. See
+[harness design and acceptance](testing-harness.md). All 28 new harness checks passed locally,
+bringing the suite to 296 tests. The full `npm run check` passed with loopback socket access enabled
+for HTTP probes.
+
+The subsequent catalog harness increment captures official Backstage 1.55.3 and 1.56.2 OpenAPI
+specs/licenses and exact package/source provenance. The fake validates full-entity single and batch
+lookups against those specifications. It provides scoped fixture identities, mutation controls,
+one-shot failures, response gates, cancellation, and isolated listeners. Release refresh and
+read-only upstream drift commands are implemented. A separate weekly/manual drift workflow is
+configured.
+
+Provider/source-reference integration is covered by subsequent increments below. Real-backend smoke
+tests remain open. Native adapter support is unchanged. The full `npm run check` passed locally with
+325 tests, including 57 harness checks. Hosted CI and real Backstage backend runs are not claimed.
 
 ## Production catalog provider increment
 
-Implemented host-owned endpoints/credentials, typed observations, native reference/
-envelope helpers on both pins, bounded HTTP batches/retries/cooldowns, FIFO
-admission, cancellation/shutdown and scoped LRU caches. The adapter carries the
-original deadline and returns contract-0.2 data snapshots for pinning before
-evaluation. See [provider behavior and qualification](catalog-provider.md).
-Qualified overlays and real-backend authentication/smoke qualification remain
-open; catalog-rule bindings and LSP transport are implemented below.
-All 31 new provider checks passed locally; the full `npm run check` passed 356
-tests. The built provider example passed against the standalone fake API.
+The production provider uses host-owned endpoints and credentials and native reference and envelope
+helpers on both pins. It limits HTTP batches, retries, cooldowns, and cache size. Calls enter in
+first-in-first-out order and support cancellation and shutdown. The adapter retains the original
+deadline and returns contract-0.2 data snapshots to pin before evaluation. See
+[provider behavior and qualification](catalog-provider.md).
+
+At this checkpoint, overlay qualification and real-backend authentication and smoke tests remain
+open. Catalog rules and LSP transport appear in later increments. All 31 new provider checks passed
+locally. The full `npm run check` passed 356 tests. The built provider example passed against the
+standalone fake API.
 
 ## Source references and catalog pinning increment
 
-Implemented BC-03 on declared owner/API/system contexts: canonical native identity,
-fixed/entity namespaces, escaped pointers, bounded array wildcards and attributed
-findings. Reports retain occurrences, source digests/versions and identity claims.
-The preparer verifies provider binding, collects eligible observations and pins
-data under the original deadline. Local/invalid/unknown/deleted/competing guards
-prevent fallback until BC-06 qualification. See [scope and acceptance](source-references.md).
-Missing references remain data until an explicit organization rule consumes them.
-All 31 new checks passed locally, including both native pins against both backend
-fixtures. The full check passed 387 tests; reference-preparation and native/CEL
-examples passed. The following increment implements policy bindings and stdio
-transport. Full overlay, hosted CI and real IDE/backend qualification remain open.
+BC-03 implements declared owner, API, and system reference contexts. It supports canonical native
+identities, fixed or entity namespaces, escaped pointers, bounded array wildcards, and
+source-attributed findings. Reports retain occurrences, source digests and versions, and identity
+claims. The preparer verifies provider bindings, collects eligible observations, and pins data under
+the original deadline. Local, invalid, unknown, deleted, or competing identities block fallback
+until BC-06 qualification. See [scope and acceptance](source-references.md).
+
+Missing references remain data until an explicit organization rule consumes them. All 31 new checks
+passed locally, including both native pins against both backend fixtures. The full check passed 387
+tests. Reference-preparation and native/CEL examples passed. The next increment implements policy
+bindings and stdio transport. At this checkpoint, full overlays, hosted CI, and real IDE and backend
+qualification remain open.
 
 ## Catalog policies and stdio LSP increment
 
-Implemented explicit pinned `catalog`/`exists` policy rules, context-selected
-provider collection, source/normalized-subject/data integrity binding, precise
-missing findings and incomplete dependency coverage. `validatePolicySources`
-composes native/source checks and policy execution; `executeCelRules` remains an
-alias for `executePolicyRules`. The frozen CEL environment/corpus is unchanged.
+The catalog-policy increment implements pinned `catalog`/`exists` rules and provider collection
+selected by reference context. It binds source, normalized subjects, and data, reports missing
+references precisely, and records incomplete dependency coverage. `validatePolicySources` combines
+native and source checks with policy execution. `executeCelRules` remains an alias for
+`executePolicyRules`. The frozen CEL environment and corpus remain unchanged.
 
-Implemented a launcher-configured stdio server with UTF-16 incremental edits,
-open-buffer snapshots, cancellation, one active/latest queued request, epoch-based
-stale suppression, versioned diagnostics and awaited shutdown. Official protocol/
-text-document libraries are pinned; framing/buffer bounds and full-replacement
-resynchronization are enforced. The subprocess client exercises the production
-entry point against both pinned fake APIs. See [scope, setup and acceptance](lsp.md).
+The stdio server uses launcher configuration, UTF-16 incremental edits, open-buffer snapshots, and
+cancellation. It keeps one active request and the latest queued request. Generation counters
+suppress stale results. Diagnostics carry document versions, and shutdown awaits cleanup.
 
-All 37 new policy/LSP checks passed locally; the full `npm run check` passed
-424 tests, including the unchanged CEL corpus and EOF/unexpected-exit cleanup
-regressions. Full and production dependency audits report zero vulnerabilities.
-The development launcher generator and EOF smoke passed with empty protocol/error
-output streams. Real backend/IDE runs, filesystem snapshot refresh and positive
+The server pins official protocol and text-document libraries and enforces framing, buffer, and
+full-replacement recovery limits. A subprocess client tests the production entry point against both
+pinned fake APIs. See [scope, setup and acceptance](lsp.md).
+
+All 37 new policy/LSP checks passed locally. The full `npm run check` passed 424 tests, including
+the unchanged CEL corpus and EOF/unexpected-exit cleanup regressions. Full and production dependency
+audits report zero vulnerabilities. The development launcher generator and EOF smoke passed with
+empty protocol/error output streams. Real backend/IDE runs, filesystem snapshot refresh and positive
 local overlay qualification remain open.
 
 ## Snapshot-local substitutions increment
 
-Implemented BC-04 `$text`, `$json`, `$yaml` and file Location discovery from the
-immutable proposed snapshot. Optional pinned source roots and catalog entrypoints
-separate entity inputs from payloads and participate in source digests/overlays.
-Resolution enforces containment, cycles, depth and expansion budgets under the
-original deadline/signal. Authored, resolved and normalized values remain separate;
-included field ranges, digests, versions and use chains reach references/findings.
+Implemented BC-04 `$text`, `$json`, `$yaml` and file Location discovery from the immutable proposed
+snapshot. Optional pinned source roots and catalog entrypoints separate entity inputs from payloads
+and participate in source digests/overlays. Resolution enforces containment, cycles, depth and
+expansion budgets under the original deadline/signal. Authored, resolved and normalized values
+remain separate. Included field ranges, digests, versions and use chains reach references/findings.
 See [reader scope and acceptance](substitutions.md).
 
-The stdio LSP revalidates included-buffer edits, projects findings to inclusion
-sites, restores pinned bytes on close and suppresses stale catalog responses.
-Remote/glob readers remain incomplete. Host filesystem capture, BC-05 admission,
-BC-06 positive overlays and real editor/backend qualification remain open.
+The stdio LSP revalidates included-buffer edits, projects findings to inclusion sites, restores
+pinned bytes on close and suppresses stale catalog responses. Remote/glob readers remain incomplete.
+Host filesystem capture, BC-05 admission, BC-06 positive overlays and real editor/backend
+qualification remain open.
 
-Local qualification on 2026-10-29: 56 substitution checks and five added LSP
-checks passed. The full `npm run check` passed all 485 tests, type checking,
-lint, formatting, generated-schema verification and the production build.
+Local qualification on 2026-10-29: 56 substitution checks and five added LSP checks passed. The full
+`npm run check` passed all 485 tests, type checking, lint, formatting, generated-schema verification
+and the production build.
 
 ## Admission and custom-kind increment
 
-Implemented BC-05 global/source kind admission after native normalization, with
-additive exact-file/directory allowances pinned by the deployment profile. Denied
-entities retain violation findings and identity guards while being withheld from
-references, artifacts and policy evaluation.
+BC-05 implements kind admission after native normalization, with additive allowances for exact files
+or directories from the pinned deployment profile. Denied entities retain violation findings and
+identity guards. They do not enter references, artifacts, or policy evaluation.
 
-Trusted `schema-artifact` bodies bind to exact custom kind/API-version profile
-pins. Bounded synchronous draft-07 validation preserves native defaults without
-coercion or schema mutation. Local bundled references and RE2 patterns are
-supported; formats, external/cyclic references and asynchronous/custom extensions
-are rejected. Stock kind validators cannot be overridden. Missing artifacts remain
-incomplete. See [scope, examples and acceptance](admission-custom-kinds.md).
+Trusted `schema-artifact` bodies bind to exact custom kind/API-version profile pins. Bounded
+synchronous draft-07 validation preserves native defaults without coercion or schema mutation. Local
+bundled references and RE2 patterns are supported. Formats, external or cyclic references, and
+asynchronous or custom extensions are rejected.
 
-The LSP accepts launcher-owned schema artifacts and exercises denial, schema
-failure/repair and missing-artifact warnings against both model/API pins. Positive
-overlays, actual backend/editor runs, host snapshot refresh and complete processor
-qualification remain open.
+Stock kind validators cannot be overridden. Missing artifacts remain incomplete. See
+[scope, examples and acceptance](admission-custom-kinds.md).
 
-Local qualification on 2026-10-30: 60 admission/custom-schema checks and seven
-added LSP checks passed. The full `npm run check` passed all 552 tests and required
-type/lint/format/schema/build checks. The built custom-kind example passed; its
-invalid-tier variant produced a completed schema violation with exit 1.
+The LSP accepts launcher-owned schema artifacts and exercises denial, schema failure/repair and
+missing-artifact warnings against both model/API pins. Positive overlays, actual backend/editor
+runs, host snapshot refresh and complete processor qualification remain open.
+
+Local qualification on 2026-10-30: 60 admission/custom-schema checks and seven added LSP checks
+passed. The full `npm run check` passed all 552 tests and required type/lint/format/schema/build
+checks. The built custom-kind example passed. Its invalid-tier variant produced a completed schema
+violation with exit 1.
 
 ## Proposed catalog overlay increment
 
-Implemented BC-06 qualified local precedence, invalid-replacement masks, explicit
-canonical identity conflicts and baseline-relative deletion/rename handling.
-Optional request baselines and result baseline digests pin previous input. Source
-and baseline changes are checked before collection; source-derived data uses a
-separate provider/key space and is verified against qualified reports during
-policy binding. Existing remote denial/outage and original-deadline semantics
-remain explicit. See [overlay scope and examples](proposed-overlays.md).
+Implemented BC-06 qualified local precedence, invalid-replacement masks, explicit canonical identity
+conflicts and baseline-relative deletion/rename handling. Optional request baselines and result
+baseline digests pin previous input. Source and baseline changes are checked before collection.
+Source-derived data uses a separate provider/key space and is verified against qualified reports
+during policy binding. Existing remote denial/outage and original-deadline semantics remain
+explicit. See [overlay scope and examples](proposed-overlays.md).
 
-Conflict findings are emitted without an existence rule, and conflicted Location
-children are withheld from artifacts/rule subjects. Diagnostic exhaustion is
-typed resource interruption. The stdio LSP qualifies local buffers and supports
-known-file delete/rename notifications using pinned bytes; epochs suppress stale
-remote results. Host filesystem refresh, actual backend/editor/OS qualification
-and complete deployment processor qualification remain open.
+Conflict findings are emitted without an existence rule, and conflicted Location children are
+withheld from artifacts/rule subjects. Diagnostic exhaustion is typed resource interruption. The
+stdio LSP qualifies local buffers and supports known-file delete/rename notifications using pinned
+bytes. Epochs suppress stale remote results. Host filesystem refresh, actual backend/editor/OS
+qualification and complete deployment processor qualification remain open.
 
-Local qualification on 2026-11-03: 32 overlay checks and nine added LSP checks
-passed, including both native model and API pins. The full `npm run check` passed
-all 593 tests and required type/lint/format/schema/build checks with loopback
-access. The built overlay example passed for a local addition; confirmed deletion
-returned a completed blocking violation with exit 1.
+Local qualification on 2026-11-03: 32 overlay checks and nine added LSP checks passed, including
+both native model and API pins. The full `npm run check` passed all 593 tests and required
+type/lint/format/schema/build checks with loopback access. The built overlay example passed for a
+local addition. Confirmed deletion returned a completed blocking violation with exit 1.
 
 ## Required processor blocking increment
 
-BC-07 now blocks source parsing and all dependent native/substitution/admission/
-overlay/rule work before speculative execution when deployment processing is
-required but unavailable. Rules-only execution applies the same gate. Empty input,
-false selectors and zero rules cannot manufacture verified coverage. Fixed IDE
-dependency warnings, CI incomplete/exit 2, cancellation and deadlines propagate
-through both native/API pins and the stdio lifecycle. The executable processor
-inventory remains explicitly empty. See [scope and acceptance](processors.md).
+BC-07 blocks parsing and every dependent stage when required deployment processing is unavailable.
+Rules-only execution applies the same gate. Empty input, false selectors, and zero rules cannot
+create verified coverage. Fixed IDE dependency warnings, CI incomplete results with exit 2,
+cancellation, and deadlines propagate through both native and API pins and stdio. The executable
+processor inventory remains empty. See [scope and acceptance](processors.md).
 
-Local qualification on 2026-11-05: all 24 added checks and the full 617-test
-`npm run check` passed, including required type/lint/format/schema/build checks.
+Local qualification on 2026-11-05: all 24 added checks and the full 617-test `npm run check` passed,
+including required type/lint/format/schema/build checks.
 
 ## Signed policy and CLI increment
 
-Implemented externally anchored Ed25519 release verification, exact activation
-scope/generation and flattened policy/profile binding, bounded content-addressed
-inheritance and immutable execution context. Host-required baseline digests cannot
-be omitted; conflicting inherited rules and schema pins fail rather than replacing
-baseline declarations. Signed packages include all policy/custom-kind schema bodies.
+The policy and CLI increment verifies Ed25519 releases against separately installed host trust. It
+binds exact activation scope and generation to the resolved policy and profile. Bundle inheritance
+uses content digests, resource limits, and an immutable execution context. Required baseline digests
+cannot be omitted. Conflicting inherited rules and schema pins fail instead of replacing baseline
+declarations. Signed packages include all policy and custom-kind schema bodies.
 
-General schema rules use the bounded draft-07 engine and normalized subjects,
-respect selectors/prerequisites and preserve included-file locations. The CLI
-loads immutable source/baseline/data snapshots or an original-deadline request,
-uses host catalog configuration and credential environments, and emits JSON or
-SARIF with exits 0/1/2. Release expiry during execution blocks required coverage
-and caps publication freshness. See [scope and usage](policy-cli.md).
+General schema rules use the bounded draft-07 engine and normalized subjects, respect
+selectors/prerequisites and preserve included-file locations. The CLI loads immutable
+source/baseline/data snapshots or an original-deadline request, uses host catalog configuration and
+credential environments, and emits JSON or SARIF with exits 0/1/2. Release expiry during execution
+blocks required coverage and caps publication freshness. See [scope and usage](policy-cli.md).
 
-Host filesystem/Git source capture, installation hierarchy and authority discovery,
-key/generation refresh, hosted publication/recovery and real backend/IDE/OS
-qualification retain their separate release gates.
+Host filesystem/Git source capture, installation hierarchy and authority discovery, key/generation
+refresh, hosted publication/recovery and real backend/IDE/OS qualification retain their separate
+release gates.
 
-Local qualification on 2026-11-05: all 44 added checks and the final full
-`npm run check` passed all 661 tests and required type/lint/format/schema/build
-checks with loopback access. CLI provider integration passed both fake API pins;
-LSP schema repair passed both adapters. The built development example passed,
-and SARIF shapes validated against the official OASIS schema. Two intermittent
-existing provider/LSP cases from the first full run passed isolated checks and
-the full repeat; stronger test preconditions/diagnostics are retained. See the
+Local qualification on 2026-11-05: all 44 added checks and the final full `npm run check` passed all
+661 tests and required type/lint/format/schema/build checks with loopback access. CLI provider
+integration passed both fake API pins. LSP schema repair passed both adapters. The built development
+example passed, and SARIF shapes validated against the official OASIS schema.
+
+Two intermittent existing provider/LSP cases from the first full run passed isolated checks and the
+full repeat. Stronger test preconditions/diagnostics are retained. See the
 [acceptance notes](policy-cli.md#local-qualification).
 
 ## Failure diagnostics and test isolation increment
 
-Implemented safe stage/cause/timing evidence for provider failures, reference
-preparation, pipeline exceptions and versioned LSP diagnostics. Attempt/request
-timeouts, transport/response failures, future/expired observations and aggregate
-snapshot limits are distinguishable. Evidence is bounded and excludes raw errors,
-source contents, credentials and endpoints. Deadline admission now has a typed
-`RangeError` subclass; existing limits, freshness rejection and enforcement remain.
+Failure diagnostics now record safe stage, cause, and timing evidence for provider failures,
+reference preparation, pipeline exceptions, and versioned LSP diagnostics. They distinguish attempt
+and request timeouts, transport and response failures, future and expired observations, and
+aggregate snapshot limits. Evidence has fixed limits and excludes raw errors, source contents,
+credentials, and endpoints. Deadline admission uses a typed `RangeError` subclass. Existing limits,
+freshness rejection, and enforcement remain unchanged.
 
-The aggregate cache-budget proof uses controlled time and in-memory transport,
-with separate real-HTTP cache reuse coverage. Native-only buffer recovery is
-separate from gated HTTP recovery. Injected clock rollback tests preserve rejection
-of future observations and verify that admitted monotonic budgets are not extended.
-See [provider evidence](catalog-provider.md#safe-failure-evidence) and
-[LSP recovery/evidence](lsp.md#failure-evidence-and-buffer-recovery).
-The original intermittent causes remain unconfirmed; a broader clock architecture
-audit remains separate work.
+The aggregate cache-budget proof uses controlled time and in-memory transport, with separate
+real-HTTP cache reuse coverage. Native-only buffer recovery is separate from gated HTTP recovery.
+Injected clock rollback tests preserve rejection of future observations and verify that admitted
+monotonic budgets are not extended. See
+[provider evidence](catalog-provider.md#safe-failure-evidence) and
+[LSP recovery/evidence](lsp.md#failure-evidence-and-buffer-recovery). The original intermittent
+causes remain unconfirmed. A broader clock architecture audit remains separate work.
 
-Local qualification on 2026-11-07: the full `npm run check` passed all 672 tests
-(11 added checks) and required type/lint/format/schema/build checks with loopback
-access. After final stage-label refinements, static/schema/build checks were
-repeated and all 71 provider/reference/failure-evidence checks passed. The focused
-stdio/native/HTTP recovery and early-exception run also passed.
+Local qualification on 2026-11-07: the full `npm run check` passed all 672 tests (11 added checks)
+and required type/lint/format/schema/build checks with loopback access. After final stage-label
+refinements, static/schema/build checks were repeated and all 71 provider/reference/failure-evidence
+checks passed. The focused stdio/native/HTTP recovery and early-exception run also passed.
 
 ## Saved-file refresh increment
 
-Implemented launcher-approved filesystem capture with a pinned root and exact
-file/entrypoint plan, standard save/watched-file refresh, open-buffer precedence,
-baseline-relative additions/deletions/restoration and client watcher registration.
-Reads enforce containment/link/regular-file/UTF-8/size checks and observed-change
-detection. Read failures block stale validation and carry safe filesystem evidence.
-The original deadline includes disk I/O; epochs suppress old captures and HTTP
-results. Shutdown awaits captures and file-handle cleanup. See
+Saved-file refresh captures only launcher-approved files under a pinned root and exact file and
+entrypoint plan. It handles standard save and watched-file events, preserves open-buffer precedence,
+and tracks additions, deletions, and restoration relative to the baseline. Reads check containment,
+links, regular-file type, UTF-8, size, and observed changes. Read failures block stale validation
+and retain safe filesystem evidence.
+
+The original deadline includes disk I/O. Generation counters suppress old captures and HTTP results,
+and shutdown awaits capture and file-handle cleanup. See
 [saved-file setup and scope](lsp.md#saved-file-snapshot-refresh).
 
-Directory discovery, hostile-writer OS confinement, atomic filesystem transactions,
-policy/authority reload and actual backend/editor/OS qualification remain open.
-Version-safe fixes were the next increment; their implementation is recorded below.
+Directory discovery, hostile-writer OS confinement, atomic filesystem transactions, policy/authority
+reload and actual backend/editor/OS qualification remain open. Version-safe fixes were the next
+increment. Their implementation is recorded below.
 
-Local qualification on 2026-11-07: the full regression check passed 693 tests and
-required type/lint/format/schema/build checks. Final observed-mutation and watch
-refinements were verified by all 22 refresh checks, including one additional
-mutation test, with repeated static/build/schema verification. Stdio scenarios
-passed both native model pins and both fake API contracts. The development
-filesystem launcher generator captured and pinned a real temporary file.
+Local qualification on 2026-11-07: the full regression check passed 693 tests and required
+type/lint/format/schema/build checks. Final observed-mutation and watch refinements were verified by
+all 22 refresh checks, including one additional mutation test, with repeated static/build/schema
+verification. Stdio scenarios passed both native model pins and both fake API contracts. The
+development filesystem launcher generator captured and pinned a real temporary file.
 
 ## Version-safe fixes increment
 
-Implemented source-preserving scalar `const` repairs from unconditional direct
-schema properties, with explicit provenance for structured inclusions. Opaque,
-single-use quick-fix commands recheck the complete workspace epoch, open-buffer
-versions/digests, expiry and edit budgets before sending versioned client edits.
-Closed-file, multi-file, overlapping, unversioned and unsupported edits are
-rejected. A bounded client wait and one outstanding apply request prevent retries
-when the outcome is unknown. Diagnostics change only after editor synchronization.
-See [fix inventory, protocol and limitations](lsp.md#version-safe-scalar-fixes).
+Implemented source-preserving scalar `const` repairs from unconditional direct schema properties,
+with explicit provenance for structured inclusions. Opaque, single-use quick-fix commands recheck
+the complete workspace epoch, open-buffer versions/digests, expiry and edit budgets before sending
+versioned client edits. Closed-file, multi-file, overlapping, unversioned and unsupported edits are
+rejected. A bounded client wait and one outstanding apply request prevent retries when the outcome
+is unknown. Diagnostics change only after editor synchronization. See
+[fix inventory, protocol and limitations](lsp.md#version-safe-scalar-fixes).
 
-The server verifies fingerprints before dispatch; standard LSP provides only the
-client's version check after dispatch. Atomic post-dispatch digest/dependency
-conditions and version reuse during an in-flight close/reopen are not guaranteed.
-Actual editor qualification remains open. Completion is recorded below;
-extension packaging remains IDE work.
+The server verifies fingerprints before dispatch. Standard LSP provides only the client's version
+check after dispatch. Atomic post-dispatch digest/dependency conditions and version reuse during an
+in-flight close/reopen are not guaranteed. Actual editor qualification remains open. Completion is
+recorded below. Extension packaging remains IDE work.
 
-Local qualification on 2026-11-07: `npm run check` passed all 774 tests, including
-80 new scalar/guard/stdio checks, with no failures or skips. Required
-type/lint/format/schema/build checks passed. Both native model pins passed real
-stdio fix application and subsequent revalidation; freshness tests cover a
-shorter observation lifetime during wall-clock rollback. No actual editor or
+Local qualification on 2026-11-07: `npm run check` passed all 774 tests, including 80 new
+scalar/guard/stdio checks, with no failures or skips. Required type/lint/format/schema/build checks
+passed. Both native model pins passed real stdio fix application and subsequent revalidation.
+Freshness tests cover a shorter observation lifetime during wall-clock rollback. No actual editor or
 additional OS support is claimed by the protocol fixtures.
 
 ## Responsive completion increment
 
-Implemented declared-reference completion over native-qualified workspace and
-baseline snapshots, plus bounded advisory catalog identity search. A separate
-cooperative source-index task keeps the request path free of parsing, disk I/O,
-CEL and validation HTTP waits. Suggestions honor source masks, kind/namespace
-defaults, arrays and exact UTF-16 scalar ranges, including structured inclusions.
-Remote lookup waits are bounded, equal queries coalesce, stale work is cancelled,
-and authority-scoped freshness caches stay within entry/byte limits. Search shares
-provider admission/credentials/response bounds and uses fixed projections with
-bounded cursor pagination. See [completion scope and protocol](lsp.md#responsive-reference-completion).
+Implemented declared-reference completion over native-qualified workspace and baseline snapshots,
+plus bounded advisory catalog identity search. A separate cooperative source-index task keeps the
+request path free of parsing, disk I/O, CEL and validation HTTP waits. Suggestions honor source
+masks, kind/namespace defaults, arrays and exact UTF-16 scalar ranges, including structured
+inclusions. Remote lookup waits are bounded, equal queries coalesce, stale work is cancelled, and
+authority-scoped freshness caches stay within entry/byte limits. Search shares provider
+admission/credentials/response bounds and uses fixed projections with bounded cursor pagination. See
+[completion scope and protocol](lsp.md#responsive-reference-completion).
 
-Both pinned API fixtures now validate the implemented identity-query parameters
-and projected responses against their stored OpenAPI contracts. Suggestions are
-advisory; standard completion edits cannot enforce post-response buffer versions.
-Actual editor/backend/OS qualification, cold-index resource/latency evidence,
-broader completion/search/history and extension packaging remain open.
+Both pinned API fixtures now validate the implemented identity-query parameters and projected
+responses against their stored OpenAPI contracts. Suggestions are advisory. Standard completion
+edits cannot enforce post-response buffer versions. Actual editor/backend/OS qualification,
+cold-index resource/latency evidence, broader completion/search/history and extension packaging
+remain open.
 
-Local qualification on 2026-11-07: the full `npm run check` passed 813 tests,
-including 39 new completion/search/stdio checks, with no failures or skips and
-all required type/lint/format/schema/build checks. Both native pins and both API
-contracts passed stdio completion. Held-query tests proved that typing, source
-invalidation, client cancellation and shutdown continue while HTTP is pending.
-Warm completion over 1000 entities measured p95 0.188 ms (20 samples after three
-warmups); one 844151-byte / 1000-slot buffer request measured 2.927 ms. These
-measurements exclude cold index preparation, validation, network and actual IDE
-integration. Extension packaging/installation qualification is the next component.
+Local qualification on 2026-11-07: the full `npm run check` passed 813 tests, including 39 new
+completion/search/stdio checks, with no failures or skips and all required
+type/lint/format/schema/build checks. Both native pins and both API contracts passed stdio
+completion. Held-query tests proved that typing, source invalidation, client cancellation and
+shutdown continue while HTTP is pending. Warm completion over 1000 entities measured p95 0.188 ms
+(20 samples after three warmups).
+
+One 844151-byte / 1000-slot buffer request measured 2.927 ms. These measurements exclude cold index
+preparation, validation, network and actual IDE integration. Extension packaging/installation
+qualification is the next component.
 
 ## VS Code packaging and hosted qualification increment
 
-Implemented a self-contained native-target VSIX containing the client, engine,
-production dependencies, schemas, pinned Node runtime/licenses and SBOM. Trusted
-User Settings or launcher environment select configuration; workspace settings
-cannot select authority. The client preserves configured file-URI spellings,
-tracks the server process, and supports stop/restart and standard language features.
+The VS Code increment implements a native-target VSIX with the client, engine, production
+dependencies, schemas, pinned Node runtime, licenses, and SBOM. An SBOM is a software bill of
+materials. Trusted User Settings or the launcher environment select configuration. Workspace
+settings cannot select authority. The client preserves configured file-URI spelling, tracks the
+server process, and supports stop, restart, and standard language features.
 
-The Actions workflow runs the entire source harness on Linux, Windows and macOS,
-full coverage, full/production audits, native VSIX builds, the full harness with
-packaged Node/server entry points, and installed-editor integration on pinned
-minimum/current VS Code versions. Skips fail CI; reports and installable artifacts
-are retained. See [workflow scope and evidence](github-actions.md).
+The Actions workflow runs the entire source suite on Linux, Windows, and macOS. It checks coverage
+and full and production dependencies, builds native VSIX packages, and runs the full suite with
+packaged Node and server entry points. It also tests the installed extension on pinned minimum and
+current VS Code versions. Skips fail CI. Reports and installable artifacts are retained. See
+[workflow scope and evidence](github-actions.md).
 
-Initial hosted qualification exposed Windows short-name URI encoding and an
-upstream glob advisory; both were corrected. Subsequent source harness/audit
-runs passed on all three OS families. Package/editor qualification is recorded
-in each workflow's retained reports; consult that run for actual results.
-Local installed-VSIX testing exercises real diagnostics, completion, fixes,
-saved-file watchers and process cleanup. Interactive UX/upgrade, JetBrains,
+Initial hosted qualification exposed Windows short-name URI encoding and an upstream glob advisory.
+Both were corrected. Subsequent source harness/audit runs passed on all three OS families.
+Package/editor qualification is recorded in each workflow's retained reports.
+
+Consult that run for actual results. Local installed-VSIX testing exercises real diagnostics,
+completion, fixes, saved-file watchers and process cleanup. Interactive UX/upgrade, JetBrains,
 Marketplace publication and real-backend qualification remain release work.
 
 ## Next increments, in order
 
-1. **IDE qualification.** Broaden interactive UX/upgrade and in-flight fix/version
-   tests, qualify JetBrains, and prepare an authorized Marketplace release.
-2. **Governed pilot.** Trusted hierarchy, one verified Git bypass provider,
-   SQLite inbox/outbox/controller recovery, generation-aware direct/central
-   Actions execution, and authoritative GitHub publication.
+1. IDE qualification. Broaden interactive UX/upgrade and in-flight fix/version tests, qualify
+   JetBrains, and prepare an authorized Marketplace release.
+2. Governed pilot. Trusted hierarchy, one verified Git bypass provider, SQLite
+   inbox/outbox/controller recovery, generation-aware direct/central Actions execution, and
+   authoritative GitHub publication.
 
 ## Required release evidence
 
-- Frozen corpus and managed-profile integration, including deadline/cancellation,
-  queue pressure, fairness, shutdown, and recovery.
-- BC acceptance per pinned adapter, with coverage and provenance for unsupported
-  processing. Organization processor inventory remains empty until supplied.
-- Locked installs, full and production dependency audits, release SBOM, and update
-  ownership.
+- Frozen corpus and managed-profile integration, including deadline/cancellation, queue pressure,
+  fairness, shutdown, and recovery.
+- BC acceptance per pinned adapter, with coverage and provenance for unsupported processing.
+  Organization processor inventory remains empty until supplied.
+- Locked installs, full and production dependency audits, release SBOM, and update ownership.
 - Actual supported Node/OS and VS Code/JetBrains runtime/install qualification.
-- Hosted process/container CPU/RSS/filesystem/network/credential confinement before
-  enabling untrusted workloads or programmable plugins.
-- An authorized GitHub/GHES installation demonstrating GV-01 through GV-06:
-  mandatory baseline authority, verified early bypass, freshness/generation safety,
-  crash recovery, central Actions without per-repo workflows, and credentials/
-  callback authenticity.
-- Representative entity/repository/concurrency benchmarks, measured publication
-  freshness within 60 seconds, redacted telemetry, and operational recovery.
+- Hosted process/container CPU/RSS/filesystem/network/credential confinement before enabling
+  untrusted workloads or programmable plugins.
+- An authorized GitHub/GHES installation demonstrating GV-01 through GV-06. Evidence must cover
+  mandatory baseline authority, verified early bypass, freshness and generation safety, and crash
+  recovery. It must also cover central Actions without per-repo workflows and authentic credentials
+  and callbacks.
+- Representative entity/repository/concurrency benchmarks, measured publication freshness within 60
+  seconds, redacted telemetry, and operational recovery.
 
-Kafka, SQS, both IDE families, governed plugins, and support matrices remain in
-stable-release scope. Concrete installation/version access, workload dimensions,
-and team capacity are still needed before calendar commitments.
+Kafka, SQS, both IDE families, governed plugins, and support matrices remain in stable-release
+scope. Concrete installation/version access, workload dimensions, and team capacity are still needed
+before calendar commitments.

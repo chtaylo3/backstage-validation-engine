@@ -1,202 +1,194 @@
 # VS Code qualification evidence
 
-Implementation and qualification are tracked separately. A workflow's presence,
-a green short mechanism run, or a build from another revision does not close a
-qualification requirement.
+Implementation records which features exist. Qualification records which required tests passed for a
+specific candidate. A workflow file, a successful short test of the harness, or a build from another
+revision does not complete qualification.
 
 | Area                       | Implemented qualification                                                                                                                                             | Evidence required before support is claimed                                                                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Portable desktop           | Installed VSIX, 42 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA; no failed or unexecuted cases                                                                                                          |
+| Portable desktop           | Installed VSIX, 42 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
 | Races and native lifecycle | Entered/cancelled/released catalog gates, suspended-server apply delivery, watchers, multi-root and two real windows, native reload and close                         | 20 independent repetitions per OS and editor, with every earlier failure retained                                                                                                 |
 | Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, screenshots, UI actions and owned server cleanup on all six combinations                                                             |
 | YAML coexistence           | Red Hat YAML 1.19.1, independent findings, overlapping completions, guarded fix and formatting, continued YAML validation after product Stop                          | Both editor versions on all three OS targets                                                                                                                                      |
-| Package lifecycle          | Fixture predecessor 0.0.1 → candidate 0.1.0, disable/re-enable, uninstall/reinstall, persistent User Settings and one native server                                   | Both versions on all three OS targets; a real historical release remains unqualified until a supported predecessor exists                                                         |
-| Virtual workspace          | Native custom filesystem workspace; installed product stays inactive without diagnostics, fixes or completions                                                        | Both versions on all three OS targets; this is not a browser test                                                                                                                 |
+| Package lifecycle          | Fixture predecessor 0.0.1 → candidate 0.1.0, disable/re-enable, uninstall/reinstall, persistent User Settings and one native server                                   | Both versions on all three OS targets. A real historical release remains unqualified until a supported predecessor exists                                                         |
+| Virtual workspace          | Native custom filesystem workspace. Installed product stays inactive without diagnostics, fixes or completions                                                        | Both versions on all three OS targets. This is not a browser test                                                                                                                 |
 | Remote SSH                 | Native Linux desktop, Remote SSH 0.120.0, authenticated ephemeral container host                                                                                      | Assert `remoteName`, hostname, host-target installed VSIX/revision, bundled runtime, visible User Setting, URI behavior, watcher/fix/completion, disconnect cleanup and reconnect |
-| Dev Containers             | Native Linux desktop, Dev Containers 0.430.0, actual attached container workspace                                                                                     | Same remote assertions; running local tests inside Docker cannot satisfy this lane                                                                                                |
-| WSL                        | Native Windows desktop, WSL extension 0.104.3, isolated imported WSL2 distro containing the Linux candidate                                                           | Actual WSL2 kernel and remote extension host; failed virtualization/import preflight fails the required lane                                                                      |
-| Load and endurance         | 100/1000 configured files, cold editor readiness, dirty edit and native watcher bursts, completion, periodic restarts and catalog authorization interruption/recovery | Native client/server RSS and handles, one owned server, latency percentiles and post-warmup growth checks; full 30-minute scheduled and two-hour release workloads                |
+| Dev Containers             | Native Linux desktop, Dev Containers 0.430.0, actual attached container workspace                                                                                     | Same remote assertions. Running local tests inside Docker cannot satisfy this lane                                                                                                |
+| WSL                        | Native Windows desktop, WSL extension 0.104.3, isolated imported WSL2 distro containing the Linux candidate                                                           | Actual WSL2 kernel and remote extension host. Failed virtualization/import preflight fails the required lane                                                                      |
+| Load and endurance         | 100/1000 configured files, cold editor readiness, dirty edit and native watcher bursts, completion, periodic restarts and catalog authorization interruption/recovery | Native client/server RSS and handles, one owned server, latency percentiles and post-warmup growth checks. Full 30-minute scheduled and two-hour release workloads                |
 
 Remote fixtures use the immutable Ubuntu 24.04 base manifest
-`sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852`.
-Reports retain the built image ID, editor server commit/archive checksum, remote
-extension version, runner image, revision and VSIX checksum. WSL imports a root
-filesystem exported by the Linux lane and verifies its checksum and revision.
-The container and WSL distribution belong only to the workflow and are removed
-after process-death observations.
-Container hosts use Docker's init process to reap exited descendants. Disconnect
-probes retain process state on failure and collect remote extension-host logs
-before removing the host. Windows editor metadata resolves both flat resources
-and the commit-directory layout used by newer archives.
+`sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852`. Reports retain the built
+image ID, editor server commit/archive checksum, remote extension version, runner image, revision
+and VSIX checksum. WSL imports a root filesystem exported by the Linux lane and verifies its
+checksum and revision. The container and WSL distribution belong only to the workflow and are
+removed after process-death observations.
+
+Container hosts use Docker's init process to reap exited descendants. Disconnect probes retain
+process state on failure and collect remote extension-host logs before removing the host. Windows
+editor metadata resolves both flat resources and the commit-directory layout used by newer archives.
 
 ## Running the qualification
 
-`ci.yml` builds each OS candidate and runs the source, packaged and portable editor
-harness. `vscode-races.yml` and `vscode-compatibility.yml` download those exact
-candidate artifacts, verify the recorded VSIX/runtime checksums and revision,
-extract the installed payload, and compile the driver from the same checkout.
-They do not rebuild another product VSIX for qualification. Fixture predecessors
-are identified separately and cannot count as historical-release coverage.
-The immutable candidate is uploaded immediately after packaging so independent
-remote and endurance lanes can run concurrently with portable tests. The release
-verdict still requires the entire CI run to succeed and matches every lane to
-the same checksum in the final CI evidence.
+`ci.yml` builds each OS candidate and runs the source, packaged and portable editor harness.
+`vscode-races.yml` and `vscode-compatibility.yml` download those exact candidate artifacts. They
+verify VSIX and runtime checksums and revision, extract the installed payload, and compile the
+driver from the same checkout. They do not rebuild another product VSIX for qualification.
 
-The shared command launcher runs the native VS Code executable with its JavaScript
-command script. It sets `ELECTRON_RUN_AS_NODE=1` and passes each argument without a
-command shell. This avoids `DEP0190` and shell interpretation of argument text.
-The launcher clears `VSCODE_DEV` and `VSCODE_IPC_HOOK_CLI` before it starts a command.
-It keeps the existing isolated profiles and pinned installer version.
-It supports both flat and versioned Windows resource directories.
+Fixture predecessors are identified separately and cannot count as historical-release coverage. The
+immutable candidate is uploaded immediately after packaging so independent remote and endurance
+lanes can run concurrently with portable tests. The release verdict requires the entire CI run to
+succeed. It matches every lane to the same checksum in the final CI evidence.
 
-Run `npm run test:extension:cli` after packaging to test the command launcher.
-CI runs this test on all three OS targets and retains `cli-results/results.json`.
-The test installs, lists, removes and reinstalls the exact candidate package.
-It uses paths with spaces, Unicode and shell characters.
-It also requires a nonzero result for a missing package and rejects `DEP0190`.
-Separate process tests cover literal arguments, output capture, output limits and
-termination of a command and its child process after a timeout.
+The shared command launcher runs the native VS Code executable with its JavaScript command script.
+It sets `ELECTRON_RUN_AS_NODE=1` and passes each argument without a command shell. This avoids
+`DEP0190` and shell interpretation of argument text. The launcher clears `VSCODE_DEV` and
+`VSCODE_IPC_HOOK_CLI` before it starts a command. It keeps the existing isolated profiles and pinned
+installer version. It supports both flat and versioned Windows resource directories.
+
+Run `npm run test:extension:cli` after packaging to test the command launcher. CI runs this test on
+all three OS targets and retains `cli-results/results.json`. The test installs, lists, removes and
+reinstalls the exact candidate package. It uses paths with spaces, Unicode and shell characters. It
+also requires a nonzero result for a missing package and rejects `DEP0190`. Separate process tests
+cover literal arguments, output capture, output limits and termination of a command and its child
+process after a timeout.
 
 The compatibility workflow has three manual modes:
 
-- `quick`: coexistence, package lifecycle, virtual workspace, both load sizes and
-  the three real remote lanes. Long soaks and the release verdict are omitted.
+- `quick`: coexistence, package lifecycle, virtual workspace, both load sizes and the three real
+  remote lanes. Long soaks and the release verdict are omitted.
 - `full`: the same lanes plus 30 minutes of fixed workload per editor and OS.
-- `release`: two hours of fixed workload per editor and OS, followed by a strict
-  verdict that also consumes the successful portable CI and all 20 race
-  repetitions at this revision and the same OS-specific VSIX checksums.
+- `release`: two hours of fixed workload per editor and OS, followed by a strict verdict. That
+  verdict also requires successful portable CI and all 20 race repetitions at this revision with the
+  same OS-specific VSIX checksums.
 
-The release verdict rejects missing or duplicate cases, wrong versions, focused
-reports, unfinished cleanup, short/empty resource reports, an earlier failed race
-repetition, missing native environments, or a different candidate artifact. It
-does not publish an extension. No remote environment is optional in this verdict.
+The release verdict rejects missing or duplicate cases, wrong versions, focused reports, and
+unfinished cleanup. It also rejects short or empty resource reports, earlier failed race
+repetitions, missing native environments, and different candidate artifacts. It does not publish an
+extension. No remote environment is optional in this verdict.
 
 For local debugging, use `npm run test:extension -- --trust`,
 `npm run test:extension:compatibility`, `npm run test:extension:load`, or
-`npm run test:extension:remote -- --mode=ssh-remote`. A local 60-second soak
-mechanism check is available with `BVE_SOAK_SECONDS=60`; CI rejects that duration.
-Every real scheduled/release soak must finish its declared workload duration.
+`npm run test:extension:remote -- --mode=ssh-remote`. A local 60-second soak mechanism check is
+available with `BVE_SOAK_SECONDS=60`. CI rejects that duration. Every scheduled or release soak, a
+sustained workload test, must run for its full declared duration.
 
-The load/soak fixture contains one Group and the remaining files are Components;
-only the edited Component initially violates the policy. It uses the production 25 ms debounce, a
-five-second engine deadline and the existing 20-second readiness bound. A
-separate zero-debounce saturation case makes all 999 Components violate policy.
-It requires each edit to complete or publish a typed bound, disallows guarded
-fixes after incomplete validation, preserves exact buffer text and then verifies
-positive fix recovery with a smaller source. Its observations do not establish
-capacity to complete every zero-debounce 1000-violation workload. Performance budgets are explicit
-in `resource-metrics.json`; observed local timings do not qualify hosted hardware.
-The client baseline is measured after product Stop and includes the loaded client
-module, while cold readiness starts at the parent editor launch timestamp.
-Catalog authorization is interrupted and recovered live each minute, with a new
-denied and then successful authenticated read required; recovery must keep the
-same server PID. Fifteen-minute process epochs allow post-warmup growth to be
-measured before periodic restarts switch between both pinned catalog versions.
-Watcher files have bounded, stable content size throughout the workload.
+The load and soak fixture contains one Group. The remaining files are Components. Only the edited
+Component initially violates the policy. It uses the production 25 ms debounce, a five-second engine
+deadline and the existing 20-second readiness bound. A separate zero-debounce saturation case makes
+all 999 Components violate policy.
 
-The load lane exposed duplicate native source/baseline preparation by validation
-and completion. Catalog-backed LSP generations now share that immutable local
-preparation before catalog HTTP; each still enforces the original deadline and
-generation cancellation. An actual held-HTTP test on both API pins verifies that
-local completion remains available, and a newer edit cancels the old generation.
-There is no persistent cross-request source cache. Repeated structural contract
-checks reuse only the parser's own deeply frozen output identities. Mutable
-inputs, clones and caller-frozen counterfeits still receive full validation;
-authority, request bindings, cancellation and deadlines are checked separately.
-Filesystem capture overlaps at most eight approved reads, reduced further by
-the request/file byte budgets. Each read still checks root/path containment,
-descriptor and named-file identity, links, UTF-8, mutations and cancellation.
-All reads in a failed batch drain before rejection; no partial snapshot is
-published. Native descriptor-barrier tests verify concurrency bounds and awaited
-close, alongside aggregate overflow/recovery and the original deadline tests.
-Read buffers use the checked file length plus one growth-detection byte, capped
-at 64 KiB. Tiny files no longer allocate the full chunk allowance, and a file
-that grows during capture is rejected immediately with its descriptor closed.
-The pinned native adapter and fixed CEL worker slots are prepared during LSP initialization; this static
-dependency preparation remains inside measured cold editor readiness. Source
-capture and all validation still share one original five-second request deadline.
-Native policy composition reuses its own detached JSON checkpoint between
-successive policies. Each policy output still receives full bounded JSON checks;
-unchanged canonical output needs no second serialization/diff. Authored input
-stays detached and frozen, and mutation provenance is checked against both native
-adapter pins. There is no cross-request entity-result cache.
-Native steps yield before each entity and at the same eight-millisecond
-cooperative bound used by parsing, with deadline/cancellation checks around
-every policy call. Tests also inject queued cancellation on both adapter pins.
-Resource comparisons require ten warmup operations per process and at least
-three later samples. A sample at each restart records the new process epoch.
-The 128 MiB RSS, 64-handle and 0.15 MiB/operation growth caps remain unchanged;
-negative checker tests reject post-warmup RSS/handle leaks, persistent slopes and
-insufficient live-process evidence.
+Each edit must complete or publish a typed bound. Guarded fixes remain unavailable after incomplete
+validation. The test preserves exact buffer text, then verifies that fixes recover with a smaller
+source. Its observations do not establish capacity to complete every zero-debounce 1000-violation
+workload. Performance budgets are explicit in `resource-metrics.json`. Local timings do not qualify
+hosted hardware.
 
-Each native process receives its own application shared-data directory as well
-as an isolated user profile and extension directory. Remote extension pins are
-checked against both editor versions before launching. Dev Containers attach
-consent uses a visible native workbench dialog and records the click for the
-workflow-owned container; it does not modify the extension's private consent
+The client baseline is measured after product Stop and includes the loaded client module, while cold
+readiness starts at the parent editor launch timestamp. Catalog authorization is interrupted and
+recovered live each minute, with a new denied and then successful authenticated read required.
+Recovery must keep the same server PID, the process identifier. Fifteen-minute process epochs allow
+post-warmup growth to be measured before periodic restarts switch between both pinned catalog
+versions. Watcher files have bounded, stable content size throughout the workload.
+
+The load lane exposed duplicate native source/baseline preparation by validation and completion.
+Catalog-backed LSP generations now share that immutable local preparation before catalog HTTP. Each
+still enforces the original deadline and generation cancellation. An actual held-HTTP test on both
+API pins verifies that local completion remains available, and a newer edit cancels the old
+generation. There is no persistent cross-request source cache. Repeated structural contract checks
+reuse only the parser's own deeply frozen output identities.
+
+Mutable inputs, clones, and caller-frozen counterfeits still receive full validation. Authority,
+request bindings, cancellation, and deadlines are checked separately. Filesystem capture overlaps at
+most eight approved reads, reduced further by the request/file byte budgets. Each read still checks
+root/path containment, descriptor and named-file identity, links, UTF-8, mutations and cancellation.
+All reads in a failed batch finish before rejection. The reader publishes no partial snapshot.
+
+Native descriptor-barrier tests verify concurrency bounds and awaited close, alongside aggregate
+overflow/recovery and the original deadline tests. Read buffers use the checked file length plus one
+growth-detection byte, capped at 64 KiB. Tiny files no longer allocate the full chunk allowance, and
+a file that grows during capture is rejected immediately with its descriptor closed. The pinned
+native adapter and fixed CEL worker slots are prepared during LSP initialization. This static
+dependency preparation remains inside measured cold editor readiness.
+
+Source capture and all validation still share one original five-second request deadline. Native
+policy composition reuses its own detached JSON checkpoint between successive policies. Each policy
+output still receives full bounded JSON checks. Unchanged canonical output needs no second
+serialization or comparison. Authored input stays detached and frozen, and mutation provenance is
+checked against both native adapter pins. There is no cross-request entity-result cache.
+
+Native steps yield before each entity and at the same eight-millisecond cooperative bound used by
+parsing, with deadline/cancellation checks around every policy call. Tests also inject queued
+cancellation on both adapter pins. Resource comparisons require ten warmup operations per process
+and at least three later samples. A sample at each restart records the new process epoch. The 128
+MiB RSS, 64-handle and 0.15 MiB/operation growth caps remain unchanged. Negative checker tests
+reject post-warmup RSS/handle leaks, persistent slopes and insufficient live-process evidence.
+
+Each native process receives its own application shared-data directory as well as an isolated user
+profile and extension directory. Remote extension pins are checked against both editor versions
+before launching. Dev Containers attach consent uses a visible native workbench dialog and records
+the click for the workflow-owned container. It does not modify the extension's private consent
 storage.
 
 ## Current qualification status
 
 Increment 2 is qualified at `d3884ed` by
 [CI 42445289384](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42445289384).
-The subsequent native race/lifecycle scenarios passed on all six OS/editor
-combinations in `b7035e2`, but its overall CI run failed on trust automation:
-command-palette focus and transient Windows evidence-file rename locks. Those
-failures remain recorded in
+The native race and lifecycle scenarios passed on all six OS and editor combinations in `b7035e2`.
+The overall CI run failed on trust automation because of command-palette focus and transient Windows
+locks during evidence-file renames. Those failures remain recorded in
 [CI 42449939578](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42449939578).
-The follow-up waits for a visible Restricted Mode banner/status control or the
-native Workspace Trust tab before clicking, then pins the tab. It does not open
-the command palette over a workbench whose first controls have not painted. Evidence replacement uses bounded atomic
-rename retries only for native Windows sharing errors. It does not retry a failed
-scenario into success. Windows virtual/remote launches use `--folder-uri=value`
-to avoid the [upstream Chromium argument filtering issue](https://github.com/microsoft/vscode/blob/main/src/vs/code/node/cli.ts).
-The preliminary WSL lane booted kernel `6.18.54.1-microsoft-standard-WSL2` on
-`windows-2025` image `20261103.298.1`; its editor session still needs to qualify.
-At `a3ac158`, its minimum-editor disconnect and reconnect both passed; the
-current-editor launch exposed the newer Windows resources layout. SSH and Dev
-Containers reached their real remote hosts and passed both catalog API versions
-and the editor feature checks, then failed the post-disconnect PID observation.
-Those partial sessions do not qualify the complete remote matrix.
-At `0fa0821`, [CI 42458216928](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42458216928)
-passed all 11 jobs: 862 source/packaged tests on each native target and all 252
-portable editor scenarios. All 12 real remote sessions also passed with one
-Linux VSIX checksum. Subsequent load observations drove the explicit resource
-warmup, initialization preparation and native checkpoint changes described above;
-the final workload qualification must use the corrected candidate's own runs.
+The follow-up waits for a visible Restricted Mode banner/status control or the native Workspace
+Trust tab before clicking, then pins the tab.
 
-The final matrix, repetition, compatibility and soak qualifications must be read
-from their actual candidate runs. Remote lanes remain unqualified until those
-real sessions pass. Historical-release upgrades remain open because the current
-predecessor is a reproducible fixture. Web/VS Code for the Web is outside the
-current desktop/workspace extension contract and has not been browser-qualified.
+It does not open the command palette over a workbench whose first controls have not painted.
+Evidence replacement uses bounded atomic rename retries only for native Windows sharing errors. It
+does not retry a failed scenario into success. Windows virtual/remote launches use
+`--folder-uri=value` to avoid the
+[upstream Chromium argument filtering issue](https://github.com/microsoft/vscode/blob/main/src/vs/code/node/cli.ts).
+The preliminary WSL lane booted kernel `6.18.54.1-microsoft-standard-WSL2` on `windows-2025` image
+`20261103.298.1`.
 
-The Windows packaged harness at `3f09ccc` exposed a native Node 24.20.0 exit
-`3221225477` (`0xC0000005`) in the CEL worker lifecycle file. This matches the
-[upstream Windows test-process crash pattern](https://github.com/nodejs/node/issues/65756),
-whose worker Realm cleanup fix shipped in
-[Node 24.22.0](https://nodejs.org/en/blog/release/v24.22.0). The runtime is now
-pinned to security patch 24.22.1, and Windows CI repeats the actual packaged
-worker and completion lifecycle files 20 times. Every iteration must pass; the original failure
-remains recorded. This pin update must qualify through the same full matrix.
+Its editor session still needs qualification. At `a3ac158`, its minimum-editor disconnect and
+reconnect both passed. The current-editor launch exposed the newer Windows resources layout. SSH and
+Dev Containers reached their real remote hosts and passed both catalog API versions and editor
+feature checks. They then failed the post-disconnect PID observation.
 
-Client cancellation is ordered at provider entry through a real in-process
-JSON-RPC connection, proving abort propagation and suppressed completion items.
-A separate native-process case deliberately cancels after the bounded local
-reply and verifies native HTTP shutdown cleanup. An HTTP-entry acknowledgement
-from another process cannot prove that cancellation preceded the 50 ms reply.
-Once packaging succeeds, independent native editor and runtime stress checks
-still execute after another test failure, while the aggregate CI job stays red.
+Those partial sessions do not qualify the complete remote matrix. At `0fa0821`,
+[CI 42458216928](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42458216928)
+passed all 11 jobs: 862 source/packaged tests on each native target and all 252 portable editor
+scenarios. All 12 real remote sessions also passed with one Linux VSIX checksum. Subsequent load
+observations drove the explicit resource warmup, initialization preparation and native checkpoint
+changes described above. Final workload qualification must use the corrected candidate's own runs.
 
-At `6bd98e5`, all 11 CI jobs and the full compatibility workflow passed, including
-all six 30-minute soaks and the real SSH, Dev Container and WSL2 sessions. Linux
-and macOS passed all 600 repeated race cases each. Windows passed 597 of 600;
-three sessions published incomplete initial validation and therefore correctly
-withheld guarded fixes. These failures remain qualification failures, even though
-later independent cases passed. Worker readiness now includes a fixed interpreter
-parse/evaluation warmup under the existing startup deadline, rather than deferring
-static compiler initialization to the first bounded repository expression. Fresh
-worker tests exercise both first selectors without replacing a worker. Rule-stage
-evidence also distinguishes the CEL attempt deadline from the overall request
-deadline. No execution, readiness or resource ceiling was raised, and the changed
-candidate requires its own complete qualification.
+The final matrix, repetition, compatibility and soak qualifications must be read from their actual
+candidate runs. Remote lanes remain unqualified until those real sessions pass. Historical-release
+upgrades remain open because the current predecessor is a reproducible fixture. Web/VS Code for the
+Web is outside the current desktop/workspace extension contract and has not been browser-qualified.
+
+The Windows packaged harness at `3f09ccc` exposed a native Node 24.20.0 exit `3221225477`
+(`0xC0000005`) in the CEL worker lifecycle file. This matches the
+[upstream Windows test-process crash pattern](https://github.com/nodejs/node/issues/65756), whose
+worker Realm cleanup fix shipped in [Node 24.22.0](https://nodejs.org/en/blog/release/v24.22.0). The
+runtime is now pinned to security patch 24.22.1, and Windows CI repeats the actual packaged worker
+and completion lifecycle files 20 times. Every iteration must pass. The original failure remains
+recorded. This pin update must qualify through the same full matrix.
+
+Client cancellation is ordered at provider entry through a real in-process JSON-RPC connection,
+proving abort propagation and suppressed completion items. A separate native-process case
+deliberately cancels after the bounded local reply and verifies native HTTP shutdown cleanup. An
+HTTP-entry acknowledgement from another process cannot prove that cancellation preceded the 50 ms
+reply. Once packaging succeeds, independent native editor and runtime stress checks still execute
+after another test failure, while the aggregate CI job stays red.
+
+At `6bd98e5`, all 11 CI jobs and the full compatibility workflow passed. This included all six
+30-minute soaks and real SSH, Dev Container, and WSL2 sessions. Linux and macOS passed all 600
+repeated race cases each. Windows passed 597 of 600. Three sessions published incomplete initial
+validation and correctly withheld guarded fixes. These failures remain qualification failures, even
+though later independent cases passed.
+
+Worker readiness includes a fixed interpreter parse and evaluation warmup under the existing startup
+deadline. This prepares the compiler before the first repository expression. Fresh worker tests
+exercise both first selectors without replacing a worker. Rule-stage evidence also distinguishes the
+CEL attempt deadline from the overall request deadline. No execution, readiness or resource ceiling
+was raised, and the changed candidate requires its own complete qualification.

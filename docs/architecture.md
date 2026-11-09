@@ -1,120 +1,132 @@
 # Architecture baseline
 
-The accepted planning decisions, dated 2026-10-27, select one TypeScript engine on
-Node 24.x. Production development starts with contract 0.2. The evaluation
-prototypes use 0.1 and remain historical reference implementations.
+The accepted planning decisions, dated 2026-10-27, select one TypeScript engine on Node 24.x.
+Production development starts with contract 0.2. The evaluation prototypes use 0.1 and remain
+historical reference implementations.
 
 ## Runtime boundaries
 
-The engine owns source snapshots, provenance, normalization, compatibility,
-reference overlays, rule dependencies, and canonical results. A policy resolver
-owns authoritative assignments, immutable baseline/additions, activation, and
-bypass authority. Managed runtimes and providers own bounded execution, data
-access, cancellation, and authorization-aware caching. CLI/LSP/hosted adapters
-translate trusted context and presentation. A durable controller owns hosted
+The engine owns source snapshots, normalization, compatibility, reference overlays, rule
+dependencies, and canonical results. It also records provenance, the source and processing history
+of data. A policy resolver owns authoritative assignments, immutable baseline policies and
+additions, activation, and bypass authority. Managed runtimes and providers limit execution and data
+access.
+
+They handle cancellation and cache data within authorization boundaries. CLI, LSP, and hosted
+adapters translate trusted context and results for each client. A durable controller owns hosted
 dispatch, recovery, activation generations, and authoritative GitHub publication.
 
-These are logical boundaries. Start in one package and split packages when their
-build, ownership, or distribution requirements justify it. Developer installation
-does not require a broker, database, or central validation service.
+These are logical boundaries. Start in one package and split packages when their build, ownership,
+or distribution requirements justify it. Developer installation does not require a broker, database,
+or central validation service.
 
 ## Fixed decisions
 
-- Native Backstage adapters pin catalog-model 1.10.2 and 1.7.5. The initial
-  compatibility surface includes Component, API, Group, User, Resource, System,
-  Domain, and Location. Compatibility includes explicitly declared native
-  policies, reference contexts, local substitutions, admission, custom schemas,
-  and proposed-state overlays. Full organization ingestion is not inferred from
+- Native Backstage adapters pin catalog-model 1.10.2 and 1.7.5. The initial compatibility surface
+  includes Component, API, Group, User, Resource, System, Domain, and Location. Compatibility
+  includes explicitly declared native policies, reference contexts, local substitutions, admission,
+  custom schemas, and proposed-state overlays. Full organization ingestion is not inferred from
   stock schema validation.
-- CEL uses `bve-cel/1`: CEL-JS 8.0.0 with RE2JS 2.9.0 in supervised, replaceable
-  workers. Two shared workers, 64 outstanding jobs, a 100 ms evaluation deadline,
-  and a five-second whole-request deadline are initial ceilings. Both selectors
-  and expressions must use the managed path. Go remains reference evidence.
-- JSON-compatible YAML preserves missing/null and authored source positions.
-  Parsing rejects duplicate keys, unsafe integers, and merge keys; aliases,
-  depth, expansion, and source size are bounded. Custom schemas use draft-07,
-  bundled refs, no network ref loading, no coercion, and no default mutation.
-- Required unsupported processors or unavailable data produce incomplete
-  coverage and block CI. A timeout is an incomplete execution. A false rule is a
-  violation. An invalid rule is a policy configuration error.
-- Centrally mandatory policies and limits cannot be weakened by repository
-  additions. Repository metadata is a hint rather than assignment authority.
-- Early emergency bypass follows trusted identity resolution and precedes parsing
-  and expensive providers. Exactly one verified Git bundle bypass provider is
-  planned per installation. Routine exceptions apply after rule execution.
-- Hosted run identity binds installation/repository, target SHA, activation
-  digest, and generation. Stale completion must not restore approval. The pilot
-  targets publication reconciliation within 60 seconds of authoritative changes.
-- The small hosted pilot uses persistent SQLite WAL with one controller writer,
-  a durable inbox/outbox, deduplication, leases, and restart reconciliation.
-  Direct and central Actions backends share the execution contract. Application
-  repositories need no workflow file for central Actions.
-- Arbitrary untrusted plugins remain disabled until process/container isolation
-  passes filesystem, network, credentials, CPU, and memory denial tests. Worker
-  threads are not an operating-system sandbox.
+- CEL uses `bve-cel/1`: CEL-JS 8.0.0 with RE2JS 2.9.0 in supervised, replaceable workers. Two shared
+  workers, 64 outstanding jobs, a 100 ms evaluation deadline, and a five-second whole-request
+  deadline are initial ceilings. Both selectors and expressions must use the managed path. Go
+  remains reference evidence.
+- JSON-compatible YAML preserves missing/null and authored source positions. Parsing rejects
+  duplicate keys, unsafe integers, and merge keys. It limits aliases, nesting depth, expansion, and
+  source size. Custom schemas use draft-07, bundled refs, no network ref loading, no coercion, and
+  no default mutation.
+- Required unsupported processors or unavailable data produce incomplete coverage and block CI. A
+  timeout is an incomplete execution. A false rule is a violation. An invalid rule is a policy
+  configuration error.
+- Centrally mandatory policies and limits cannot be weakened by repository additions. Repository
+  metadata is a hint rather than assignment authority.
+- Early emergency bypass follows trusted identity resolution and precedes parsing and expensive
+  providers. Exactly one verified Git bundle bypass provider is planned per installation. Routine
+  exceptions apply after rule execution.
+- Hosted run identity binds installation/repository, target SHA, activation digest, and generation.
+  Stale completion must not restore approval. The pilot targets publication reconciliation within 60
+  seconds of authoritative changes.
+- The small hosted pilot uses persistent SQLite WAL with one controller writer, a durable
+  inbox/outbox, deduplication, leases, and restart reconciliation. Direct and central Actions
+  backends share the execution contract. Application repositories need no workflow file for central
+  Actions.
+- Arbitrary untrusted plugins remain disabled until process/container isolation passes filesystem,
+  network, credentials, CPU, and memory denial tests. Worker threads are not an operating-system
+  sandbox.
 
 ## Pipeline
 
-Trusted identity → early emergency bypass → pin activation/source/policy/profile
-→ discover and parse → resolve substitutions → native policies and admission
-→ proposed catalog overlay → collect and pin bounded provider data → rules → routine exceptions
-→ coverage and enforcement → publication freshness check.
+Run the pipeline in this order:
 
-Preserve authored and effective entities with provenance between them. Invalid
-replacement entities and deletion tombstones must mask older catalog entries.
-Required unavailable transformations block dependent stages; avoid speculative
-errors about data that should have been transformed.
+1. Resolve trusted identity.
+2. Apply an authorized early emergency bypass.
+3. Pin activation, source, policy, and profile.
+4. Discover and parse sources.
+5. Resolve substitutions.
+6. Apply native policies and admission.
+7. Build the proposed catalog overlay.
+8. Collect and pin provider data within its limits.
+9. Execute rules.
+10. Apply routine exceptions.
+11. Aggregate coverage and enforcement.
+12. Check publication freshness.
+
+Preserve the authored entity, the effective entity after processing, and the history that links
+them. Invalid replacement entities and deletion tombstones must hide older catalog entries. A
+tombstone records an explicit deletion. If a required transformation is unavailable, block every
+stage that depends on it. Do not report speculative errors about data that the transformation was
+expected to supply.
 
 ## Implemented parsing boundary
 
-The [source parser](parsing.md) consumes verified immutable snapshots and returns
-frozen JSON documents, authored/alias location provenance, redacted diagnostics,
-and per-file parse coverage. It uses a lazy-loaded YAML 1.2 lexer/parser/composer,
-an iterative syntax guard, bounded JSON expansion and cooperative request budgets.
-CI excludes an invalid file's entities; IDE mode retains unaffected documents.
-Neither mode exposes an invalid document as a validated entity.
+The [source parser](parsing.md) reads verified immutable snapshots. It returns frozen JSON
+documents, source locations for authored and alias values, redacted diagnostics, and per-file parse
+coverage. Coverage records which declared work completed. The parser loads its YAML 1.2 lexer,
+parser, and composer only when needed.
 
-This stage precedes native Backstage checks. An excluded invalid source must later
-produce an invalid-replacement marker in catalog overlays, preventing fallback to
-an older entity. Passing parse coverage does not imply completed compatibility,
-substitution, admission, policy, or hosted-authority coverage.
+It uses an iterative syntax guard, bounded JSON expansion, and cooperative request budgets. CI
+excludes all entities from an invalid file. IDE mode retains unaffected documents but excludes
+invalid documents from validation.
+
+This stage precedes native Backstage checks. An excluded invalid source must later produce an
+invalid-replacement marker in catalog overlays, preventing fallback to an older entity. Passing
+parse coverage does not imply completed compatibility, substitution, admission, policy, or
+hosted-authority coverage.
 
 ## Implemented native boundary
 
-The [native compatibility adapter](backstage-compatibility.md) selects exact
-catalog-model 1.10.2/1.7.5 packages, applies declared native policies and stock kind
-validators, and records source-attributed normalization separately from authored
-JSON. The [snapshot-local resolver](substitutions.md) implements BC-04 with pinned
-roots/entrypoints and included-file provenance. Required unavailable processors
-and unavailable readers block dependent native checks. The source-level entry
-point composes parsing with BC-01 through BC-05 and current identity-conflict checks.
-[Admission and custom schemas](admission-custom-kinds.md)
-enforce pinned global/source allowances and immutable custom-kind artifacts after
-native normalization; stock validators remain versioned. Reference preparation
-qualifies BC-06 local facts and baseline-relative removals. Complete processing
-and governance stages remain separate.
+The [native compatibility adapter](backstage-compatibility.md) selects exact catalog-model
+1.10.2/1.7.5 packages. It applies declared native policies and stock kind validators, with
+source-attributed normalization separate from authored JSON. The
+[snapshot-local resolver](substitutions.md) implements BC-04 with pinned roots, entrypoints, and
+included-file locations. Required unavailable processors and readers block dependent native checks.
+The source entry point combines parsing, BC-01 through BC-05, and identity-conflict checks.
+
+[Admission and custom schemas](admission-custom-kinds.md) enforce pinned kind allowances by source
+after native normalization. They also enforce immutable custom-kind artifacts. Stock validators
+retain their versioned behavior. Reference preparation establishes BC-06 local facts and removals
+relative to the baseline. Complete processing and governance remain separate stages.
 
 ## Implemented catalog access boundary
 
-The [catalog provider](catalog-provider.md) selects a host-owned connection and
-credential resolver, performs native reference/envelope checks and bounded HTTP
-lookups, and returns immutable availability/provenance snapshots. Scoped caches,
-FIFO admission, retry/cooldown limits, original deadlines and cancellation are
-tested against the multi-version fake. Data is pinned before evaluation; callers
-propagate unavailable required coverage and interruptions. The
-[reference preparer](source-references.md) connects source contexts to observations
-and pins a new evaluation request under the original deadline. Conservative guards
-prevent premature fallback. [Explicit catalog rules and the stdio LSP](lsp.md)
-now consume those pins through `validatePolicySources`. The editor adapter owns
-workspace generations, cancellation and versioned publication; authority remains
-launcher-owned. [Proposed overlays](proposed-overlays.md) qualify local targets,
-mask invalid/deleted identities and bind baseline/source/data provenance before
-external lookup. Real-backend/editor qualification remains open.
+The [catalog provider](catalog-provider.md) uses a host-owned connection and credential resolver. It
+runs native reference and envelope checks, limits HTTP lookups, and returns immutable snapshots with
+availability and source history. Tests against the multi-version fake cover scoped caches,
+first-in-first-out admission, retries, cooldowns, original deadlines, and cancellation. The provider
+pins data before evaluation. Callers must retain required unavailable coverage and interruptions.
+
+The [reference preparer](source-references.md) connects source contexts to observations and pins a
+new evaluation request under the original deadline. Conservative guards prevent premature fallback.
+[Explicit catalog rules and the stdio LSP](lsp.md) use those pins through `validatePolicySources`.
+The editor adapter owns workspace generations, cancellation, and versioned publication.
+
+The launcher retains authority. [Proposed overlays](proposed-overlays.md) establish valid local
+targets, hide invalid or deleted identities, and bind baseline, source, and data before external
+lookup. Real-backend and editor qualification remain open.
 
 ## Release breadth
 
-The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and
-central Actions. Stable release retains JetBrains, Kafka, SQS, governed
-programmable plugins, and operational/support matrices. Visual Studio is optional.
-Installation access, organization processors, supported IDE/OS/GHES versions,
-representative workload sizes, and staffing still need concrete qualification.
+The pilot prioritizes engine/CLI, VS Code, a GitHub App, direct execution, and central Actions.
+Stable release retains JetBrains, Kafka, SQS, governed programmable plugins, and operational/support
+matrices. Visual Studio is optional. Installation access, organization processors, supported
+IDE/OS/GHES versions, representative workload sizes, and staffing still need concrete qualification.
