@@ -437,8 +437,9 @@ async function initialize(state) {
     '--entrypoint',
     'node',
     'test',
+    '--input-type=module',
     '-e',
-    `const fs=require('node:fs');for(const p of ['/catalog','/run/work']){fs.mkdirSync(p,{recursive:true});fs.chownSync(p,${process.getuid()},${process.getgid()})}`,
+    `import {initializeRuntime} from '/workspace/test/integration/backstage/lib/runtime.mjs';await initializeRuntime(${process.getuid()},${process.getgid()})`,
   ]);
 }
 async function driver(state, phase, args = [], settings = {}) {

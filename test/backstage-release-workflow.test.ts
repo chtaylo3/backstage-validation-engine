@@ -94,7 +94,7 @@ void test('every reusable Backstage caller requires manual release approval and 
         "${{ github.event_name == 'workflow_dispatch' && inputs.qualify_backstage == true }}",
       );
       assert.equal(job.with?.revision, '${{ inputs.revision }}');
-      assert.deepEqual(job.needs, ['cli', 'vscode']);
+      assert.deepEqual(job.needs, ['cli']);
     }
   }
   assert.deepEqual(callers, ['ci.yml/backstage_release']);

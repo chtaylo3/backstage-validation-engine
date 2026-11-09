@@ -53,6 +53,11 @@ The test container reaches `http://backstage:7007`. Host `localhost` refers to a
 The host runner keeps credentials in a restricted temporary directory. It records resource ownership under `.artifacts/backstage-private/`.
 Neither directory is part of the uploaded reports. The containers do not receive the Docker socket.
 
+The test tools use the host account's numeric Linux user and group IDs. This includes user 1001 on GitHub-hosted runners.
+Compose disables automatic image copying for the catalog and work volumes. Otherwise, Docker can replace an empty volume's owner with the image's user 1000.
+The initializer assigns the owned directories to the host account before the test tools start.
+The home directory, npm cache, and editor downloads stay in the work volume. Backstage reads catalog files through a read-only mount.
+
 The trusted catalog configuration explicitly permits HTTP for this isolated Compose connection with `allowInsecureHttp: true`.
 Other connections retain their default transport restrictions. Proposal content and workspace configuration cannot set this flag.
 
@@ -124,6 +129,12 @@ This gives you the pinned runtime and editor tools for interactive work.
 Run the environment commands from the host terminal because Docker control stays on the host.
 
 ## Run the release profile
+
+For an isolated permission regression, first build target 1.55.3 and prepare a CLI archive in `.artifacts/cli/package-info.json`.
+Then run `node test/integration/backstage/permissions.mjs` from the repository root.
+This command uses the shared Compose configuration with user 1001. It installs the CLI, downloads the pinned editor, and tests seed replacement across containers.
+It also tests catalog reads as the application's user 1000 and removes its own temporary resources.
+Normal project tests do not run this Docker regression.
 
 Use a clean candidate commit and packages built at that exact revision. The release command rejects dirty implementation inputs.
 It also rejects a CLI archive or VSIX whose recorded identity differs from the requested candidate.

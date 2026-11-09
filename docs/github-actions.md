@@ -442,7 +442,9 @@ To test a candidate branch before that registration, dispatch the existing CI wo
 gh workflow run ci.yml --ref CANDIDATE_REF -F qualify_backstage=true -f revision=FULL_CANDIDATE_SHA
 ```
 
-This release job waits for the CLI and VSIX candidate jobs, then calls the shared workflow at the same revision.
+This release job waits for the CLI candidate, then calls the shared workflow at the same revision.
+It retrieves the Linux VSIX when its artifact becomes available and runs alongside the ordinary editor checks.
+The aggregate release verifier still requires a successful CI run for that candidate.
 The option defaults to false. Pushes, pull requests, and ordinary manual CI runs cannot start the Docker suite.
 The called job also requires a manual-dispatch event and an exact workflow and candidate match.
 

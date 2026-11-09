@@ -110,7 +110,7 @@ jobs:
   backstage_release:
     name: Explicit Backstage release qualification
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_backstage == true }}
-    needs: [cli, vscode]
+    needs: [cli]
     permissions:
       contents: read
       actions: read

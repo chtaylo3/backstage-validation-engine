@@ -10,6 +10,6 @@ COPY extensions/ ./extensions/
 COPY test/ ./test/
 COPY tsconfig.json tsconfig.build.json tsconfig.test.json ./
 RUN npm run build
-RUN mkdir -p /catalog /run/work /reports /workspace/.vscode-test && chown 1000:1000 /catalog /run/work /reports /workspace/.vscode-test
+RUN mkdir -p /catalog /run/work /reports && chown 1000:1000 /catalog /run/work /reports
 USER 1000:1000
 ENTRYPOINT ["xvfb-run", "-a", "node", "/workspace/test/integration/backstage/lib/driver.mjs"]

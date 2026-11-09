@@ -14,7 +14,12 @@ services:
       - 127.0.0.1:${BVE_BACKSTAGE_PORT}:7007
     volumes:
       - sqlite:/state
-      - catalog:/catalog:ro
+      - type: volume
+        source: catalog
+        target: /catalog
+        read_only: true
+        volume:
+          nocopy: true
     stop_grace_period: 20s
   test:
     image: ${BVE_TEST_IMAGE}
@@ -34,8 +39,16 @@ services:
       BVE_REVISION: ${BVE_REVISION}
       BVE_TARGET: ${BVE_TARGET}
     volumes:
-      - catalog:/catalog
-      - work:/run/work
+      - type: volume
+        source: catalog
+        target: /catalog
+        volume:
+          nocopy: true
+      - type: volume
+        source: work
+        target: /run/work
+        volume:
+          nocopy: true
       - ${BVE_REPORT_DIRECTORY}:/reports
       - ${BVE_CLI_ARCHIVE}:/candidate/cli.tgz:ro
       - ${BVE_VSIX_ARCHIVE}:/candidate/product.vsix:ro
