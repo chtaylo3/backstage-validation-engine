@@ -78,7 +78,11 @@ export class Workbench {
     });
   }
   async evaluate(expression) {
-    const result = await this.call('Runtime.evaluate', { expression, returnByValue: true });
+    const result = await this.call('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
     if (result.exceptionDetails)
       throw new Error(
         result.exceptionDetails.exception?.description ?? result.exceptionDetails.text,
@@ -121,7 +125,25 @@ export class Workbench {
   }
   async rectangle(pattern) {
     return this.evaluate(
-      `(() => { const match = new RegExp(${JSON.stringify(pattern)}, 'i'); const e = Array.from(document.querySelectorAll('[role="button"],[role="tab"],[role="link"],button,a')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim())); if (!e) return null; e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,text:e.innerText}; })()`,
+      `new Promise(resolve => {
+        const pattern = ${JSON.stringify(pattern)};
+        const match = new RegExp(pattern, 'i');
+        const e = Array.from(document.querySelectorAll('[role="button"],[role="tab"],[role="link"],button,a')).find(e => e.getBoundingClientRect().width > 0 && !e.disabled && e.getAttribute('aria-disabled') !== 'true' && match.test(e.innerText.replace(/\\s+/g,' ').trim()));
+        if (!e) return resolve(null);
+        e.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"});
+        const before = e.getBoundingClientRect();
+        requestAnimationFrame(() => {
+          const painted = e.getBoundingClientRect();
+          requestAnimationFrame(() => {
+            const r = e.getBoundingClientRect();
+            const x = r.x + r.width / 2, y = r.y + r.height / 2;
+            const stable = [before, painted].every(previous => ['x','y','width','height'].every(key => Math.abs(previous[key] - r[key]) < 0.5));
+            const hit = document.elementFromPoint(x, y);
+            if (!e.isConnected || e.disabled || e.getAttribute('aria-disabled') === 'true' || !match.test(e.innerText.replace(/\\s+/g,' ').trim()) || !stable || r.width <= 0 || r.height <= 0 || x < 0 || y < 0 || x >= innerWidth || y >= innerHeight || !hit || !e.contains(hit)) return resolve(null);
+            resolve({x,y,text:e.innerText,pattern});
+          });
+        });
+      })`,
     );
   }
   async click(pattern) {
@@ -134,6 +156,14 @@ export class Workbench {
     return rectangle.text;
   }
   async clickAt(rectangle, count = 1) {
+    // Native scrolling and workbench layout can move a previously found control.
+    // Reacquire it after paint and require its center to hit the intended element.
+    const pattern = rectangle.pattern;
+    assert.equal(typeof pattern, 'string', 'Native clicks require a named UI control.');
+    await this.wait(async () => {
+      rectangle = await this.rectangle(pattern);
+      return !!rectangle;
+    }, 'stable UI button ' + pattern);
     for (let clickCount = 1; clickCount <= count; clickCount++) {
       const point = { x: rectangle.x, y: rectangle.y, button: 'left', clickCount };
       await this.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point });
