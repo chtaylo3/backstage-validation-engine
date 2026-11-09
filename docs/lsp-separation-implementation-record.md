@@ -2,12 +2,13 @@
 
 The implementation starts from `fdac6f6`, with the reviewed plan committed and a clean working tree.
 The production baseline remains `cb67908`. No remote branch or pull request is part of this work.
+Phases 0 through 9 are implemented locally. The qualified Linux checks and the remaining environment limits appear below.
 This record separates executed evidence from planned checks.
 
 ## Phase 0 Baseline and contracts
 
 The fresh `npm run check` baseline passed on Linux x64 with Node 24.22.1 and npm 11.19.1.
-It ran 947 source tests and 42 client assertions without failures or skips.
+It ran 947 source tests and 42 client tests without failures or skips.
 Client coverage measured 100% of lines and 95.88% of branches.
 The unchanged client thresholds are 90% of lines and 85% of branches.
 
@@ -106,17 +107,33 @@ Phase 9 moves SARIF formatting to neutral reporting while preserving both public
 All temporary import exceptions are removed. The graph also rejects ownership-component cycles.
 Architecture and LSP documentation describe the implemented owners.
 An installed-editor case now drives the native search picker through selection, cancellation, and a stale captured selection.
-The full source gate passes 973 source assertions and 42 client assertions.
+The full source gate passes 973 source tests and 42 client tests.
 Client coverage remains 100% lines and 95.88% branches.
-Fresh packages built at `8981d22` pass all 973 packaged source assertions.
+Fresh packages built at `8981d22` pass all 973 packaged source tests.
 The native search picker passes in both pinned editors.
 Final review found that an unexpected readiness or resume callback exception could transfer candidate ownership before activation completed.
 The candidate now remains owned until both callbacks succeed. A repeated resume failure remains unavailable and requires reconnection.
 Ten controlled session assertions pass, including injected readiness and resume failures with exactly one candidate disposal.
 A late registration disposer failure now reaches the manager after its original generation is retired.
 Failures during or after replacement activation remain unavailable, invalidate current work, retain a bounded cleanup-failure flag, and require reconnection.
-The full source gate at `87b9a16` passes 974 source assertions plus the unchanged 42 client assertions.
-The final source gate, rebuilt packages, full installed-editor inventory, and Backstage development checks remain in progress.
+The full source gate at `87b9a16` passes 974 source tests plus the unchanged 42 client tests.
+The final source gate at `0b81eac` passes 975 source tests and 42 client tests without failures or skips.
+The clean CLI and VSIX built at that revision pass all 975 packaged tests, 88 portable installed-editor executions, six compatibility executions, and six load/saturation executions.
+The load suite retains the existing 100-file, 1000-file, timing, memory-growth, and handle-growth thresholds.
+It includes the normal post-warmup resource samples and recovery after saturation.
+Backstage 1.55.3 development parity passes all 59 cases, including both installed editors and owned-resource cleanup.
+
+The remote attempt exposed a fixture-bundle name collision after shared schema imports reached that bundle.
+Commit `31cf440` aliases its banner import and checks the generated ESM bundle with `node --check` during packaging.
+The first setup attempt also found a cached editor signature verifier without execute permission.
+Restoring its execute permission preserves signature verification and changes no downloaded bytes.
+The remote harness correctly rejects a normal local package with revision `local`.
+Rebuilding with the checked-out Git revision supplies its required provenance.
+No production source, client source, schema, or dependency input differs between `0b81eac` and `31cf440`.
+The CLI archive digest is unchanged across those builds.
+The stamped packages at `31cf440` pass all 975 packaged tests and all four actual dev-container disconnect/reconnect sessions.
+Backstage 1.56.3 stamped development parity passes all 59 cases with owned-resource cleanup.
+All owned qualification containers were removed. The pre-existing manual environment was left intact.
 
 ### Measurement comparison
 
@@ -129,18 +146,67 @@ Both reports use Node 24.22.1 on Linux x64 and the same fixed fixture digest.
 
 | Scenario                      | Samples | Baseline median ms | Baseline p95 ms | After median ms | After p95 ms |
 | ----------------------------- | ------- | ------------------ | --------------- | --------------- | ------------ |
-| `coldReadiness`               | 5       | 238.421            | 243.664         | 249.609         | 259.758      |
-| `singleFileValidation`        | 20      | 4.901              | 6.188           | 5.112           | 6.063        |
-| `rapidEditConvergence`        | 20      | 4.375              | 6.713           | 4.521           | 6.925        |
-| `reloadAndShutdown`           | 20      | 1.325              | 3.173           | 2.989           | 3.658        |
-| `localCompletionWithHeldHttp` | 20      | 0.331              | 0.456           | 0.345           | 0.838        |
-| `watchedCaptureWithOverlay`   | 20      | 5.155              | 7.867           | 4.896           | 6.550        |
+| `coldReadiness`               | 5       | 238.421            | 243.664         | 251.643         | 263.235      |
+| `singleFileValidation`        | 20      | 4.901              | 6.188           | 4.783           | 6.192        |
+| `rapidEditConvergence`        | 20      | 4.375              | 6.713           | 4.518           | 5.150        |
+| `reloadAndShutdown`           | 20      | 1.325              | 3.173           | 3.036           | 3.919        |
+| `localCompletionWithHeldHttp` | 20      | 0.331              | 0.456           | 0.379           | 0.498        |
+| `watchedCaptureWithOverlay`   | 20      | 5.155              | 7.867           | 5.058           | 6.323        |
 
 No scenario crosses both parts of its recorded regression threshold.
-The largest relative warm p95 increase is local completion while HTTP is held, an absolute increase of 0.382 ms.
-The cold p95 increase is 16.094 ms. Neither requires a flagged-comparison rerun under the recorded rule.
+The largest relative warm p95 increase is reload, an absolute increase of 0.745 ms and a relative increase of 23.49%.
+Its absolute change remains below the 5 ms part of the threshold.
+The cold p95 increase is 19.571 ms and 8.03%. Neither requires a flagged-comparison rerun under the recorded rule.
+The final comparison ran without concurrent formatting, builds, test suites, or owned qualification containers.
 The reload scenario measures each reload and requires one successful terminal shutdown after the samples.
 Controlled tests separately check zero retained registrations after close, one active validation, latest pending work, and no unacknowledged edit wait during shutdown.
-Reports remain under ignored `.artifacts/lsp-separation/baseline-corrected.json` and `after.json`.
+Reports remain under ignored `.artifacts/lsp-separation/baseline-corrected.json` and `after-final-quiet.json`. Intermediate reports are retained but are not the final comparison.
 
-Docker 29.9.2 is available. Final development parity still requires fresh packages and a dedicated run.
+### Added test inventory
+
+The source inventory grows from 947 to 975 assertions. No existing test file or case is removed.
+These are named Node test cases reported by the normal test runner, not sandbox file-wrapper counts.
+The existing explicit LSP and fixture-harness inventories include every relevant new LSP suite.
+
+| File                                   | Added tests | Main invariant                                                                                         |
+| -------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| `test/architecture-boundaries.test.ts` | 1           | Aliases, barrels, type imports, dynamic/literal loaders, and ownership cycles cannot bypass boundaries |
+| `test/lsp-owners.test.ts`              | 3           | Guarded publication and connection-scoped edit reservation                                             |
+| `test/lsp-workspace-state.test.ts`     | 4           | Immutable cached views, lifetimes, guarded captures, atomic mutation                                   |
+| `test/lsp-coordinator.test.ts`         | 3           | One active run, latest pending work, precise idle, bounded close                                       |
+| `test/lsp-request-context.test.ts`     | 3           | Readiness, captured identity, original deadline, cancellation, stale result guards                     |
+| `test/lsp-session-resources.test.ts`   | 10          | Atomic replacement, drains, late resources, fault cleanup, terminal bounded shutdown                   |
+| `test/lsp-config-watches.test.ts`      | 1           | Fixed recovery watch survives replacement; retired credential watches cannot reload                    |
+| `test/native-schema-artifacts.test.ts` | 2           | Pin admission and independent optional presentation failure on both pins                               |
+| `test/lsp-fixes-integration.test.ts`   | 1           | Actual stdio shutdown succeeds with an apply response that never settles                               |
+
+### Final commands and evidence
+
+| Check                                                                                                                    | Executed result                                                                                                | Evidence                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `npm run check`                                                                                                          | 975 source tests and 42 client tests pass; no skips; client coverage 100% lines and 95.88% branches            | Final production revision `0b81eac`                                                 |
+| `npm run cli:package` and `npm run extension:package`                                                                    | Clean fresh packages built; later builds stamp `GITHUB_SHA` with the checked-out revision for remote admission | `.artifacts/cli/`, `.artifacts/vscode/`                                             |
+| `npm run test:packaged`                                                                                                  | 975 pass at both `0b81eac` and stamped `31cf440`; no skips                                                     | `.artifacts/tests/packaged/`                                                        |
+| `npm run test:extension`                                                                                                 | 88 of 88 pass in VS Code 1.106.3 and 1.145.2                                                                   | `.artifacts/lsp-separation/installed-0b81eac.json`                                  |
+| `npm run test:extension:compatibility`                                                                                   | Six of six pass, including the pinned YAML extension                                                           | `.artifacts/lsp-separation/compatibility-0b81eac.json`                              |
+| `npm run test:extension:load`                                                                                            | Six of six pass; unchanged budgets                                                                             | `.artifacts/lsp-separation/load-0b81eac.json` and `.artifacts/vscode/load-results/` |
+| `npm run backstage:test:check`                                                                                           | Target inventory, locks, and seed semantics pass                                                               | Static prerequisite check                                                           |
+| `npm run test:backstage:development -- --target=1.55.3 --run=lsp-separation-final-older --cli=<archive> --vsix=<vsix>`   | 59 of 59 pass; cleanup passes                                                                                  | `.artifacts/backstage/lsp-separation-final-older/results.json`                      |
+| `npm run test:backstage:development -- --target=1.56.3 --run=lsp-separation-stamped-newer --cli=<archive> --vsix=<vsix>` | 59 of 59 pass; cleanup passes                                                                                  | `.artifacts/backstage/lsp-separation-stamped-newer/results.json`                    |
+| `npm run test:extension:remote -- --mode=dev-container`                                                                  | Four of four real remote sessions pass                                                                         | `.artifacts/vscode/remote-results/dev-container/`                                   |
+| `npm run test:extension:remote -- --mode=ssh-remote`                                                                     | Authenticated SSH preflight cannot connect to its loopback listener; zero product sessions execute             | `.artifacts/vscode/remote-results/ssh-remote/`                                      |
+| New-history targeted path scan                                                                                           | 76 new blobs since `fdac6f6`; zero targeted personal-path matches                                              | Read-only object scan, before this documentation-only update                        |
+
+Installed GUI commands use Xvfb and remove the inherited Electron Node-mode and manual launcher/credential variables.
+All runtime and credential fixtures remain isolated. Raw logs and reports stay in ignored artifact directories.
+Packages and reports identify the production revision separately from the later test-harness revision.
+The stamped CLI SHA-256 is `593dd8ba0a4266ea2a4123e3840661531acdbd06b839d2f68d1c94e24a47a27b`.
+The stamped Linux x64 VSIX SHA-256 is `01ec061c90c26d7e41313bc5d45342e20c8c8ee5cd097fb3a881fca3447d394e`.
+Both stamped packages use clean revision `31cf440d0be2013d94e10e76de926b8af516109a`.
+Development evidence does not qualify a release.
+
+The SSH preflight runs under Docker Desktop and WSL2 and returns connection refused from its ephemeral loopback port.
+This environment did not provide a successful SSH remote connection. That lane remains unqualified.
+The WSL remote harness requires a Windows desktop process; this checkout runs as a Linux process.
+Native Windows/macOS, hosted release runs, twenty race repetitions, and long release soaks were not executed here.
+Their separate release requirements and existing thresholds remain unchanged.
