@@ -71,8 +71,11 @@ try {
   await measure(
     'coldReadiness',
     async () => {
+      const started = performance.now();
       const host = await startLspClient(context, plain);
+      const readiness = performance.now() - started;
       await host.shutdown();
+      return readiness;
     },
     5,
   );

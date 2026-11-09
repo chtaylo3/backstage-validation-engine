@@ -55,4 +55,20 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     '--no-exceptions',
   ]);
   assert.match(success.stdout, /boundaries pass/u);
+  await writeFile(
+    path.join(directory, 'src/lsp/workspace-state.ts'),
+    "export * from './request-context.js';",
+  );
+  await writeFile(
+    path.join(directory, 'src/lsp/request-context.ts'),
+    "export * from './workspace-state.js';",
+  );
+  const cycle = await execute(process.execPath, [
+    'scripts/architecture-boundaries.mjs',
+    directory,
+  ]).then(
+    () => assert.fail('Ownership cycle passed.'),
+    (error: unknown) => error as { stderr: string },
+  );
+  assert.match(cycle.stderr, /Ownership dependency cycle/u);
 });

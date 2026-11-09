@@ -99,6 +99,26 @@ Programmatic hosts can import `parseLspConfig`, `createLspRequest`, `createLspCa
 owns provider/runtime lifetime. The stdio launcher closes both its provider and shared CEL runtime
 on shutdown or EOF.
 
+## Internal state and resource ownership
+
+`attachLspServer` composes the workspace, validation coordinator, resource generations, and protocol handlers.
+Features consume immutable document views. A document lifetime changes after close and reopen, even with the same URI and version.
+Source capture commits only when its disk and workspace generations remain current.
+
+Request contexts preserve cancellation, the admitted deadline, and the session identity that owns their resource use.
+Completion, search, hover, definitions, diagnostics, and repairs retain their feature-specific admission rules.
+An outstanding client edit remains reserved across timeout and configuration reload until the client response settles.
+Terminal close prevents new edits and does not await a silent client's acknowledgement.
+
+Reload blocks affected requests, prepares and admits replacement resources, and cancels users of the retired generation.
+One activation commit installs the new services and source selection. Failures cannot reactivate retired resources.
+Session close bounds internal draining and attempts every owned finalizer. Cleanup failure requires reconnecting.
+The process configuration watch survives failed reloads. Each credential watch belongs to its resource generation.
+
+Programmatic hosts retain responsibility for supplied provider/filesystem cleanup through their aggregate `dispose` callback.
+The stdio launcher supplies a callback that attempts both closes. Session replacement does not close its shared CEL runtime.
+See [the implementation record](lsp-separation-implementation-record.md) for qualification evidence.
+
 ## Supported editor lifecycle
 
 - Standard initialize/initialized, UTF-16 positions and incremental open/change/ close
@@ -126,9 +146,9 @@ text-document implementation for UTF-16 edits. The preflight stream bounds messa
 parses them. Stdout contains protocol messages. Startup errors use fixed text on stderr without
 upstream details.
 
-Optional launcher-approved filesystem refresh is described below. Dynamic authority reload, pull
-diagnostics, hover, extension packaging and actual IDE installation qualification remain open. With
-filesystem refresh disabled, closing a buffer restores pinned workspace bytes. Restart with a
+Optional launcher-approved filesystem refresh is described below. Pull diagnostics and broader
+release qualification remain future work. Existing hover, reload, and packaging behavior is documented
+in [editor features](editor-features.md). With filesystem refresh disabled, closing a buffer restores pinned workspace bytes. Restart with a
 refreshed trusted snapshot to incorporate disk changes. Qualified local targets now precede external
 observations.
 

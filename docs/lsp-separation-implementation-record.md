@@ -102,17 +102,37 @@ Presentation loading can fail independently without selecting another native ver
 Seventeen focused compatibility and editor assertions pass on both pins.
 The missing-presentation test injects a reader failure while leaving native SDK exports intact. It also validates an actual suggested edit.
 Fresh packaged execution remains part of phase 9.
-Phase 9 remains pending.
+Phase 9 moves SARIF formatting to neutral reporting while preserving both public re-exports.
+All temporary import exceptions are removed. The graph also rejects ownership-component cycles.
+Architecture and LSP documentation describe the implemented owners.
+An installed-editor case now drives the native search picker through selection, cancellation, and a stale captured selection.
+The full source gate passes 973 source assertions and 42 client assertions.
+Client coverage remains 100% lines and 95.88% branches.
+Fresh package, installed-editor, and Backstage development checks remain in progress.
 
-### Baseline measurements
+### Measurement comparison
 
-| Scenario                      | Samples | Median ms | 95th percentile ms |
-| ----------------------------- | ------- | --------- | ------------------ |
-| `coldReadiness`               | 5       | 258.098   | 278.436            |
-| `singleFileValidation`        | 20      | 5.080     | 6.320              |
-| `rapidEditConvergence`        | 20      | 4.892     | 6.749              |
-| `reloadAndShutdown`           | 20      | 2.810     | 3.212              |
-| `localCompletionWithHeldHttp` | 20      | 0.384     | 0.485              |
-| `watchedCaptureWithOverlay`   | 20      | 5.425     | 7.360              |
+The initial cold metric included shutdown despite its metadata flag.
+The harness now measures initialization readiness before shutdown, while still requiring successful shutdown afterward.
+The corrected baseline uses an isolated source archive of `fdac6f6`, the same locked dependencies, and the corrected harness.
+It does not change the active branch or restore earlier history.
+The table below supersedes the initial combined cold metric and compares matching harness conditions.
+Both reports use Node 24.22.1 on Linux x64 and the same fixed fixture digest.
+
+| Scenario                      | Samples | Baseline median ms | Baseline p95 ms | After median ms | After p95 ms |
+| ----------------------------- | ------- | ------------------ | --------------- | --------------- | ------------ |
+| `coldReadiness`               | 5       | 238.421            | 243.664         | 249.609         | 259.758      |
+| `singleFileValidation`        | 20      | 4.901              | 6.188           | 5.112           | 6.063        |
+| `rapidEditConvergence`        | 20      | 4.375              | 6.713           | 4.521           | 6.925        |
+| `reloadAndShutdown`           | 20      | 1.325              | 3.173           | 2.989           | 3.658        |
+| `localCompletionWithHeldHttp` | 20      | 0.331              | 0.456           | 0.345           | 0.838        |
+| `watchedCaptureWithOverlay`   | 20      | 5.155              | 7.867           | 4.896           | 6.550        |
+
+No scenario crosses both parts of its recorded regression threshold.
+The largest relative warm p95 increase is local completion while HTTP is held, an absolute increase of 0.382 ms.
+The cold p95 increase is 16.094 ms. Neither requires a flagged-comparison rerun under the recorded rule.
+The reload scenario measures each reload and requires one successful terminal shutdown after the samples.
+Controlled tests separately check zero retained registrations after close, one active validation, latest pending work, and no unacknowledged edit wait during shutdown.
+Reports remain under ignored `.artifacts/lsp-separation/baseline-corrected.json` and `after.json`.
 
 Docker 29.9.2 is available. Final development parity still requires fresh packages and a dedicated run.

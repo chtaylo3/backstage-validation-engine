@@ -12,7 +12,20 @@ const domain = new Set([
   'compatibility',
   'runtime',
 ]);
-const temporary = new Set(['src/index.ts -> src/cli/sarif.ts']);
+const ownership = new Set([
+  'src/lsp/workspace-state.ts',
+  'src/lsp/validation-coordinator.ts',
+  'src/lsp/validation-run.ts',
+  'src/lsp/request-context.ts',
+  'src/lsp/session-resources.ts',
+  'src/lsp/diagnostic-publisher.ts',
+  'src/lsp/diagnostics.ts',
+  'src/lsp/client-edits.ts',
+  'src/lsp/config-watches.ts',
+  'src/host/catalog-config.ts',
+  'src/compatibility/schema-artifacts.ts',
+  'src/reporting/sarif.ts',
+]);
 const normalize = (value) => value.replaceAll('\\', '/');
 function category(file) {
   if (file.startsWith('extensions/vscode/src/')) return 'client';
@@ -69,7 +82,7 @@ function dependencies(source) {
   visit(source);
   return result;
 }
-export async function checkArchitecture(root, exceptions = temporary) {
+export async function checkArchitecture(root) {
   const files = [];
   async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
@@ -124,7 +137,9 @@ export async function checkArchitecture(root, exceptions = temporary) {
           failures.add(`${origin} -> ${pkg}`);
       }
       for (const target of graph.get(file) ?? []) {
-        if (forbidden(origin, target) && !exceptions.has(`${origin} -> ${target}`))
+        if (target === origin && ownership.has(origin))
+          failures.add(`Ownership dependency cycle: ${[...chain, file, target].join(' -> ')}`);
+        if (forbidden(origin, target))
           failures.add(`${origin} -> ${target} via ${[...chain, file].join(' -> ')}`);
         visit(target, [...chain, file]);
       }
@@ -135,10 +150,7 @@ export async function checkArchitecture(root, exceptions = temporary) {
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = path.resolve(process.argv[2] ?? '.');
-  const failures = await checkArchitecture(
-    root,
-    process.argv.includes('--no-exceptions') ? new Set() : temporary,
-  );
+  const failures = await checkArchitecture(root);
   if (failures.length) {
     console.error(failures.join('\n'));
     process.exitCode = 1;

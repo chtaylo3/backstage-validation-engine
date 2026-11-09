@@ -7,7 +7,7 @@ import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 export class SessionOperations {
   private readonly controller = new AbortController();
   private readonly work = new Set<Promise<unknown>>();
-  get signal() {
+  get signal(): AbortSignal {
     return this.controller.signal;
   }
   get size() {

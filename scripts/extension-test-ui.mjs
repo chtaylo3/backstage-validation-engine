@@ -368,3 +368,50 @@ export async function controlTrust({ port, base, stage, isExited }) {
     workbench?.close();
   }
 }
+
+/** Drive the product's real reference picker in the owned installed-editor window. */
+export async function controlSearch({ port, base, isExited }) {
+  const workbench = await connectWorkbench(port, isExited);
+  await workbench.call('Page.bringToFront');
+  const file = path.join(base, 'search-control.json');
+  let previous;
+  try {
+    const end = Date.now() + 90_000;
+    while (Date.now() < end) {
+      const state = await read(file);
+      if (state?.step === 'complete') return;
+      if (isExited()) throw new Error('Editor exited before search UI qualification completed.');
+      if (!state || state.step === previous) {
+        await pause(30);
+        continue;
+      }
+      await workbench.wait(
+        () =>
+          workbench.evaluate(
+            "document.activeElement?.matches('.quick-input-widget input') && document.activeElement.getBoundingClientRect().width > 0 && document.querySelector('.quick-input-widget')?.innerText.includes('Backstage: Search Entity References')",
+          ),
+        'product reference picker focus',
+      );
+      if (state.step !== 'accept-stale') {
+        await workbench.evaluate('document.activeElement.select()');
+        await workbench.call('Input.insertText', { text: 'group:default/te' });
+        await workbench.wait(
+          () =>
+            workbench.evaluate(
+              "Array.from(document.querySelectorAll('.quick-input-widget .monaco-list-row')).some(row => row.getBoundingClientRect().width > 0 && row.innerText.includes('group:default/team'))",
+            ),
+          'reference search results',
+        );
+      }
+      if (state.step === 'choose' || state.step === 'accept-stale')
+        await workbench.key('Enter', 'Enter', 13);
+      else if (state.step === 'cancel') await workbench.key('Escape', 'Escape', 27);
+      else assert.equal(state.step, 'hold-stale');
+      await atomic(path.join(base, 'search-ack.json'), { step: state.step });
+      previous = state.step;
+    }
+    throw new Error('Reference search UI qualification exceeded its bound.');
+  } finally {
+    workbench.close();
+  }
+}

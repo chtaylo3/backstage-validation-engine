@@ -20,6 +20,35 @@ These are logical boundaries. Start in one package and split packages when their
 or distribution requirements justify it. Developer installation does not require a broker, database,
 or central validation service.
 
+## Implemented editor and host ownership
+
+CLI and LSP use neutral catalog admission and construction from `src/host/catalog-config.ts`.
+The catalog file does not replace authority from a verified release or trusted editor launcher.
+The root SARIF export uses neutral reporting. The CLI module path remains a compatibility wrapper.
+The import policy rejects reverse domain dependencies and cycles among extracted ownership modules.
+
+The LSP composition root registers protocol handlers and negotiates client capabilities.
+Its owners separate mutable source state, scheduling, session resources, requests, and publication:
+
+| Owner                   | Responsibility                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `WorkspaceState`        | Buffer mutation, immutable document views, lifetimes, source selection, and guarded disk captures |
+| `ValidationCoordinator` | Debounce, cancellation, one active validation, latest pending update, and validation quiescence   |
+| `SessionResources`      | Serialized replacement, one activation commit point, resource users, and bounded retirement       |
+| `RequestContexts`       | Typed admission, captured session/source identity, original deadlines, and stale-result rejection |
+| `DiagnosticPublisher`   | Diagnostic delivery and guarded clears, including document lifetime checks                        |
+| `ClientEdits`           | One connection-wide edit reservation that survives local cancellation and configuration reload    |
+
+Session generations own editor indexes, dynamic registrations, and credential watches.
+The host's aggregate disposal callback closes the provider and filesystem resources it supplies.
+The stdio process owns the fixed configuration watch, protocol connection, and shared managed CEL runtime.
+A configuration reload does not close the shared runtime or create another connection edit slot.
+Cleanup failure keeps the session unavailable and requires reconnection.
+
+Native validation and optional editor presentation metadata share exact native package identity.
+Missing presentation metadata cannot replace native validation or select a different installed version.
+See the [implementation record](lsp-separation-implementation-record.md) for executed qualification and remaining limits.
+
 ## Fixed decisions
 
 - Native Backstage adapters pin catalog-model 1.10.2 and 1.7.5. The initial compatibility surface
