@@ -65,6 +65,28 @@ void test('BC-07 empty snapshots and zero rules remain blocked rather than verif
   );
   assert(!report.coverage.some((row) => row.status === 'verified'));
 });
+void test('BC-07 composed policy reports aggregate shared processor coverage once and remain incomplete on both native pins', async () => {
+  for (const adapterId of BACKSTAGE_ADAPTER_IDS) {
+    const state = blocked({ profile: { adapterId, requiredProcessors: processors } });
+    const report = await validatePolicySources(state.request, state.context);
+    const keys = report.coverage.map((row) => JSON.stringify([row.stage, row.subject]));
+    assert.equal(new Set(keys).size, keys.length);
+    assert.equal(report.coverage.filter((row) => row.status === 'unsupported').length, 1);
+    const result = createValidationResult({
+      request: report.request,
+      coverage: report.coverage,
+      findings: report.findings,
+      artifacts: report.compatibility.artifacts,
+      ruleStates: report.ruleStates,
+      interrupted: report.interrupted,
+      completedAt: Date.now(),
+      authorityCheckedAt: state.request.execution.startedAt,
+    });
+    assert.equal(result.outcome, 'incomplete');
+    assert.equal(resultExitCode(result), 2);
+    assert(result.ruleStates.every((row) => row.status === 'blocked'));
+  }
+});
 void test('BC-07 direct normalized rule execution cannot bypass required processing or run CEL', async () => {
   const state = blocked({
     rules: [

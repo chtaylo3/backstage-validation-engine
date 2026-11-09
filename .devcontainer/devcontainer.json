@@ -1,0 +1,7 @@
+{
+  "name": "Backstage integration tools",
+  "image": "bve-backstage-test:local",
+  "remoteUser": "pwuser",
+  "runArgs": ["--entrypoint=/bin/sh"],
+  "overrideCommand": true
+}

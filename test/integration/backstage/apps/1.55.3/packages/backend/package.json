@@ -1,0 +1,21 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.mjs",
+  "backstage": {
+    "role": "backend"
+  },
+  "dependencies": {
+    "@backstage/backend-defaults": "0.18.0",
+    "@backstage/backend-plugin-api": "1.10.1",
+    "@backstage/catalog-model": "1.10.1",
+    "@backstage/config": "1.3.9",
+    "@backstage/plugin-app-backend": "0.5.18",
+    "@backstage/plugin-auth-backend": "0.30.1",
+    "@backstage/plugin-auth-backend-module-guest-provider": "0.2.23",
+    "@backstage/plugin-catalog-backend": "4.0.0",
+    "app": "workspace:*",
+    "better-sqlite3": "12.4.1"
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "editorVersions": ["1.106.3", "1.145.2"],
+  "cases": [
+    {
+      "id": "environment.build",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.startup",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.web",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.authentication",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.repeat-seed",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.mutation",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.persistence",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.reset",
+      "scope": "environment"
+    },
+    {
+      "id": "environment.cleanup",
+      "scope": "environment"
+    },
+    {
+      "id": "cli.valid-json",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.valid-sarif",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.native-rejection",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.policy-violation",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.malformed-yaml",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.missing-reference",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.required-processor",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.missing-credentials",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.invalid-credentials",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.permission-denied",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.outage",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.recovery",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.mutation",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.parity",
+      "scope": "cli"
+    },
+    {
+      "id": "editor.installation",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.diagnostics",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.completion",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.guarded-fix",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.unsaved-edits",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.watcher",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.stale-fix",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.restart",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.mutation",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.permission-denied",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.outage-recovery",
+      "scope": "editor"
+    },
+    {
+      "id": "editor.parity",
+      "scope": "editor"
+    },
+    {
+      "id": "runner.invalid-seed",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.duplicate-seed",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.missing-report",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.failure-accounting",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.cleanup-accounting",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.build-failure",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.ingestion-failure",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.editor-crash",
+      "scope": "runner"
+    },
+    {
+      "id": "runner.interrupted-run",
+      "scope": "runner"
+    },
+    {
+      "id": "cli.invalid-snapshot",
+      "scope": "cli"
+    },
+    {
+      "id": "cli.incomplete-sarif",
+      "scope": "cli"
+    },
+    {
+      "id": "runner.malformed-json",
+      "scope": "runner"
+    }
+  ]
+}

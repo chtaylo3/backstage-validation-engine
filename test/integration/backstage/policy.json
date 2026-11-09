@@ -1,0 +1,63 @@
+{
+  "bundle": {
+    "contractVersion": "0.2",
+    "id": "backstage-release",
+    "revision": "1",
+    "extends": [],
+    "rules": [
+      {
+        "id": "owner-exists",
+        "version": "1",
+        "kind": "catalog",
+        "check": "exists",
+        "referencePath": "/spec/owner",
+        "selector": "entity.kind == \"Component\"",
+        "mandatory": true,
+        "severity": "error",
+        "requires": []
+      },
+      {
+        "id": "production-only",
+        "version": "1",
+        "kind": "schema",
+        "schema": {
+          "id": "backstage-release/production",
+          "version": "1",
+          "digest": "sha256:6a2bcd6ee89d905bd00dac3092cafbf83cb035902aee430e1b63660f52906dbf"
+        },
+        "mandatory": true,
+        "severity": "error",
+        "requires": []
+      }
+    ],
+    "schemas": [
+      {
+        "id": "backstage-release/production",
+        "version": "1",
+        "digest": "sha256:6a2bcd6ee89d905bd00dac3092cafbf83cb035902aee430e1b63660f52906dbf"
+      }
+    ],
+    "plugins": []
+  },
+  "schemas": [
+    {
+      "contractVersion": "0.2",
+      "id": "backstage-release/production",
+      "version": "1",
+      "digest": "sha256:6a2bcd6ee89d905bd00dac3092cafbf83cb035902aee430e1b63660f52906dbf",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "object",
+            "properties": {
+              "lifecycle": {
+                "const": "production"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

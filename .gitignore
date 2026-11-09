@@ -11,3 +11,7 @@
 .DS_Store
 /.artifacts/
 /.vscode-test/
+/test/integration/backstage/apps/*/node_modules/
+/test/integration/backstage/apps/*/.yarn/
+/test/integration/backstage/apps/*/packages/app/dist/
+/test/integration/backstage/apps/*/dist-types/

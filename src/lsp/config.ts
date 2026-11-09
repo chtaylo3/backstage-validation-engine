@@ -39,6 +39,7 @@ const schema = Type.Object(
         {
           connectionId: text,
           baseUrl: text,
+          allowInsecureHttp: Type.Optional(Type.Boolean()),
           principalId: text,
           credentialRevision: text,
           scope: Type.Array(Type.String({ minLength: 1, maxLength: 128 }), {
@@ -136,6 +137,9 @@ export async function createLspCatalog(config: LspConfig, environment: NodeJS.Pr
   const provider: CatalogProvider = await createCatalogProvider({
     connectionId: settings.connectionId,
     baseUrl: settings.baseUrl,
+    ...(settings.allowInsecureHttp === undefined
+      ? {}
+      : { allowInsecureHttp: settings.allowInsecureHttp }),
     adapterId: config.profile.adapterId,
     credentials: (access) =>
       Promise.resolve({

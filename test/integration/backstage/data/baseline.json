@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "id": "baseline",
+  "entities": [
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Group",
+      "metadata": {
+        "name": "team-demo",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "type": "team",
+        "children": []
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "User",
+      "metadata": {
+        "name": "alice",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "memberOf": ["group:bve-demo/team-demo"]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Component",
+      "metadata": {
+        "name": "demo-service",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "type": "service",
+        "lifecycle": "production",
+        "owner": "group:bve-demo/team-demo",
+        "system": "system:bve-demo/demo-system",
+        "providesApis": ["api:bve-demo/demo-api"]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "API",
+      "metadata": {
+        "name": "demo-api",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "type": "openapi",
+        "lifecycle": "production",
+        "owner": "group:bve-demo/team-demo",
+        "definition": "openapi: 3.0.0\ninfo:\n  title: Demo\n  version: 1.0.0\npaths: {}\n"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "System",
+      "metadata": {
+        "name": "demo-system",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "owner": "group:bve-demo/team-demo",
+        "domain": "domain:bve-demo/demo-domain"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Domain",
+      "metadata": {
+        "name": "demo-domain",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "owner": "group:bve-demo/team-demo"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Resource",
+      "metadata": {
+        "name": "demo-database",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "type": "database",
+        "owner": "group:bve-demo/team-demo",
+        "system": "system:bve-demo/demo-system"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Location",
+      "metadata": {
+        "name": "demo-location",
+        "namespace": "bve-demo"
+      },
+      "spec": {
+        "type": "file",
+        "target": "./child.yaml"
+      }
+    }
+  ],
+  "entityFiles": [
+    {
+      "filename": "child.yaml",
+      "entities": [
+        {
+          "apiVersion": "backstage.io/v1alpha1",
+          "kind": "Component",
+          "metadata": {
+            "name": "included-service",
+            "namespace": "bve-demo"
+          },
+          "spec": {
+            "type": "service",
+            "lifecycle": "production",
+            "owner": "group:bve-demo/team-demo"
+          }
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "entityRefs": [
+      "api:bve-demo/demo-api",
+      "component:bve-demo/demo-service",
+      "component:bve-demo/included-service",
+      "domain:bve-demo/demo-domain",
+      "group:bve-demo/team-demo",
+      "location:bve-demo/demo-location",
+      "resource:bve-demo/demo-database",
+      "system:bve-demo/demo-system",
+      "user:bve-demo/alice"
+    ],
+    "relations": [
+      {
+        "source": "component:bve-demo/demo-service",
+        "type": "ownedBy",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "user:bve-demo/alice",
+        "type": "memberOf",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "component:bve-demo/demo-service",
+        "type": "providesApi",
+        "target": "api:bve-demo/demo-api"
+      },
+      {
+        "source": "system:bve-demo/demo-system",
+        "type": "partOf",
+        "target": "domain:bve-demo/demo-domain"
+      }
+    ],
+    "absentEntityRefs": ["group:bve-demo/team-next"]
+  }
+}

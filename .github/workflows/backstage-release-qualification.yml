@@ -1,0 +1,87 @@
+name: Backstage release qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact candidate commit (must match the selected workflow ref)
+        type: string
+        required: true
+  workflow_call:
+    inputs:
+      revision:
+        description: Exact release candidate from the manual release orchestrator
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: backstage-release-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  backstage:
+    name: Real Backstage, packaged CLI and installed Linux VSIX
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BVE_REQUESTED_REVISION: ${{ inputs.revision }}
+      BVE_BACKSTAGE_RUN: release-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Require the workflow and candidate to identify the same commit
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {execFileSync} from "node:child_process";
+            const revision = process.env.BVE_REQUESTED_REVISION;
+            assert(/^[0-9a-f]{40}$/.test(revision), "Supply an exact candidate commit.");
+            assert.equal(revision, process.env.GITHUB_SHA, "Dispatch the workflow at the candidate ref.");
+            assert.equal(execFileSync("git", ["rev-parse", "HEAD"], {encoding:"utf8"}).trim(), revision);
+          '
+      - run: npm ci
+      - name: Download the exact Linux VSIX candidate
+        run: node scripts/use-extension-candidate.mjs --os=ubuntu-24.04
+      - name: Download the exact CLI candidate
+        run: node scripts/use-cli-candidate.mjs
+      - name: Build and qualify the shared environment
+        id: environment
+        run: |
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import {spawnSync} from "node:child_process";
+            const cli = JSON.parse(readFileSync(".artifacts/cli/package-info.json", "utf8"));
+            const editor = JSON.parse(readFileSync(".artifacts/vscode/package-info.json", "utf8"));
+            const result = spawnSync(process.execPath, ["scripts/backstage-test-env.mjs", "release",
+              "--revision=" + process.env.GITHUB_SHA,
+              "--run=" + process.env.BVE_BACKSTAGE_RUN,
+              "--cli=" + cli.archive, "--vsix=" + editor.vsix], {stdio:"inherit"});
+            if (result.error) throw result.error;
+            process.exitCode = result.status ?? 1;
+          '
+      - name: Clean resources through the shared runner
+        if: ${{ always() && steps.environment.outcome != 'skipped' }}
+        timeout-minutes: 10
+        run: node scripts/backstage-test-env.mjs clean --run=${{ env.BVE_BACKSTAGE_RUN }}
+      - name: Retain sanitized real-backend qualification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: backstage-release-qualification
+          path: |
+            .artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/results.json
+            .artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/junit.xml
+            .artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/*/reports/
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

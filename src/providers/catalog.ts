@@ -141,6 +141,8 @@ export async function createCatalogProvider(
 ): Promise<CatalogProvider> {
   let baseUrl: string;
   try {
+    if (options.allowInsecureHttp !== undefined && typeof options.allowInsecureHttp !== 'boolean')
+      throw new Error('transport');
     const url = new URL(options.baseUrl);
     if (
       url.username ||
@@ -148,7 +150,11 @@ export async function createCatalogProvider(
       url.search ||
       url.hash ||
       (url.protocol !== 'https:' &&
-        !(url.protocol === 'http:' && ['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname)))
+        !(
+          url.protocol === 'http:' &&
+          (['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname) ||
+            options.allowInsecureHttp === true)
+        ))
     ) {
       throw new Error('endpoint');
     }

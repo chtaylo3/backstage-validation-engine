@@ -20,5 +20,5 @@
     "noEmit": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "extensions/vscode/**/*.ts"],
-  "exclude": ["plan", "node_modules", "dist", ".test-dist"]
+  "exclude": ["plan", "node_modules", "dist", ".test-dist", "test/integration/backstage/apps"]
 }

@@ -1,33 +1,45 @@
 # Backstage Validation Engine
 
-One TypeScript engine for consistent Backstage catalog validation across CLI/CI,
-IDEs, and hosted GitHub execution.
+One TypeScript engine validates Backstage catalog data in command-line tools, continuous integration
+(CI), editors, and hosted GitHub runs.
 
-**Status: source parsing, declared BC-01 through BC-07, signed policies, CLI and stdio LSP implemented.** Contract version
-0.2, immutable snapshots, pinned-artifact consistency, supervised CEL/RE2 workers,
-and dependency-aware rule execution are available. YAML parsing includes bounded
-normalization, UTF-16 locations and CI/IDE document handling. Pinned Backstage
-adapters apply native kinds/policies and field-specific references with source
-provenance. Explicit catalog rules feed cancellable, versioned LSP diagnostics.
-Snapshot-local substitutions preserve included-file ranges and buffer versions.
-Pinned kind/source admission and custom schemas run before rules. Proposed
-overlays now qualify local targets and mask removed/invalid identities before
-catalog lookup. Required unavailable processing blocks all dependent stages.
-Optional host-approved filesystem refresh updates saved files and includes through
-LSP save/watch notifications while preserving open buffers and original deadlines.
-Signed releases preserve host-required baseline inheritance and activate pinned
-schema/CEL/catalog policies. The CLI emits contract JSON or SARIF with explicit
-0/1/2 exits. A self-contained VS Code preview packages the engine and Node runtime;
-[GitHub Actions](docs/github-actions.md) runs the full source/packaged harness and
-installed-editor tests across Linux, Windows and macOS, retaining VSIX artifacts.
-Executable processor integrations and hosted governance control remain.
-Bounded catalog HTTP access returns immutable observations with scoped caches,
-retry limits and cancellation, tested against pinned multi-version fixtures.
-This package is private during development.
+Source parsing, declared BC-01 through BC-07 compatibility, signed policies, the CLI, and the stdio
+language server are implemented. The CLI is the command-line interface. The language server uses the
+Language Server Protocol (LSP) for editor features. The current contract version is 0.2. The package
+remains private during development.
+
+Snapshots preserve fixed copies of source and data. The engine checks that pinned artifacts match
+those copies. It runs CEL expressions and RE2 patterns in supervised workers. CEL is the Common
+Expression Language for policy expressions. RE2 provides bounded regular-expression matching. Rules
+follow their declared dependencies.
+
+YAML parsing limits resource use and preserves UTF-16 source locations for CI and editors.
+
+Pinned Backstage adapters apply native kind and policy checks. They retain each field's source and
+normalization history. Local substitutions preserve included-file ranges and buffer versions.
+Admission rules and custom schemas run before policy rules.
+
+Proposed catalog overlays represent local changes. They recognize valid local targets and hide
+removed or invalid identities before catalog lookup. If required processing is unavailable, every
+dependent stage stops.
+
+Explicit catalog rules produce cancellable LSP diagnostics tied to document versions. With host
+approval, filesystem refresh updates saved files and includes through LSP save and watch
+notifications. It preserves open buffers and the original request deadline. Signed releases retain
+required baseline policies and activate pinned schema, CEL, and catalog policies. The CLI emits
+contract JSON or SARIF reports with exit codes 0, 1, or 2. SARIF is a standard format for
+code-analysis results.
+
+The VS Code preview packages the engine and Node runtime in a VSIX, an installable extension
+package. [GitHub Actions](docs/github-actions.md) runs source, packaged, and installed-editor tests
+on Linux, Windows, and macOS and retains the VSIX artifacts. Catalog HTTP access returns immutable
+observations. It limits cache scope, retries, and execution time and supports cancellation. Tests
+use pinned fixtures for multiple backend versions. Executable processor integrations and hosted
+governance control remain open.
 
 ## Development
 
-Use Node **24.x** and npm **11.x**. `.nvmrc` pins the development runtime.
+Use Node 24.x and npm 11.x. `.nvmrc` pins the development runtime.
 
 ```bash
 nvm install
@@ -36,21 +48,21 @@ npm ci
 npm run check
 ```
 
-`npm run check` runs strict type checking, ESLint, formatting verification, schema
-drift detection, a production build, and the tests. CI schedules the same checks
-on Linux, Windows, and macOS; a configured matrix is not evidence that those runs
-have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
+`npm run check` checks types, lint, formatting, and generated schemas, then builds the production
+package and runs tests. CI runs the same checks on Linux, Windows, and macOS. A configured matrix
+does not prove that its runs passed. `.npmrc` disables dependency lifecycle scripts.
 
 | Command                                   | Purpose                                                             |
 | ----------------------------------------- | ------------------------------------------------------------------- |
 | `npm run build`                           | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
+| `npm run cli:package`                     | Build a CLI archive with a locked dependency graph and provenance   |
 | `npm test`                                | Compile and run the Node test suite                                 |
 | `npm run test:harness`                    | Check version selection, pinned artifacts and concurrent fixtures   |
 | `npm run test:lsp`                        | Exercise catalog policies, fixes, completion and stdio lifecycle    |
 | `npm run fixtures:serve`                  | Start the pinned fake catalog APIs on isolated localhost ports      |
 | `npm run fixtures:refresh`                | Capture latest patches and upstream specs for supported minors      |
 | `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |
-| `npm run test:coverage`                   | Run tests with Node's experimental coverage report                  |
+| `npm run test:coverage`                   | Run tests with the experimental coverage report from Node           |
 | `npm run lint`                            | Run ESLint with TypeScript type information                         |
 | `npm run format`                          | Format source, examples, and documentation                          |
 | `npm run schemas:generate`                | Regenerate checked-in JSON Schemas from the contract definitions    |
@@ -68,7 +80,7 @@ have passed. Dependency lifecycle scripts are disabled in `.npmrc`.
 
 ## Use the foundation
 
-After building, run this from the repository root:
+Build the project. Then run this example from the repository root:
 
 ```js
 import { createSourceSnapshot, overlaySourceSnapshot, parseContract } from './dist/index.js';
@@ -97,39 +109,43 @@ parseContract('source-snapshot', proposed); // Checks shape, limits, and digests
 console.log(proposed.digest);
 ```
 
-Snapshots copy and freeze their input. This example demonstrates source
-snapshotting; YAML and entity validation have not run.
+Snapshots copy and freeze their input. This example creates a source snapshot and overlays a buffer
+change. It does not parse YAML or validate entities.
 
-For managed selectors/expressions, cancellation, and rule reports, see the
+For managed rule selectors and expressions, cancellation, and rule reports, see the
 [CEL runtime guide](docs/cel-runtime.md) and runnable `npm run example:cel` fixture.
 
 For YAML parsing, exact source ranges, recovery and budgets, see the
 [parsing guide](docs/parsing.md) and `npm run example:parse`.
 
-For versioned native envelopes/kinds, policies and normalization provenance, see
+For versioned native entity and kind checks, policies, and normalization history, see
 [Backstage compatibility](docs/backstage-compatibility.md) and `npm run example:backstage`.
 
-For the versioned catalog HTTP fake, fixture controls and upstream update process,
-see the [testing harness guide](docs/testing-harness.md). Start one minor with
+For the versioned catalog HTTP fake, fixture controls and upstream update process, see the
+[testing harness guide](docs/testing-harness.md). Start one minor with
 `npm run fixtures:serve -- 1.56`, or omit the minor to start all fixture targets.
 
-For contextual references and source-to-provider data pinning, see
+For reference contexts and fixed provider data collected from source references, see
 [source references](docs/source-references.md) and `npm run example:references -- URL`.
 
-For catalog-existence policies, trusted launcher setup, and the stdio language
-server, see the [LSP guide](docs/lsp.md).
+For optional real Backstage and SQLite tests, see the [environment guide](test/integration/backstage/README.md).
+The shared Compose environment runs the packaged CLI and installed VSIX against actual catalog ingestion.
+Its full suite runs during release qualification or explicit local tests.
 
-For safe local includes, file Locations, source roots and catalog entrypoints,
-see [snapshot-local substitutions](docs/substitutions.md).
+For catalog-existence policies, trusted launcher setup, and the stdio language server, see the
+[LSP guide](docs/lsp.md).
 
-For global/source allowances, pinned custom schemas and launcher artifacts, see
+For safe local includes, file Locations, source roots and catalog entrypoints, see
+[snapshot-local substitutions](docs/substitutions.md).
+
+For kind allowances by source, pinned custom schemas, and launcher artifacts, see
 [admission and custom kinds](docs/admission-custom-kinds.md).
 
-For local catalog precedence, baseline snapshots, deletions/renames and conflicts,
-see [proposed catalog overlays](docs/proposed-overlays.md).
+For local catalog precedence, baseline snapshots, deletions/renames and conflicts, see
+[proposed catalog overlays](docs/proposed-overlays.md).
 
-For immutable signed releases, mandatory policy inheritance, schema rules and
-JSON/SARIF commands, see the [policy and CLI guide](docs/policy-cli.md).
+For immutable signed releases, mandatory policy inheritance, schema rules and JSON/SARIF commands,
+see the [policy and CLI guide](docs/policy-cli.md).
 
 ## Structure
 
@@ -149,15 +165,15 @@ test/          Contract, integrity, resource, and enforcement tests
 docs/          Architecture, contract semantics, and delivery status
 ```
 
-Start with [architecture](docs/architecture.md), [contract semantics](docs/contracts.md),
-and [implementation status](docs/implementation-status.md). See
-[CONTRIBUTING.md](CONTRIBUTING.md) for change and verification conventions.
+Start with [architecture](docs/architecture.md), [contract semantics](docs/contracts.md), and
+[implementation status](docs/implementation-status.md). See [CONTRIBUTING.md](CONTRIBUTING.md) for
+change and verification conventions.
 
-The local `plan/` directory is a separate, ignored planning repository. Its
-prototypes, frozen 0.1 fixtures, and historical evidence remain intact. Production
-builds and tests do not depend on that directory.
+The local `plan/` directory contains a separate Git repository that the main repository ignores. It
+retains the prototypes, frozen 0.1 fixtures, and historical evidence. Production builds and tests do
+not depend on it.
 
 ## License
 
-[Apache License 2.0](LICENSE), following the provisional licensing direction in
-the accepted implementation plan.
+[Apache License 2.0](LICENSE), following the provisional licensing direction in the accepted
+implementation plan.

@@ -11,6 +11,7 @@ import {
   digestJson,
   formatSarif,
   parseContract,
+  signPolicyRelease,
 } from '../src/index.js';
 import type { formatSarifError } from '../src/index.js';
 import { makeRequest, NOW, URI, verifiedCoverage } from './helpers.js';
@@ -114,6 +115,37 @@ void test('CLI SARIF supports atomic output files and stable fingerprints withou
   assert(result.runs[0]?.results[0]?.partialFingerprints['bveFindingId/v1']);
   assert.equal(result.runs[0]?.results[0]?.locations[0]?.physicalLocation.region.startLine, 6);
   assert(!JSON.stringify(result).includes('experimental'));
+});
+
+void test('CLI unavailable required processing emits incomplete JSON and SARIF rather than a duplicate-coverage configuration error', async (t) => {
+  const f = await fixture(t);
+  const signed = releaseFixture({ rules: [schemaRule, ownerRule], schemaArtifacts: [artifact] });
+  const profile = parseContract('deployment-profile', {
+    ...signed.payload.profile,
+    requiredProcessors: [{ id: 'required-transform', stage: 'before-native' }],
+  });
+  const release = signPolicyRelease(
+    {
+      ...signed.payload,
+      profile,
+      activation: { ...signed.payload.activation, profileDigest: digestJson(profile) },
+    },
+    signed.privatePem,
+    'host-key-1',
+  );
+  await writeFile(resolve(f.directory, 'release.json'), JSON.stringify(release));
+  await writeFile(resolve(f.directory, 'trust.json'), JSON.stringify(signed.trust));
+  const json = await cli(f.args);
+  assert.equal(json.code, 2);
+  const result = parseContract('validation-result', JSON.parse(json.stdout) as unknown);
+  assert.equal(result.outcome, 'incomplete');
+  assert.equal(result.coverage.filter((row) => row.status === 'unsupported').length, 1);
+  assert(result.ruleStates.every((row) => row.status === 'blocked'));
+  const sarif = await cli([...f.args, '--format', 'sarif']);
+  assert.equal(sarif.code, 2);
+  const report = JSON.parse(sarif.stdout) as ReturnType<typeof formatSarif>;
+  assert.equal(report.runs[0]?.invocations[0]?.executionSuccessful, false);
+  assert(report.runs[0]?.results.some((row) => row.ruleId === 'backstage/processors/unavailable'));
 });
 
 void test('CLI rejects tampered/expired releases, weak trust and invalid arguments with redacted exit 2', async (t) => {
