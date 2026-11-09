@@ -357,6 +357,50 @@ Consult that run for actual results. Local installed-VSIX testing exercises real
 completion, fixes, saved-file watchers and process cleanup. Interactive UX/upgrade, JetBrains,
 Marketplace publication and real-backend qualification remain release work.
 
+## Editor authoring and workspace increment
+
+Field-name and schema-value suggestions now use pinned native schemas, exact custom-kind artifacts,
+and applicable schema policies. Recovery metadata supports unfinished edits without entering the
+validation pipeline. Hover exposes descriptions and constraints. Definitions resolve unique local
+entity targets. Explicit schema repairs and required-field placeholders use the existing versioned
+fix registry. Qualified structured includes retain actual payload ranges.
+
+VS Code adds catalog search and bounded persistent selection ranking. Host-approved discovery adds
+matching files under pinned roots while retaining filesystem containment and read checks. The stdio
+host reloads its fixed configuration and optional credential file without replacing its process.
+Invalid reloads stop validation and suggestions until repair. Source scope changes that require new
+client selectors require a reconnect. An LSP4IJ template generator supplies JetBrains setup.
+See [editor features and boundaries](editor-features.md).
+
+Automated coverage includes source ranges, unfinished YAML/JSON, both native pins, custom schemas,
+policy prerequisites, structured includes, explicit repairs, discovery, search ranking, credential
+rotation, reload failure/recovery, and shared stdio features. A new installed-VSIX case exercises
+field/value suggestions, hover, definitions, and reload without replacing the server process.
+Installed JetBrains qualification, Marketplace publication, the complete native platform matrix,
+and exact-candidate release evidence remain separate release work.
+
+Local development checks on 2026-11-09: `npm run check` and `npm run test:packaged` each passed
+932 tests with no failures or skips. The installed-VSIX `editor-intelligence` case passed on
+VS Code 1.106.3 and 1.145.2 on Linux x64. Initial GUI launches stopped before the test driver
+because the host supplied `ELECTRON_RUN_AS_NODE=1`. Clearing that inherited flag allowed both
+editor cases to execute. These development results do not qualify the complete release matrix.
+
+The PR follow-up adds 15 client tests and corrects document selection after configuration reload.
+Explicit file approval does not approve neighboring documents. Root matching uses path containment.
+The source suite passes 947 tests. The separate client gate passes 42 tests with 100% line coverage
+and 95.88% branch coverage. `npm run check` now enforces that gate too.
+
+The [rule and editor capability plan](plugin-capabilities-plan.md) specifies the next contract work
+for CEL, RE2, and approved providers. It defines shared lifecycle and result bindings, separate
+interfaces for each editor function, candidate/repair evidence, runtime requirements, and PC-01
+through PC-10 conformance gates. These proposed interfaces and general executable-plugin support
+are not implemented by the current schema-focused editor increment.
+
+The plan also specifies live catalog dependency refresh and PC-11 qualification. Cache expiry alone
+does not currently revalidate idle editor buffers. Bounded background refresh, optional change
+notifications, remote dependency generations, query/absence invalidation, and same-version
+diagnostic publication remain required implementation work.
+
 ## Next increments, in order
 
 1. IDE qualification. Broaden interactive UX/upgrade and in-flight fix/version tests, qualify

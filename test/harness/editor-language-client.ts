@@ -12,8 +12,18 @@ export function onStart(action?: () => Promise<void>) {
 export function onStop(action?: () => Promise<void>) {
   stopping = action;
 }
+export interface ClientRequest {
+  readonly method: string;
+  readonly params: unknown;
+  readonly token: { readonly isCancellationRequested: boolean } | undefined;
+}
 export class LanguageClient {
   running = false;
+  readonly requests: string[] = [];
+  readonly requestCalls: ClientRequest[] = [];
+  requestHandler: ((request: ClientRequest) => Promise<unknown>) | undefined;
+  readonly notifications: { method: string; value: unknown }[] = [];
+  readonly notificationHandlers = new Map<string, () => void>();
   serverProcess: { pid: number } | undefined = { pid: 1000 + clients.length };
   constructor(
     readonly id: string,
@@ -33,5 +43,23 @@ export class LanguageClient {
   }
   isRunning() {
     return this.running;
+  }
+  onNotification(method: string, handler: () => void) {
+    this.notificationHandlers.set(method, handler);
+    return {
+      dispose: () => {
+        this.notificationHandlers.delete(method);
+      },
+    };
+  }
+  sendNotification(method: string, value: unknown) {
+    this.notifications.push({ method, value });
+    return Promise.resolve();
+  }
+  sendRequest(method: string, params?: unknown, token?: ClientRequest['token']) {
+    this.requests.push(method);
+    const request = { method, params, token };
+    this.requestCalls.push(request);
+    return this.requestHandler?.(request) ?? Promise.resolve({ reloaded: true });
   }
 }

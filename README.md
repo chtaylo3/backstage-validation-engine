@@ -49,7 +49,7 @@ npm run check
 ```
 
 `npm run check` checks types, lint, formatting, and generated schemas, then builds the production
-package and runs tests. CI runs the same checks on Linux, Windows, and macOS. A configured matrix
+package, runs tests, and enforces client coverage. CI runs the same checks on Linux, Windows, and macOS. A configured matrix
 does not prove that its runs passed. `.npmrc` disables dependency lifecycle scripts.
 
 | Command                                   | Purpose                                                             |
@@ -63,6 +63,7 @@ does not prove that its runs passed. `.npmrc` disables dependency lifecycle scri
 | `npm run fixtures:refresh`                | Capture latest patches and upstream specs for supported minors      |
 | `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |
 | `npm run test:coverage`                   | Run tests with the experimental coverage report from Node           |
+| `npm run test:client`                     | Check VS Code client behavior and coverage thresholds               |
 | `npm run lint`                            | Run ESLint with TypeScript type information                         |
 | `npm run format`                          | Format source, examples, and documentation                          |
 | `npm run schemas:generate`                | Regenerate checked-in JSON Schemas from the contract definitions    |
@@ -134,6 +135,13 @@ Its full suite runs during release qualification or explicit local tests.
 
 For catalog-existence policies, trusted launcher setup, and the stdio language server, see the
 [LSP guide](docs/lsp.md).
+
+For field and value suggestions, hover, definitions, schema repairs, catalog search, discovery,
+configuration reload, and JetBrains setup, see [editor features](docs/editor-features.md).
+
+For future CEL, RE2, and plugin contributions, see the
+[rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
+execution controls, and conformance tests for each supported function.
 
 For safe local includes, file Locations, source roots and catalog entrypoints, see
 [snapshot-local substitutions](docs/substitutions.md).

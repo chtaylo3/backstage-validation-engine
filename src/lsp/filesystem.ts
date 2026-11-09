@@ -8,6 +8,7 @@ import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.j
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import type { LspConfig } from './config.js';
+import { approvedFilesystemUri, discoverFiles } from './discovery.js';
 
 export class FilesystemSnapshotError extends Error {
   override readonly name = 'FilesystemSnapshotError';
@@ -46,7 +47,7 @@ const inside = (root: string, path: string) => {
   );
 };
 
-/** Exact host allowlist; no directory discovery, source-selected paths or network loaders. */
+/** Host allowlist and optional bounded discovery; every read retains containment checks. */
 export async function createFilesystemSource(config: LspConfig): Promise<FilesystemSource> {
   const settings = config.filesystem;
   const rootUri = config.source.rootUri;
@@ -181,7 +182,17 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
     );
     try {
       const skip = new Set(options.skip ?? []);
-      if (skip.size > 1000 || [...skip].some((uri) => !allowed.has(uri))) fail('containment');
+      if (skip.size > 1000 || [...skip].some((uri) => !approvedFilesystemUri(config, uri)))
+        fail('containment');
+      const discovered = await discoverFiles(config, budget, async (directory) => {
+        if (directory === root) await checkRoot(budget);
+        else await checkPath(directory, budget);
+      });
+      const capturePaths = new Map(paths);
+      for (const uri of [...discovered, ...base.files.map((file) => file.uri)]) {
+        if (approvedFilesystemUri(config, uri)) capturePaths.set(uri, fileURLToPath(uri));
+      }
+      if (capturePaths.size > 1000) fail('limit');
       const updates: Parameters<typeof overlaySourceSnapshot>[1][number][] = [];
       let bytes = 0;
       // Bound descriptors and in-flight bytes while overlapping independent
@@ -194,7 +205,7 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
           Math.floor(config.profile.limits.requestBytes / config.profile.limits.fileBytes),
         ),
       );
-      const selected = [...paths].filter(([uri]) => !skip.has(uri));
+      const selected = [...capturePaths].filter(([uri]) => !skip.has(uri));
       for (let offset = 0; offset < selected.length; offset += width) {
         const batch = selected.slice(offset, offset + width);
         const reads = await Promise.allSettled(batch.map(([, path]) => read(path, budget)));
@@ -266,6 +277,17 @@ export function reconcileFilesystemSource(
     ? next
     : createSourceSnapshot({
         ...next,
-        entrypoints: planned.filter((uri) => next.files.some((file) => file.uri === uri)),
+        entrypoints: [
+          ...new Set([
+            ...planned,
+            ...next.files
+              .filter(
+                (file) =>
+                  !config.filesystem?.files.includes(file.uri) &&
+                  approvedFilesystemUri(config, file.uri),
+              )
+              .map((file) => file.uri),
+          ]),
+        ].filter((uri) => next.files.some((file) => file.uri === uri)),
       });
 }

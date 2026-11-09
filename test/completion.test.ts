@@ -71,6 +71,44 @@ const fresh = (refs = ['group:default/te-remote']): CatalogSuggestionReport => (
   expiresAt: Date.now() + 30_000,
 });
 
+void test('search picker results retain local precedence, validated queries and bounded selection ranking', async (t) => {
+  const f = await setup(
+    t,
+    {
+      files: [
+        localTeam,
+        {
+          uri: 'file:///workspace/second.yaml',
+          text: stringify({ ...team, metadata: { name: 'team-second' } }),
+        },
+      ],
+    },
+    {
+      suggest: () =>
+        Promise.resolve(fresh(['group:default/team-remote', 'user:default/team-hidden'])),
+    },
+  );
+  const query = { kind: 'group', namespace: 'default', prefix: 'te' };
+  const signal = new AbortController().signal;
+  const before = await f.service.searchReferences(query, 1, signal);
+  assert.deepEqual(
+    before.map((row) => row.reference),
+    ['group:default/team', 'group:default/team-second', 'group:default/team-remote'],
+  );
+  f.service.record('group:default/team-second');
+  assert.equal(
+    (await f.service.searchReferences(query, 1, signal))[0]?.reference,
+    'group:default/team-second',
+  );
+  assert.deepEqual(
+    await f.service.searchReferences({ ...query, baseUrl: 'https://untrusted.invalid' }, 1, signal),
+    [],
+  );
+  assert.deepEqual(await f.service.searchReferences({ ...query, prefix: '../' }, 1, signal), []);
+  f.service.invalidate();
+  assert.deepEqual(await f.service.searchReferences(query, 1, signal), []);
+});
+
 void test('qualified workspace references complete on both model pins with exact plain scalar edits', async (t) => {
   for (const adapterId of BACKSTAGE_ADAPTER_IDS)
     await t.test(adapterId, async (t) => {

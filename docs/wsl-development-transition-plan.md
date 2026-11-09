@@ -103,7 +103,7 @@ with Linux containers. Keep Docker Desktop as the Docker engine for this baselin
 competing Docker daemon inside Ubuntu.
 
 From an Ubuntu terminal, open the new checkout with `code .`. Make sure that VS Code displays a WSL
-connection and that its terminal starts in the right location, such as 
+connection and that its terminal starts in the right location, such as
 `~/code/backstage-validation-engine`. An optional Dev Container can be added when the shared test
 image exists.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { open } from 'node:fs/promises';
+import { watchFile, unwatchFile } from 'node:fs';
 import { createConnection } from 'vscode-languageserver';
 import {
   createProtocolConnection,
@@ -7,33 +7,48 @@ import {
   StreamMessageWriter,
 } from 'vscode-languageserver/node';
 import { closeSharedCelRuntime, getSharedCelRuntime } from '../runtime/cel/index.js';
-import { createLspCatalog, parseLspConfig } from './config.js';
+import { createLspCatalog } from './config.js';
+import { readTrustedLspConfig } from './trusted-config.js';
 import { BoundedLspInput } from './framing.js';
 import { createFilesystemSource } from './filesystem.js';
 import { attachLspServer } from './server.js';
+import type { LspServerResources } from './server.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
 
 try {
   if (process.argv.length !== 4 || process.argv[2] !== '--config')
     throw new Error('Expected --config <trusted-config.json>.');
-  const handle = await open(process.argv[3]!, 'r');
-  let text: string;
-  try {
-    if ((await handle.stat()).size > 32 * 1024 * 1024)
-      throw new Error('LSP configuration exceeds limits.');
-    text = await handle.readFile('utf8');
-  } finally {
-    await handle.close();
-  }
-  const config = parseLspConfig(JSON.parse(text) as unknown);
+  const configPath = process.argv[3]!;
+  const config = await readTrustedLspConfig(configPath);
   // Load the pinned native dependency during server initialization. This is
   // static runtime preparation, not workspace validation; cold editor readiness
   // still includes it, and every request keeps its original five-second budget.
   // Preserve typed dependency warnings if a native adapter is unavailable.
   if (!config.profile.requiredProcessors.length)
     await loadBackstageAdapter(config.profile.adapterId).catch(() => undefined);
-  const filesystem = config.filesystem ? await createFilesystemSource(config) : undefined;
-  const catalog = await createLspCatalog(config, process.env);
+  const resources = async (current = config): Promise<LspServerResources> => {
+    const filesystem = current.filesystem ? await createFilesystemSource(current) : undefined;
+    let catalog: Awaited<ReturnType<typeof createLspCatalog>>;
+    try {
+      catalog = await createLspCatalog(current, process.env);
+    } catch (error) {
+      await filesystem?.close();
+      throw error;
+    }
+    return {
+      config: current,
+      ...(catalog ? { catalog } : {}),
+      ...(filesystem ? { filesystem } : {}),
+      dispose: async () => {
+        try {
+          await catalog?.provider.close();
+        } finally {
+          await filesystem?.close();
+        }
+      },
+    };
+  };
+  const initial = await resources();
   if (
     !config.profile.requiredProcessors.length &&
     config.policy.rules.some((rule) => rule.kind === 'cel' || rule.selector)
@@ -58,31 +73,43 @@ try {
       ),
     watchdog,
   );
+  let watched: { filename: string; changed: () => void }[] = [];
+  const clearWatches = () => {
+    for (const { filename, changed } of watched) unwatchFile(filename, changed);
+    watched = [];
+  };
+  const selectWatches = (current: typeof config) => {
+    clearWatches();
+    for (const filename of new Set([
+      configPath,
+      ...(current.catalog?.tokenFile ? [current.catalog.tokenFile] : []),
+    ])) {
+      const changed = () => {
+        void server.reload().catch(() => undefined);
+      };
+      watchFile(filename, { persistent: false, interval: 500 }, changed);
+      watched.push({ filename, changed });
+    }
+  };
   const server = attachLspServer(connection, config, {
-    ...(catalog ? { catalog } : {}),
-    ...(filesystem ? { filesystem } : {}),
-    dispose: async () => {
-      try {
-        await catalog?.provider.close();
-      } finally {
-        try {
-          await filesystem?.close();
-        } finally {
-          await closeSharedCelRuntime();
-        }
-      }
-    },
+    ...initial,
+    reload: async () => resources(await readTrustedLspConfig(configPath)),
+    configurationChanged: selectWatches,
+    onClose: clearWatches,
   });
+  selectWatches(config);
   let stopping = false;
   const stop = (code: number) => {
     if (stopping) return;
     stopping = true;
     void server.close().then(
-      () => {
+      async () => {
+        await closeSharedCelRuntime();
         connection.dispose();
         process.exit(code);
       },
-      () => {
+      async () => {
+        await closeSharedCelRuntime().catch(() => undefined);
         connection.dispose();
         process.exit(1);
       },

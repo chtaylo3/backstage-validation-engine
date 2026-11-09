@@ -13,6 +13,13 @@ jobs run independently:
 | CLI candidate                     | Exact-revision archive, published dependency lock, checksum and package provenance                                        |
 | VSIX, Linux/Windows/macOS         | Self-contained package, entire suite using packaged Node/server, installed-extension tests in VS Code 1.106.3 and 1.145.2 |
 
+A feature push and an open pull request produce separate runs with the same job names.
+The push run checks the branch commit. The pull-request run checks its proposed merge with the base branch.
+These results can differ when the base branch adds changes.
+
+Client coverage requires tests to execute at least 90% of client code lines and 85% of branches.
+Passing assertions alone do not satisfy those thresholds. Both `npm run check` and the separate client job enforce them.
+
 The test runner discovers the complete compiled suite and records an inventory. It runs one test
 file at a time and retains the 30-second limit for each test. HTTP fixtures use temporary loopback
 ports. Tests need no deployed Backstage instance or production credentials.

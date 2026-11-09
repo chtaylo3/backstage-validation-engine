@@ -5,9 +5,18 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import type { ExtensionContext, Uri } from 'vscode';
+import type {
+  CancellationToken,
+  CompletionContext,
+  CompletionItem,
+  CompletionList,
+  ExtensionContext,
+  Position,
+  TextDocument,
+  Uri,
+} from 'vscode';
 import type { LanguageClientOptions } from 'vscode-languageclient/node';
-import { editorState } from './harness/editor-api.js';
+import { Editor, EditorDocument, MemoryState, editorState } from './harness/editor-api.js';
 import { clients, onStart, onStop } from './harness/editor-language-client.js';
 
 registerHooks({
@@ -28,9 +37,10 @@ let directory: string;
 let config: string;
 let subscriptions: { dispose(): unknown }[];
 let context: ExtensionContext;
+let history: MemoryState;
 const original = process.env.BVE_LSP_CONFIG;
-const command = (name: string) =>
-  Promise.resolve(editorState.commands.get('backstageValidation.' + name)!());
+const command = (name: string, ...args: unknown[]) =>
+  Promise.resolve(editorState.commands.get('backstageValidation.' + name)!(...args));
 async function select(value: unknown) {
   await writeFile(config, typeof value === 'string' ? value : JSON.stringify(value));
 }
@@ -40,14 +50,23 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(tmpdir(), 'bve-client-'));
   config = path.join(directory, 'config.json');
   subscriptions = [];
+  history = new MemoryState();
   context = {
     subscriptions,
     asAbsolutePath: (value: string) => path.join(directory, value),
-  } as ExtensionContext;
+    workspaceState: history,
+  } as unknown as ExtensionContext;
   editorState.selected = undefined;
   editorState.trusted = true;
   editorState.messages.length = 0;
   editorState.shown = 0;
+  editorState.activeEditor = undefined;
+  editorState.documents.length = 0;
+  editorState.pickers.length = 0;
+  editorState.cancellations.length = 0;
+  editorState.clipboard.length = 0;
+  editorState.clipboardError = undefined;
+  editorState.information.length = 0;
   onStart();
   onStop();
   clients.length = 0;
@@ -55,6 +74,7 @@ beforeEach(async () => {
   await select(data());
 });
 afterEach(async () => {
+  for (const picker of editorState.pickers) picker.hide();
   onStop();
   onStart();
   await extension.deactivate();
@@ -63,6 +83,34 @@ afterEach(async () => {
   if (original === undefined) delete process.env.BVE_LSP_CONFIG;
   else process.env.BVE_LSP_CONFIG = original;
 });
+
+async function startClient() {
+  editorState.selected = config;
+  await extension.activate(context);
+  return clients.at(-1)!;
+}
+const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+async function until(predicate: () => boolean) {
+  for (let attempt = 0; attempt < 1000; attempt++) {
+    if (predicate()) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail('Client operation did not settle.');
+}
+async function openSearch() {
+  const current = await startClient();
+  await command('searchReferences');
+  return { current, picker: editorState.pickers.at(-1)! };
+}
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
 
 void test('client remains stopped without trusted launcher input and starts after a User Setting change', async () => {
   const api = await extension.activate(context);
@@ -108,6 +156,19 @@ void test('User Setting takes precedence over launcher environment and launches 
 void test('launcher environment is accepted when no User Setting exists', async () => {
   process.env.BVE_LSP_CONFIG = config;
   assert((await extension.activate(context)).status().running);
+});
+
+void test('restart and stop dispose the previous configuration notification handler', async () => {
+  editorState.selected = config;
+  await extension.activate(context);
+  const first = clients[0]!;
+  assert(first.notificationHandlers.has('bve/configurationReloaded'));
+  await command('restart');
+  assert.equal(first.notificationHandlers.size, 0);
+  const second = clients.at(-1)!;
+  assert(second.notificationHandlers.has('bve/configurationReloaded'));
+  await command('stop');
+  assert.equal(second.notificationHandlers.size, 0);
 });
 for (const [name, value] of [
   ['malformed JSON', '{'],
@@ -294,3 +355,337 @@ void test('server disconnect and transport errors never trigger an automatic res
   assert.match(editorState.messages.join('\n'), /Restart Language Server/u);
   assert.equal(clients.length, 1);
 });
+
+void test('reload requires a running trusted client and reports accepted and unavailable configuration', async () => {
+  await extension.activate(context);
+  await command('reloadConfiguration');
+  assert.equal(clients.length, 0);
+  editorState.selected = config;
+  await command('restart');
+  const current = clients.at(-1)!;
+  editorState.trusted = false;
+  await command('reloadConfiguration');
+  assert.deepEqual(current.requests, []);
+  editorState.trusted = true;
+  await command('reloadConfiguration');
+  assert.deepEqual(current.requests, ['bve/reloadConfiguration']);
+  assert.match(editorState.messages.at(-1)!, /credentials reloaded/u);
+  current.requestHandler = () => Promise.resolve({ reloaded: false });
+  await command('reloadConfiguration');
+  assert.match(editorState.messages.at(-1)!, /Validation is unavailable/u);
+  current.requestHandler = () => Promise.reject(new Error('reload failed'));
+  await assert.rejects(command('reloadConfiguration'), /reload failed/u);
+  current.requestHandler = undefined;
+  await command('reloadConfiguration');
+  assert.match(editorState.messages.at(-1)!, /credentials reloaded/u);
+});
+
+void test('selection history rejects invalid input, deduplicates, bounds storage and restores on restart', async () => {
+  await extension.activate(context);
+  await command('recordSelection', 'group:default/stopped');
+  assert.deepEqual(history.keys(), []);
+  editorState.selected = config;
+  await command('restart');
+  const current = clients.at(-1)!;
+  await command('recordSelection', 42);
+  await command('recordSelection', 'x'.repeat(513));
+  assert.deepEqual(current.notifications, []);
+  await command('recordSelection', 'group:default/team');
+  const key = history.keys()[0]!;
+  assert.match(key, /^backstageValidation\.history:[a-f0-9]{64}$/u);
+  const prior = Array.from({ length: 130 }, (_, index) => `group:default/team-${index}`);
+  history.values.set(key, prior);
+  await command('recordSelection', 'group:default/team-0');
+  assert.deepEqual(history.get<string[]>(key), [...prior.slice(3), prior[0]]);
+  await command('restart');
+  assert.deepEqual(
+    clients.at(-1)!.notifications,
+    history.get<string[]>(key)!.map((value) => ({ method: 'bve/recordSelection', value })),
+  );
+  await select({ source: { files: [] }, catalog: { principalId: 'another-principal' } });
+  await command('restart');
+  assert.deepEqual(clients.at(-1)!.notifications, []);
+  await command('recordSelection', 'group:default/other');
+  assert.equal(history.keys().length, 2);
+});
+
+void test('completion history commands preserve server commands and both completion result forms', async () => {
+  await startClient();
+  const provide = options().middleware!.provideCompletionItem!;
+  const complete = (result: CompletionItem[] | CompletionList | null | undefined) =>
+    provide(
+      {} as TextDocument,
+      {} as Position,
+      {} as CompletionContext,
+      {} as CancellationToken,
+      () => Promise.resolve(result),
+    );
+  assert.equal(await complete(undefined), undefined);
+  assert.equal(await complete(null), null);
+  const existing = { title: 'Server repair', command: 'server.repair' };
+  const items: CompletionItem[] = [
+    { label: 'group:default/team' },
+    { label: { label: 'component:default/service', description: 'local' } },
+    { label: 'repair', command: existing },
+  ];
+  assert.equal(await complete(items), items);
+  assert.deepEqual(items[0]!.command, {
+    title: 'Record Backstage selection',
+    command: 'backstageValidation.recordSelection',
+    arguments: ['group:default/team'],
+  });
+  assert.deepEqual(items[1]!.command!.arguments, ['component:default/service']);
+  assert.equal(items[2]!.command, existing);
+  const list = { items: [{ label: 'kind' }], isIncomplete: true };
+  assert.equal(await complete(list), list);
+  assert.deepEqual(list.items[0], {
+    label: 'kind',
+    command: {
+      title: 'Record Backstage selection',
+      command: 'backstageValidation.recordSelection',
+      arguments: ['kind'],
+    },
+  });
+});
+
+void test('discovery selectors include trusted roots and reject non-file or malformed roots', async () => {
+  const root = pathToFileURL(directory + path.sep).href;
+  const extra = pathToFileURL(path.join(directory, 'services') + path.sep).href;
+  await select({ source: { rootUri: root }, filesystem: { discovery: { roots: [extra] } } });
+  await startClient();
+  const filters = options().documentSelector as unknown[];
+  assert.deepEqual(filters.slice(-2), [
+    { scheme: 'file', pattern: { baseUri: extra, pattern: '**/*' } },
+    { scheme: 'file', pattern: { baseUri: root, pattern: '**/*' } },
+  ]);
+  for (const value of [
+    { source: {}, filesystem: { discovery: { roots: [1] } } },
+    { source: {}, filesystem: { discovery: { roots: ['https://example.invalid/'] } } },
+    { source: { rootUri: 'https://example.invalid/' }, filesystem: {} },
+  ]) {
+    await select(value);
+    await assert.rejects(command('restart'), /Invalid (?:discovery|source) root/u);
+  }
+});
+
+void test('configuration reload replays only approved open documents and authority-scoped history', async () => {
+  const explicit = pathToFileURL(path.join(directory, 'explicit.yaml')).href;
+  const root = pathToFileURL(path.join(directory, 'services')).href;
+  const inside = root + '/catalog-info.yaml';
+  const outside = pathToFileURL(path.join(directory, 'outside.yaml')).href;
+  const sibling = pathToFileURL(path.join(directory, 'services-other', 'catalog-info.yaml')).href;
+  await select({
+    ...data([explicit]),
+    filesystem: { files: [explicit], discovery: { roots: [root] } },
+  });
+  const current = await startClient();
+  await command('recordSelection', 'group:default/team');
+  current.notifications.length = 0;
+  editorState.documents.push(
+    new EditorDocument(EditorUri.parse(explicit), 'kind: API'),
+    new EditorDocument(EditorUri.parse(inside)),
+    new EditorDocument(EditorUri.parse(outside)),
+    new EditorDocument(EditorUri.parse(sibling)),
+    new EditorDocument(EditorUri.parse('untitled:buffer')),
+  );
+  current.notificationHandlers.get('bve/configurationReloaded')!();
+  await until(() => current.notifications.length === 3);
+  assert.deepEqual(current.notifications, [
+    {
+      method: 'textDocument/didOpen',
+      value: { textDocument: { uri: explicit, languageId: 'yaml', version: 1, text: 'kind: API' } },
+    },
+    {
+      method: 'textDocument/didOpen',
+      value: {
+        textDocument: { uri: inside, languageId: 'yaml', version: 1, text: 'kind: Component' },
+      },
+    },
+    { method: 'bve/recordSelection', value: 'group:default/team' },
+  ]);
+  const staleHandler = current.notificationHandlers.get('bve/configurationReloaded')!;
+  await command('restart');
+  staleHandler();
+  assert.equal(current.notifications.length, 3);
+  const replacement = clients.at(-1)!;
+  await select('{');
+  replacement.notificationHandlers.get('bve/configurationReloaded')!();
+  await until(
+    () => editorState.messages.at(-1) === 'Unable to refresh the editor selection history.',
+  );
+});
+
+void test('search stays closed without a running trusted client', async () => {
+  await extension.activate(context);
+  await command('searchReferences');
+  assert.deepEqual(editorState.pickers, []);
+  editorState.selected = config;
+  await command('restart');
+  editorState.trusted = false;
+  await command('searchReferences');
+  assert.deepEqual(editorState.pickers, []);
+});
+
+void test('search debounces valid queries, normalizes their identity and clears invalid or failed results', async () => {
+  const { current, picker } = await openSearch();
+  assert(picker.shown);
+  assert.match(picker.title, /Search Entity References/u);
+  assert(picker.matchOnDescription);
+  const rows = [
+    { reference: 'group:default/team', source: 'workspace' },
+    { reference: 'group:default/tech', source: 'catalog' },
+  ];
+  current.requestHandler = () => Promise.resolve(rows);
+  picker.change('GROUP:DEFAULT/T');
+  await settle();
+  assert.equal(current.requestCalls.length, 0);
+  picker.change('GROUP:DEFAULT/TE');
+  await until(() => current.requestCalls.length === 1);
+  await settle();
+  assert.equal(current.requestCalls.length, 1);
+  assert.equal(current.requestCalls[0]!.method, 'bve/searchReferences');
+  assert.deepEqual(current.requestCalls[0]!.params, {
+    kind: 'group',
+    namespace: 'default',
+    prefix: 'te',
+  });
+  assert.equal(picker.busy, false);
+  assert.deepEqual(
+    picker.items,
+    rows.map((row) => ({
+      label: row.reference,
+      description: row.source,
+      reference: row.reference,
+    })),
+  );
+  picker.change('not a reference');
+  assert.deepEqual(picker.items, []);
+  assert.equal(picker.busy, false);
+  assert(editorState.cancellations[0]!.token.isCancellationRequested);
+  current.requestHandler = () => Promise.reject(new Error('private remote details'));
+  picker.change('group:default/fail');
+  await until(() => current.requestCalls.length === 2);
+  await settle();
+  assert.deepEqual(picker.items, []);
+  assert.equal(picker.busy, false);
+  assert(!editorState.messages.join('\n').includes('private remote details'));
+});
+
+void test('new search queries cancel old requests and late success or failure cannot replace current results', async () => {
+  const { current, picker } = await openSearch();
+  const requests = Array.from({ length: 4 }, () =>
+    deferred<{ reference: string; source: string }[]>(),
+  );
+  let index = 0;
+  current.requestHandler = () => requests[index++]!.promise;
+  picker.change('group:default/old');
+  await until(() => current.requestCalls.length === 1);
+  picker.change('group:default/new');
+  await until(() => current.requestCalls.length === 2);
+  assert(current.requestCalls[0]!.token!.isCancellationRequested);
+  assert(editorState.cancellations[0]!.disposed);
+  requests[1]!.resolve([{ reference: 'group:default/new', source: 'workspace' }]);
+  await settle();
+  requests[0]!.resolve([{ reference: 'group:default/old', source: 'catalog' }]);
+  await settle();
+  assert.equal(picker.items[0]!.reference, 'group:default/new');
+  picker.change('group:default/reject');
+  await until(() => current.requestCalls.length === 3);
+  picker.change('group:default/current');
+  await until(() => current.requestCalls.length === 4);
+  requests[2]!.reject(new Error('old request failed'));
+  await settle();
+  assert(picker.busy);
+  requests[3]!.resolve([{ reference: 'group:default/current', source: 'workspace' }]);
+  await settle();
+  assert.equal(picker.items[0]!.reference, 'group:default/current');
+  assert.equal(picker.busy, false);
+});
+
+void test('closing search disposes listeners and cancels both scheduled and in-flight work', async () => {
+  const { current, picker } = await openSearch();
+  picker.change('group:default/pending');
+  picker.hide();
+  await new Promise<void>((resolve) => setTimeout(resolve, 150));
+  assert.deepEqual(current.requests, []);
+  assert(picker.disposed);
+  assert.equal(picker.changes.size + picker.accepts.size + picker.hides.size, 0);
+  await command('searchReferences');
+  const second = editorState.pickers.at(-1)!;
+  const response = deferred<{ reference: string; source: string }[]>();
+  current.requestHandler = () => response.promise;
+  second.change('group:default/inflight');
+  await until(() => current.requestCalls.length === 1);
+  second.hide();
+  assert(editorState.cancellations[0]!.token.isCancellationRequested);
+  assert(editorState.cancellations[0]!.disposed);
+  response.resolve([{ reference: 'group:default/late', source: 'catalog' }]);
+  await settle();
+  assert.deepEqual(second.items, []);
+});
+
+void test('search without an editor copies a chosen reference and records it only after a successful copy', async () => {
+  const { current, picker } = await openSearch();
+  picker.accept();
+  picker.accept({ label: 'header' });
+  assert.equal(picker.disposed, false);
+  picker.accept({ label: 'team', reference: 'group:default/team' });
+  await settle();
+  assert.deepEqual(editorState.clipboard, ['group:default/team']);
+  assert.deepEqual(current.notifications, [
+    { method: 'bve/recordSelection', value: 'group:default/team' },
+  ]);
+  assert(picker.disposed);
+  await command('searchReferences');
+  editorState.clipboardError = new Error('private clipboard failure');
+  editorState.pickers.at(-1)!.accept({ label: 'other', reference: 'group:default/other' });
+  await settle();
+  assert.equal(current.notifications.length, 1);
+  assert.equal(editorState.messages.at(-1), 'Unable to insert the selected reference.');
+});
+
+void test('search inserts into the captured editor selection and records only successful edits', async () => {
+  const editor = new Editor(
+    new EditorDocument(EditorUri.file(path.join(directory, 'catalog.yaml'))),
+  );
+  editorState.activeEditor = editor;
+  const { current, picker } = await openSearch();
+  picker.accept({ label: 'team', reference: 'group:default/team' });
+  await settle();
+  assert.deepEqual(editor.replacements, [
+    { selection: editor.selection, value: 'group:default/team' },
+  ]);
+  assert.deepEqual(current.notifications, [
+    { method: 'bve/recordSelection', value: 'group:default/team' },
+  ]);
+  await command('searchReferences');
+  editor.editResult = false;
+  editorState.pickers.at(-1)!.accept({ label: 'rejected', reference: 'group:default/rejected' });
+  await settle();
+  assert.equal(current.notifications.length, 1);
+  await command('searchReferences');
+  editor.editError = new Error('private editor failure');
+  editorState.pickers.at(-1)!.accept({ label: 'failed', reference: 'group:default/failed' });
+  await settle();
+  assert.equal(current.notifications.length, 1);
+  assert.equal(editorState.messages.at(-1), 'Unable to insert the selected reference.');
+});
+
+for (const change of ['version', 'closed', 'editor', 'client'] as const)
+  void test(`search refuses insertion after the captured ${change} changes`, async () => {
+    const editor = new Editor(
+      new EditorDocument(EditorUri.file(path.join(directory, 'catalog.yaml'))),
+    );
+    editorState.activeEditor = editor;
+    const { current, picker } = await openSearch();
+    if (change === 'version') editor.document.version++;
+    if (change === 'closed') editor.document.isClosed = true;
+    if (change === 'editor') editorState.activeEditor = undefined;
+    if (change === 'client') await command('restart');
+    picker.accept({ label: 'team', reference: 'group:default/team' });
+    await settle();
+    assert.deepEqual(editor.replacements, []);
+    assert.deepEqual(editorState.clipboard, []);
+    assert.deepEqual(current.notifications, []);
+    assert.match(editorState.information.at(-1)!, /document changed during search/u);
+  });

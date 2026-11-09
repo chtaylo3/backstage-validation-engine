@@ -10,6 +10,7 @@ import type {
   Connection,
   Diagnostic,
   TextDocumentContentChangeEvent,
+  CancellationToken,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Finding } from '../contracts/schemas.js';
@@ -30,7 +31,9 @@ import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.
 import { APPLY_FIX_COMMAND, FIX_LIMITS, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
 import { CompletionService } from './completion.js';
+import { EditorService } from './editor.js';
 import type { LspConfig } from './config.js';
+import { approvedFilesystemUri, filesystemEvent } from './discovery.js';
 
 function diagnostic(
   finding: Immutable<Finding>,
@@ -63,7 +66,7 @@ function diagnostic(
       : {}),
     data: {
       findingId: finding.id,
-      ...(fixGeneration === undefined || !finding.edits.length ? {} : { fixGeneration }),
+      ...(fixGeneration === undefined ? {} : { fixGeneration }),
       category: finding.category,
       sourceDigest: digest,
       version,
@@ -75,24 +78,40 @@ const validVersion = (version: number) => Number.isSafeInteger(version) && versi
 const validUri = (uri: string) =>
   typeof uri === 'string' && uri.length <= 4096 && /^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$/.test(uri);
 
+export interface LspServerResources {
+  readonly config: LspConfig;
+  readonly catalog?: { readonly provider: CatalogProvider; readonly access: CatalogAccessContext };
+  readonly filesystem?: FilesystemSource;
+  readonly dispose?: () => Promise<void>;
+}
+
 /** One active request and one latest workspace snapshot; host owns resources and immutable authority. */
 export function attachLspServer(
   connection: Connection,
   config: LspConfig,
   options: {
-    readonly catalog?: {
-      readonly provider: CatalogProvider;
-      readonly access: CatalogAccessContext;
-    };
-    readonly filesystem?: FilesystemSource;
-    readonly dispose?: () => Promise<void>;
+    readonly catalog?:
+      | {
+          readonly provider: CatalogProvider;
+          readonly access: CatalogAccessContext;
+        }
+      | undefined;
+    readonly filesystem?: FilesystemSource | undefined;
+    readonly dispose?: (() => Promise<void>) | undefined;
     readonly exit?: (code: number) => void;
+    readonly reload?: () => Promise<LspServerResources>;
+    readonly configurationChanged?: (config: LspConfig) => void;
+    readonly onClose?: () => void;
   } = {},
 ) {
   if (!!config.filesystem !== !!options.filesystem)
     throw new Error('Trusted filesystem reader configuration mismatch.');
   const fixes = new FixRegistry();
-  const completion = new CompletionService(config, options.catalog);
+  let completion = new CompletionService(config, options.catalog);
+  let editor = new EditorService(config);
+  let configurationUnavailable = false;
+  let reloading: Promise<{ reloaded: boolean }> | undefined;
+  let reloadAgain = false;
   let fixesEnabled = false;
   let atomicTextEdits = false;
   let applyingFix: CancellationTokenSource | undefined;
@@ -101,7 +120,8 @@ export function attachLspServer(
     requestBytes: config.profile.limits.requestBytes,
     atomicTextEdits,
   });
-  const approved = new Set(config.filesystem?.files ?? []);
+  const approved = { has: (uri: string) => approvedFilesystemUri(config, uri) };
+  const selectedDocument = (uri: string) => !config.filesystem || approved.has(uri);
   let diskGeneration = options.filesystem ? 1 : 0;
   let capturedGeneration = 0;
   let dynamicWatching = false;
@@ -109,6 +129,7 @@ export function attachLspServer(
   const documents = new Map<string, TextDocument>();
   let workspaceSource = config.source;
   const unavailable = new Set<string>();
+  const unavailableSources = () => [...unavailable].some(selectedDocument);
   let capacityExceeded = false;
   let epoch = 0;
   let initialized = false;
@@ -127,7 +148,7 @@ export function attachLspServer(
     if (active || !pending || stopped) return;
     pending = false;
     const generation = epoch;
-    const frame = [...documents.values()];
+    const frame = [...documents.values()].filter((document) => selectedDocument(document.uri));
     const abort = new AbortController();
     controller = abort;
     const current = () => !stopped && !abort.signal.aborted && epoch === generation;
@@ -158,7 +179,7 @@ export function attachLspServer(
           capturedGeneration = requested;
         }
         phase = 'validation';
-        if (unavailable.size || capacityExceeded) {
+        if (unavailableSources() || capacityExceeded || configurationUnavailable) {
           for (const document of frame) {
             if (!current()) return;
             await publish(document.uri, document.version, [
@@ -192,6 +213,7 @@ export function attachLspServer(
             })
           : undefined;
         void completion.update(request, generation, local);
+        const prepared = editor.update(request, generation);
         const report = await validatePolicySources(request, config, {
           ...(deliver ? { onLocalSources: deliver } : {}),
           onFailure: (row) => {
@@ -200,6 +222,10 @@ export function attachLspServer(
           signal: abort.signal,
           ...(options.catalog ? { catalog: options.catalog } : {}),
         }).finally(() => deliver?.());
+        if (!current()) return;
+        await prepared;
+        if (!current()) return;
+        await editor.refine(report, generation);
         if (!current()) return;
         evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
         if (
@@ -214,6 +240,7 @@ export function attachLspServer(
           fixes.replace({
             generation,
             findings: report.findings,
+            suggestions: editor.repairs(report.findings, generation, documents),
             source: report.request.source,
             ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
             documents,
@@ -306,6 +333,7 @@ export function attachLspServer(
   function schedule() {
     fixes.invalidate();
     completion.invalidate();
+    editor.invalidate();
     epoch++;
     controller?.abort();
     pending = true;
@@ -371,13 +399,16 @@ export function attachLspServer(
   const close = (): Promise<void> => {
     if (disposal) return disposal;
     stopped = true;
+    options.onClose?.();
     fixes.invalidate();
+    editor.invalidate();
     applyingFix?.cancel();
     epoch++;
     pending = false;
     if (timer) clearTimeout(timer);
     controller?.abort();
     disposal = (async () => {
+      await reloading;
       await completion.close();
       await active;
       await options.dispose?.();
@@ -405,6 +436,8 @@ export function attachLspServer(
       capabilities: {
         positionEncoding: PositionEncodingKind.UTF16,
         completionProvider: { triggerCharacters: [':', '/'], resolveProvider: false },
+        hoverProvider: true,
+        definitionProvider: true,
         textDocumentSync: {
           openClose: true,
           change: TextDocumentSyncKind.Incremental,
@@ -434,25 +467,192 @@ export function attachLspServer(
     if (
       !initialized ||
       stopped ||
-      unavailable.size ||
+      unavailableSources() ||
+      configurationUnavailable ||
       capacityExceeded ||
       token.isCancellationRequested
     )
       return { isIncomplete: true, items: [] };
     const cancellation = new AbortController();
+    const generation = epoch;
     const subscription = token.onCancellationRequested(() => cancellation.abort());
     try {
-      return await completion.complete(params, epoch, documents, cancellation.signal);
+      const references = await completion.complete(
+        params,
+        generation,
+        documents,
+        cancellation.signal,
+      );
+      if (stopped || configurationUnavailable || epoch !== generation)
+        return { isIncomplete: true, items: [] };
+      references.items = references.items.filter((item) =>
+        editor.acceptsReference(params, item.label, generation, documents),
+      );
+      if (references.items.length || cancellation.signal.aborted) return references;
+      return editor.complete(params, generation, documents);
     } finally {
       subscription.dispose();
     }
   });
+  connection.onHover((params, token) =>
+    initialized &&
+    !stopped &&
+    !configurationUnavailable &&
+    !unavailableSources() &&
+    !capacityExceeded &&
+    !token.isCancellationRequested
+      ? editor.hover(params.textDocument.uri, params.position, epoch, documents)
+      : null,
+  );
+  connection.onDefinition((params, token) =>
+    initialized &&
+    !stopped &&
+    !configurationUnavailable &&
+    !unavailableSources() &&
+    !capacityExceeded &&
+    !token.isCancellationRequested
+      ? editor.definition(params.textDocument.uri, params.position, epoch, documents)
+      : [],
+  );
+  connection.onNotification('bve/recordSelection', (input: unknown) => {
+    if (!initialized || stopped || typeof input !== 'string' || input.length > 512) return;
+    completion.record(input);
+    editor.record(input);
+  });
+  connection.onRequest('bve/searchReferences', async (input: unknown, token: CancellationToken) => {
+    if (
+      !initialized ||
+      stopped ||
+      configurationUnavailable ||
+      unavailableSources() ||
+      capacityExceeded ||
+      token.isCancellationRequested
+    )
+      return [];
+    const cancellation = new AbortController();
+    const subscription = token.onCancellationRequested(() => cancellation.abort());
+    try {
+      if (!documents.size) {
+        const generation = epoch;
+        const original = createLspRequest(config, workspaceSource);
+        if (options.filesystem && capturedGeneration < diskGeneration) {
+          const disk = diskGeneration;
+          const source = await options.filesystem.capture(workspaceSource, {
+            deadlineAt: original.execution.deadlineAt,
+            signal: cancellation.signal,
+          });
+          if (stopped || epoch !== generation || cancellation.signal.aborted) return [];
+          verifyRequestBindings(
+            parseContract('validation-request', { ...original, source }),
+            config,
+          );
+          workspaceSource = source;
+          capturedGeneration = disk;
+        }
+        await completion.update(
+          parseContract('validation-request', { ...original, source: workspaceSource }),
+          generation,
+        );
+        await completion.ready(generation, cancellation.signal);
+        if (stopped || epoch !== generation || cancellation.signal.aborted) return [];
+      }
+      return await completion.searchReferences(input, epoch, cancellation.signal);
+    } catch {
+      return [];
+    } finally {
+      subscription.dispose();
+    }
+  });
+  async function reloadConfiguration(): Promise<{ reloaded: boolean }> {
+    if (!initialized || stopped || !options.reload) return { reloaded: false };
+    if (reloading) {
+      reloadAgain = true;
+      return reloading;
+    }
+    const reload = options.reload;
+    configurationUnavailable = true;
+    applyingFix?.cancel();
+    schedule();
+    reloading = (async () => {
+      let replacement: LspServerResources | undefined;
+      try {
+        replacement = await reload();
+        if (
+          replacement.config.source.rootUri !== config.source.rootUri ||
+          !!replacement.config.filesystem !== !!config.filesystem ||
+          (!config.filesystem &&
+            JSON.stringify(replacement.config.source.files.map((file) => file.uri).sort()) !==
+              JSON.stringify(config.source.files.map((file) => file.uri).sort()))
+        )
+          throw new Error('The client must reconnect after a source scope change.');
+        if (!!replacement.config.filesystem !== !!replacement.filesystem)
+          throw new Error('Invalid host resources.');
+        const nextCompletion = new CompletionService(replacement.config, replacement.catalog);
+        const nextEditor = new EditorService(replacement.config);
+        controller?.abort();
+        await active;
+        if (stopped) {
+          await nextCompletion.close();
+          return { reloaded: false };
+        }
+        await completion.close();
+        editor.invalidate();
+        await options.dispose?.();
+        if (stopped) {
+          await nextCompletion.close();
+          return { reloaded: false };
+        }
+        config = replacement.config;
+        options = {
+          ...options,
+          ...(replacement.catalog ? { catalog: replacement.catalog } : { catalog: undefined }),
+          ...(replacement.filesystem
+            ? { filesystem: replacement.filesystem }
+            : { filesystem: undefined }),
+          ...(replacement.dispose ? { dispose: replacement.dispose } : { dispose: undefined }),
+        };
+        replacement = undefined;
+        completion = nextCompletion;
+        editor = nextEditor;
+        workspaceSource = config.source;
+        diskGeneration++;
+        capturedGeneration = 0;
+        configurationUnavailable = false;
+        options.configurationChanged?.(config);
+        for (const [uri, document] of documents)
+          if (config.filesystem && !approved.has(uri)) {
+            await publish(uri, document.version, []);
+          }
+        schedule();
+        void connection.sendNotification('bve/configurationReloaded');
+        return { reloaded: true };
+      } catch {
+        completion.invalidate();
+        editor.invalidate();
+        fixes.invalidate();
+        schedule();
+        return { reloaded: false };
+      } finally {
+        await replacement?.dispose?.();
+        reloading = undefined;
+        if (reloadAgain && !stopped) {
+          reloadAgain = false;
+          queueMicrotask(() => {
+            void reloadConfiguration().catch(() => undefined);
+          });
+        }
+      }
+    })();
+    return reloading;
+  }
+  connection.onRequest('bve/reloadConfiguration', reloadConfiguration);
   connection.onCodeAction((params) => {
     if (
       !initialized ||
       stopped ||
       !fixesEnabled ||
-      unavailable.size ||
+      unavailableSources() ||
+      configurationUnavailable ||
       capacityExceeded ||
       applyingFix
     )
@@ -464,7 +664,8 @@ export function attachLspServer(
       !initialized ||
       stopped ||
       !fixesEnabled ||
-      unavailable.size ||
+      unavailableSources() ||
+      configurationUnavailable ||
       capacityExceeded ||
       params.command !== APPLY_FIX_COMMAND ||
       token.isCancellationRequested
@@ -504,7 +705,7 @@ export function attachLspServer(
       }
     });
   });
-  connection.onInitialized(() => {
+  function watchFiles() {
     if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {
       watchRequested = true;
       void connection.client
@@ -520,7 +721,8 @@ export function attachLspServer(
             );
         });
     }
-  });
+  }
+  connection.onInitialized(watchFiles);
   function refresh() {
     diskGeneration++;
     schedule();
@@ -543,8 +745,8 @@ export function attachLspServer(
           typeof row.uri === 'string' &&
           isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) &&
           [1, 2, 3].includes(row.type) &&
-          (approved.has(row.uri) ||
-            [...approved].some((uri) =>
+          (filesystemEvent(config, row.uri) ||
+            config.filesystem!.files.some((uri) =>
               uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
             )),
       )
@@ -557,6 +759,7 @@ export function attachLspServer(
       stopped ||
       !item ||
       !validUri(item.uri) ||
+      (options.filesystem && !approved.has(item.uri)) ||
       !validVersion(item.version) ||
       documents.has(item.uri) ||
       typeof item.text !== 'string'
@@ -685,5 +888,5 @@ export function attachLspServer(
   connection.onExit(() => {
     void close().then(() => options.exit?.(requestedShutdown ? 0 : 1));
   });
-  return { close };
+  return { close, reload: reloadConfiguration };
 }

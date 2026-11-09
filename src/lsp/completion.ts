@@ -130,6 +130,8 @@ export class CompletionService {
   >();
   private cacheBytes = 0;
   private stopped = false;
+  private readonly history = new Map<string, number>();
+  private selections = 0;
   private readonly catalog: { provider: CatalogProvider; access: CatalogAccessContext } | undefined;
   constructor(
     private readonly config: LspConfig,
@@ -315,6 +317,7 @@ export class CompletionService {
   private async search(
     query: CatalogSuggestionQuery,
     signal: AbortSignal,
+    waitMs: number = COMPLETION_LIMITS.waitMs,
   ): Promise<CatalogSuggestionReport | undefined> {
     const catalog = this.catalog;
     if (!catalog?.provider.suggest || query.prefix.length < 2) return undefined;
@@ -388,7 +391,7 @@ export class CompletionService {
         this.remote.work,
         new Promise<undefined>((resolve) => {
           const stop = () => resolve(undefined);
-          timer = setTimeout(stop, COMPLETION_LIMITS.waitMs);
+          timer = setTimeout(stop, waitMs);
           const onAbort = () => {
             if (this.remote?.key === key) this.remote.controller.abort();
             stop();
@@ -402,6 +405,63 @@ export class CompletionService {
       clearTimeout(timer);
       cancel?.();
     }
+  }
+  record(reference: string): void {
+    if (!safeRef(reference)) return;
+    this.history.delete(reference);
+    this.history.set(reference, ++this.selections);
+    if (this.history.size > 128) this.history.delete(this.history.keys().next().value!);
+  }
+  async ready(generation: number, signal: AbortSignal): Promise<void> {
+    while (!this.stopped && !signal.aborted && this.index?.generation !== generation && this.active)
+      await abortable(this.active, signal).catch(() => undefined);
+  }
+  /** Advisory search UI shares the same trusted connection, masks, limits and cancellation. */
+  async searchReferences(
+    input: unknown,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<readonly { reference: string; source: string }[]> {
+    const index = this.index;
+    if (
+      this.stopped ||
+      signal.aborted ||
+      !index ||
+      index.generation !== generation ||
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.keys(input).some((key) => !['kind', 'namespace', 'prefix'].includes(key))
+    )
+      return [];
+    const query = input as Partial<CatalogSuggestionQuery>;
+    if (
+      typeof query.kind !== 'string' ||
+      typeof query.namespace !== 'string' ||
+      typeof query.prefix !== 'string' ||
+      !/^[a-z0-9_.-]{0,63}$/u.test(query.prefix) ||
+      !safeRef(`${query.kind}:${query.namespace}/a`)
+    )
+      return [];
+    const search = { kind: query.kind, namespace: query.namespace, prefix: query.prefix };
+    const report = await this.search(search, signal, COMPLETION_LIMITS.remoteMs);
+    if (signal.aborted || this.index !== index) return [];
+    const eligible = (ref: string) =>
+      safeRef(ref) && ref.startsWith(`${search.kind}:${search.namespace}/${search.prefix}`);
+    const local = index.refs.filter(eligible);
+    const now = this.clock.wall();
+    const remote =
+      report && report.fetchedAt <= now && now < report.expiresAt
+        ? [...new Set(report.refs)].filter(
+            (ref) => eligible(ref) && index.proposed.get(ref) === undefined,
+          )
+        : [];
+    const rank = (a: string, b: string) =>
+      (this.history.get(b) ?? 0) - (this.history.get(a) ?? 0) || a.localeCompare(b);
+    return [
+      ...local.sort(rank).map((reference) => ({ reference, source: 'Workspace source' })),
+      ...remote.sort(rank).map((reference) => ({ reference, source: 'Catalog (fresh)' })),
+    ].slice(0, COMPLETION_LIMITS.items);
   }
   async complete(
     params: CompletionParams,
@@ -443,14 +503,16 @@ export class CompletionService {
       safeRef(ref) &&
       ref.startsWith(`${query.kind}:${query.namespace}/`) &&
       ref.slice(ref.indexOf('/') + 1).startsWith(query.prefix);
-    const local = index.refs.filter(eligible);
+    const rank = (a: string, b: string) =>
+      (this.history.get(b) ?? 0) - (this.history.get(a) ?? 0) || a.localeCompare(b);
+    const local = index.refs.filter(eligible).sort(rank);
     const now = this.clock.wall();
     const external = (
       remote && remote.fetchedAt <= now && now < remote.expiresAt ? remote.refs : []
     ).filter((ref) => eligible(ref) && index.proposed.get(ref) === undefined);
     const rows = [
       ...local.map((ref) => ({ ref, local: true })),
-      ...[...new Set(external)].sort().map((ref) => ({ ref, local: false })),
+      ...[...new Set(external)].sort(rank).map((ref) => ({ ref, local: false })),
     ].slice(0, COMPLETION_LIMITS.items);
     return {
       isIncomplete: true,
