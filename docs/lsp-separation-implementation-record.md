@@ -91,7 +91,10 @@ Eighty-one focused session, reload, deadline, fix, and stdio assertions pass.
 Eleven focused session/coordinator assertions also pass, including two new bounded-close failure cases.
 Cleanup attempts all owned finalizers even when draining or a close fails. Host aggregate finalizers remain responsible for their supplied providers and filesystem resources.
 The production close bound is five seconds per draining stage. A cleanup failure keeps the session unavailable and requires reconnection.
-A follow-up moves the fixed configuration watch and generation-specific credential watch to their respective owners.
+The follow-up keeps the fixed configuration watch with the process and transfers each credential watch to its session generation.
+Retired credential callbacks cannot trigger a reload. Invalid configuration does not remove the fixed recovery watch.
+Startup failure also closes resources already constructed before connection startup.
+Seventeen focused watch, session, reload, and credential assertions pass.
 Phases 8 and 9 remain pending.
 
 ### Baseline measurements
