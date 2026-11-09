@@ -1,4 +1,7 @@
-import { RequestContexts, SessionOperations } from './request-context.js';
+import { SessionResources } from './session-resources.js';
+import type { LspServerResources } from './session-resources.js';
+export type { LspServerResources } from './session-resources.js';
+import { RequestContexts } from './request-context.js';
 import type { CompletionList, Hover, Location, CodeAction } from 'vscode-languageserver/node';
 import type { FixApplicationResult } from './fixes.js';
 import { ValidationCoordinator } from './validation-coordinator.js';
@@ -13,7 +16,12 @@ import {
   TextDocumentSyncKind,
   DidChangeWatchedFilesNotification,
 } from 'vscode-languageserver/node';
-import type { Connection, Diagnostic, CancellationToken } from 'vscode-languageserver/node';
+import type {
+  Disposable,
+  Connection,
+  Diagnostic,
+  CancellationToken,
+} from 'vscode-languageserver/node';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
@@ -21,17 +29,8 @@ import { parseContract } from '../contracts/validate.js';
 import type { FilesystemSource } from './filesystem.js';
 import { APPLY_FIX_COMMAND, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
-import { CompletionService } from './completion.js';
-import { EditorService } from './editor.js';
 import type { LspConfig } from './config.js';
 import { filesystemEvent } from './discovery.js';
-
-export interface LspServerResources {
-  readonly config: LspConfig;
-  readonly catalog?: { readonly provider: CatalogProvider; readonly access: CatalogAccessContext };
-  readonly filesystem?: FilesystemSource;
-  readonly dispose?: () => Promise<void>;
-}
 
 /** One active request and one latest workspace snapshot; host owns resources and immutable authority. */
 export function attachLspServer(
@@ -48,34 +47,28 @@ export function attachLspServer(
     readonly dispose?: (() => Promise<void>) | undefined;
     readonly exit?: (code: number) => void;
     readonly reload?: () => Promise<LspServerResources>;
-    readonly configurationChanged?: (config: LspConfig) => void;
-    readonly onClose?: () => void;
+    readonly configurationChanged?: (config: LspConfig) => void | Disposable;
+    readonly onClose?: () => void | Promise<void>;
   } = {},
 ) {
   if (!!config.filesystem !== !!options.filesystem)
     throw new Error('Trusted filesystem reader configuration mismatch.');
   const fixes = new FixRegistry();
-  let completion = new CompletionService(config, options.catalog);
-  let editor = new EditorService(config);
-  let configurationUnavailable = false;
-  let reloading: Promise<{ reloaded: boolean }> | undefined;
-  let reloadAgain = false;
-  let requestGeneration = 0;
-  let operations = new SessionOperations();
   let fixesEnabled = false;
   let atomicTextEdits = false;
   const clientEdits = new ClientEdits((edit, token) =>
     connection.sendRequest(ApplyWorkspaceEditRequest.type, { label: FIX_TITLE, edit }, token),
   );
   const fixLimits = () => ({
-    fileBytes: config.profile.limits.fileBytes,
-    requestBytes: config.profile.limits.requestBytes,
+    fileBytes: sessions.current.config.profile.limits.fileBytes,
+    requestBytes: sessions.current.config.profile.limits.requestBytes,
     atomicTextEdits,
   });
   const workspace = new WorkspaceState(config);
   const approved = { has: (uri: string) => workspace.approved(uri) };
   let dynamicWatching = false;
-  let watchRequested = false;
+  let watchGeneration: number | undefined;
+  let clientInitialized = false;
   let initialized = false;
   let stopped = false;
   let requestedShutdown = false;
@@ -99,20 +92,57 @@ export function attachLspServer(
       diagnostics,
     );
   };
-  const coordinator = new ValidationCoordinator(
-    (context) =>
-      runValidation(context, {
-        config,
+  const sessions: SessionResources = new SessionResources(
+    {
+      config,
+      ...(options.catalog ? { catalog: options.catalog } : {}),
+      ...(options.filesystem ? { filesystem: options.filesystem } : {}),
+      ...(options.dispose ? { dispose: options.dispose } : {}),
+    },
+    {
+      invalidate: () => {
+        clientEdits.cancel();
+        coordinator.invalidate('configuration');
+      },
+      pause: () => {
+        coordinator.pause();
+        return coordinator.cancelActive();
+      },
+      commit: (session) => {
+        workspace.replaceConfiguration(session.config);
+        coordinator.invalidate('configuration');
+      },
+      activated: async (session) => {
+        session.own(options.configurationChanged?.(session.config));
+        for (const [uri, document] of workspace.documents)
+          if (session.config.filesystem && !workspace.approved(uri))
+            await publish(uri, document.version, [], document.lifetime);
+      },
+      resume: () => coordinator.resume(),
+      ready: () => {
+        watchFiles();
+        void connection.sendNotification('bve/configurationReloaded').catch(() => undefined);
+      },
+    },
+    options.reload,
+  );
+  const coordinator: ValidationCoordinator = new ValidationCoordinator(
+    (context) => {
+      const session = sessions.current;
+      const available = sessions.available;
+      const input = {
+        config: session.config,
         snapshot: workspace.snapshot(),
         workspace,
-        filesystem: options.filesystem,
-        catalog: options.catalog,
-        completion,
-        editor,
+        filesystem: available ? session.filesystem : undefined,
+        catalog: available ? session.catalog : undefined,
+        completion: session.completion,
+        editor: session.editor,
         fixes,
         fixesEnabled,
-        configurationUnavailable,
-        publish: (uri, version, diagnostics) =>
+        configurationUnavailable: !available,
+        operations: available ? session.operations : undefined,
+        publish: (uri: string, version: number, diagnostics: Diagnostic[]) =>
           publisher.publish(
             {
               uri,
@@ -123,12 +153,15 @@ export function attachLspServer(
             },
             diagnostics,
           ),
-      }),
-    () => config.debounceMs,
+      };
+      const work = () => (context.current() ? runValidation(context, input) : Promise.resolve());
+      return available ? session.operations.run(work) : work();
+    },
+    () => sessions.current.config.debounceMs,
     () => {
       fixes.invalidate();
-      completion.invalidate();
-      editor.invalidate();
+      sessions.current.completion.invalidate();
+      sessions.current.editor.invalidate();
       workspace.invalidate();
     },
   );
@@ -136,19 +169,18 @@ export function attachLspServer(
   const close = (): Promise<void> => {
     if (disposal) return disposal;
     stopped = true;
-    options.onClose?.();
     fixes.invalidate();
-    editor.invalidate();
-    const closeEdits = clientEdits.close();
     publisher.close();
     workspace.close();
-    const closeValidation = coordinator.close();
     disposal = (async () => {
-      await closeEdits;
-      await reloading;
-      await completion.close();
-      await closeValidation;
-      await options.dispose?.();
+      const results = await Promise.allSettled([
+        Promise.resolve().then(() => options.onClose?.()),
+        clientEdits.close(),
+        coordinator.close(),
+        sessions.close(),
+      ]);
+      if (results.some((result) => result.status === 'rejected'))
+        throw new Error('Language server cleanup failed.');
     })();
     return disposal;
   };
@@ -203,15 +235,8 @@ export function attachLspServer(
   const requests = new RequestContexts(workspace, () => ({
     initialized,
     stopped,
-    available: !configurationUnavailable,
-    session: {
-      generation: requestGeneration,
-      operations,
-      config,
-      completion,
-      editor,
-      filesystem: options.filesystem,
-    },
+    available: sessions.available,
+    session: sessions.current,
   }));
   connection.onCompletion((params, token) =>
     requests.execute<CompletionList>(
@@ -262,8 +287,9 @@ export function attachLspServer(
   );
   connection.onNotification('bve/recordSelection', (input: unknown) => {
     if (!initialized || stopped || typeof input !== 'string' || input.length > 512) return;
-    completion.record(input);
-    editor.record(input);
+    if (!sessions.available) return;
+    sessions.current.completion.record(input);
+    sessions.current.editor.record(input);
   });
   connection.onRequest('bve/searchReferences', (input: unknown, token: CancellationToken) =>
     requests.execute<readonly { reference: string; source: string }[]>(
@@ -304,87 +330,8 @@ export function attachLspServer(
       },
     ),
   );
-  async function reloadConfiguration(): Promise<{ reloaded: boolean }> {
-    if (!initialized || stopped || !options.reload) return { reloaded: false };
-    if (reloading) {
-      reloadAgain = true;
-      return reloading;
-    }
-    const reload = options.reload;
-    configurationUnavailable = true;
-    clientEdits.cancel();
-    schedule();
-    reloading = (async () => {
-      let replacement: LspServerResources | undefined;
-      try {
-        replacement = await reload();
-        if (
-          replacement.config.source.rootUri !== config.source.rootUri ||
-          !!replacement.config.filesystem !== !!config.filesystem ||
-          (!config.filesystem &&
-            JSON.stringify(replacement.config.source.files.map((file) => file.uri).sort()) !==
-              JSON.stringify(config.source.files.map((file) => file.uri).sort()))
-        )
-          throw new Error('The client must reconnect after a source scope change.');
-        if (!!replacement.config.filesystem !== !!replacement.filesystem)
-          throw new Error('Invalid host resources.');
-        const nextCompletion = new CompletionService(replacement.config, replacement.catalog);
-        const nextEditor = new EditorService(replacement.config);
-        await coordinator.cancelActive();
-        if (stopped) {
-          await nextCompletion.close();
-          return { reloaded: false };
-        }
-        await completion.close();
-        editor.invalidate();
-        await options.dispose?.();
-        if (stopped) {
-          await nextCompletion.close();
-          return { reloaded: false };
-        }
-        config = replacement.config;
-        options = {
-          ...options,
-          ...(replacement.catalog ? { catalog: replacement.catalog } : { catalog: undefined }),
-          ...(replacement.filesystem
-            ? { filesystem: replacement.filesystem }
-            : { filesystem: undefined }),
-          ...(replacement.dispose ? { dispose: replacement.dispose } : { dispose: undefined }),
-        };
-        replacement = undefined;
-        completion = nextCompletion;
-        editor = nextEditor;
-        requestGeneration++;
-        operations = new SessionOperations();
-        workspace.replaceConfiguration(config);
-        configurationUnavailable = false;
-        options.configurationChanged?.(config);
-        for (const [uri, document] of workspace.documents)
-          if (config.filesystem && !approved.has(uri)) {
-            await publish(uri, document.version, []);
-          }
-        schedule();
-        void connection.sendNotification('bve/configurationReloaded');
-        return { reloaded: true };
-      } catch {
-        completion.invalidate();
-        editor.invalidate();
-        fixes.invalidate();
-        schedule();
-        return { reloaded: false };
-      } finally {
-        await replacement?.dispose?.();
-        reloading = undefined;
-        if (reloadAgain && !stopped) {
-          reloadAgain = false;
-          queueMicrotask(() => {
-            void reloadConfiguration().catch(() => undefined);
-          });
-        }
-      }
-    })();
-    return reloading;
-  }
+  const reloadConfiguration = () =>
+    initialized && !stopped ? sessions.reload() : Promise.resolve({ reloaded: false });
   connection.onRequest('bve/reloadConfiguration', reloadConfiguration);
   connection.onCodeAction((params, token) =>
     requests.execute<CodeAction[]>(
@@ -423,33 +370,49 @@ export function attachLspServer(
     ),
   );
   function watchFiles() {
-    if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {
-      watchRequested = true;
-      void connection.client
-        .register(DidChangeWatchedFilesNotification.type, {
-          watchers: [
-            { globPattern: { baseUri: config.source.rootUri!, pattern: '**/*' }, kind: 7 },
-          ],
-        })
-        .catch(() => {
-          if (!stopped)
-            connection.console.warn(
-              'Automatic file-change notifications are unavailable; save notifications still refresh approved files.',
-            );
-        });
+    const session = sessions.current;
+    if (
+      session.filesystem &&
+      dynamicWatching &&
+      clientInitialized &&
+      !stopped &&
+      watchGeneration !== session.generation
+    ) {
+      watchGeneration = session.generation;
+      const registration = connection.client.register(DidChangeWatchedFilesNotification.type, {
+        watchers: [
+          { globPattern: { baseUri: session.config.source.rootUri!, pattern: '**/*' }, kind: 7 },
+        ],
+      });
+      session.own(registration);
+      void registration.catch(() => {
+        if (!stopped && !session.closed)
+          connection.console.warn(
+            'Automatic file-change notifications are unavailable; save notifications still refresh approved files.',
+          );
+      });
     }
   }
-  connection.onInitialized(watchFiles);
+  connection.onInitialized(() => {
+    clientInitialized = true;
+    watchFiles();
+  });
   function refresh() {
     workspace.invalidateDisk();
     schedule();
   }
   connection.onDidSaveTextDocument((params) => {
-    if (initialized && !stopped && options.filesystem && approved.has(params?.textDocument?.uri))
+    if (
+      initialized &&
+      !stopped &&
+      sessions.current.filesystem &&
+      approved.has(params?.textDocument?.uri)
+    )
       refresh();
   });
   connection.onDidChangeWatchedFiles((params) => {
-    if (!initialized || stopped || !options.filesystem || !Array.isArray(params?.changes)) return;
+    if (!initialized || stopped || !sessions.current.filesystem || !Array.isArray(params?.changes))
+      return;
     if (params.changes.length > 1000) {
       // Events are invalidation hints; coalesce large batches to the bounded allowlist.
       refresh();
@@ -462,8 +425,8 @@ export function attachLspServer(
           typeof row.uri === 'string' &&
           isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) &&
           [1, 2, 3].includes(row.type) &&
-          (filesystemEvent(config, row.uri) ||
-            config.filesystem!.files.some((uri) =>
+          (filesystemEvent(sessions.current.config, row.uri) ||
+            sessions.current.config.filesystem!.files.some((uri) =>
               uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
             )),
       )
@@ -480,14 +443,14 @@ export function attachLspServer(
     if (stopped || !item) return;
     const previous = workspace.closeDocument(item.uri);
     if (!previous) return;
-    if (options.filesystem && approved.has(item.uri)) refresh();
+    if (sessions.current.filesystem && approved.has(item.uri)) refresh();
     else schedule();
     await publish(item.uri, previous.version, [], previous.lifetime);
   });
   async function fileOperations(rows: readonly SourceFileOperation[]) {
     if (!initialized || stopped) return;
     const cleared = workspace.applyOperations(rows);
-    if (options.filesystem) refresh();
+    if (sessions.current.filesystem) refresh();
     else schedule();
     for (const document of cleared)
       await publish(document.uri, document.version, [], document.lifetime);
@@ -503,7 +466,14 @@ export function attachLspServer(
     await close();
   });
   connection.onExit(() => {
-    void close().then(() => options.exit?.(requestedShutdown ? 0 : 1));
+    void close().then(
+      () => options.exit?.(requestedShutdown ? 0 : 1),
+      () => options.exit?.(1),
+    );
   });
-  return { close, reload: reloadConfiguration };
+  return {
+    close,
+    reload: reloadConfiguration,
+    own: (registration: Disposable | void) => sessions.current.own(registration),
+  };
 }

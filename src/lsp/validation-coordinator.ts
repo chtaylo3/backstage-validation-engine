@@ -28,6 +28,7 @@ export class ValidationCoordinator {
     private readonly delay: () => number,
     private readonly invalidateState: (reason: InvalidationReason) => void,
     private readonly clock: CoordinatorClock = defaultClock,
+    private readonly closeLimitMs = 5000,
   ) {}
   get generation() {
     return this.revision;
@@ -112,7 +113,20 @@ export class ValidationCoordinator {
     this.revision++;
     this.timer?.();
     this.timer = undefined;
-    await this.cancelActive();
-    this.notifyIdle();
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        this.cancelActive(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Validation shutdown deadline exceeded.')),
+            this.closeLimitMs,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      this.notifyIdle();
+    }
   }
 }

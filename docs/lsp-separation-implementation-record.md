@@ -82,7 +82,17 @@ Repair results preserve actual post-dispatch client acknowledgements.
 Thirty-two existing completion/reload/fix assertions and three focused context assertions pass.
 A focused case caught identity aliasing in the initial context implementation. Capturing the generation value corrects it.
 Session-wide cancellation and disposal will use this tracking in phase 7.
-Phases 7 through 9 remain pending.
+Phase 7 centralizes resource generations and serialized replacement in `SessionResources`.
+The activation commit installs the generation and workspace selection while feature requests remain unavailable.
+Validation, schema preparation, indexing, and feature operations register with the generation that owns their resources.
+Prepared replacements and late registrations are closed after terminal shutdown.
+The connection retains its edit owner. The process retains its shared CEL runtime.
+Eighty-one focused session, reload, deadline, fix, and stdio assertions pass.
+Eleven focused session/coordinator assertions also pass, including two new bounded-close failure cases.
+Cleanup attempts all owned finalizers even when draining or a close fails. Host aggregate finalizers remain responsible for their supplied providers and filesystem resources.
+The production close bound is five seconds per draining stage. A cleanup failure keeps the session unavailable and requires reconnection.
+A follow-up moves the fixed configuration watch and generation-specific credential watch to their respective owners.
+Phases 8 and 9 remain pending.
 
 ### Baseline measurements
 

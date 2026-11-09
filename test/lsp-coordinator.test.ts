@@ -97,3 +97,21 @@ void test('paused invalidations coalesce and terminal close cancels timers witho
   await coordinator.whenIdle();
   assert.deepEqual(seen, [2]);
 });
+
+void test('terminal coordinator close reports a bounded failure if an internal callback ignores cancellation', async () => {
+  const time = clock();
+  const coordinator = new ValidationCoordinator(
+    () => new Promise(() => {}),
+    () => 0,
+    () => {},
+    time,
+    5,
+  );
+  coordinator.invalidate('buffer');
+  time.tick();
+  await turn();
+  await assert.rejects(coordinator.close(), /shutdown deadline exceeded/u);
+  assert(coordinator.status.stopped);
+  coordinator.invalidate('buffer');
+  assert.equal(time.callbacks.size, 0);
+});

@@ -15,7 +15,9 @@ export class SessionOperations {
   }
   run<T>(operation: () => Promise<T> | T): Promise<T> {
     if (this.signal.aborted) return Promise.reject(new Error('Session is retired.'));
-    const work = Promise.resolve().then(operation);
+    return this.track(Promise.resolve().then(operation));
+  }
+  track<T>(work: Promise<T>): Promise<T> {
     this.work.add(work);
     void work.then(
       () => this.work.delete(work),

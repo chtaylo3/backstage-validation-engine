@@ -1,3 +1,4 @@
+import type { SessionOperations } from './request-context.js';
 import type { Diagnostic } from 'vscode-languageserver/node';
 import { digestText } from '../core/json.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
@@ -21,6 +22,7 @@ import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 import type { ValidationRun } from './validation-coordinator.js';
 
 interface ValidationInputs {
+  readonly operations: SessionOperations | undefined;
   readonly config: LspConfig;
   readonly snapshot: WorkspaceSnapshot;
   readonly workspace: Pick<
@@ -125,8 +127,10 @@ export async function runValidation(
           deliver = resolve;
         })
       : undefined;
-    void completion.update(request, generation, local);
-    const prepared = editor.update(request, generation);
+    const indexing = completion.update(request, generation, local);
+    void (input.operations ? input.operations.track(indexing) : indexing);
+    const preparing = editor.update(request, generation);
+    const prepared = input.operations ? input.operations.track(preparing) : preparing;
     const report = await validatePolicySources(request, config, {
       ...(deliver ? { onLocalSources: deliver } : {}),
       onFailure: (row) => {
