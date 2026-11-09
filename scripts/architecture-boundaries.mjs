@@ -12,11 +12,7 @@ const domain = new Set([
   'compatibility',
   'runtime',
 ]);
-const temporary = new Set([
-  'src/cli/main.ts -> src/lsp/config.ts',
-  'src/cli/main.ts -> src/lsp/discovery.ts',
-  'src/index.ts -> src/cli/sarif.ts',
-]);
+const temporary = new Set(['src/index.ts -> src/cli/sarif.ts']);
 const normalize = (value) => value.replaceAll('\\', '/');
 function category(file) {
   if (file.startsWith('extensions/vscode/src/')) return 'client';

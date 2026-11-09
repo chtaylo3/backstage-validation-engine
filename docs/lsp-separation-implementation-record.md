@@ -55,7 +55,11 @@ Phase 1 adds a TypeScript-based import graph to `npm run check`.
 It checks aliases, re-exports, type imports, dynamic imports, and literal module loaders.
 The existing CLI configuration edges and root SARIF edge are exact temporary exceptions.
 The current graph passes. The representative forbidden-import test passes.
-Phases 2 through 9 remain pending.
+Phase 2 moves catalog admission and construction into `src/host/catalog-config.ts`.
+Its input types contain catalog settings and approved authority identity without `LspConfig`.
+CLI no longer imports LSP parsing or catalog construction. Existing LSP exports remain wrappers.
+Type checking, the import policy, lint, and 11 focused CLI/credential assertions pass.
+Phases 3 through 9 remain pending.
 
 ### Baseline measurements
 

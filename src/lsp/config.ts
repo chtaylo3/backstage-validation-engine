@@ -1,7 +1,9 @@
+import {
+  CatalogSettingsSchema,
+  createHostCatalog,
+  parseCatalogSettings,
+} from '../host/catalog-config.js';
 import { randomUUID } from 'node:crypto';
-import { open } from 'node:fs/promises';
-import { constants } from 'node:fs';
-import { isAbsolute } from 'node:path';
 import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
@@ -14,8 +16,6 @@ import { deepFreeze, digestJson, immutableJson } from '../core/json.js';
 import type { Immutable } from '../core/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
-import { createCatalogProvider } from '../providers/catalog.js';
-import type { CatalogProvider } from '../providers/types.js';
 import { approvedFilesystemUri } from './discovery.js';
 
 const text = Type.String({ minLength: 1, maxLength: 4096 });
@@ -48,25 +48,7 @@ const schema = Type.Object(
       ),
     ),
     debounceMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 250 })),
-    catalog: Type.Optional(
-      Type.Object(
-        {
-          connectionId: text,
-          baseUrl: text,
-          allowInsecureHttp: Type.Optional(Type.Boolean()),
-          principalId: text,
-          credentialRevision: text,
-          scope: Type.Array(Type.String({ minLength: 1, maxLength: 128 }), {
-            maxItems: 16,
-            uniqueItems: true,
-          }),
-          maxAgeMs: Type.Integer({ minimum: 0, maximum: 30_000 }),
-          tokenEnv: Type.Optional(Type.String({ pattern: '^[A-Za-z_][A-Za-z0-9_]{0,127}$' })),
-          tokenFile: Type.Optional(text),
-        },
-        { additionalProperties: false },
-      ),
-    ),
+    catalog: Type.Optional(CatalogSettingsSchema),
   },
   { additionalProperties: false },
 );
@@ -123,12 +105,8 @@ export function parseLspConfig(input: unknown) {
     )
       throw new Error('Invalid trusted filesystem configuration.');
   }
-  if (
-    config.catalog &&
-    (!!config.catalog.tokenEnv === !!config.catalog.tokenFile ||
-      (config.catalog.tokenFile && !isAbsolute(config.catalog.tokenFile)))
-  )
-    throw new Error('Select exactly one trusted catalog credential source.');
+  if (config.catalog) parseCatalogSettings(config.catalog);
+
   verifyRequestBindings(createLspRequest(config, config.source), config);
   return config;
 }
@@ -160,73 +138,16 @@ export function createLspRequest(
   });
 }
 
-/** Credentials are supplied by a trusted launcher environment, never document content. */
-export async function createLspCatalog(config: LspConfig, environment: NodeJS.ProcessEnv) {
-  if (!config.catalog) return undefined;
-  const settings = config.catalog;
-  const credential = async () => {
-    if (settings.tokenEnv) {
-      const token = environment[settings.tokenEnv];
-      if (!token) throw new Error('Configured catalog credential is unavailable.');
-      return token;
-    }
-    const handle = await open(
-      settings.tokenFile!,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-    try {
-      const stat = await handle.stat();
-      if (!stat.isFile() || stat.size < 1 || stat.size > 16 * 1024 || stat.nlink !== 1)
-        throw new Error('Configured catalog credential is unavailable.');
-      const buffer = Buffer.alloc(16 * 1024 + 1);
-      const { bytesRead } = await handle.read(buffer);
-      const after = await handle.stat();
-      if (
-        bytesRead !== stat.size ||
-        after.nlink !== 1 ||
-        after.size !== stat.size ||
-        after.mtimeMs !== stat.mtimeMs ||
-        after.ctimeMs !== stat.ctimeMs
-      )
-        throw new Error('Configured catalog credential changed during capture.');
-      const token = new TextDecoder('utf-8', { fatal: true })
-        .decode(buffer.subarray(0, bytesRead))
-        .trim();
-      if (!token || bytesRead > 16 * 1024 || /[\r\n]/u.test(token))
-        throw new Error('Configured catalog credential is unavailable.');
-      return token;
-    } finally {
-      await handle.close();
-    }
-  };
-  await credential();
-  const provider: CatalogProvider = await createCatalogProvider({
-    connectionId: settings.connectionId,
-    baseUrl: settings.baseUrl,
-    ...(settings.allowInsecureHttp === undefined
-      ? {}
-      : { allowInsecureHttp: settings.allowInsecureHttp }),
-    adapterId: config.profile.adapterId,
-    credentials: async (access) => ({
-      token: await credential(),
-      installationId: access.installationId,
-      principalId: access.principalId,
-      permissionRevision: access.permissionRevision,
-      credentialRevision: access.credentialRevision,
-      scope: access.scope,
-    }),
-  });
-  return {
-    provider,
-    access: {
-      installationId: config.identity.installationId,
-      principalId: settings.principalId,
-      permissionRevision: config.identity.permissionRevision,
-      credentialRevision: settings.credentialRevision,
-      scope: settings.scope,
+/** Compatibility export for the existing LSP API. */
+export function createLspCatalog(config: LspConfig, environment: NodeJS.ProcessEnv) {
+  return createHostCatalog(
+    config.catalog,
+    {
+      adapterId: config.profile.adapterId,
+      identity: config.identity,
       policyDigest: digestJson(config.policy),
       profileDigest: digestJson(config.profile),
-      maxAgeMs: settings.maxAgeMs,
     },
-  };
+    environment,
+  );
 }
