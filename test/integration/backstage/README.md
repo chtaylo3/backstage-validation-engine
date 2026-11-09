@@ -116,6 +116,13 @@ The editor command uses the installed candidate. A separate driver extension sup
 Each case gets a fresh editor process, user profile, launcher configuration, and workspace.
 The host stops and starts Backstage when the editor requests an outage phase.
 
+## Use the optional Dev Container
+
+The repository's Dev Container configuration builds the shared test image from its Dockerfile.
+In VS Code, run `Dev Containers: Reopen in Container` from the repository checkout.
+This gives you the pinned runtime and editor tools for interactive work.
+Run the environment commands from the host terminal because Docker control stays on the host.
+
 ## Run the release profile
 
 Use a clean candidate commit and packages built at that exact revision. The release command rejects dirty implementation inputs.
