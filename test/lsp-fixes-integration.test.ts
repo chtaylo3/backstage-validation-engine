@@ -228,6 +228,18 @@ void test('a silent apply client times out, suppresses retries, then shuts down 
   await host.shutdown();
 });
 
+void test('shutdown completes gracefully while a silent client edit remains unresolved', async (t) => {
+  const host = await startLspClient(t, config(), {
+    fixes: true,
+    applyEdit: () => new Promise(() => {}),
+  });
+  const report = await open(host);
+  const action = (await actions(host, report))[0]!;
+  assert.deepEqual(await execute(host, action), { applied: false, reason: 'client_error' });
+  assert.equal(host.applyRequests.length, 1);
+  await host.shutdown();
+});
+
 void test('fixes stay unavailable without client capabilities or complete validation', async (t) => {
   await t.test('capabilities absent', async (t) => {
     const host = await startLspClient(t, config());

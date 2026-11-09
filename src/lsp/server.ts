@@ -1,10 +1,11 @@
+import { diagnostic, incomplete } from './diagnostics.js';
+import { DiagnosticPublisher } from './diagnostic-publisher.js';
+import { ClientEdits } from './client-edits.js';
+import { ApplyWorkspaceEditRequest } from 'vscode-languageserver/node';
 import {
-  DiagnosticSeverity,
   PositionEncodingKind,
   TextDocumentSyncKind,
   DidChangeWatchedFilesNotification,
-  ApplyWorkspaceEditRequest,
-  CancellationTokenSource,
 } from 'vscode-languageserver/node';
 import type {
   Connection,
@@ -13,9 +14,7 @@ import type {
   CancellationToken,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import type { Finding } from '../contracts/schemas.js';
 import { digestText } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
 import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
 import type { SourceInput } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
@@ -35,45 +34,6 @@ import { EditorService } from './editor.js';
 import type { LspConfig } from './config.js';
 import { approvedFilesystemUri, filesystemEvent } from './discovery.js';
 
-function diagnostic(
-  finding: Immutable<Finding>,
-  digest: string,
-  version: number,
-  uri: string,
-  evidence: readonly FailureEvidence[] = [],
-  fixGeneration?: number,
-): Diagnostic {
-  const projected = finding.location.uri !== uri;
-  const location = projected
-    ? finding.relatedLocations.find((location) => location.uri === uri)!
-    : finding.location;
-  const related = [...(projected ? [finding.location] : []), ...finding.relatedLocations].filter(
-    (item) => item !== location,
-  );
-  return {
-    range: location.range,
-    severity: finding.severity === 'error' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
-    source: 'backstage-validation',
-    code: finding.ruleId,
-    message: finding.message,
-    ...(related.length
-      ? {
-          relatedInformation: related.map((location) => ({
-            location: { uri: location.uri, range: location.range },
-            message: 'Related source location.',
-          })),
-        }
-      : {}),
-    data: {
-      findingId: finding.id,
-      ...(fixGeneration === undefined ? {} : { fixGeneration }),
-      category: finding.category,
-      sourceDigest: digest,
-      version,
-      ...(evidence.length ? { execution: evidence } : {}),
-    },
-  };
-}
 const validVersion = (version: number) => Number.isSafeInteger(version) && version >= 0;
 const validUri = (uri: string) =>
   typeof uri === 'string' && uri.length <= 4096 && /^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$/.test(uri);
@@ -114,7 +74,9 @@ export function attachLspServer(
   let reloadAgain = false;
   let fixesEnabled = false;
   let atomicTextEdits = false;
-  let applyingFix: CancellationTokenSource | undefined;
+  const clientEdits = new ClientEdits((edit, token) =>
+    connection.sendRequest(ApplyWorkspaceEditRequest.type, { label: FIX_TITLE, edit }, token),
+  );
   const fixLimits = () => ({
     fileBytes: config.profile.limits.fileBytes,
     requestBytes: config.profile.limits.requestBytes,
@@ -141,8 +103,20 @@ export function attachLspServer(
   let pending = false;
   let disposal: Promise<void> | undefined;
 
-  const publish = async (uri: string, version: number, diagnostics: Diagnostic[]) => {
-    await connection.sendDiagnostics({ uri, version, diagnostics });
+  const publisher = new DiagnosticPublisher((params) => connection.sendDiagnostics(params));
+  const publish = (uri: string, version: number, diagnostics: Diagnostic[]) => {
+    const generation = epoch;
+    const document = documents.get(uri);
+    return publisher.publish(
+      {
+        uri,
+        version,
+        generation,
+        lifetime: uri,
+        current: () => !stopped && epoch === generation && documents.get(uri) === document,
+      },
+      diagnostics,
+    );
   };
   const drain = (): void => {
     if (active || !pending || stopped) return;
@@ -311,25 +285,6 @@ export function attachLspServer(
         if (pending && !timer) drain();
       });
   };
-  function incomplete(
-    digest: string | undefined,
-    version: number,
-    evidence: readonly FailureEvidence[] = [],
-  ): Diagnostic {
-    return {
-      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
-      severity: DiagnosticSeverity.Warning,
-      code: 'validation/incomplete',
-      source: 'backstage-validation',
-      message: 'Validation could not complete for this workspace snapshot.',
-      data: {
-        category: 'execution',
-        ...(evidence.length ? { execution: evidence } : {}),
-        ...(digest === undefined ? {} : { sourceDigest: digest }),
-        version,
-      },
-    };
-  }
   function schedule() {
     fixes.invalidate();
     completion.invalidate();
@@ -402,12 +357,14 @@ export function attachLspServer(
     options.onClose?.();
     fixes.invalidate();
     editor.invalidate();
-    applyingFix?.cancel();
+    const closeEdits = clientEdits.close();
+    publisher.close();
     epoch++;
     pending = false;
     if (timer) clearTimeout(timer);
     controller?.abort();
     disposal = (async () => {
+      await closeEdits;
       await reloading;
       await completion.close();
       await active;
@@ -571,7 +528,7 @@ export function attachLspServer(
     }
     const reload = options.reload;
     configurationUnavailable = true;
-    applyingFix?.cancel();
+    clientEdits.cancel();
     schedule();
     reloading = (async () => {
       let replacement: LspServerResources | undefined;
@@ -654,7 +611,7 @@ export function attachLspServer(
       unavailableSources() ||
       configurationUnavailable ||
       capacityExceeded ||
-      applyingFix
+      clientEdits.busy
     )
       return [];
     return fixes.actions(params, epoch, documents, fixLimits());
@@ -671,39 +628,10 @@ export function attachLspServer(
       token.isCancellationRequested
     )
       return { applied: false, reason: 'invalid_request' };
-    if (applyingFix) return { applied: false, reason: 'busy' };
-    return fixes.apply(params.arguments, epoch, documents, fixLimits(), async (edit) => {
-      const cancellation = new CancellationTokenSource();
-      applyingFix = cancellation;
-      const timer = setTimeout(() => cancellation.cancel(), FIX_LIMITS.applyMs);
-      const upstream = token.onCancellationRequested(() => cancellation.cancel());
-      const pending = connection.sendRequest(
-        ApplyWorkspaceEditRequest.type,
-        { label: FIX_TITLE, edit },
-        cancellation.token,
-      );
-      // Cancellation alone does not settle a JSON-RPC request. Keep at most one
-      // outstanding client request even after the bounded local wait expires.
-      const release = () => {
-        cancellation.dispose();
-        if (applyingFix === cancellation) applyingFix = undefined;
-      };
-      void pending.then(release, release);
-      let stopWaiting: (() => void) | undefined;
-      const cancelled = new Promise<never>((_resolve, reject) => {
-        const stop = () => reject(new Error('Fix application cancelled.'));
-        const subscription = cancellation.token.onCancellationRequested(stop);
-        stopWaiting = () => subscription.dispose();
-        if (cancellation.token.isCancellationRequested) stop();
-      });
-      try {
-        return await Promise.race([pending, cancelled]);
-      } finally {
-        clearTimeout(timer);
-        upstream.dispose();
-        stopWaiting?.();
-      }
-    });
+    if (clientEdits.busy) return { applied: false, reason: 'busy' };
+    return fixes.apply(params.arguments, epoch, documents, fixLimits(), (edit) =>
+      clientEdits.apply(edit, token),
+    );
   });
   function watchFiles() {
     if (options.filesystem && dynamicWatching && !stopped && !watchRequested) {

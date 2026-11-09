@@ -59,7 +59,13 @@ Phase 2 moves catalog admission and construction into `src/host/catalog-config.t
 Its input types contain catalog settings and approved authority identity without `LspConfig`.
 CLI no longer imports LSP parsing or catalog construction. Existing LSP exports remain wrappers.
 Type checking, the import policy, lint, and 11 focused CLI/credential assertions pass.
-Phases 3 through 9 remain pending.
+Phase 3 extracts pure diagnostic conversion, one diagnostic publisher, and a connection edit owner.
+The owner retains its slot across local timeout or reload and closes without a client acknowledgement.
+A new stdio test leaves the edit unresolved through graceful shutdown and passes.
+Existing LSP and fix integration scenarios pass. All three focused owner assertions pass.
+An initial owner assertion observed promise settlement too early. It now waits for the event-loop turn that settles the response.
+The workspace extraction will supply explicit document lifetime identifiers to the publisher.
+Phases 4 through 9 remain pending.
 
 ### Baseline measurements
 
