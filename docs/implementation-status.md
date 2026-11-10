@@ -359,6 +359,8 @@ Marketplace publication and real-backend qualification remain release work.
 
 ## LSP ownership separation
 
+Phases 0 through 9 are implemented and merged in [PR #2](https://github.com/chtaylo3/backstage-validation-engine/pull/2).
+The tested head was `6938b8b85c1b5889af3fbe1119684de6577e5b45`. The merge commit was `d2e54748dbd34e9f1e881c2abf77689cf197b40f`.
 The LSP now separates workspace mutation, validation scheduling, request context, diagnostic publication, and session resource ownership.
 CLI catalog admission no longer depends on LSP configuration. The root SARIF API uses neutral reporting with a compatible CLI wrapper.
 Native validators and editor schemas share pin admission while preserving independent presentation-schema failure behavior.
@@ -367,7 +369,10 @@ The architectural import gate covers domain/runtime boundaries, aliases, barrels
 Connection edit reservations survive reload and local timeout. Terminal shutdown cannot wait indefinitely for a silent client.
 Session replacement has one activation commit point and closes abandoned resources and late registrations.
 The process configuration watch remains live across invalid reloads. Credential watches retire with their session.
-See [the implementation record](lsp-separation-implementation-record.md) for phase evidence and qualification status.
+Each native operating system passed 989 source tests, 989 packaged tests, and 88 installed-editor cases.
+Quick qualification passed 36 desktop compatibility/load cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
+The macOS qualification needed one isolated rerun after a native Trust UI timeout. Its original 87/88 result remains recorded.
+See [the implementation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for exact candidate digests, hosted runs, and remaining release limits.
 
 ## Editor authoring and workspace increment
 
@@ -388,8 +393,9 @@ Automated coverage includes source ranges, unfinished YAML/JSON, both native pin
 policy prerequisites, structured includes, explicit repairs, discovery, search ranking, credential
 rotation, reload failure/recovery, and shared stdio features. A new installed-VSIX case exercises
 field/value suggestions, hover, definitions, and reload without replacing the server process.
-Installed JetBrains qualification, Marketplace publication, the complete native platform matrix,
-and exact-candidate release evidence remain separate release work.
+At this earlier authoring checkpoint, the complete native platform matrix remained open.
+The ownership separation later qualified the native VS Code matrix and real remote sessions described above.
+Installed JetBrains qualification, Marketplace publication, and final release evidence remain separate release work.
 
 Local development checks on 2026-11-09: `npm run check` and `npm run test:packaged` each passed
 932 tests with no failures or skips. The installed-VSIX `editor-intelligence` case passed on
@@ -413,13 +419,18 @@ does not currently revalidate idle editor buffers. Bounded background refresh, o
 notifications, remote dependency generations, query/absence invalidation, and same-version
 diagnostic publication remain required implementation work.
 
-## Next increments, in order
+## Current editor implementation sequence
 
-1. IDE qualification. Broaden interactive UX/upgrade and in-flight fix/version tests, qualify
-   JetBrains, and prepare an authorized Marketplace release.
-2. Governed pilot. Trusted hierarchy, one verified Git bypass provider, SQLite
-   inbox/outbox/controller recovery, generation-aware direct/central Actions execution, and
-   authoritative GitHub publication.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative delivery order.
+Its [implementation record](lsp-editor-improvements-implementation-record.md) records phase evidence and parent acceptance.
+Phase 1 updates documentation. Phase 2 implements capability contracts and adapts built-in providers.
+Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions.
+Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.
+
+Phases 2 through 4 remain unimplemented at this documentation checkpoint.
+SQS, Kafka, the durable hosted controller, and authoritative GitHub publication remain outside this editor implementation.
+Arbitrary executable plugin loading also remains outside phases 1 through 4.
+The broader governed pilot and stable-release roadmap retain their separate authority and qualification requirements.
 
 ## Required release evidence
 

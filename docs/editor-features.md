@@ -6,6 +6,8 @@ Trusted launcher configuration selects schemas, policy authority, sources, and c
 
 The [rule and editor capability plan](plugin-capabilities-plan.md) specifies future CEL, RE2, and plugin extensions.
 It defines the interfaces and conformance requirements for each function. Generic plugin negotiation remains future implementation work.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
+Capability interfaces, live catalog refresh, and CEL/RE2 contributions remain unimplemented phases 2 through 4.
 
 ## Completion and documentation
 
@@ -120,3 +122,12 @@ Shared features depend on the client's declared capabilities. The search picker 
 Template generation and shared LSP behavior have automated tests.
 Installed JetBrains products, plugin versions, and operating systems still need interactive qualification.
 Marketplace publication and exact-candidate release qualification remain separate release actions.
+The user deferred JetBrains qualification, native Trust automation improvements, and longer release workloads to phase 5.
+
+## Completed native VS Code qualification
+
+The ownership refactor completed phases 0 through 9 and merged in PR #2.
+Its tested head passed 989 source tests, 989 packaged tests, and 88 installed cases on each native operating system.
+Quick qualification also passed 36 desktop cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
+The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
+These results do not complete the deferred release work above.

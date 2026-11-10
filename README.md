@@ -143,6 +143,8 @@ configuration reload, and JetBrains setup, see [editor features](docs/editor-fea
 For future CEL, RE2, and plugin contributions, see the
 [rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
 execution controls, and conformance tests for each supported function.
+The [five-phase editor plan](docs/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.
+Its client reliability and release qualification phase is deferred.
 
 For safe local includes, file Locations, source roots and catalog entrypoints, see
 [snapshot-local substitutions](docs/substitutions.md).

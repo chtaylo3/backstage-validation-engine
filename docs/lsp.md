@@ -11,6 +11,12 @@ policy, and the rule dependency graph. The graph is a DAG: a directed graph with
 `executeCelRules` remains a compatible alias. These APIs provide scoped validation. They do not
 establish complete Backstage ingestion or verified policy authority.
 
+The LSP ownership separation completed phases 0 through 9 and merged in PR #2.
+Its native VS Code and real SSH, dev-container, and Windows WSL2 qualification passed for the recorded candidate.
+See the [current qualification record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
+Later dated increment sections retain their historical qualification scope.
+
 ## Explicit catalog rules
 
 An organization can require an existing owner with this policy entry:
@@ -170,9 +176,9 @@ aggregation, and source and data bindings. They also cover rapid edits, close an
 included-buffer edits and repair, restoration, inclusion-site diagnostics, local-source guards,
 resynchronization, and framing limits.
 
-Real Backstage authentication/smoke tests, actual editor clients, hosted OS runs and integrated
-latency/resource qualification remain release gates. The existing measured CEL cold-start
-performance gate remains open.
+Native VS Code and hosted OS checks later passed in the current qualification record above.
+Installed JetBrains, longer final-candidate workloads, and release-specific integration evidence remain separate gates.
+The historical CEL measurements below retain their original scope and performance limits.
 
 Local qualification on 2026-10-29: 37 new policy/LSP checks and all 424 tests in `npm run check`
 passed. Full and production npm audits report zero vulnerabilities. The built development
@@ -381,8 +387,8 @@ diagnostics and tokens, and content changes without version changes. They also c
 overlapping edits, byte limits, expiry, backward clock changes, watch invalidation, client version
 races and rejection, and silent-client shutdown. These are protocol-fixture checks.
 
-VS Code and JetBrains installation qualification remain open. Completion support is described below.
-At this increment, extension packaging remains the next IDE work.
+At this historical increment, VS Code and JetBrains installation qualification remained open.
+Later native VS Code qualification appears in the current record above. Installed JetBrains qualification remains deferred.
 
 Local qualification on 2026-11-07: all 774 tests and required type/lint/format/schema/build checks
 passed through `npm run check`, including 80 new scalar, guard and stdio checks. There were no
@@ -459,9 +465,9 @@ The completion, catalog-search and stdio suites are included in `test:lsp`, `tes
 full check. They cover both native pins and pinned API contracts, reference prefixes and defaults,
 arrays, empty and quoted scalars, JSON, CRLF, and UTF-16. They also cover local masks, visibility,
 pagination, queue and byte limits, freshness, typing during held HTTP, cancellation, included
-payloads, and shutdown. Extension packaging and actual VS Code/JetBrains qualification are next.
-Broader property/schema completion, search UI, history ranking, hover/navigation and real-backend
-search qualification remain later IDE/release work.
+payloads, and shutdown. At this historical increment, extension packaging and installed-client qualification were still pending.
+Later increments added property/schema completion, search UI, history ranking, hover, and navigation.
+See [current editor features](editor-features.md) and the qualification record above for completed scope and remaining release work.
 
 Local qualification on 2026-11-07: `npm run check` passed all 813 tests, including 39 new
 completion/search/stdio checks, with no failures or skips. Required type/lint/format/schema/build

@@ -6,7 +6,7 @@ revision does not complete qualification.
 
 | Area                       | Implemented qualification                                                                                                                                             | Evidence required before support is claimed                                                                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Portable desktop           | Installed VSIX, 42 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
+| Portable desktop           | Installed VSIX, 44 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
 | Races and native lifecycle | Entered/cancelled/released catalog gates, suspended-server apply delivery, watchers, multi-root and two real windows, native reload and close                         | 20 independent repetitions per OS and editor, with every earlier failure retained                                                                                                 |
 | Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, screenshots, UI actions and owned server cleanup on all six combinations                                                             |
 | YAML coexistence           | Red Hat YAML 1.19.1, independent findings, overlapping completions, guarded fix and formatting, continued YAML validation after product Stop                          | Both editor versions on all three OS targets                                                                                                                                      |
@@ -174,6 +174,23 @@ The readiness check retries refused or timed-out connections for at most 30 seco
 Authentication or hostname mismatch fails immediately. Product checks, artifact identity, disconnect cleanup, and reconnect assertions remain unchanged.
 
 ## Current qualification status
+
+The LSP separation completed phases 0 through 9 and merged in [PR #2](https://github.com/chtaylo3/backstage-validation-engine/pull/2).
+Tested head `6938b8b85c1b5889af3fbe1119684de6577e5b45` passed the native source, packaged, installed-editor, and quick qualification lanes.
+Each operating system passed 989 source tests, 989 packaged tests, and 88 portable installed-editor cases.
+Quick qualification passed 36 desktop compatibility/load cases and 12 real remote disconnect/reconnect sessions.
+The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies exact digests and successful workflow links.
+
+The first macOS qualification attempt passed 87/88 after a native `trust-persisted` UI timeout.
+The separate PR run passed. An isolated macOS rerun also passed 88/88 with unchanged assertions and bounds.
+The original failure evidence remains retained. This does not establish a fix for native Trust automation reliability.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
+
+## Historical qualification checkpoints
+
+The checkpoints below retain their original candidate revisions and limitations.
+Their pending native/remote statements do not supersede the completed candidate qualification above.
+Historical successes also do not qualify longer release workloads for a later candidate.
 
 Increment 2 is qualified at `d3884ed` by
 [CI 42445289384](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42445289384).
