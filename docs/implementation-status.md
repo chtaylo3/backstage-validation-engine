@@ -414,10 +414,10 @@ interfaces for each editor function, candidate/repair evidence, runtime requirem
 through PC-10 conformance gates. Phase 2 implements [versioned capability interfaces](capability-interfaces.md), host approval, and built-in adapters.
 General executable-plugin loading remains unavailable. The phase record separates implementation from parent acceptance.
 
-The plan also specifies live catalog dependency refresh and PC-11 qualification. Cache expiry alone
-does not currently revalidate idle editor buffers. Bounded background refresh, optional change
-notifications, remote dependency generations, query/absence invalidation, and same-version
-diagnostic publication remain required implementation work.
+Phase 3 now implements live catalog dependency refresh and PC-11 tests.
+The active LSP session owns bounded polling, dependency generations, query/absence invalidation, and same-version diagnostics.
+The phase record identifies the tested source and current parent acceptance state.
+Optional event adapters remain unimplemented. CLI runs retain their existing single-run behavior.
 
 ## Current editor implementation sequence
 
@@ -428,7 +428,7 @@ Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions
 Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.
 
 Phase 2 now implements built-in capability contracts and adapters. Its gate results and parent acceptance belong to the phase record.
-Phases 3 and 4 remain unimplemented at this checkpoint.
+Phase 3 implements the polling baseline. Phase 4 remains unimplemented at this checkpoint.
 SQS, Kafka, the durable hosted controller, and authoritative GitHub publication remain outside this editor implementation.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
 The broader governed pilot and stable-release roadmap retain their separate authority and qualification requirements.

@@ -23,6 +23,8 @@ import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 import type { ValidationRun } from './validation-coordinator.js';
 
 interface ValidationInputs {
+  readonly dependencyGeneration?: number;
+  readonly refreshQueries?: (deadlineAt: number, signal: AbortSignal) => Promise<void>;
   readonly operations: SessionOperations | undefined;
   readonly config: LspConfig;
   readonly snapshot: WorkspaceSnapshot;
@@ -71,7 +73,14 @@ export async function runValidation(
   const { generation, current } = context;
   const frame = snapshot.documents;
 
-  if (!frame.length) return;
+  if (!frame.length) {
+    if (input.refreshQueries)
+      await input.refreshQueries(
+        Date.now() + config.profile.limits.requestTimeoutMs,
+        context.signal,
+      );
+    return;
+  }
   const timing = new FailureTimer();
   const evidence: FailureEvidence[] = [];
   let deadlineAt: number | undefined;
@@ -124,6 +133,11 @@ export async function runValidation(
       ? parseContract('validation-request', { ...original, source })
       : createLspRequest(config, source);
     deadlineAt = request.execution.deadlineAt;
+    const refreshingQueries = input.refreshQueries?.(deadlineAt, context.signal);
+    if (refreshingQueries)
+      void (input.operations ? input.operations.track(refreshingQueries) : refreshingQueries).catch(
+        () => undefined,
+      );
     let deliver: ((sources?: LocalCatalogSources) => void) | undefined;
     const local = config.policy.rules.some((rule) => rule.kind === 'catalog')
       ? new Promise<LocalCatalogSources | undefined>((resolve) => {
@@ -145,7 +159,11 @@ export async function runValidation(
           signal: context.signal,
           ...(catalog ? { catalog: catalog } : {}),
         },
-        { workspaceGeneration: generation, current },
+        {
+          workspaceGeneration: generation,
+          dependencyGeneration: input.dependencyGeneration ?? 0,
+          current,
+        },
       )
       .finally(() => deliver?.());
     if (!current()) return;
@@ -203,6 +221,7 @@ export async function runValidation(
         diagnostics.push(incomplete(digest, document.version, evidence));
       await publish(document.uri, document.version, diagnostics);
     }
+    await refreshingQueries;
   } catch (error) {
     fixes.invalidate();
     if (!evidence.length)

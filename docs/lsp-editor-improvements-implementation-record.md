@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                | Parent acceptance                |
-| ----------------------------------------------- | -------------------- | -------------------------------- |
-| 1: documentation                                | Accepted             | Accepted by parent               |
-| 2: contracts and built-in adapters              | Accepted             | Accepted by parent parent review |
-| 3: live catalog refresh                         | Not implemented      | Requires accepted phase 2        |
-| 4: CEL and RE2 contributions                    | Not implemented      | Requires accepted phase 3        |
-| 5: client reliability and release qualification | Deferred by the user | Requires future authorization    |
+| Phase                                           | State                   | Parent acceptance                |
+| ----------------------------------------------- | ----------------------- | -------------------------------- |
+| 1: documentation                                | Accepted                | Accepted by parent               |
+| 2: contracts and built-in adapters              | Accepted                | Accepted by parent parent review |
+| 3: live catalog refresh                         | Implemented, qualifying | Pending parent review            |
+| 4: CEL and RE2 contributions                    | Not implemented         | Requires accepted phase 3        |
+| 5: client reliability and release qualification | Deferred by the user    | Requires future authorization    |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -206,3 +206,45 @@ The parent matched all ten installed results to the candidate revision and diges
 The parent also confirmed that changes after the qualified revision affected documentation only and repeated scoped formatting and diff checks.
 All P2-A1 through P2-A10 criteria are satisfied for the recorded local scope. Phase 3 is admitted for implementation.
 Parent test evidence remains under `.artifacts/lsp-editor-improvements/phase2/parent-review/`. Phase 5 remains deferred.
+
+## Phase 3: live catalog refresh
+
+Implementation date: 2026-11-10, America/New_York time.
+The source adds session-owned bounded polling and remote-only revalidation. Parent acceptance remains pending.
+The local qualification record below will identify the exact committed source and retained products.
+
+`CatalogRefresh` records actual body and absence dependencies separately from bounded recent identity query scopes.
+Its polling tick advances a host-owned dependency generation and invalidates metadata, query caches, candidates, and repair tokens.
+The existing coordinator admits the fresh run. Catalog reads and evaluation retain one original budget.
+Source versions remain unchanged. The engine activation generation remains unchanged.
+The CLI does not create this service.
+
+The owner tracks at most 1000 references, 32 query scopes, four query workers, and 64 outstanding operations.
+Queries expire after 120 seconds without user interest. Equal queries share work.
+Polling targets 30 seconds or earlier qualified expiry. Healthy jitter advances this target by up to ten percent.
+A 250 ms timer floor handles zero maximum age. Admission separately revokes expired claims before protocol work.
+Failures use bounded exponential backoff up to 120 seconds, with up to ten percent additional jitter.
+Healthy observation expiry can shorten backoff. The provider retains its existing batching, queue, HTTP, retry, response, and cache limits.
+
+An unchanged-body outcome still receives fresh full-body observation and evaluation.
+A rename removes and adds identities. The server never rewrites the authored reference automatically.
+Explicit denial remains unavailable. Permission-filtered missing responses cannot establish global deletion.
+Remote identity projections remain advisory. Local overlays and masks retain precedence.
+The implementation does not add event adapters or unsolicited standard completion/picker replacement.
+
+### Acceptance evidence before the full candidate gate
+
+The final focused refresh suite passed 20 tests with no failures, cancellations, or skips.
+The combined refresh, completion, and session-owner selection passed 46 tests at the earlier focused checkpoint.
+Existing completion, fix, and session regression selection passed 35 tests before the refresh tests were added.
+The new stdio cases mutate HTTP catalog fixtures on both backend contracts without edit, save, or reload notifications.
+They retain document version 7 through missing, present, body-modified, renamed, denied, and recovered observations.
+Query-only cases never open a document. They prove empty-query invalidation, added and renamed choices, removal, and no body fetches.
+A real provider case proves a changed full-body revision and changed data digest at the same entity identity.
+A guarded-repair case first obtains a valid action, then proves that remote invalidation rejects the old token before client dispatch.
+
+The first mutation test expected a separate unavailable diagnostic code. The engine correctly used the rule ID with a dependency category.
+That new test expectation was corrected to match the existing explicit incomplete semantics. Production assertions and thresholds were preserved.
+The mixed body/query failure test proves that observation expiry precedes network backoff in an idle session.
+The held-query test proves that current body diagnostics publish before the unrelated advisory read is cancelled or released.
+Final source, client, packaged, and installed-editor gates remain to run against committed inputs below.

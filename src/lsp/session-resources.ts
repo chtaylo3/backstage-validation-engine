@@ -6,6 +6,7 @@ import { BuiltinValidationService } from '../host/builtin-validation.js';
 import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import type { LspConfig } from './config.js';
 import type { FilesystemSource } from './filesystem.js';
+import { CatalogRefresh } from './catalog-refresh.js';
 import { SessionOperations } from './request-context.js';
 
 export interface SessionRegistration {
@@ -41,6 +42,7 @@ export class SessionGeneration {
   readonly completion: CompletionService;
   readonly editor: EditorService;
   readonly validation: BuiltinValidationService;
+  readonly refresh: CatalogRefresh | undefined;
   private readonly registrations = new Set<SessionRegistration>();
   private disposal: Promise<void> | undefined;
   private retired = false;
@@ -50,10 +52,15 @@ export class SessionGeneration {
     private readonly resources: LspServerResources,
     private readonly closeMs = 5000,
     private readonly cleanupFailed: () => void = () => {},
+    dependencyChanged: () => void = () => {},
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
-    this.completion = new CompletionService(resources.config, resources.catalog, undefined, {
+    this.refresh = resources.catalog
+      ? new CatalogRefresh(resources.catalog, dependencyChanged)
+      : undefined;
+    this.completion = new CompletionService(resources.config, this.catalog, undefined, {
+      dependencyGeneration: () => this.refresh?.generation ?? 0,
       sessionGeneration: generation,
     });
     const authorityContextDigest = capabilityAuthorityDigest(
@@ -63,6 +70,7 @@ export class SessionGeneration {
     this.editor = new EditorService(resources.config, undefined, {
       sessionGeneration: generation,
       authorityContextDigest,
+      dependencyGeneration: () => this.refresh?.generation ?? 0,
     });
     this.validation = new BuiltinValidationService(resources.config, generation);
   }
@@ -70,7 +78,7 @@ export class SessionGeneration {
     return this.resources.config;
   }
   get catalog() {
-    return this.resources.catalog;
+    return this.refresh?.catalog ?? this.resources.catalog;
   }
   get filesystem() {
     return this.resources.filesystem;
@@ -115,6 +123,7 @@ export class SessionGeneration {
       const draining = await bounded(
         Promise.allSettled([
           this.operations.drain(),
+          this.refresh?.close(),
           this.completion.close(),
           this.editor.close(),
           this.validation.close(),
@@ -145,6 +154,7 @@ export class SessionGeneration {
 }
 export interface SessionPorts {
   readonly invalidate: () => void;
+  readonly dependencyChanged?: () => void;
   readonly pause: () => Promise<void>;
   readonly commit: (session: SessionGeneration) => void;
   readonly activated: (session: SessionGeneration) => Promise<void> | void;
@@ -172,18 +182,24 @@ export class SessionResources {
     this.active = this.createGeneration(initial);
   }
   private createGeneration(resources: LspServerResources): SessionGeneration {
-    return new SessionGeneration(this.sequence, resources, this.closeMs, () => {
-      this.failed = true;
-      this.usable = false;
-      this.active.operations.cancel();
-      if (!this.terminal) {
-        try {
-          this.ports.invalidate();
-        } catch {
-          // The session already requires reconnection; no adapter error escapes cleanup.
+    return new SessionGeneration(
+      this.sequence,
+      resources,
+      this.closeMs,
+      () => {
+        this.failed = true;
+        this.usable = false;
+        this.active.operations.cancel();
+        if (!this.terminal) {
+          try {
+            this.ports.invalidate();
+          } catch {
+            // The session already requires reconnection; no adapter error escapes cleanup.
+          }
         }
-      }
-    });
+      },
+      () => this.ports.dependencyChanged?.(),
+    );
   }
   get current() {
     return this.active;

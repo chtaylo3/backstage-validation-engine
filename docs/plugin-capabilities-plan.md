@@ -2,7 +2,7 @@
 
 Status: phase 2 implements versioned interfaces and host admission for the existing built-in providers.
 The [implemented interface guide](capability-interfaces.md) defines the current records, boundaries, and limitations.
-External executable plugin loading, live refresh, and CEL/RE2 editor contributions remain separate work.
+Phase 3 implements bounded host polling for live refresh. External executable plugin loading and CEL/RE2 editor contributions remain separate work.
 The current wire contract remains version 0.2. A capability is a function that the host permits a provider to supply.
 This plan covers rule execution and the editor functions that rules can support.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.

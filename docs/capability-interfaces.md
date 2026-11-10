@@ -59,17 +59,17 @@ Optional editor failure produces no contribution. It cannot remove mandatory fin
 
 ## Function inventory
 
-| Interface                  | Input                                                                                                                     | Output and host boundary                                                                                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ValidationProvider`       | Pinned validation request                                                                                                 | Materialized data, evaluation start/data digest, findings, coverage, rule states, artifacts, and interruption. The host retains the original source and deadline.     |
-| `FieldMetadataProvider`    | Exact kind/API scope or explicit unknown scope, subject stage/value, pointer, approved schemas, prefix, and existing keys | Logical field names and paths, requiredness, types, placeholders, descriptions, typed constraints, and provenance. The host renders YAML/JSON keys and values.        |
-| `ValueSuggestionProvider`  | The same schema and subject context at a target path                                                                      | Finite typed candidates with provenance and required, allowed, default, example, or suggestion labels. Host constraints and history still filter and rank results.    |
-| `HoverProvider`            | Schema and subject context at a target path                                                                               | Bounded plain text. The host supplies the protocol range and plain-text markup declaration.                                                                           |
-| `ReferenceProvider`        | Authored reference value/path and approved default kind/namespace                                                         | Canonical target identities. The host resolves qualified local targets and rejects ambiguous locations.                                                               |
-| `RepairProvider`           | Finding/subject identity, target path, current value presence, and applicable schema context                              | Logical `setValue` or `insertProperty` proposals. The host owns rendering, exact ranges, edit guards, and dispatch.                                                   |
-| `SearchProvider`           | Typed kind, namespace, and prefix query                                                                                   | Bounded canonical references, fetch/expiry times, truncation, or unavailable state. The host retains approved connections, overlay masks, caches, and ranking.        |
-| `SourceDiscoveryProvider`  | Host-approved roots and include/exclude patterns                                                                          | Bounded source identities and completeness. The host scanner and subsequent reader retain containment, regular-file, mutation, and byte checks.                       |
-| `DependencyChangeProvider` | Approved scopes and optional cursor                                                                                       | Bounded invalidation hints, next cursor, reset state, and observation time. This phase defines the interface without starting polling or claiming a Backstage stream. |
+| Interface                  | Input                                                                                                                     | Output and host boundary                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ValidationProvider`       | Pinned validation request                                                                                                 | Materialized data, evaluation start/data digest, findings, coverage, rule states, artifacts, and interruption. The host retains the original source and deadline.                                          |
+| `FieldMetadataProvider`    | Exact kind/API scope or explicit unknown scope, subject stage/value, pointer, approved schemas, prefix, and existing keys | Logical field names and paths, requiredness, types, placeholders, descriptions, typed constraints, and provenance. The host renders YAML/JSON keys and values.                                             |
+| `ValueSuggestionProvider`  | The same schema and subject context at a target path                                                                      | Finite typed candidates with provenance and required, allowed, default, example, or suggestion labels. Host constraints and history still filter and rank results.                                         |
+| `HoverProvider`            | Schema and subject context at a target path                                                                               | Bounded plain text. The host supplies the protocol range and plain-text markup declaration.                                                                                                                |
+| `ReferenceProvider`        | Authored reference value/path and approved default kind/namespace                                                         | Canonical target identities. The host resolves qualified local targets and rejects ambiguous locations.                                                                                                    |
+| `RepairProvider`           | Finding/subject identity, target path, current value presence, and applicable schema context                              | Logical `setValue` or `insertProperty` proposals. The host owns rendering, exact ranges, edit guards, and dispatch.                                                                                        |
+| `SearchProvider`           | Typed kind, namespace, and prefix query                                                                                   | Bounded canonical references, fetch/expiry times, truncation, or unavailable state. The host retains approved connections, overlay masks, caches, and ranking.                                             |
+| `SourceDiscoveryProvider`  | Host-approved roots and include/exclude patterns                                                                          | Bounded source identities and completeness. The host scanner and subsequent reader retain containment, regular-file, mutation, and byte checks.                                                            |
+| `DependencyChangeProvider` | Approved scopes and optional cursor                                                                                       | Bounded invalidation hints, next cursor, reset state, and observation time. The interface defines optional hints. Host polling now supplies the live-refresh baseline without claiming a Backstage stream. |
 
 Field constraints retain source labels, artifact digests, and rule IDs where available.
 They expose known types, constants, enumerations, defaults, examples, lengths, ranges, patterns, required fields, and forbidden state.
@@ -127,7 +127,17 @@ Disposal is idempotent. Failed cleanup does not restore the provider generation.
 
 ## Deferred implementation and qualification
 
-Phase 3 implements live dependency observation and remote-only revalidation.
+Phase 3 implements host-owned polling and remote-only revalidation through `CatalogRefresh`.
+The session passes its dependency generation into validation, editor metadata, and catalog search bindings.
+Polling invalidates the coordinator and all old editor, query, and repair evidence before collection.
+Validation keeps its activation generation. Remote refresh never changes document versions or authored contents.
+A fresh lookup uses the original approved access context with cache reuse disabled for that read.
+It does not change the authority digest or renew an invocation deadline.
+
+The next request observes its own immutable snapshot. Existing invocations never receive a mutated data snapshot.
+The full catalog provider revision covers entity bodies. Query projections remain identity-only advisory records.
+Background query reports enter the search capability admission path before any client receives their values.
+CLI providers retain single-run behavior and create no refresh timers.
 A change provider must declare mechanism, coverage, cursor, ordering, replay, heartbeat, and gap handling before negotiation.
 Its hints cannot supply authoritative entity bodies or replace authorized fresh reads.
 SQS, Kafka, and hosted governance remain outside the editor phases.

@@ -98,6 +98,10 @@ export function attachLspServer(
       ...(options.dispose ? { dispose: options.dispose } : {}),
     },
     {
+      dependencyChanged: () => {
+        clientEdits.cancel();
+        coordinator.invalidate('dependencies');
+      },
       invalidate: () => {
         clientEdits.cancel();
         coordinator.invalidate('configuration');
@@ -128,12 +132,17 @@ export function attachLspServer(
     (context) => {
       const session = sessions.current;
       const available = sessions.available;
+      const refresh = available ? session.refresh?.begin() : undefined;
+      const dependencyGeneration = session.refresh?.generation ?? 0;
       const input = {
+        dependencyGeneration,
+        refreshQueries: (deadlineAt: number, signal: AbortSignal) =>
+          session.refresh?.refreshQueries({ deadlineAt, signal }) ?? Promise.resolve(),
         config: session.config,
         snapshot: workspace.snapshot(),
         workspace,
         filesystem: available ? session.filesystem : undefined,
-        catalog: available ? session.catalog : undefined,
+        catalog: available ? (refresh?.catalog ?? session.catalog) : undefined,
         completion: session.completion,
         editor: session.editor,
         validation: session.validation,
@@ -154,10 +163,13 @@ export function attachLspServer(
           ),
       };
       const work = () => (context.current() ? runValidation(context, input) : Promise.resolve());
-      return available ? session.operations.run(work) : work();
+      return (available ? session.operations.run(work) : work()).finally(() =>
+        refresh?.finish(context.current()),
+      );
     },
     () => sessions.current.config.debounceMs,
-    () => {
+    (reason) => {
+      if (reason === 'dependencies') sessions.current.completion.invalidateRemote();
       fixes.invalidate();
       sessions.current.completion.invalidate();
       sessions.current.editor.invalidate();
@@ -231,12 +243,15 @@ export function attachLspServer(
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
   });
-  const requests = new RequestContexts(workspace, () => ({
-    initialized,
-    stopped,
-    available: sessions.available,
-    session: sessions.current,
-  }));
+  const requests = new RequestContexts(workspace, () => {
+    sessions.current.refresh?.ensureFresh();
+    return {
+      initialized,
+      stopped,
+      available: sessions.available,
+      session: sessions.current,
+    };
+  });
   connection.onCompletion((params, token) =>
     requests.execute<CompletionList>(
       token,

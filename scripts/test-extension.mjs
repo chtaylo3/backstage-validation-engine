@@ -234,6 +234,7 @@ async function execute(spec, output, fault, peer) {
     }
     if (
       [
+        'catalog-refresh',
         'race-delayed-validation',
         'race-delayed-completion',
         'race-shutdown-validation',
@@ -253,9 +254,22 @@ async function execute(spec, output, fault, peer) {
         principalId: 'editor-reader',
         credentialRevision: '1',
         scope: ['catalog:read'],
-        maxAgeMs: 5000,
+        maxAgeMs: spec.id === 'catalog-refresh' ? 500 : 5000,
         tokenEnv: 'BVE_EDITOR_CATALOG_TOKEN',
       };
+      if (spec.id === 'catalog-refresh') {
+        const file = path.join(workspace, 'catalog.yaml');
+        const text = (await readFile(file, 'utf8')).replace('owner: team', 'owner: remote-refresh');
+        await writeFile(file, text);
+        const { createSourceSnapshot } = await import('../dist/index.js');
+        value.source = createSourceSnapshot({
+          ...value.source,
+          files: value.source.files.map((row) => ({
+            ...row,
+            text: row.uri.endsWith('/catalog.yaml') ? text : row.text,
+          })),
+        });
+      }
       await writeFile(config, JSON.stringify(value));
     }
     let launchConfig = config;

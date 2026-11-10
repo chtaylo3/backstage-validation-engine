@@ -190,6 +190,11 @@ export class CompletionService {
       this.catalog = { provider: catalog.provider, access };
     }
   }
+  invalidateRemote(): void {
+    this.cache.clear();
+    this.cacheBytes = 0;
+    this.remote?.controller.abort();
+  }
   invalidate(): void {
     this.generation++;
     this.index = undefined;

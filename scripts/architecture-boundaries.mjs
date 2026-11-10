@@ -19,6 +19,7 @@ const ownership = new Set([
   'src/lsp/validation-run.ts',
   'src/lsp/request-context.ts',
   'src/lsp/session-resources.ts',
+  'src/lsp/catalog-refresh.ts',
   'src/lsp/diagnostic-publisher.ts',
   'src/lsp/diagnostics.ts',
   'src/lsp/client-edits.ts',

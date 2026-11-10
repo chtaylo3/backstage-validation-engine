@@ -9,7 +9,7 @@ It defines the interfaces and conformance requirements for each function.
 Built-in providers now use the versioned [capability interfaces](capability-interfaces.md). Arbitrary executable plugin loading remains unavailable.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
 Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](lsp-editor-improvements-implementation-record.md).
-Live catalog refresh and CEL/RE2 contributions remain phases 3 and 4.
+Phase 3 adds live catalog refresh. Phase 4 retains the remaining CEL/RE2 editor contribution work.
 
 ## Completion and documentation
 
@@ -57,10 +57,25 @@ Accepted selections rank future eligible values. History cannot add an ineligibl
 VS Code stores at most 128 selections locally, scoped to the workspace, trusted configuration, and authority context.
 Other clients use the server's bounded session history.
 
-Catalog cache expiry currently triggers fresh reads on later requests. It does not schedule idle-buffer revalidation after a remote catalog change.
-The [live dependency refresh plan](plugin-capabilities-plan.md#live-changes-to-catalog-data) specifies background refresh,
-optional change notifications, same-version diagnostics, and invalidation of affected suggestions and repairs.
-These continuous remote-refresh mechanisms remain implementation work.
+Catalog dependencies now refresh while an approved document remains unchanged.
+Adding, removing, renaming, or modifying a team triggers fresh evaluation at the existing document version.
+Polling targets 30 seconds. Earlier observation expiry or `catalog.maxAgeMs` shortens this interval.
+A 250 ms scheduling floor prevents `maxAgeMs: 0` from creating an immediate loop.
+Each tick invalidates remote choices and repair tokens before a new validation request reads the catalog.
+That request retains one original budget for body reads, recent identity queries, and evaluation.
+
+Completion and search receive refreshed choices on the next matching client request.
+The server does not replace a standard completion popup or an already open VS Code search picker automatically.
+It tracks up to 1000 actual body or missing-reference dependencies and 32 recent query scopes.
+Query interest expires after two minutes without user requests. Background reads do not extend that interest.
+Identity searches never substitute for full entity observations.
+Local sources, conflicts, invalid replacements, and deletion masks retain precedence.
+
+Explicit denied reads and remote failures retain unavailable or incomplete findings.
+An authorized-view missing result cannot distinguish global deletion from permission-filtered absence when the backend returns the same response.
+Permission or credential revision changes replace the entire approved session and its caches.
+Polling uses bounded failure backoff. No Backstage event stream is assumed or implemented.
+The [phase record](lsp-editor-improvements-implementation-record.md) separates local qualification from parent acceptance.
 
 ## File discovery
 

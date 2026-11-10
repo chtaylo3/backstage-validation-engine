@@ -475,3 +475,41 @@ checks passed. Warm local completion over a 1000-entity snapshot measured p95 0.
 samples after three warmups. An 844151-byte buffer with 1000 reference slots took 2.927 ms for one
 warm request. These local measurements exclude cold source-index preparation, validation, network,
 and actual editor integration. They do not establish release latency guarantees.
+
+## Live catalog dependency refresh
+
+The active LSP session owns `CatalogRefresh`. The CLI does not start this service.
+It records up to 1000 actual full-body or missing-reference dependencies and 32 recent identity query scopes.
+The body inventory follows the latest current validation run. Local overlay resolution determines which remote reads occur.
+Query scopes retain the approved kind, namespace, prefix, connection, and authority context.
+They expire after 120 seconds without user interest. Background work never extends this lifetime.
+
+The default target interval is 30 seconds. Earlier qualified expiry and `catalog.maxAgeMs` shorten it.
+Healthy jitter advances the target by up to ten percent. A 250 ms floor bounds timer frequency.
+Zero maximum age bypasses cache reuse and uses this floor. It never causes a zero-delay timer loop.
+Protocol admission also detects elapsed claim expiry, so a delayed timer cannot authorize an expired repair.
+A failed refresh backs off from at least one second to 120 seconds, with up to ten percent additional jitter.
+Any remaining valid observation expiry still takes precedence over that backoff.
+
+Each tick advances the dependency generation and invalidates the existing coordinator once.
+It clears remote completion caches, cancels obsolete reads, invalidates metadata and guarded repairs, and schedules a new validation.
+That validation bypasses provider caches for its selected remote references.
+Body reads, bounded recent query refresh, and evaluation share its original request deadline.
+Up to four query refresh workers share the provider's existing four-request transport limit.
+The provider retains its 100-reference batching, 1000-reference admission limit, and 64-operation queue limit.
+The refresh owner also admits at most 64 outstanding operations and coalesces equal identity queries.
+No full-catalog scan occurs per keystroke. Ordinary buffer edits retain normal cache reuse.
+
+Healthy change-to-result targets include the observation interval, configured validation debounce, and one newly admitted request budget.
+They are targets under available capacity, rather than hard delivery guarantees during outages or scheduling pressure.
+Same-version diagnostic publication replaces or clears the previous findings after fresh evaluation.
+Subsequent completion and search requests receive fresh choices. Standard LSP completion lists remain client-requested.
+An already open search picker has no automatic remote refresh negotiation in this implementation.
+
+Full entity revisions cover body changes even when identity and rule outcomes remain identical.
+Identity queries remain advisory. They cannot establish existence, global absence, or policy compliance.
+When an authorized backend filters an entity into a missing response, the server cannot distinguish that response from global deletion.
+Explicit denial remains unavailable. Changed permission and credential revisions require resource replacement and discard old authority-scoped caches.
+Local overlays, invalid replacements, conflicts, and deletion masks retain precedence during refresh and outages.
+Reload and shutdown cancel the timer and drain owned reads before the underlying catalog connection is disposed.
+Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.
