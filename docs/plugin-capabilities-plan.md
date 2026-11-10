@@ -393,7 +393,7 @@ The [phase record](lsp-editor-improvements-implementation-record.md) distinguish
 | 4           | Add CEL and RE2 metadata, finite candidates, applicability, candidate evidence, and guarded repair proposals through qualified runtime paths.                | PC-02, PC-03, PC-04, PC-06, and focused installed-client integration.           |
 | 5, deferred | Improve native Trust automation, qualify installed JetBrains clients, and complete longer final-candidate endurance and release qualification.               | PC-10 and the declared final support/release matrix.                            |
 
-Phase 2 implements the built-in interfaces and awaits its recorded qualification and parent acceptance.
+Phase 2 implements the built-in interfaces. Its local qualification passed, and parent acceptance remains pending in the phase record.
 Phases 3 and 4 remain planned. Phase 5 does not start automatically.
 Built-in adapters and approved declarative artifacts do not require an arbitrary executable plugin loader.
 External executable providers need separate approval, process supervision, permission brokers, and qualified isolation.

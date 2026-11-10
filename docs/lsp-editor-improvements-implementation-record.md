@@ -9,7 +9,7 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 | Phase                                           | State                              | Parent acceptance             |
 | ----------------------------------------------- | ---------------------------------- | ----------------------------- |
 | 1: documentation                                | Accepted                           | Accepted by parent            |
-| 2: contracts and built-in adapters              | Implemented, qualification pending | Pending parent review         |
+| 2: contracts and built-in adapters              | Implemented, pending parent review | Pending parent review         |
 | 3: live catalog refresh                         | Not implemented                    | Requires accepted phase 2     |
 | 4: CEL and RE2 contributions                    | Not implemented                    | Requires accepted phase 3     |
 | 5: client reliability and release qualification | Deferred by the user               | Requires future authorization |
@@ -74,7 +74,7 @@ Phases 2 through 4 remain unimplemented at this review checkpoint. Phase 5 remai
 ## Phase 2: capability contracts and built-in adapters
 
 Implementation date: 2026-11-10, America/New_York time.
-This phase implements version 1 capability records and built-in adapters. Full qualification and parent acceptance remain pending below.
+This phase implements version 1 capability records and built-in adapters. Local qualification passed. Parent acceptance remains pending below.
 
 ### Implementation and compatibility decisions
 
@@ -115,7 +115,7 @@ Phases 3 and 4 remain separate. Phase 5 remains deferred.
 | P2-A7     | Subject stages, kind/API scopes, logical paths, typed constraints, and original source handling remain explicit. Unsupported source operations retain existing guards.                                            |
 | P2-A8     | Optional metadata failure leaves mandatory core violations intact. Required unavailable processing/catalog state retains incomplete coverage.                                                                     |
 | P2-A9     | Manifest approval is independent. Authored source and manifests cannot load code, select endpoints, or expose tokens. Trusted launcher configuration retains host-approved endpoints.                             |
-| P2-A10    | Full source/client, packaged, and focused installed-editor evidence is pending the committed-source qualification below.                                                                                          |
+| P2-A10    | Architecture and the full gate passed with 1,018 source and 42 client tests. Packaged tests passed 1,018 cases. Ten focused installed cases passed.                                                               |
 
 ### Executed checks and retained failures
 
@@ -149,13 +149,53 @@ A retained negative control confirms that the original close resolved while canc
 That control released its gate and remains under `.artifacts/lsp-editor-improvements/phase2/negative-finalizer/`.
 The corrected conformance file passed all 24 of its cases.
 
-The final gate will use a clean committed checkout because the unrelated user-owned review remains unformatted and untracked in the shared workspace.
+The final gate used a clean committed checkout because the unrelated user-owned review remains unformatted and untracked in the shared workspace.
 That file and the separate planning repository remain untouched.
 
 ### Committed candidate qualification
 
-Pending. The implementation commit, commands, inventories, candidate digest, and focused installed results will be recorded after execution.
-No hosted CI, cross-platform matrix, or release endurance result is claimed for this new candidate yet.
+Implementation commit: `e2fe0207d6ba7c10806491f62e403baae5ce28a7`.
+The cancellation ownership correction and tested source revision are `231651f57593ef3772feb71508ec6e2382182568`.
+This later record update changes documentation only. Its HEAD does not identify a rebuilt product.
+
+Qualification ran serially in an isolated checkout of the tested revision on Linux x64.
+A real `npm ci --no-audit --no-fund` installed matching dependencies before the final gate and packaging.
+The runtime was Node 24.22.1 with npm 11.19.1.
+No concurrent compile, lint, or focused suite ran during the final source gate.
+The original native corpus case passed unchanged in this final full gate.
+
+| Command or check                        | Result                                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `npm run check`                         | Architecture, type, lint, format, and generated schema checks passed. All 1,018 source tests and 42 client tests passed. |
+| Client coverage in the full gate        | 100% lines and 95.88% branches. Required thresholds remain 90% lines and 85% branches.                                   |
+| `npm run extension:package`             | Built the Linux x64 VSIX with the tested source revision in its build information.                                       |
+| `npm run test:packaged`                 | All 1,018 tests passed with the packaged runtime and server.                                                             |
+| Focused installed editor commands below | Ten cases passed with no failed or unexecuted cases.                                                                     |
+
+Each inventory reports zero failed, cancelled, skipped, or todo tests.
+The focused commands used `npm run test:extension -- --case=<case>` through `xvfb-run`.
+The environment removed inherited `ELECTRON_RUN_AS_NODE`, `BVE_LSP_CONFIG`, and `BVE_MANUAL_CATALOG_TOKEN` values for each launch.
+The cases were `editor-intelligence`, `reference-completion`, `editor-search`, `diagnostics`, and `versioned-fix`.
+Each case passed on VS Code 1.106.3 and 1.145.2.
+Each installed report matches the tested source revision and VSIX digest.
+These cases exercise actual field/value suggestions, hover, local navigation, catalog completion/search, diagnostics, and guarded repair dispatch.
+
+The candidate is `backstage-validation-engine-0.1.0-linux-x64.vsix`, with 52,054,359 bytes.
+Its SHA-256 is `a5f992df2821dcfcb5d02655d592d46a6535b47a8ce1d7cb5f885edc7cded995`.
+The client software bill of materials contains nine components, matching the names and versions in the prior qualified client.
+All nine client license notices are present. The real dependency install avoids attribution loss through a dependency-directory symlink.
+
+The retained proof root is `.artifacts/lsp-editor-improvements/phase2/231651f/`.
+It contains `qualification-summary.json`, `candidate.json`, `quality-gate.log`, `package.log`, and source/client/packaged inventories.
+Each `installed-<case>/results.json` records both editor versions, the source revision, and the installed digest.
+The exact VSIX, staged build information, component inventory, and notices also remain in the isolated checkout for parent inspection.
+The earlier failed gate, isolated native pass, and negative controls remain separate from this successful candidate evidence.
+
+The final documentation-only update passed scoped Prettier, `git diff --check`, and 15 local Markdown targets and anchors.
+No runtime, test, schema, package, or tool file changed after the tested source revision.
+
+No hosted CI, cross-platform matrix, remote session, or release endurance result is claimed for this new candidate.
+Phase 5 remains deferred. There are no known local phase 2 acceptance gaps, subject to parent review.
 
 ### Parent acceptance
 
