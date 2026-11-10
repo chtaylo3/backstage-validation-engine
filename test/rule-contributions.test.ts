@@ -86,6 +86,17 @@ void test('approved editor artifacts reject altered contents, policy/rule/profil
   ])
     assert.throws(() => parseEditorArtifacts([altered], run.context.policy, run.context.profile));
   assert.throws(() => parseEditorArtifacts([good, good], run.context.policy, run.context.profile));
+  let reads = 0;
+  const accessors: unknown[] = [];
+  Object.defineProperty(accessors, '0', {
+    enumerable: true,
+    get: () => {
+      reads++;
+      return good;
+    },
+  });
+  assert.throws(() => parseEditorArtifacts(accessors, run.context.policy, run.context.profile));
+  assert.equal(reads, 0, 'Artifact admission cannot invoke an array accessor.');
 });
 
 void test('CEL finite candidates use substring matching and retain exact full-pipeline evidence through capabilities', async (t) => {

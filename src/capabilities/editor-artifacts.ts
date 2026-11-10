@@ -62,9 +62,11 @@ export function parseEditorArtifacts(
   policy: Immutable<PolicyBundle>,
   profile: Immutable<DeploymentProfile>,
 ): readonly Immutable<EditorArtifact>[] {
-  if (input.length > 16) throw new Error('Editor artifact count exceeds limits.');
+  const admitted: unknown = immutableJson(input);
+  if (!Array.isArray(admitted) || admitted.length > 16)
+    throw new Error('Editor artifact count exceeds limits.');
   const ids = new Set<string>();
-  return input.map((value) => {
+  return admitted.map((value: unknown) => {
     const safe = immutableJson(value);
     if (!validate(safe)) throw new Error('Invalid approved editor artifact.');
     const { digest: declared, ...contents } = safe;
