@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      qualify_vscode:
+        description: Run quick editor and remote-workspace qualification for this exact candidate
+        type: boolean
+        default: false
       qualify_backstage:
         description: Run the release-only real Backstage suite for this exact candidate
         type: boolean
@@ -128,6 +132,17 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+
+  vscode_compatibility:
+    name: Explicit quick editor qualification
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_vscode == true }}
+    needs: [vscode]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/vscode-compatibility.yml
+    with:
+      qualification: quick
 
   backstage_release:
     name: Explicit Backstage release qualification

@@ -1,6 +1,12 @@
 name: VS Code compatibility and endurance
 
 on:
+  workflow_call:
+    inputs:
+      qualification:
+        description: Quick mechanisms, scheduled 30-minute soaks, or release two-hour soaks
+        type: string
+        default: quick
   schedule:
     - cron: '15 7 * * 2'
   workflow_dispatch:

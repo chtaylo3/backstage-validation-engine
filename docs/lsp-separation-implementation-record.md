@@ -293,3 +293,16 @@ Preflight reports declare zero product sessions. They cannot substitute for inst
 Native Linux hosted execution was not run from this checkout. It remains pending the next pushed CI run.
 The local development result does not qualify native Windows/macOS, the Windows desktop WSL lane, or a hosted release.
 No branch was pushed and no pull request was changed.
+
+## Hosted qualification handoff
+
+The feature branch was pushed at `75c2160` and opened as PR #2 against `master`.
+Both CI events passed the authenticated SSH preflights on native Linux, including both network paths.
+GitHub did not register the standalone compatibility workflow after the repository was recreated.
+Dispatch by filename returned HTTP 404 although the file was present on the default branch.
+
+The compatibility workflow now also accepts a reusable call. An explicit `qualify_vscode` input on
+the registered CI workflow invokes its existing quick jobs after all three VSIX candidate jobs pass.
+The same exact-revision package selection and product assertions remain in force.
+Ordinary pushes and pull requests do not enable this optional lane.
+Hosted compatibility results will be recorded after that explicit dispatch finishes.

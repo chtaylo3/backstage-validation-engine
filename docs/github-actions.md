@@ -155,6 +155,17 @@ commands, environment pins, workload definitions, acceptance checks and remainin
 limits. Long workflows consume the actual CI VSIX rather than rebuilding a different artifact with
 the same source revision.
 
+The compatibility workflow also supports a reusable call from CI. If GitHub has not yet registered
+its standalone manual trigger, run quick qualification through the registered CI workflow:
+
+```sh
+gh workflow run ci.yml --ref CANDIDATE_REF -F qualify_vscode=true
+```
+
+CI first builds and tests the exact revision's three VSIX candidates. It then calls the same quick
+desktop, SSH, dev-container, and WSL jobs. This option does not start release soaks or publication.
+Normal pushes and pull requests leave this explicit qualification disabled.
+
 The first increment 3 matrix at `d8b2f15` passed 74 installed-editor executions on Linux and
 Windows. Its macOS run exposed a transport-error shutdown status race and the native behavior where
 closing the last window leaves the application running. The follow-up marks transport failures
