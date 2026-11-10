@@ -304,12 +304,10 @@ void test('aborted and retired candidate failures cannot retain interest or revi
       new Promise((_resolve, fail) => {
         reject = fail;
       });
-    const pending = h.refresh
-      .candidates()
-      .provider.lookup(['group:default/candidate'], h.access, {
-        ...h.execution,
-        signal: abort.signal,
-      });
+    const pending = h.refresh.candidates().provider.lookup(['group:default/candidate'], h.access, {
+      ...h.execution,
+      signal: abort.signal,
+    });
     await new Promise<void>((resolve) => setImmediate(resolve));
     if (retired) h.refresh.suspend();
     else abort.abort();
