@@ -1,3 +1,5 @@
+import { normalizeCatalogAccess } from '../providers/catalog.js';
+import { CatalogFailure } from '../providers/types.js';
 import { abortable } from '../providers/async.js';
 import { digestJson } from '../core/json.js';
 import type {
@@ -45,6 +47,7 @@ export class CatalogRefresh {
   private fresh = false;
   private failures = 0;
   private queryFailed = false;
+  private denied = false;
   private observedAt = 0;
   private expiresAt = Infinity;
   private references = new Set<string>();
@@ -63,11 +66,12 @@ export class CatalogRefresh {
     private readonly invalidate: () => void,
     private readonly time: RefreshClock = clock,
   ) {
-    this.original = catalog;
+    this.original = { provider: catalog.provider, access: normalizeCatalogAccess(catalog.access) };
     const provider: CatalogProvider = {
       connectionId: catalog.provider.connectionId,
       adapterId: catalog.provider.adapterId,
-      lookup: (refs, access, execution) => catalog.provider.lookup(refs, access, execution),
+      lookup: (refs, access, execution) =>
+        catalog.provider.lookup(refs, this.approved(access), execution),
       ...(catalog.provider.suggest
         ? {
             suggest: (
@@ -81,7 +85,17 @@ export class CatalogRefresh {
       // The resource aggregate retains ownership of the underlying connection.
       close: () => Promise.resolve(),
     };
-    this.catalog = { provider, access: catalog.access };
+    this.catalog = { provider, access: this.original.access };
+  }
+  private approved(access: CatalogAccessContext): CatalogAccessContext {
+    const normalized = normalizeCatalogAccess(access);
+    if (
+      digestJson({ ...normalized, maxAgeMs: 0 }) !==
+        digestJson({ ...this.original.access, maxAgeMs: 0 }) ||
+      (normalized.maxAgeMs !== 0 && normalized.maxAgeMs !== this.original.access.maxAgeMs)
+    )
+      throw new CatalogFailure('credential_binding');
+    return normalized;
   }
   get generation() {
     return this.revision;
@@ -119,7 +133,7 @@ export class CatalogRefresh {
     const now = this.time.now();
     const cadence = Math.min(
       CATALOG_REFRESH_LIMITS.cadenceMs,
-      this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.floorMs,
+      this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.cadenceMs,
     );
     const backoff = this.failures
       ? Math.min(
@@ -159,6 +173,20 @@ export class CatalogRefresh {
     for (const controller of this.controllers) controller.abort();
     this.invalidate();
   }
+  private denyAuthority(): void {
+    if (this.closed || this.denied) return;
+    this.denied = true;
+    this.timer?.();
+    this.timer = undefined;
+    this.due = Infinity;
+    this.claimsExpireAt = Infinity;
+    this.expiresAt = Infinity;
+    this.revision++;
+    this.fresh = true;
+    for (const row of this.queries.values()) delete row.report;
+    for (const controller of this.controllers) controller.abort();
+    this.invalidate();
+  }
   private own<T>(
     operation: (signal: AbortSignal) => Promise<T>,
     execution: CatalogExecutionContext,
@@ -186,6 +214,7 @@ export class CatalogRefresh {
     execution: CatalogExecutionContext,
     background = false,
   ): Promise<CatalogSuggestionReport> {
+    access = this.approved(access);
     const revision = this.revision;
     const key = JSON.stringify(query),
       now = this.time.now();
@@ -246,6 +275,11 @@ export class CatalogRefresh {
       this.queryFailed = true;
       if (!this.busy) this.failures++;
     }
+    if (
+      report.status === 'unavailable' &&
+      ['permission_denied', 'credential_binding'].includes(report.failure)
+    )
+      this.denyAuthority();
     this.observedAt ||= now;
     if (!this.busy) this.schedule();
     return report;
@@ -267,6 +301,7 @@ export class CatalogRefresh {
       provider: {
         ...this.catalog.provider,
         lookup: async (references, access, execution) => {
+          access = this.approved(access);
           for (const ref of references) {
             if (refs.size >= CATALOG_REFRESH_LIMITS.references && !refs.has(ref))
               throw new Error('Catalog dependency inventory exceeds limits.');
@@ -284,6 +319,15 @@ export class CatalogRefresh {
             );
             if (this.closed || revision !== this.revision || execution.signal?.aborted)
               throw new Error('Catalog observation is stale.');
+            if (
+              report.failures.some((row) =>
+                ['permission_denied', 'credential_binding'].includes(row.code),
+              ) ||
+              report.data.entries.some(
+                (row) => row.status === 'unavailable' && row.reason === 'permission_denied',
+              )
+            )
+              this.denyAuthority();
             reports.push(report);
             return report;
           } catch (error) {
@@ -321,7 +365,7 @@ export class CatalogRefresh {
                 Math.min(
                   row.provenance.expiresAt,
                   row.provenance.fetchedAt +
-                    (this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.floorMs),
+                    (this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.cadenceMs),
                 ),
               ),
           );
@@ -332,6 +376,8 @@ export class CatalogRefresh {
               revision: row.provenance.revision,
             })),
           );
+          if (!failed && [...this.queries.values()].every((row) => row.report?.status === 'ready'))
+            this.denied = false;
           this.fresh = false;
         }
         this.schedule();

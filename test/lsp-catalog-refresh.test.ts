@@ -173,8 +173,8 @@ void test('body and absence dependencies use qualified cadence, bypass caches on
   assert.equal(h.refresh.status.timer, false);
   await h.refresh.close();
 });
-void test('zero max age has a positive scheduling floor and bounded exponential outage backoff', async () => {
-  const h = setup(0);
+void test('short qualified cadence has a positive scheduling floor and bounded exponential outage backoff', async () => {
+  const h = setup(250);
   await read(h);
   assert.equal(h.delay, CATALOG_REFRESH_LIMITS.floorMs);
   h.advance();
@@ -399,7 +399,7 @@ void test('real provider body changes alter dependency digest while the entity i
     await observe();
     const before = refresh.status.dataDigest;
     fixture.upsert({ ...team, spec: { type: 'team', children: ['new-child'] } });
-    now += 250;
+    now += 30_000;
     tick?.();
     const report = await observe();
     assert.notEqual(refresh.status.dataDigest, before);
@@ -746,5 +746,255 @@ void test('a held advisory query does not delay timely remote-only body diagnost
   } finally {
     gate.release();
   }
+  await host.shutdown();
+});
+
+void test('zero maximum age bypasses every read without revoking valid claims at the scheduling floor', async () => {
+  const h = setup(0);
+  await read(h);
+  await read(h);
+  assert(
+    h.calls.every((call) => call.maxAgeMs === 0),
+    'Zero continues to bypass network cache reuse.',
+  );
+  assert.equal(
+    h.delay,
+    CATALOG_REFRESH_LIMITS.cadenceMs,
+    'New observations retain the default polling cadence.',
+  );
+  h.setNow(1000 + CATALOG_REFRESH_LIMITS.floorMs);
+  h.refresh.ensureFresh();
+  assert.equal(
+    h.invalidations,
+    0,
+    'The rate guard is not the lifetime of a fresh no-cache observation.',
+  );
+  assert.equal(h.refresh.generation, 0);
+  h.setNow(31_000);
+  h.refresh.ensureFresh();
+  assert.equal(h.invalidations, 1, 'Actual observation expiry still revokes claims.');
+  const run = h.refresh.begin();
+  h.provider.lookup = (refs, access, execution) => {
+    h.calls.push({ refs, maxAgeMs: access.maxAgeMs, deadlineAt: execution.deadlineAt });
+    return Promise.resolve({
+      data: createDataSnapshot(
+        refs.map((key) => ({
+          key,
+          status: 'missing' as const,
+          provenance: {
+            providerId: 'backstage-catalog',
+            connectionId: 'primary',
+            installationId: access.installationId,
+            principalId: access.principalId,
+            permissionRevision: access.permissionRevision,
+            scope: [...access.scope],
+            revision: 'missing',
+            fetchedAt: 31_000,
+            expiresAt: 36_000,
+          },
+        })),
+      ),
+      failures: [],
+      interrupted: 'none',
+    });
+  };
+  await run.catalog.provider.lookup(['group:default/missing'], h.access, { deadlineAt: 36_000 });
+  run.finish(true);
+  assert.equal(h.delay, 5000, 'Negative observation expiry shortens the no-cache cadence.');
+  await h.refresh.close();
+});
+void test('cached and in-flight queries cannot cross pinned authority and age boundaries', async () => {
+  const h = setup();
+  const query = { kind: 'group', namespace: 'default', prefix: 'te' };
+  h.setSuggestions(['group:default/approved']);
+  await h.refresh.catalog.provider.suggest!(query, h.access, h.execution);
+  const changes = [
+    { principalId: 'different' },
+    { installationId: 'different' },
+    { permissionRevision: 'different' },
+    { credentialRevision: 'different' },
+    { scope: ['different'] },
+    { policyDigest: 'sha256:' + 'a'.repeat(64) },
+    { profileDigest: 'sha256:' + 'b'.repeat(64) },
+    { maxAgeMs: 100 },
+  ];
+  const denied = (error: unknown) =>
+    error instanceof Error && 'code' in error && error.code === 'credential_binding';
+  for (const change of changes) {
+    await assert.rejects(
+      h.refresh.catalog.provider.suggest!(query, { ...h.access, ...change }, h.execution),
+      denied,
+    );
+    const run = h.refresh.begin();
+    await assert.rejects(
+      run.catalog.provider.lookup(['group:default/team'], { ...h.access, ...change }, h.execution),
+      denied,
+    );
+    run.finish(false);
+  }
+  let release: (report: CatalogSuggestionReport) => void = () => {};
+  let calls = 0;
+  h.provider.suggest = () => {
+    calls++;
+    return new Promise((resolve) => {
+      release = resolve;
+    });
+  };
+  const pending = h.refresh.catalog.provider.suggest!(
+    { ...query, prefix: 'other' },
+    h.access,
+    h.execution,
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  for (const change of changes)
+    await assert.rejects(
+      h.refresh.catalog.provider.suggest!(
+        { ...query, prefix: 'other' },
+        { ...h.access, ...change },
+        h.execution,
+      ),
+      denied,
+    );
+  assert.equal(calls, 1, 'Mismatched authority cannot dispatch or join approved in-flight work.');
+  release({
+    status: 'ready',
+    refs: ['group:default/other-approved'],
+    fetchedAt: 1000,
+    expiresAt: 31_000,
+    truncated: false,
+  });
+  assert.deepEqual((await pending).refs, ['group:default/other-approved']);
+  h.provider.suggest = () =>
+    Promise.resolve({
+      status: 'ready',
+      refs: ['group:default/te-fresh'],
+      fetchedAt: 1000,
+      expiresAt: 31_000,
+      truncated: false,
+    });
+  assert.deepEqual(
+    (await h.refresh.catalog.provider.suggest!(query, { ...h.access, maxAgeMs: 0 }, h.execution))
+      .refs,
+    ['group:default/te-fresh'],
+  );
+  await h.refresh.close();
+});
+
+void test('known authority denial revokes cached claims once before expiry and repeated denial does not self-cancel recovery', async () => {
+  for (const failure of ['permission_denied', 'credential_binding'] as const) {
+    const h = setup();
+    await read(h);
+    const query = { kind: 'group', namespace: 'default', prefix: 'te' };
+    h.setSuggestions(['group:default/team']);
+    await h.refresh.catalog.provider.suggest!(query, h.access, h.execution);
+    const eligibleGeneration = h.refresh.generation;
+    let calls = 0;
+    h.provider.suggest = () => {
+      calls++;
+      return Promise.resolve({
+        status: 'unavailable',
+        failure,
+        refs: [],
+        truncated: false,
+        fetchedAt: 1000,
+        expiresAt: 1000,
+      });
+    };
+    await h.refresh.catalog.provider.suggest!(query, { ...h.access, maxAgeMs: 0 }, h.execution);
+    assert.notEqual(
+      h.refresh.generation,
+      eligibleGeneration,
+      'Known denial revokes prior choice and repair bindings immediately.',
+    );
+    assert.equal(h.invalidations, 1);
+    await h.refresh.catalog.provider.suggest!(query, h.access, h.execution);
+    assert.equal(calls, 2, 'The prior ready result cannot be served from cache.');
+    assert.equal(h.invalidations, 1, 'Repeated denial does not cancel the replacement run.');
+    h.provider.suggest = () =>
+      Promise.resolve({
+        status: 'ready',
+        refs: ['group:default/te-recovered'],
+        truncated: false,
+        fetchedAt: 1000,
+        expiresAt: 31_000,
+      });
+    assert.deepEqual(
+      (await h.refresh.catalog.provider.suggest!(query, h.access, h.execution)).refs,
+      ['group:default/te-recovered'],
+    );
+    await h.refresh.close();
+  }
+});
+void test('a newly observed query denial revokes an existing guarded repair before the old body TTL expires', async (t) => {
+  const matrix = await policyMatrix(t);
+  const { fixture } = matrix.fixtures[0]!;
+  const fix = fixPolicy();
+  const run = policyRun({ ...fix, rules: [...fix.rules, ownerRule] });
+  const host = await startLspClient(
+    t,
+    parseLspConfig({
+      ...run.context,
+      identity: run.request.identity,
+      source: run.request.source,
+      debounceMs: 0,
+      catalog: {
+        connectionId: 'primary',
+        baseUrl: fixture.baseUrl,
+        principalId: 'reader',
+        credentialRevision: '1',
+        scope: ['catalog:read'],
+        maxAgeMs: 30_000,
+        tokenEnv: 'BVE_TEST_TOKEN',
+      },
+    }),
+    { fixes: true },
+  );
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: {
+      uri: URI,
+      version: 19,
+      text: componentText().replace('production', 'experimental'),
+      languageId: 'yaml',
+    },
+  });
+  const report = await host.waitFor(
+    (row) => row.version === 19 && row.diagnostics.some((d) => d.code === 'required-value'),
+  );
+  const actions = (await host.client.sendRequest(CodeActionRequest.type, {
+    textDocument: { uri: URI },
+    range: report.diagnostics[0]!.range,
+    context: { diagnostics: report.diagnostics, only: ['quickfix'] },
+  })) as CodeAction[];
+  assert.equal(actions.length, 1);
+  await host.client.sendRequest('bve/searchReferences', {
+    kind: 'group',
+    namespace: 'default',
+    prefix: 'te',
+  });
+  fixture.setPrincipal({
+    token: 'policy-test-secret',
+    principalId: 'reader',
+    canRead: false,
+    visibleRefs: '*',
+  });
+  const after = fixture.requests().length;
+  await host.client.sendRequest('bve/searchReferences', {
+    kind: 'group',
+    namespace: 'default',
+    prefix: 'ot',
+  });
+  assert(
+    fixture
+      .requests()
+      .slice(after)
+      .some((row) => row.operation === 'byQuery' && row.status === 403),
+  );
+  const applied: unknown = await host.client.sendRequest(
+    ExecuteCommandRequest.type,
+    actions[0]!.command!,
+  );
+  assert.deepEqual(applied, { applied: false, reason: 'stale' });
+  assert.equal(host.applyRequests.length, 0);
   await host.shutdown();
 });

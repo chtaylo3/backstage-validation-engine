@@ -222,7 +222,8 @@ The CLI does not create this service.
 The owner tracks at most 1000 references, 32 query scopes, four query workers, and 64 outstanding operations.
 Queries expire after 120 seconds without user interest. Equal queries share work.
 Polling targets 30 seconds or earlier qualified expiry. Healthy jitter advances this target by up to ten percent.
-A 250 ms timer floor handles zero maximum age. Admission separately revokes expired claims before protocol work.
+A 250 ms timer floor bounds short intervals. Zero maximum age bypasses reuse and retains the default cadence or earlier actual observation expiry.
+Admission separately revokes expired claims before protocol work.
 Failures use bounded exponential backoff up to 120 seconds, with up to ten percent additional jitter.
 Healthy observation expiry can shorten backoff. The provider retains its existing batching, queue, HTTP, retry, response, and cache limits.
 
@@ -248,3 +249,23 @@ That new test expectation was corrected to match the existing explicit incomplet
 The mixed body/query failure test proves that observation expiry precedes network backoff in an idle session.
 The held-query test proves that current body diagnostics publish before the unrelated advisory read is cancelled or released.
 Final source, client, packaged, and installed-editor gates remain to run against committed inputs below.
+
+### Parent hardening before candidate qualification
+
+The first local candidate was `7d065f0807cacbb9c40ff60cef3ac7a415be40be`.
+Its clean `npm run check` passed 1038 source tests and 42 client tests with unchanged coverage thresholds.
+This result does not qualify the later corrections.
+
+Parent review identified that zero maximum age must bypass reuse without changing the lifetime of a new observation.
+The corrected implementation retains the default 30-second cadence or earlier actual expiry for zero maximum age.
+An independent regression proves fresh network reads and no dependency invalidation at the timer floor.
+Parent review also reproduced a cross-authority query cache hit through the wrapper.
+The owner now pins a normalized access context and rejects mismatches before cached reads, shared work, or body dispatch.
+Tests cover principal, installation, permission and credential revisions, scope, policy/profile digests, and unsupported age changes.
+The intentional zero-age fresh-read override remains allowed under the same authority.
+
+A newly observed explicit permission denial or credential binding failure now revokes prior dependency eligibility immediately.
+Repeated denial remains latched until successful reconciliation, so it cannot continuously cancel the replacement request.
+Tests first establish a ready cached query and a valid guarded action, then observe denial before the old body TTL expires.
+The old action never reaches client edit dispatch. Authorized-view filtered missing responses retain their separate semantics.
+The hardened focused suite passed 24 tests before the final clean gates below.

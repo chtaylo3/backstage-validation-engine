@@ -60,7 +60,7 @@ Other clients use the server's bounded session history.
 Catalog dependencies now refresh while an approved document remains unchanged.
 Adding, removing, renaming, or modifying a team triggers fresh evaluation at the existing document version.
 Polling targets 30 seconds. Earlier observation expiry or `catalog.maxAgeMs` shortens this interval.
-A 250 ms scheduling floor prevents `maxAgeMs: 0` from creating an immediate loop.
+A 250 ms scheduling floor bounds short intervals. `maxAgeMs: 0` bypasses caches and retains the default observation cadence.
 Each tick invalidates remote choices and repair tokens before a new validation request reads the catalog.
 That request retains one original budget for body reads, recent identity queries, and evaluation.
 

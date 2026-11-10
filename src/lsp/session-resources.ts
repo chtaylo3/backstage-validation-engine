@@ -65,7 +65,7 @@ export class SessionGeneration {
     });
     const authorityContextDigest = capabilityAuthorityDigest(
       resources.config.identity,
-      resources.catalog,
+      this.catalog,
     );
     this.editor = new EditorService(resources.config, undefined, {
       sessionGeneration: generation,

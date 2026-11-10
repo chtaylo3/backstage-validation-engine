@@ -486,7 +486,7 @@ They expire after 120 seconds without user interest. Background work never exten
 
 The default target interval is 30 seconds. Earlier qualified expiry and `catalog.maxAgeMs` shorten it.
 Healthy jitter advances the target by up to ten percent. A 250 ms floor bounds timer frequency.
-Zero maximum age bypasses cache reuse and uses this floor. It never causes a zero-delay timer loop.
+Zero maximum age bypasses cache reuse. It retains the default observation cadence or earlier actual expiry, without shortening a new observation to the floor.
 Protocol admission also detects elapsed claim expiry, so a delayed timer cannot authorize an expired repair.
 A failed refresh backs off from at least one second to 120 seconds, with up to ten percent additional jitter.
 Any remaining valid observation expiry still takes precedence over that backoff.
@@ -509,7 +509,8 @@ An already open search picker has no automatic remote refresh negotiation in thi
 Full entity revisions cover body changes even when identity and rule outcomes remain identical.
 Identity queries remain advisory. They cannot establish existence, global absence, or policy compliance.
 When an authorized backend filters an entity into a missing response, the server cannot distinguish that response from global deletion.
-Explicit denial remains unavailable. Changed permission and credential revisions require resource replacement and discard old authority-scoped caches.
+Explicit denial remains unavailable and immediately revokes existing dependency eligibility. Repeated denial cannot continuously cancel the replacement run.
+The wrapper rejects changed authority contexts before cache reuse or in-flight joins. Changed permission and credential revisions require resource replacement.
 Local overlays, invalid replacements, conflicts, and deletion masks retain precedence during refresh and outages.
 Reload and shutdown cancel the timer and drain owned reads before the underlying catalog connection is disposed.
 Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.
