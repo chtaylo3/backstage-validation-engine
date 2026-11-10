@@ -280,3 +280,16 @@ The failed gate remains retained separately. No existing assertion or deadline w
 
 The corrected focused selection passed 77 refresh and existing LSP tests with no failures, cancellations, or skips.
 The original initial-403 assertion remains unchanged and passes.
+
+Parent review also exercised ready, denied, recovered, and denied queries before a coordinator cycle could complete.
+The original single denial latch did not revoke the new recovered claim on the second denial.
+Bounded scope latches now track body reads and query scopes separately.
+A fresh foreground recovery re-arms denial checks. A background success only clears its own scope latch.
+Repeated identical denial cannot create a cancellation loop through unrelated successful reads.
+The independent control covers new-query and same-query recovery without edits or a poll cycle.
+
+The `fe780d9630455bdd11040960a47e97004bde8c8b` source/client gate passed 1042 source and 42 client tests.
+The later lifecycle correction synchronously suspends refresh at reload, cleanup failure, and shutdown entry.
+A failed configuration load leaves no old timer. Cached requests reject immediately, entered reads receive cancellation, and late responses cannot restore claims.
+The final focused selection passed 89 tests, including 26 refresh tests and the unchanged LSP and session-owner regressions.
+Final candidate qualification follows below.

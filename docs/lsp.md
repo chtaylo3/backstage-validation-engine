@@ -512,5 +512,6 @@ When an authorized backend filters an entity into a missing response, the server
 Explicit denial remains unavailable and immediately revokes existing dependency eligibility. Repeated denial cannot continuously cancel the replacement run.
 The wrapper rejects changed authority contexts before cache reuse or in-flight joins. Changed permission and credential revisions require resource replacement.
 Local overlays, invalid replacements, conflicts, and deletion masks retain precedence during refresh and outages.
-Reload and shutdown cancel the timer and drain owned reads before the underlying catalog connection is disposed.
+Reload, cleanup failure, and shutdown suspend refresh immediately, including the asynchronous configuration preparation interval.
+Cached requests reject, entered reads receive cancellation, and disposal drains owned reads before the underlying connection closes.
 Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.

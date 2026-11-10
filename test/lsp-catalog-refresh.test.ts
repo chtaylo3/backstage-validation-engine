@@ -27,6 +27,7 @@ import {
 } from 'vscode-languageserver/node';
 import type { CodeAction } from 'vscode-languageserver/node';
 import { fixPolicy } from './harness/fix-fixture.js';
+import { SessionResources } from '../src/lsp/session-resources.js';
 import { URI } from './helpers.js';
 
 function setup(maxAgeMs = 30_000) {
@@ -50,7 +51,7 @@ function setup(maxAgeMs = 30_000) {
   const access = {
     installationId: source.request.identity.installationId,
     principalId: 'reader',
-    permissionRevision: '1',
+    permissionRevision: source.request.identity.permissionRevision,
     credentialRevision: '1',
     scope: ['catalog:read'],
     policyDigest: source.request.policy.digest,
@@ -248,7 +249,7 @@ void test('late query replies cannot restore a retired dependency generation and
     expiresAt: 40_000,
     truncated: false,
   });
-  await assert.rejects(late, /stale/);
+  await assert.rejects(late, /stale|cancelled/);
   await h.refresh.close();
   assert.equal(h.refresh.status.pending, 0);
 });
@@ -997,4 +998,143 @@ void test('a newly observed query denial revokes an existing guarded repair befo
   assert.deepEqual(applied, { applied: false, reason: 'stale' });
   assert.equal(host.applyRequests.length, 0);
   await host.shutdown();
+});
+
+void test('failed configuration reload suspends the old timer and entered reads before preparation finishes', async () => {
+  const h = setup();
+  const run = policyRun();
+  const config = parseLspConfig({
+    ...run.context,
+    identity: run.request.identity,
+    source: run.request.source,
+  });
+  let release: (report: CatalogSuggestionReport) => void = () => {};
+  let signal: AbortSignal | undefined;
+  const manager = new SessionResources(
+    { config, catalog: { provider: h.provider, access: h.access } },
+    {
+      invalidate: () => {},
+      pause: () => Promise.resolve(),
+      commit: () => {},
+      activated: () => {},
+      resume: () => {},
+      ready: () => {},
+    },
+    () => Promise.reject(new Error('Invalid configuration.')),
+  );
+  const owner = manager.current.refresh!;
+  await owner.catalog.provider.suggest!(
+    { kind: 'group', namespace: 'default', prefix: 'te' },
+    h.access,
+    h.execution,
+  );
+  assert.equal(owner.status.timer, true, 'Positive control: the old session owns an active timer.');
+  h.provider.suggest = (_query, _access, execution) => {
+    signal = execution.signal;
+    return new Promise((resolve) => {
+      release = resolve;
+    });
+  };
+  const pending = owner.catalog.provider.suggest!(
+    { kind: 'group', namespace: 'default', prefix: 'ot' },
+    h.access,
+    h.execution,
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  const reload = manager.reload();
+  assert.equal(owner.status.timer, false);
+  assert.equal(owner.status.suspended, true);
+  assert.equal(signal?.aborted, true);
+  await assert.rejects(
+    owner.catalog.provider.suggest!(
+      { kind: 'group', namespace: 'default', prefix: 'te' },
+      h.access,
+      h.execution,
+    ),
+    /unavailable/,
+  );
+  await assert.rejects(
+    owner.catalog.provider.lookup(['group:default/team'], h.access, h.execution),
+    /unavailable/,
+  );
+  release({
+    status: 'ready',
+    refs: ['group:default/obsolete'],
+    fetchedAt: 1000,
+    expiresAt: 31_000,
+    truncated: false,
+  });
+  await assert.rejects(pending, /cancelled|stale/);
+  assert.deepEqual(await reload, { reloaded: false });
+  assert.equal(manager.available, false);
+  assert.equal(owner.status.timer, false);
+  assert.equal(owner.status.pending, 0);
+  await manager.close();
+  await h.refresh.close();
+});
+
+void test('query denial latches allow recovered claims to be revoked again without repeated-denial cancellation loops', async () => {
+  const h = setup();
+  const query = (prefix: string) => ({ kind: 'group', namespace: 'default', prefix });
+  let allowed = true,
+    calls = 0;
+  h.provider.suggest = (q) => {
+    calls++;
+    return Promise.resolve({
+      ...(allowed
+        ? { status: 'ready' as const }
+        : { status: 'unavailable' as const, failure: 'permission_denied' as const }),
+      refs: allowed ? [`group:default/${q.prefix}-visible`] : [],
+      truncated: false,
+      fetchedAt: 1000,
+      expiresAt: 31_000,
+    });
+  };
+  const fresh = (prefix: string) =>
+    h.refresh.catalog.provider.suggest!(query(prefix), { ...h.access, maxAgeMs: 0 }, h.execution);
+  await fresh('te');
+  allowed = false;
+  await fresh('no');
+  assert.equal(h.invalidations, 1);
+  await fresh('no');
+  assert.equal(h.invalidations, 1);
+  allowed = true;
+  await fresh('re');
+  allowed = false;
+  await fresh('xx');
+  assert.equal(
+    h.invalidations,
+    2,
+    'A new denial revokes the newly recovered scope without waiting for a coordinator cycle.',
+  );
+  const result = await h.refresh.catalog.provider.suggest!(query('re'), h.access, h.execution);
+  assert.equal(
+    result.status,
+    'unavailable',
+    'The recovered ready cache cannot survive the second denial.',
+  );
+  const before = h.invalidations;
+  await fresh('xx');
+  assert.equal(h.invalidations, before);
+  allowed = true;
+  await fresh('xx');
+  allowed = false;
+  await fresh('xx');
+  assert.equal(
+    h.invalidations,
+    before + 1,
+    'Success for the same query resets that query denial latch.',
+  );
+  allowed = true;
+  await fresh('another');
+  allowed = false;
+  await fresh('xx');
+  assert.equal(
+    h.invalidations,
+    before + 2,
+    'A fresh foreground recovery re-arms denial of an earlier query too.',
+  );
+  assert(calls >= 11, 'All controls perform fresh provider calls.');
+  await h.refresh.close();
 });

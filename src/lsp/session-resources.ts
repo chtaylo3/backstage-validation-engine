@@ -115,6 +115,7 @@ export class SessionGeneration {
   close(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.retired = true;
+    this.refresh?.suspend();
     this.operations.cancel();
     this.editor.invalidate();
     this.completion.invalidate();
@@ -189,6 +190,7 @@ export class SessionResources {
       () => {
         this.failed = true;
         this.usable = false;
+        this.active.refresh?.suspend();
         this.active.operations.cancel();
         if (!this.terminal) {
           try {
@@ -220,6 +222,7 @@ export class SessionResources {
       return this.reloading;
     }
     this.usable = false;
+    this.active.refresh?.suspend();
     this.ports.invalidate();
     this.active.operations.cancel();
     const pausing = this.ports.pause();
@@ -311,6 +314,7 @@ export class SessionResources {
     this.terminal = true;
     this.usable = false;
     this.shutdown.abort();
+    this.active.refresh?.suspend();
     this.active.operations.cancel();
     this.active.editor.invalidate();
     this.active.completion.invalidate();

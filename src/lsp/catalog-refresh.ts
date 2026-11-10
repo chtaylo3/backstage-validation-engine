@@ -43,11 +43,12 @@ export class CatalogRefresh {
   private due = Infinity;
   private claimsExpireAt = Infinity;
   private closed = false;
+  private suspended = false;
   private busy = false;
   private fresh = false;
   private failures = 0;
   private queryFailed = false;
-  private denied = false;
+  private readonly deniedScopes = new Set<string>();
   private hasClaims = false;
   private observedAt = 0;
   private expiresAt = Infinity;
@@ -72,7 +73,11 @@ export class CatalogRefresh {
       connectionId: catalog.provider.connectionId,
       adapterId: catalog.provider.adapterId,
       lookup: (refs, access, execution) =>
-        catalog.provider.lookup(refs, this.approved(access), execution),
+        this.own(
+          (signal) =>
+            catalog.provider.lookup(refs, this.approved(access), { ...execution, signal }),
+          execution,
+        ),
       ...(catalog.provider.suggest
         ? {
             suggest: (
@@ -108,6 +113,7 @@ export class CatalogRefresh {
       queries: this.queries.size,
       timer: !!this.timer,
       busy: this.busy,
+      suspended: this.suspended,
       pending: this.work.size,
       failures: this.failures,
       dataDigest: this.digest,
@@ -116,21 +122,29 @@ export class CatalogRefresh {
   }
   /** Called before protocol admission too, so a delayed timer cannot authorize expired edits. */
   ensureFresh(): void {
-    if (!this.closed && !this.busy && this.time.now() >= Math.min(this.due, this.claimsExpireAt))
+    if (
+      !this.closed &&
+      !this.suspended &&
+      !this.busy &&
+      this.time.now() >= Math.min(this.due, this.claimsExpireAt)
+    )
       this.tick();
   }
   private prune(): void {
     const now = this.time.now();
     for (const [key, value] of this.queries)
-      if (now - value.touched >= CATALOG_REFRESH_LIMITS.recentMs || now < value.touched)
+      if (now - value.touched >= CATALOG_REFRESH_LIMITS.recentMs || now < value.touched) {
         this.queries.delete(key);
+        this.deniedScopes.delete('query:' + key);
+      }
   }
   private schedule(): void {
     this.timer?.();
     this.timer = undefined;
     this.due = Infinity;
     this.prune();
-    if (this.closed || this.busy || (!this.references.size && !this.queries.size)) return;
+    if (this.closed || this.suspended || this.busy || (!this.references.size && !this.queries.size))
+      return;
     const now = this.time.now();
     const cadence = Math.min(
       CATALOG_REFRESH_LIMITS.cadenceMs,
@@ -165,7 +179,8 @@ export class CatalogRefresh {
     this.timer = undefined;
     this.due = Infinity;
     this.prune();
-    if (this.closed || this.busy || (!this.references.size && !this.queries.size)) return;
+    if (this.closed || this.suspended || this.busy || (!this.references.size && !this.queries.size))
+      return;
     this.claimsExpireAt = Infinity;
     this.hasClaims = false;
     this.revision++;
@@ -175,9 +190,11 @@ export class CatalogRefresh {
     for (const controller of this.controllers) controller.abort();
     this.invalidate();
   }
-  private denyAuthority(): void {
-    if (this.closed || this.denied) return;
-    this.denied = true;
+  private denyAuthority(scope: string): void {
+    if (this.closed || this.deniedScopes.has(scope)) return;
+    this.deniedScopes.add(scope);
+    while (this.deniedScopes.size > CATALOG_REFRESH_LIMITS.queries + 1)
+      this.deniedScopes.delete(this.deniedScopes.values().next().value!);
     if (!this.hasClaims) return;
     this.hasClaims = false;
     this.timer?.();
@@ -195,7 +212,8 @@ export class CatalogRefresh {
     operation: (signal: AbortSignal) => Promise<T>,
     execution: CatalogExecutionContext,
   ): Promise<T> {
-    if (this.closed) return Promise.reject(new Error('Catalog refresh is closed.'));
+    if (this.closed || this.suspended)
+      return Promise.reject(new Error('Catalog refresh is unavailable.'));
     if (this.work.size >= 64)
       return Promise.reject(new Error('Catalog refresh queue exceeds limits.'));
     const controller = new AbortController();
@@ -205,6 +223,10 @@ export class CatalogRefresh {
       : controller.signal;
     const task = Promise.resolve()
       .then(() => operation(signal))
+      .then((value) => {
+        if (signal.aborted) throw new CatalogFailure('cancelled');
+        return value;
+      })
       .finally(() => {
         this.controllers.delete(controller);
         this.work.delete(task);
@@ -218,6 +240,7 @@ export class CatalogRefresh {
     execution: CatalogExecutionContext,
     background = false,
   ): Promise<CatalogSuggestionReport> {
+    if (this.closed || this.suspended) throw new Error('Catalog refresh is unavailable.');
     access = this.approved(access);
     const revision = this.revision;
     const key = JSON.stringify(query),
@@ -275,7 +298,11 @@ export class CatalogRefresh {
     if (this.closed || revision !== this.revision || execution.signal?.aborted)
       throw new Error('Catalog observation is stale.');
     row.report = report;
-    if (report.status === 'ready') this.hasClaims = true;
+    if (report.status === 'ready') {
+      this.hasClaims = true;
+      if (background) this.deniedScopes.delete('query:' + key);
+      else this.deniedScopes.clear();
+    }
     if (report.status === 'unavailable') {
       this.queryFailed = true;
       if (!this.busy) this.failures++;
@@ -284,7 +311,7 @@ export class CatalogRefresh {
       report.status === 'unavailable' &&
       ['permission_denied', 'credential_binding'].includes(report.failure)
     )
-      this.denyAuthority();
+      this.denyAuthority('query:' + key);
     this.observedAt ||= now;
     if (!this.busy) this.schedule();
     return report;
@@ -332,8 +359,11 @@ export class CatalogRefresh {
                 (row) => row.status === 'unavailable' && row.reason === 'permission_denied',
               )
             )
-              this.denyAuthority();
-            else this.hasClaims ||= report.data.entries.some((row) => row.status !== 'unavailable');
+              this.denyAuthority('lookup');
+            else {
+              this.deniedScopes.delete('lookup');
+              this.hasClaims ||= report.data.entries.some((row) => row.status !== 'unavailable');
+            }
             reports.push(report);
             return report;
           } catch (error) {
@@ -384,7 +414,7 @@ export class CatalogRefresh {
             })),
           );
           if (!failed && [...this.queries.values()].every((row) => row.report?.status === 'ready'))
-            this.denied = false;
+            this.deniedScopes.clear();
           this.fresh = false;
         }
         this.schedule();
@@ -424,8 +454,17 @@ export class CatalogRefresh {
       ),
     );
   }
+  suspend(): void {
+    this.suspended = true;
+    this.timer?.();
+    this.timer = undefined;
+    this.due = Infinity;
+    this.claimsExpireAt = Infinity;
+    for (const controller of this.controllers) controller.abort();
+  }
   async close(): Promise<void> {
     this.closed = true;
+    this.suspend();
     this.timer?.();
     this.timer = undefined;
     this.due = Infinity;
