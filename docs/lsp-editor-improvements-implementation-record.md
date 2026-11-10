@@ -293,3 +293,8 @@ The later lifecycle correction synchronously suspends refresh at reload, cleanup
 A failed configuration load leaves no old timer. Cached requests reject immediately, entered reads receive cancellation, and late responses cannot restore claims.
 The final focused selection passed 89 tests, including 26 refresh tests and the unchanged LSP and session-owner regressions.
 Final candidate qualification follows below.
+
+The `502d3a4dd42341d1dd9b64796ce411eac1bcbdf4` full gate stopped at lint before running tests.
+The new denial-recovery control used arithmetic on a value narrowed to `never` by assertion signatures.
+The test now captures that counter as an explicit number. The production implementation is unchanged by this correction.
+The failed lint output remains retained. The final full gate uses the corrected committed test input.

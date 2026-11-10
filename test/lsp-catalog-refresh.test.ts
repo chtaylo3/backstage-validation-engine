@@ -1114,7 +1114,7 @@ void test('query denial latches allow recovered claims to be revoked again witho
     'unavailable',
     'The recovered ready cache cannot survive the second denial.',
   );
-  const before = h.invalidations;
+  const before = Number(h.invalidations);
   await fresh('xx');
   assert.equal(h.invalidations, before);
   allowed = true;
