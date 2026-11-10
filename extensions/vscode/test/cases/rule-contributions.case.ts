@@ -27,12 +27,14 @@ export async function run(fixture: Fixture): Promise<void> {
     'CEL and RE2 candidates pass the required catalog check',
   );
   assert(!(await checked('remote-missing')), 'A pattern match cannot prove catalog existence.');
-  const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
-    'vscode.executeHoverProvider',
-    fixture.uri,
-    new vscode.Position(6, 3),
-  );
-  assert(hover?.some((row) => JSON.stringify(row.contents).includes('Remote ownership rule')));
+  await until(async () => {
+    const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
+      'vscode.executeHoverProvider',
+      fixture.uri,
+      new vscode.Position(6, 3),
+    );
+    return hover?.some((row) => JSON.stringify(row.contents).includes('Remote ownership rule'));
+  }, 'Prepared rule hover remains available after dependency refresh');
   await fixture.control({ op: 'add-refresh' });
   await until(
     () => checked('remote-refresh'),
