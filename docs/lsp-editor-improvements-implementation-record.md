@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                              | Parent acceptance             |
-| ----------------------------------------------- | ---------------------------------- | ----------------------------- |
-| 1: documentation                                | Accepted                           | Accepted by parent            |
-| 2: contracts and built-in adapters              | Implemented, pending parent review | Pending parent review         |
-| 3: live catalog refresh                         | Not implemented                    | Requires accepted phase 2     |
-| 4: CEL and RE2 contributions                    | Not implemented                    | Requires accepted phase 3     |
-| 5: client reliability and release qualification | Deferred by the user               | Requires future authorization |
+| Phase                                           | State                | Parent acceptance                |
+| ----------------------------------------------- | -------------------- | -------------------------------- |
+| 1: documentation                                | Accepted             | Accepted by parent               |
+| 2: contracts and built-in adapters              | Accepted             | Accepted by parent parent review |
+| 3: live catalog refresh                         | Not implemented      | Requires accepted phase 2        |
+| 4: CEL and RE2 contributions                    | Not implemented      | Requires accepted phase 3        |
+| 5: client reliability and release qualification | Deferred by the user | Requires future authorization    |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -195,8 +195,14 @@ The final documentation-only update passed scoped Prettier, `git diff --check`, 
 No runtime, test, schema, package, or tool file changed after the tested source revision.
 
 No hosted CI, cross-platform matrix, remote session, or release endurance result is claimed for this new candidate.
-Phase 5 remains deferred. There are no known local phase 2 acceptance gaps, subject to parent review.
+Phase 5 remains deferred. The parent accepted the stated local phase 2 criteria below.
 
 ### Parent acceptance
 
-Pending. Phase 3 must not start until the parent accepts phase 2.
+Accepted after source and documentation review, independent regression execution, and artifact inspection.
+The qualified source revision is `231651f57593ef3772feb71508ec6e2382182568`. Evidence-only handoff commit: `af3b1b62452d626c696a2a2abf98131c54ece309`.
+The parent ran the capability, editor-adapter, and session-resource suites in the clean qualification checkout. All 39 cases passed without skips.
+The parent matched all ten installed results to the candidate revision and digest and inspected the packaged modules, 40 schemas, and nine client components.
+The parent also confirmed that changes after the qualified revision affected documentation only and repeated scoped formatting and diff checks.
+All P2-A1 through P2-A10 criteria are satisfied for the recorded local scope. Phase 3 is admitted for implementation.
+Parent test evidence remains under `.artifacts/lsp-editor-improvements/phase2/parent-review/`. Phase 5 remains deferred.
