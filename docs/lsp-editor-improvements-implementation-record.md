@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                          | Parent acceptance             |
-| ----------------------------------------------- | ------------------------------ | ----------------------------- |
-| 1: documentation                                | Accepted                       | Accepted by parent            |
-| 2: contracts and built-in adapters              | Accepted                       | Accepted by parent            |
-| 3: live catalog refresh                         | Accepted                       | Accepted by parent            |
-| 4: CEL and RE2 contributions                    | Implemented, locally qualified | Requires parent review        |
-| 5: client reliability and release qualification | Deferred by the user           | Requires future authorization |
+| Phase                                           | State                | Parent acceptance             |
+| ----------------------------------------------- | -------------------- | ----------------------------- |
+| 1: documentation                                | Accepted             | Accepted by parent            |
+| 2: contracts and built-in adapters              | Accepted             | Accepted by parent            |
+| 3: live catalog refresh                         | Accepted             | Accepted by parent            |
+| 4: CEL and RE2 contributions                    | Accepted             | Accepted by parent            |
+| 5: client reliability and release qualification | Deferred by the user | Requires future authorization |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -538,5 +538,26 @@ There is no new cross-OS, remote-client, JetBrains, or long release-workload qua
 
 The feature branch remains local. No push, PR, merge, workflow dispatch, or publication belongs to this phase.
 This evidence-only handoff changes documentation after qualification. It does not rebuild the tested candidate.
-Parent review and formal phase acceptance remain pending at this handoff.
+The phase agent requested parent review at this handoff. The parent decision appears below.
 Phase 5 remains deferred and must not start automatically.
+
+### Parent acceptance of phase 4
+
+The parent accepts P4-A1 through P4-A12 for the documented local scope and supported operations.
+The review covered artifact admission, capability routing, candidate evaluation, source mapping, dependency refresh, expiry renewal, and guarded edit ownership.
+The qualified source/test revision remains `54ce7a932c46b85e70f3fec0a68c15852af7e28b`.
+Evidence-only handoff commit: `920c892dd0e3dac6f98400f301a0322efa79cfdf`.
+Only documentation changed after the qualified revision. The tested artifact was not rebuilt for this acceptance.
+
+An independent parent run passed all 76 contribution, protocol, refresh, editor-intelligence, and capability-editor cases.
+It reported no failures, cancellations, or skips. The earlier conditional-schema completion case also passed.
+The parent replayed its unchanged outage control and observed 30-second, 60-second, and 120-second retries with retained candidate interest.
+The original negative control and corrected result remain available.
+
+The parent computed the VSIX checksum and matched its bytes, build revision, required modules, generated artifact schema, and nine client components.
+All 94 installed records match the exact qualified revision and package digest.
+The parent also inspected the passing source, client, and packaged inventories.
+Independent evidence remains under `.artifacts/lsp-editor-improvements/phase4/parent-review/`.
+
+The recorded preliminary failures and qualification limits remain explicit.
+The branch stays local. Phase 5 remains deferred and is not delegated by this acceptance.

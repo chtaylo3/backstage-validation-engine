@@ -11,13 +11,13 @@ The [separation record](lsp-separation-implementation-record.md) records the com
 
 ## Scope and sequence
 
-| Phase | Scope                                                                                       | State                        | Dependency                               |
-| ----- | ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------- |
-| 1     | Update implementation documentation and qualification evidence                              | Accepted                     | Merged PR #2                             |
-| 2     | Implement capability contracts and adapt built-in providers                                 | Accepted                     | Accepted phase 1                         |
-| 3     | Refresh live catalog dependencies without document edits                                    | Accepted                     | Accepted phase 2                         |
-| 4     | Add CEL and RE2 editor contributions and guarded repairs                                    | Implemented, awaiting review | Accepted phase 3                         |
-| 5     | Improve native Trust automation, qualify JetBrains, and complete release endurance evidence | Deferred                     | Future authorization and final candidate |
+| Phase | Scope                                                                                       | State    | Dependency                               |
+| ----- | ------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- |
+| 1     | Update implementation documentation and qualification evidence                              | Accepted | Merged PR #2                             |
+| 2     | Implement capability contracts and adapt built-in providers                                 | Accepted | Accepted phase 1                         |
+| 3     | Refresh live catalog dependencies without document edits                                    | Accepted | Accepted phase 2                         |
+| 4     | Add CEL and RE2 editor contributions and guarded repairs                                    | Accepted | Accepted phase 3                         |
+| 5     | Improve native Trust automation, qualify JetBrains, and complete release endurance evidence | Deferred | Future authorization and final candidate |
 
 The parent agent delegates one phase at a time.
 The phase agent implements only its assigned phase and records its evidence.
@@ -165,6 +165,9 @@ Record qualified latency and traffic bounds. Distinguish the configured target f
 Commit the implementation and document the dependency-generation and invalidation hooks required by phase 4.
 
 ## Phase 4: add CEL and RE2 editor contributions
+
+Status: accepted after implementation, exact-candidate qualification, and independent parent review.
+The [parent acceptance](lsp-editor-improvements-implementation-record.md#parent-acceptance-of-phase-4) records the executed evidence and supported scope.
 
 ### Implementation plan
 
