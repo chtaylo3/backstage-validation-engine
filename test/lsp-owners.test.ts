@@ -88,12 +88,40 @@ void test('diagnostic delivery rejects stale findings and an old lifetime clear 
     current: () => true,
   };
   await publisher.publish(context, [diagnostic]);
-  await publisher.publish({ ...context, generation: 1, lifetime: 1 }, []);
+  await publisher.clear({ ...context, generation: 3, lifetime: 1 });
   await publisher.publish({ ...context, current: () => false }, [diagnostic]);
   assert.equal(sends.length, 1);
-  await publisher.publish(context, []);
+  await publisher.clear(context);
   assert.deepEqual(sends.at(-1)?.diagnostics, []);
   publisher.close();
   await publisher.publish(context, [diagnostic]);
   assert.equal(sends.length, 2);
+});
+
+void test('a current clean result clears diagnostics retained from an older document lifetime', async () => {
+  const sends: PublishDiagnosticsParams[] = [];
+  const publisher = new DiagnosticPublisher((row) => {
+    sends.push(row);
+    return Promise.resolve();
+  });
+  const previous = {
+    uri: 'file:///workspace/catalog.yaml',
+    version: 1,
+    generation: 1,
+    lifetime: 1,
+    current: () => true,
+  };
+  await publisher.publish(previous, [
+    {
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+      message: 'Old document error',
+    },
+  ]);
+  // A close clear can be superseded before delivery. The reopened document is
+  // clean, and its validation must replace the previous lifetime's findings.
+  await publisher.clear({ ...previous, current: () => false });
+  await publisher.publish({ ...previous, generation: 3, lifetime: 2 }, []);
+  assert.equal(sends.length, 2);
+  assert.deepEqual(sends.at(-1), { uri: previous.uri, version: 1, diagnostics: [] });
+  publisher.close();
 });

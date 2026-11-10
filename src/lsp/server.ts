@@ -75,22 +75,20 @@ export function attachLspServer(
   let disposal: Promise<void> | undefined;
 
   const publisher = new DiagnosticPublisher((params) => connection.sendDiagnostics(params));
-  const publish = (uri: string, version: number, diagnostics: Diagnostic[], lifetime?: number) => {
+  const clearDiagnostics = (uri: string, version: number, lifetime: number) => {
     const generation = coordinator.generation;
     const document = workspace.documents.get(uri);
-    return publisher.publish(
-      {
-        uri,
-        version,
-        generation,
-        lifetime: lifetime ?? document?.lifetime ?? 0,
-        current: () =>
-          !stopped &&
-          coordinator.generation === generation &&
-          workspace.documents.get(uri) === document,
-      },
-      diagnostics,
-    );
+    return publisher.clear({
+      uri,
+      version,
+      generation,
+      lifetime,
+      current: () =>
+        !stopped &&
+        coordinator.generation === generation &&
+        workspace.documents.get(uri) === document &&
+        (!document || document.lifetime === lifetime),
+    });
   };
   const sessions: SessionResources = new SessionResources(
     {
@@ -116,7 +114,7 @@ export function attachLspServer(
         session.own(options.configurationChanged?.(session.config));
         for (const [uri, document] of workspace.documents)
           if (session.config.filesystem && !workspace.approved(uri))
-            await publish(uri, document.version, [], document.lifetime);
+            await clearDiagnostics(uri, document.version, document.lifetime);
       },
       resume: () => coordinator.resume(),
       ready: () => {
@@ -445,7 +443,7 @@ export function attachLspServer(
     if (!previous) return;
     if (sessions.current.filesystem && approved.has(item.uri)) refresh();
     else schedule();
-    await publish(item.uri, previous.version, [], previous.lifetime);
+    await clearDiagnostics(item.uri, previous.version, previous.lifetime);
   });
   async function fileOperations(rows: readonly SourceFileOperation[]) {
     if (!initialized || stopped) return;
@@ -453,7 +451,7 @@ export function attachLspServer(
     if (sessions.current.filesystem) refresh();
     else schedule();
     for (const document of cleared)
-      await publish(document.uri, document.version, [], document.lifetime);
+      await clearDiagnostics(document.uri, document.version, document.lifetime);
   }
   connection.workspace.onDidDeleteFiles((params) =>
     fileOperations(

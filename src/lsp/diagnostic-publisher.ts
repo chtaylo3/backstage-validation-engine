@@ -15,10 +15,22 @@ export class DiagnosticPublisher {
   >();
   private stopped = false;
   constructor(private readonly send: (params: PublishDiagnosticsParams) => Promise<void>) {}
-  async publish(context: DiagnosticContext, diagnostics: Diagnostic[]): Promise<void> {
+  /** An empty current validation replaces findings from any older lifetime. */
+  publish(context: DiagnosticContext, diagnostics: Diagnostic[]): Promise<void> {
+    return this.deliver(context, diagnostics, false);
+  }
+  /** Close, rename, and exclusion clears only target their captured lifetime. */
+  clear(context: DiagnosticContext): Promise<void> {
+    return this.deliver(context, [], true);
+  }
+  private async deliver(
+    context: DiagnosticContext,
+    diagnostics: Diagnostic[],
+    clearingLifetime: boolean,
+  ): Promise<void> {
     if (this.stopped || !context.current()) return;
     const previous = this.published.get(context.uri);
-    if (!diagnostics.length && previous && previous.lifetime !== context.lifetime) return;
+    if (clearingLifetime && previous && previous.lifetime !== context.lifetime) return;
     if (previous && previous.generation > context.generation) return;
     if (diagnostics.length)
       this.published.set(context.uri, {
