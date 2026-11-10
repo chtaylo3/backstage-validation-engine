@@ -10,6 +10,7 @@ import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import { setTimeout as pause } from 'node:timers/promises';
 import yauzl from 'yauzl';
+import { selectCandidateRun } from './candidate-runs.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const exec = promisify(execFile);
@@ -31,7 +32,7 @@ const deadline = Date.now() + 25 * 60_000;
 let selected, run;
 while (Date.now() < deadline) {
   const runs = await api('actions/workflows/ci.yml/runs?head_sha=' + revision + '&per_page=10');
-  run = runs.workflow_runs.find((value) => value.head_sha === revision);
+  run = selectCandidateRun(runs.workflow_runs, revision);
   if (run) {
     const artifacts = await api(`actions/runs/${run.id}/artifacts?per_page=100`);
     selected = artifacts.artifacts.find(

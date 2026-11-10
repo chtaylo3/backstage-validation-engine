@@ -306,3 +306,9 @@ the registered CI workflow invokes its existing quick jobs after all three VSIX 
 The same exact-revision package selection and product assertions remain in force.
 Ordinary pushes and pull requests do not enable this optional lane.
 Hosted compatibility results will be recorded after that explicit dispatch finishes.
+
+Candidate selection also excludes PR-triggered runs. GitHub reports their branch head in the runs API,
+but their package stamp contains the temporary merge revision. Shared selection for the CLI and VSIX
+accepts only push or explicit-dispatch runs at the requested revision and skips cancelled runs.
+The extracted former predicate failed three new regression scenarios before the correction.
+All four candidate-selection cases pass with the correction, including an active explicit dispatch.

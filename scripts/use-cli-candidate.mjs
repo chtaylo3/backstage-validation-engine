@@ -8,6 +8,7 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { verifyCliArchive } from './cli-candidate.mjs';
+import { selectCandidateRun } from './candidate-runs.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const repository = process.env.GITHUB_REPOSITORY;
@@ -31,7 +32,7 @@ const deadline = Date.now() + 25 * 60_000;
 let selected, run;
 while (Date.now() < deadline) {
   const runs = await api(`actions/workflows/ci.yml/runs?head_sha=${revision}&per_page=10`);
-  run = runs.workflow_runs.find((value) => value.head_sha === revision);
+  run = selectCandidateRun(runs.workflow_runs, revision);
   if (run) {
     const artifacts = await api(`actions/runs/${run.id}/artifacts?per_page=100`);
     selected = artifacts.artifacts.find(
