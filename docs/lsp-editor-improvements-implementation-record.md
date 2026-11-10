@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                          | Parent acceptance                |
-| ----------------------------------------------- | ------------------------------ | -------------------------------- |
-| 1: documentation                                | Accepted                       | Accepted by parent               |
-| 2: contracts and built-in adapters              | Accepted                       | Accepted by parent parent review |
-| 3: live catalog refresh                         | Implemented, locally qualified | Accepted by parent parent review |
-| 4: CEL and RE2 contributions                    | Not implemented                | Requires accepted phase 3        |
-| 5: client reliability and release qualification | Deferred by the user           | Requires future authorization    |
+| Phase                                           | State                | Parent acceptance             |
+| ----------------------------------------------- | -------------------- | ----------------------------- |
+| 1: documentation                                | Accepted             | Accepted by parent            |
+| 2: contracts and built-in adapters              | Accepted             | Accepted by parent            |
+| 3: live catalog refresh                         | Accepted             | Accepted by parent            |
+| 4: CEL and RE2 contributions                    | Not implemented      | Requires accepted phase 3     |
+| 5: client reliability and release qualification | Deferred by the user | Requires future authorization |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
