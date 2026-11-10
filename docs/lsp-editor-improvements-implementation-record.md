@@ -418,6 +418,14 @@ An include control also needed its approved source root. The test now supplies t
 The stdio fixture initially applied a Component expression to Group documents. An explicit selector now states its intended applicability.
 A new pressure assertion initially required two live workers immediately after replacement. The assertion now checks the two-slot ceiling and successful recovery.
 Unused imports and two lint errors were corrected before final qualification.
+The exported artifact parser now clones the complete collection before inspecting it.
+An accessor control proves that admission does not invoke an array getter.
+
+Parent review reproduced candidate-only outage polling that ignored the existing backoff.
+The negative control remains at `.artifacts/lsp-editor-improvements/phase4/parent-review/candidate-outage-repro.json`, against `8647a1f`.
+Candidate failures now participate in backoff. Recoverable exceptions retain bounded interest without replacing the source inventory.
+Unavailable TTLs do not become successful claim expiry. Successful source and candidate facts still cap the next retry.
+Deterministic controls cover 30-second, 60-second, and 120-second outage retries, recovery, and late aborted failures.
 
 Focused development results include 13 direct contribution cases and nine stdio cases with no failures or skips.
 An additional stdio control exposed reference completion returning before declared rule hints.
@@ -425,5 +433,7 @@ The host now merges prepared rule hints with reference choices. Both backend con
 These checks use real production workers and both supported HTTP backend contracts where stated.
 The held-candidate control publishes required diagnostics and an early source repair before optional I/O completes.
 That source token becomes stale at its approved 250 ms freshness bound before client dispatch.
-Final source/client, packaged, and installed candidate qualification remains pending at this code checkpoint.
+The preliminary `18aa2e6` and `8647a1f` checkpoints each passed 1068 source, 42 client, and 1068 packaged tests.
+Their exact products and reports remain in their separate ignored evidence directories.
+Final qualification must use the corrected outage candidate. Installed qualification remains pending at this code checkpoint.
 Parent acceptance remains pending. Phase 5 remains deferred.

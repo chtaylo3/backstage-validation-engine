@@ -209,6 +209,117 @@ void test('candidate-only permission claims revoke immediately and recovered cla
   assert.equal(h.refresh.status.references, 0);
   await h.refresh.close();
 });
+void test('candidate-only outages back off without treating unavailable TTLs as successful claims and recover', async () => {
+  for (const failure of ['structured', 'exception']) {
+    const h = setup();
+    const original = h.provider.lookup.bind(h.provider);
+    let offline = true;
+    h.provider.lookup = async (...args) => {
+      if (offline && failure === 'exception') throw new Error('Recoverable fixture outage.');
+      const report = await original(...args);
+      return offline
+        ? {
+            ...report,
+            data: createDataSnapshot(
+              report.data.entries.map((entry) => ({
+                key: entry.key,
+                status: 'unavailable' as const,
+                reason: 'offline' as const,
+                provenance: { ...entry.provenance, expiresAt: entry.provenance.fetchedAt + 1000 },
+              })),
+            ),
+          }
+        : report;
+    };
+    for (const delay of [30_000, 60_000, 120_000]) {
+      const run = h.refresh.begin();
+      const pending = h.refresh
+        .candidates()
+        .provider.lookup(['group:default/candidate'], h.access, h.execution);
+      if (failure === 'exception') await assert.rejects(pending, /outage/);
+      else await pending;
+      run.finish(true);
+      assert.equal(h.delay, delay);
+      assert.equal(h.refresh.status.candidateReferences, 1);
+      assert.equal(h.refresh.status.references, 0);
+      assert(h.refresh.status.failures > 0);
+      h.advance();
+    }
+    offline = false;
+    const recovery = h.refresh.begin();
+    await h.refresh
+      .candidates()
+      .provider.lookup(['group:default/candidate'], h.access, h.execution);
+    recovery.finish(true);
+    assert.equal(h.refresh.status.failures, 0);
+    assert.equal(h.delay, 30_000);
+    await h.refresh.close();
+  }
+});
+void test('successful source and candidate fact expiry still cap candidate outage backoff', async () => {
+  for (const source of [false, true]) {
+    const h = setup();
+    const original = h.provider.lookup.bind(h.provider);
+    h.provider.lookup = async (...args) => {
+      const report = await original(...args);
+      const good = args[0].includes('group:default/good');
+      return {
+        ...report,
+        data: createDataSnapshot(
+          report.data.entries.map((entry) => ({
+            key: entry.key,
+            ...(good
+              ? { status: 'present' as const, value: 'visible' }
+              : { status: 'unavailable' as const, reason: 'offline' as const }),
+            provenance: {
+              ...entry.provenance,
+              expiresAt: entry.provenance.fetchedAt + (good ? 4000 : 1000),
+            },
+          })),
+        ),
+      };
+    };
+    const run = h.refresh.begin();
+    const candidates = h.refresh.candidates();
+    await (source ? run.catalog : candidates).provider.lookup(
+      ['group:default/good'],
+      h.access,
+      h.execution,
+    );
+    await candidates.provider.lookup(['group:default/bad'], h.access, h.execution);
+    run.finish(true);
+    assert.equal(h.refresh.status.failures, 1);
+    assert.equal(h.delay, 4000);
+    h.advance();
+    assert.equal(h.invalidations, 1);
+    await h.refresh.close();
+  }
+});
+void test('aborted and retired candidate failures cannot retain interest or revive a refresh timer', async () => {
+  for (const retired of [false, true]) {
+    const h = setup();
+    const abort = new AbortController();
+    let reject!: (reason: Error) => void;
+    h.provider.lookup = () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      });
+    const pending = h.refresh
+      .candidates()
+      .provider.lookup(['group:default/candidate'], h.access, {
+        ...h.execution,
+        signal: abort.signal,
+      });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (retired) h.refresh.suspend();
+    else abort.abort();
+    reject(new Error('Late fixture outage.'));
+    await assert.rejects(pending, /outage|cancelled/);
+    assert.equal(h.refresh.status.candidateReferences, 0);
+    assert.equal(h.refresh.status.timer, false);
+    await h.refresh.close();
+  }
+});
 void test('body and absence dependencies use qualified cadence, bypass caches only on refresh, and retain full-body revisions', async () => {
   const h = setup();
   assert.equal(h.refresh.status.timer, false);

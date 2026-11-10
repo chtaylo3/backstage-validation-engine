@@ -133,6 +133,9 @@ When a bound is reached, later optional candidates remain absent.
 Candidate catalog reads add separate refresh interest without replacing the authoritative source inventory.
 Candidate-only additions, removals, or changes therefore trigger preparation again without source edits.
 Catalog failures cannot replace a successful source inventory.
+Recoverable candidate failures retain interest and use the bounded outage backoff.
+An unavailable response's short TTL does not become a successful claim expiry.
+Actual successful source or candidate fact expiry still caps that backoff.
 Explicit authority denial revokes offered claims, and successful recovery rearms that revocation.
 Backstage can represent a permission-filtered entity as missing in the approved view.
 The editor does not claim that this proves global deletion.

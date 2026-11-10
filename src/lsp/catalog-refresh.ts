@@ -48,6 +48,7 @@ export class CatalogRefresh {
   private fresh = false;
   private failures = 0;
   private queryFailed = false;
+  private candidateFailed = false;
   private readonly deniedScopes = new Set<string>();
   private hasClaims = false;
   private observedAt = 0;
@@ -339,6 +340,7 @@ export class CatalogRefresh {
     const revision = this.revision,
       fresh = this.fresh || this.failures > 0;
     this.queryFailed = false;
+    this.candidateFailed = false;
     const refs = new Set<string>(),
       reports: CatalogLookupReport[] = [];
     let failed = false;
@@ -398,7 +400,7 @@ export class CatalogRefresh {
         if (current && revision === this.revision) {
           this.references = refs;
           const entries = reports.flatMap((report) => report.data.entries);
-          failed ||= this.queryFailed;
+          failed ||= this.queryFailed || this.candidateFailed;
           failed ||= reports.some(
             (report) =>
               report.failures.length ||
@@ -438,6 +440,19 @@ export class CatalogRefresh {
   /** Hypothetical reads add interest without replacing the authoritative source inventory. */
   candidates(): Catalog {
     const revision = this.revision;
+    const interested = (references: readonly string[], expiresAt: number, failed: boolean) => {
+      for (const reference of references)
+        this.candidateReferences.set(
+          reference,
+          Math.min(this.candidateReferences.get(reference) ?? Infinity, expiresAt),
+        );
+      this.candidateFailed ||= failed;
+      this.observedAt ||= this.time.now();
+      if (!this.busy) {
+        if (failed) this.failures++;
+        this.schedule();
+      }
+    };
     return {
       access: this.original.access,
       provider: {
@@ -450,15 +465,33 @@ export class CatalogRefresh {
             CATALOG_REFRESH_LIMITS.references
           )
             throw new Error('Catalog dependency inventory exceeds limits.');
-          const report = await this.own(
-            (signal) =>
-              this.original.provider.lookup(
-                references,
-                { ...access, maxAgeMs: 0 },
-                { ...execution, signal },
-              ),
-            execution,
-          );
+          let report: CatalogLookupReport;
+          try {
+            report = await this.own(
+              (signal) =>
+                this.original.provider.lookup(
+                  references,
+                  { ...access, maxAgeMs: 0 },
+                  { ...execution, signal },
+                ),
+              execution,
+            );
+          } catch (error) {
+            if (
+              !this.closed &&
+              !this.suspended &&
+              revision === this.revision &&
+              !execution.signal?.aborted
+            ) {
+              if (
+                error instanceof CatalogFailure &&
+                ['permission_denied', 'credential_binding'].includes(error.code)
+              )
+                this.denyAuthority('candidates');
+              if (revision === this.revision) interested(references, Infinity, true);
+            }
+            throw error;
+          }
           if (revision !== this.revision || execution.signal?.aborted)
             throw new Error('Candidate observation is stale.');
           if (
@@ -476,16 +509,24 @@ export class CatalogRefresh {
           }
           const cadence = this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.cadenceMs;
           const expiresAt = Math.min(
-            this.time.now() + cadence,
-            ...report.data.entries.map((row) => row.provenance.expiresAt),
+            Infinity,
+            ...report.data.entries
+              .filter((row) => row.status !== 'unavailable')
+              .map((row) => Math.min(row.provenance.expiresAt, row.provenance.fetchedAt + cadence)),
           );
-          for (const reference of references)
-            this.candidateReferences.set(
-              reference,
-              Math.min(this.candidateReferences.get(reference) ?? Infinity, expiresAt),
+          if (
+            !this.closed &&
+            !this.suspended &&
+            revision === this.revision &&
+            !execution.signal?.aborted
+          )
+            interested(
+              references,
+              expiresAt,
+              report.failures.length > 0 ||
+                report.interrupted !== 'none' ||
+                report.data.entries.some((row) => row.status === 'unavailable'),
             );
-          this.observedAt ||= this.time.now();
-          if (!this.busy) this.schedule();
           return report;
         },
       },
