@@ -10,7 +10,7 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 | ----------------------------------------------- | ------------------------------ | -------------------------------- |
 | 1: documentation                                | Accepted                       | Accepted by parent               |
 | 2: contracts and built-in adapters              | Accepted                       | Accepted by parent parent review |
-| 3: live catalog refresh                         | Implemented, locally qualified | Pending parent review            |
+| 3: live catalog refresh                         | Implemented, locally qualified | Accepted by parent parent review |
 | 4: CEL and RE2 contributions                    | Not implemented                | Requires accepted phase 3        |
 | 5: client reliability and release qualification | Deferred by the user           | Requires future authorization    |
 
@@ -210,7 +210,7 @@ Parent test evidence remains under `.artifacts/lsp-editor-improvements/phase2/pa
 ## Phase 3: live catalog refresh
 
 Implementation date: 2026-11-10, America/New_York time.
-The source adds session-owned bounded polling and remote-only revalidation. Parent acceptance remains pending.
+The source adds session-owned bounded polling and remote-only revalidation. Parent acceptance is recorded below.
 The local qualification record below will identify the exact committed source and retained products.
 
 `CatalogRefresh` records actual body and absence dependencies separately from bounded recent identity query scopes.
@@ -369,9 +369,9 @@ The engine cannot distinguish that response from global deletion through these e
 A missing-reference finding therefore establishes missing from the approved view, not global nonexistence.
 This phase does not add a permission broker or a new backend authorization protocol.
 
-### Handoff to parent and phase 4
+### Parent acceptance and phase 4 handoff
 
-Phase 3 is implemented and locally qualified. Parent acceptance remains pending.
+Phase 3 is implemented and locally qualified. Parent acceptance is recorded below.
 `SessionGeneration.refresh` owns polling, `generation`, `ensureFresh()`, `begin()`, `refreshQueries()`, `suspend()`, and cleanup.
 The session passes the dependency generation into validation, schema/editor contributions, and catalog search capability bindings.
 The coordinator invalidates current metadata, remote queries, guarded repairs, and publication before remote collection.
@@ -379,3 +379,12 @@ Future rule contributions must retain these generation, authority, data, source,
 Facts introduced only by a proposed candidate still need their own authorized collection and eligibility evidence in phase 4.
 No CEL/RE2 editor contribution, optional event adapter, external executable loader, or publication is implemented by phase 3.
 Phase 5 remains deferred. This candidate has no new cross-OS, remote-client, JetBrains, native Trust, or endurance qualification.
+
+The parent accepted phase 3 after reviewing production changes, failure corrections, documentation, and exact-artifact provenance.
+The qualified revision is `d6dada9b197a8e8b68a94707ad2f2a3680888224`. Evidence-only handoff commit: `bfe0d02`.
+An independent parent run passed all 39 refresh, request-context, and session-resource cases without failures or skips.
+The parent matched all twelve installed executions to the exact VSIX digest and inspected the packaged refresh module and client inventory.
+Scoped documentation formatting and diff checks passed. Only documentation changed after the qualified source/test revision.
+All P3-A1 through P3-A14 criteria are accepted for the stated local scope and observable authorization behavior.
+Parent test evidence remains under `.artifacts/lsp-editor-improvements/phase3/parent-review/`.
+Phase 4 is admitted for implementation. Phase 5 remains deferred.

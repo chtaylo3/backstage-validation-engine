@@ -16,7 +16,7 @@ The [separation record](lsp-separation-implementation-record.md) records the com
 | 1     | Update implementation documentation and qualification evidence                              | Accepted                     | Merged PR #2                             |
 | 2     | Implement capability contracts and adapt built-in providers                                 | Accepted                     | Accepted phase 1                         |
 | 3     | Refresh live catalog dependencies without document edits                                    | Implemented, awaiting review | Accepted phase 2                         |
-| 4     | Add CEL and RE2 editor contributions and guarded repairs                                    | Planned                      | Accepted phase 3                         |
+| 4     | Add CEL and RE2 editor contributions and guarded repairs                                    | Ready                        | Accepted phase 3                         |
 | 5     | Improve native Trust automation, qualify JetBrains, and complete release endurance evidence | Deferred                     | Future authorization and final candidate |
 
 The parent agent delegates one phase at a time.
