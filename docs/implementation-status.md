@@ -428,7 +428,8 @@ Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions
 Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.
 
 Phase 2 now implements built-in capability contracts and adapters. Its gate results and parent acceptance belong to the phase record.
-Phase 3 implements the polling baseline. Phase 4 remains unimplemented at this checkpoint.
+Phase 3 implements the polling baseline. Phase 4 implements [declarative CEL/RE2 editor contributions](rule-editor-contributions.md).
+The phase record distinguishes implementation, executed qualification, and parent acceptance.
 SQS, Kafka, the durable hosted controller, and authoritative GitHub publication remain outside this editor implementation.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
 The broader governed pilot and stable-release roadmap retain their separate authority and qualification requirements.

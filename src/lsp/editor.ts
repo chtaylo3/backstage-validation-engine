@@ -38,8 +38,10 @@ import type { EditorSchema, ResolvedField } from './editor-schemas.js';
 import type { FixDocument, SuggestedFix } from './fixes.js';
 import type { LspConfig } from './config.js';
 import type { validatePolicySources } from '../core/policy-sources.js';
+import type { PreparedRuleMetadata } from '../host/rule-contributions.js';
 
 interface IndexedDocument {
+  readonly subjectId?: string;
   readonly document: EditorDocument;
   readonly schemas: readonly EditorSchema[];
   readonly basePath: string;
@@ -94,6 +96,9 @@ export class EditorService {
   private readonly history = new Map<string, number>();
   private clock = 0;
   private request: Immutable<ValidationRequest> | undefined;
+  private rules: readonly PreparedRuleMetadata[] = [];
+  private rulesWall = 0;
+  private rulesMonotonic = 0;
   readonly capabilities: CapabilitySession;
   constructor(
     private readonly config: LspConfig,
@@ -112,6 +117,7 @@ export class EditorService {
         ...config.schemaArtifacts.map(
           (artifact) => `${artifact.id}@${artifact.version}:${artifact.digest}`,
         ),
+        ...config.editorArtifacts.map((artifact) => `${artifact.id}:${artifact.digest}`),
       ]);
     try {
       this.native = schemaLoader(config);
@@ -124,6 +130,7 @@ export class EditorService {
     this.generation = -1;
     this.files.clear();
     this.request = undefined;
+    this.rules = [];
     this.controller?.abort();
   }
   record(value: string): void {
@@ -133,6 +140,7 @@ export class EditorService {
     if (this.history.size > 128) this.history.delete(this.history.keys().next().value!);
   }
   async update(request: Immutable<ValidationRequest>, generation: number): Promise<void> {
+    this.rules = [];
     const lifetime = this.lifetime;
     this.controller?.abort();
     const controller = new AbortController();
@@ -316,6 +324,7 @@ export class EditorService {
       }
       const indexed: IndexedDocument = {
         ...selected,
+        subjectId: subject,
         schemas,
         schemaValue: entity.normalized,
         subjectStage: 'normalized',
@@ -367,6 +376,7 @@ export class EditorService {
               schemaValue: payload.indexed.schemaValue,
               subjectStage: payload.indexed.subjectStage,
               basePath: payload.path,
+              ...(payload.indexed.subjectId ? { subjectId: payload.indexed.subjectId } : {}),
             },
           ],
         });
@@ -397,7 +407,37 @@ export class EditorService {
       ? file
       : undefined;
   }
-  private metadata(selected: IndexedDocument, path: string): CapabilityInputs['hover'] {
+  private metadata(
+    selected: IndexedDocument,
+    path: string,
+    includeRules = true,
+    rulesOnly = false,
+  ): CapabilityInputs['hover'] {
+    const schemas: EditorSchema[] = rulesOnly ? [] : [...selected.schemas];
+    for (const row of this.currentRules()) {
+      if (!includeRules || row.subjectId !== selected.subjectId) continue;
+      let root: Record<string, unknown> = {
+        description: `${row.description}\nRule: ${row.ruleId}. Candidates pass the checked rule after the full pipeline runs. Other findings can remain.`,
+        examples: row.candidates.map((candidate) => candidate.value),
+        $bveEditorCandidates: row.candidates.map((candidate) => ({
+          value: candidate.value,
+          label: candidate.label.replace('; checked rule ', '; Checked rule '),
+          classification: candidate.label.startsWith('Declared default')
+            ? 'default'
+            : candidate.label.startsWith('Declared example')
+              ? 'example'
+              : 'suggestion',
+        })),
+      };
+      for (const name of parts(row.path).reverse()) root = { properties: { [name]: root } };
+      schemas.push({
+        root,
+        names: new Map(),
+        label: `Editor rule ${row.ruleId}`,
+        artifactIdentity: row.artifactDigest,
+        ruleId: row.ruleId,
+      });
+    }
     return {
       path: selected.basePath + path,
       subjectStage: selected.subjectStage,
@@ -412,7 +452,7 @@ export class EditorService {
             }
           : { status: 'unknown' },
       subject: metadataSubject(selected.schemaValue),
-      schemas: selected.schemas.map((schema) => ({
+      schemas: schemas.map((schema) => ({
         root: immutableJson(schema.root) as JsonValue,
         definitions: Object.fromEntries(
           [...schema.names].map(([name, value]) => [name, immutableJson(value) as JsonValue]),
@@ -421,6 +461,170 @@ export class EditorService {
         ...(schema.artifactIdentity ? { artifactDigest: schema.artifactIdentity } : {}),
         ...(schema.ruleId ? { ruleId: schema.ruleId } : {}),
       })),
+    };
+  }
+  installRuleContributions(rows: readonly PreparedRuleMetadata[], generation: number): void {
+    if (this.generation === generation) {
+      this.rules = rows;
+      this.rulesWall = Date.now();
+      this.rulesMonotonic = performance.now();
+    }
+  }
+  private currentRules(): readonly PreparedRuleMetadata[] {
+    const now = Date.now(),
+      elapsed = performance.now() - this.rulesMonotonic;
+    return now < this.rulesWall
+      ? []
+      : this.rules.filter((row) => now < row.expiresAt && elapsed < row.expiresAt - this.rulesWall);
+  }
+  get ruleExpiresAt(): number {
+    return Math.min(Infinity, ...this.rules.map((row) => row.expiresAt));
+  }
+  ruleRepairs(generation: number, documents: ReadonlyMap<string, FixDocument>): SuggestedFix[] {
+    return this.currentRules().flatMap((row) =>
+      row.candidates.flatMap((candidate) => {
+        const finding = candidate.repair;
+        const indexed = finding && this.current(finding.location.uri, generation, documents);
+        const selected = indexed?.documents.find(
+          (selected) => selected.document.ordinal === finding?.location.document,
+        );
+        if (!finding || !selected) return [];
+        const node = selected.document.nodes.get(finding.location.path);
+        const logical = this.contribution(
+          'repairs',
+          {
+            ...this.metadata(selected, finding.location.path),
+            findingId: finding.id,
+            subjectId: row.subjectId,
+            current: node
+              ? { state: 'present', value: immutableJson(node.value) as JsonValue }
+              : { state: 'absent' },
+            required: false,
+          },
+          generation,
+        )?.proposals.some(
+          (proposal) =>
+            proposal.subjectId === row.subjectId &&
+            proposal.findingId === finding.id &&
+            proposal.path === row.path &&
+            proposal.operation === (node ? 'setValue' : 'insertProperty') &&
+            JSON.stringify(proposal.value) === JSON.stringify(candidate.value),
+        );
+        return logical
+          ? [
+              {
+                title: `Set ${parts(row.path).at(-1)} to ${JSON.stringify(candidate.value)} (checked rule ${row.ruleId})`,
+                finding,
+              },
+            ]
+          : [];
+      }),
+    );
+  }
+  /** Render only a qualified scalar or an unambiguous map insertion in one authored file. */
+  renderRuleCandidate(
+    subjectId: string,
+    path: string,
+    value: JsonValue,
+    ruleId: string,
+    generation: number,
+    documents: ReadonlyMap<string, FixDocument>,
+    findings: readonly Immutable<Finding>[],
+  ): Immutable<Finding> | undefined {
+    const targets = [...this.files.values()].flatMap((file) =>
+      file.documents.flatMap((selected) =>
+        selected.subjectId === subjectId &&
+        (path === selected.basePath || path.startsWith(selected.basePath + '/'))
+          ? [{ file, selected, path: path.slice(selected.basePath.length) }]
+          : [],
+      ),
+    );
+    // A payload takes precedence over its substitution marker in the entrypoint.
+    targets.sort((a, b) => b.selected.basePath.length - a.selected.basePath.length);
+    const target = targets[0];
+    if (
+      !target ||
+      !this.current(target.file.file.uri, generation, documents) ||
+      !target.selected.document.valid
+    )
+      return undefined;
+    const { file: indexed, selected } = target;
+    const node = selected.document.nodes.get(target.path);
+    let edit: TextEdit | undefined;
+    if (node && !node.blocked && !node.container) {
+      const raw = indexed.file.text.slice(node.start, node.end);
+      if (!/[\r\n]/u.test(raw))
+        edit = {
+          range: indexed.file.lines.range(node.start, node.end),
+          newText: encoded(value, raw, indexed.file.json),
+        };
+    } else if (!node && target.path) {
+      const parent = selected.document.nodes.get(
+        target.path.slice(0, target.path.lastIndexOf('/')),
+      );
+      const name = parts(target.path).at(-1)!;
+      if (parent?.container === 'map' && !parent.blocked) {
+        if (parent.flow || indexed.file.json) {
+          const offset = parent.end - 1;
+          if (indexed.file.text[offset] === '}')
+            edit = {
+              range: indexed.file.lines.range(offset, offset),
+              newText: `${object(parent.value) && Object.keys(parent.value).length ? ', ' : ''}${JSON.stringify(name)}: ${JSON.stringify(value)}`,
+            };
+        } else {
+          const newline = indexed.file.text.includes('\r\n') ? '\r\n' : '\n';
+          const children = [...selected.document.nodes.values()].filter(
+            (child) =>
+              child.keyStart !== undefined &&
+              child.path.slice(0, child.path.lastIndexOf('/')) === parent.path,
+          );
+          const indent = children.length
+            ? indexed.file.lines.position(children[0]!.keyStart!).character
+            : parent.path
+              ? parent.indent + 2
+              : 0;
+          let offset = parent.end;
+          if (indexed.file.lines.position(offset).character > 0) {
+            const next = /\r\n|\r|\n/u.exec(indexed.file.text.slice(offset));
+            offset = next ? offset + next.index + next[0].length : indexed.file.text.length;
+          }
+          edit = {
+            range: indexed.file.lines.range(offset, offset),
+            newText: `${offset && !/[\r\n]/u.test(indexed.file.text[offset - 1]!) ? newline : ''}${' '.repeat(indent)}${JSON.stringify(name)}: ${JSON.stringify(value)}${newline}`,
+          };
+        }
+      }
+    }
+    const finding = findings.find((row) => row.subjectId === subjectId && row.ruleId === ruleId);
+    if (!edit) return undefined;
+    const location = {
+      uri: indexed.file.uri,
+      document: selected.document.ordinal,
+      path: target.path,
+      range: edit.range,
+    };
+    return {
+      ...(finding ?? {
+        id: digestText(JSON.stringify([subjectId, ruleId, path])),
+        ruleId,
+        ruleVersion: 'editor',
+        subjectId,
+        message: 'Declared editor candidate.',
+        category: 'policy' as const,
+        severity: 'warning' as const,
+        enforcement: 'advisory' as const,
+        relatedLocations: [],
+      }),
+      location,
+      edits: [
+        {
+          uri: indexed.file.uri,
+          sourceDigest: indexed.file.digest,
+          ...(indexed.file.version === undefined ? {} : { version: indexed.file.version }),
+          range: edit.range,
+          text: edit.newText,
+        },
+      ],
     };
   }
   private contribution<K extends CapabilityId>(
@@ -459,6 +663,7 @@ export class EditorService {
     params: CompletionParams,
     generation: number,
     documents: ReadonlyMap<string, FixDocument>,
+    rulesOnly = false,
   ): CompletionList {
     const indexed = this.current(params.textDocument.uri, generation, documents);
     if (!indexed) return empty();
@@ -470,7 +675,7 @@ export class EditorService {
       const metadata = this.contribution(
         'fields',
         {
-          ...this.metadata(selected, target.path),
+          ...this.metadata(selected, target.path, true, rulesOnly),
           prefix: target.prefix,
           existing: object(existing) ? Object.keys(existing) : [],
         },
@@ -519,7 +724,7 @@ export class EditorService {
     const supplied = this.contribution(
       'values',
       {
-        ...this.metadata(selected, target.path),
+        ...this.metadata(selected, target.path, true, rulesOnly),
         ...(!selected.basePath && target.path === '/kind'
           ? {
               kinds: [
@@ -535,7 +740,8 @@ export class EditorService {
       acceptsValue(this.fields(selected, target.path), value),
     );
     const description =
-      this.contribution('hover', this.metadata(selected, target.path), generation)?.text ?? '';
+      this.contribution('hover', this.metadata(selected, target.path, true, rulesOnly), generation)
+        ?.text ?? '';
     const raw = indexed.file.text.slice(
       indexed.file.lines.offset(target.range.start),
       indexed.file.lines.offset(target.range.end),
@@ -700,7 +906,7 @@ export class EditorService {
       const supplied = this.contribution(
         'repairs',
         {
-          ...this.metadata(selected, path),
+          ...this.metadata(selected, path, false),
           findingId: finding.id,
           subjectId: JSON.stringify([finding.location.uri, finding.location.document]),
           current: node

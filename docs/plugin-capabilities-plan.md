@@ -2,7 +2,8 @@
 
 Status: phase 2 implements versioned interfaces and host admission for the existing built-in providers.
 The [implemented interface guide](capability-interfaces.md) defines the current records, boundaries, and limitations.
-Phase 3 implements bounded host polling for live refresh. External executable plugin loading and CEL/RE2 editor contributions remain separate work.
+Phase 3 implements bounded host polling for live refresh. Phase 4 implements [declarative CEL/RE2 editor contributions](rule-editor-contributions.md).
+External executable plugin loading remains separate work.
 The current wire contract remains version 0.2. A capability is a function that the host permits a provider to supply.
 This plan covers rule execution and the editor functions that rules can support.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.
@@ -15,7 +16,8 @@ RE2 already handles CEL `matches` operations and supported schema patterns.
 The current rule union contains `cel`, `schema`, and `catalog`. It has no standalone `re2` or executable-plugin rule kind.
 The editor currently derives field and value hints from trusted schemas and uses the existing catalog provider for references.
 Built-in negotiation and lifecycle admission now use `bve-plugin/1`.
-CEL repair contributions, standalone RE2 rule adapters, and arbitrary executable loading remain future work.
+Approved CEL and schema RE2 declarations now supply finite checked candidates and guarded repairs.
+Standalone RE2 rule adapters and arbitrary executable loading remain future work.
 
 Future CEL, RE2, schema, catalog, and approved executable providers must use one set of host contracts.
 CLI, editors, and hosted execution must share validation semantics.

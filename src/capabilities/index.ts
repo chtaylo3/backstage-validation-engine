@@ -1,4 +1,6 @@
 export * from './schemas.js';
+export { EditorArtifactSchema, parseEditorArtifacts } from './editor-artifacts.js';
+export type { EditorArtifact } from './editor-artifacts.js';
 export {
   CapabilityError,
   parseBinding,

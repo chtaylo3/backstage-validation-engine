@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                | Parent acceptance             |
-| ----------------------------------------------- | -------------------- | ----------------------------- |
-| 1: documentation                                | Accepted             | Accepted by parent            |
-| 2: contracts and built-in adapters              | Accepted             | Accepted by parent            |
-| 3: live catalog refresh                         | Accepted             | Accepted by parent            |
-| 4: CEL and RE2 contributions                    | Not implemented      | Requires accepted phase 3     |
-| 5: client reliability and release qualification | Deferred by the user | Requires future authorization |
+| Phase                                           | State                              | Parent acceptance             |
+| ----------------------------------------------- | ---------------------------------- | ----------------------------- |
+| 1: documentation                                | Accepted                           | Accepted by parent            |
+| 2: contracts and built-in adapters              | Accepted                           | Accepted by parent            |
+| 3: live catalog refresh                         | Accepted                           | Accepted by parent            |
+| 4: CEL and RE2 contributions                    | Implemented, qualification pending | Requires parent review        |
+| 5: client reliability and release qualification | Deferred by the user               | Requires future authorization |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -388,3 +388,40 @@ Scoped documentation formatting and diff checks passed. Only documentation chang
 All P3-A1 through P3-A14 criteria are accepted for the stated local scope and observable authorization behavior.
 Parent test evidence remains under `.artifacts/lsp-editor-improvements/phase3/parent-review/`.
 Phase 4 is admitted for implementation. Phase 5 remains deferred.
+
+## Phase 4: declarative CEL and RE2 editor contributions
+
+Implementation date: 2026-11-10, America/New_York time.
+The [rule contribution guide](rule-editor-contributions.md) defines the independently versioned `bve-editor/1` artifacts and exact behavior.
+Trusted launcher configuration can approve finite scalar choices, examples, defaults, descriptions, field paths, and repair enablement.
+The host binds each declaration to the exact policy/profile/rule digests, language profile, normalized stage, kind, API version, and path.
+Generated schemas and runtime admission preserve the frozen `0.2` policy contract.
+
+Required diagnostics publish before optional preparation.
+The actual qualified report establishes applicability. Each admitted scalar candidate reruns the full source, normalization, reference, prerequisite, and rule pipeline.
+Fresh authorized reads collect facts for newly introduced references. Candidate interest does not replace the authoritative source dependency inventory.
+The shared production pool, original deadline, finite admission, generation, authority, source, lifetime, and expiry guards remain in force.
+Candidate evidence identifies actual checked states and coverage. Existing unrelated findings remain explicit.
+
+The phase 2 interfaces carry field, value, hover, and logical repair contributions.
+The host matches repair proposals against its candidate evidence before using the existing single-document guarded command path.
+Structured includes retain actual payload ranges. Ambiguous mappings and alias targets do not produce repairs.
+The new installed case combines CEL and schema RE2, candidate-only catalog additions/removals, stale-token rejection, and post-edit validation.
+
+### Development checks and corrections
+
+Initial direct controls exposed a missing hypothetical baseline when a caller supplied an unchanged source without an explicit baseline.
+Preparation now retains the actual baseline or uses the unchanged original snapshot. It cannot infer a baseline for unresolved deletions.
+An include control also needed its approved source root. The test now supplies that root.
+The stdio fixture initially applied a Component expression to Group documents. An explicit selector now states its intended applicability.
+A new pressure assertion initially required two live workers immediately after replacement. The assertion now checks the two-slot ceiling and successful recovery.
+Unused imports and two lint errors were corrected before final qualification.
+
+Focused development results include 13 direct contribution cases and nine stdio cases with no failures or skips.
+An additional stdio control exposed reference completion returning before declared rule hints.
+The host now merges prepared rule hints with reference choices. Both backend contracts pass the repair and post-edit round trip.
+These checks use real production workers and both supported HTTP backend contracts where stated.
+The held-candidate control publishes required diagnostics and an early source repair before optional I/O completes.
+That source token becomes stale at its approved 250 ms freshness bound before client dispatch.
+Final source/client, packaged, and installed candidate qualification remains pending at this code checkpoint.
+Parent acceptance remains pending. Phase 5 remains deferred.

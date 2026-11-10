@@ -53,6 +53,7 @@ export class CatalogRefresh {
   private observedAt = 0;
   private expiresAt = Infinity;
   private references = new Set<string>();
+  private readonly candidateReferences = new Map<string, number>();
   private readonly queries = new Map<string, Query>();
   private readonly controllers = new Set<AbortController>();
   private readonly work = new Set<Promise<unknown>>();
@@ -110,6 +111,7 @@ export class CatalogRefresh {
     return Object.freeze({
       generation: this.revision,
       references: this.references.size,
+      candidateReferences: this.candidateReferences.size,
       queries: this.queries.size,
       timer: !!this.timer,
       busy: this.busy,
@@ -143,7 +145,12 @@ export class CatalogRefresh {
     this.timer = undefined;
     this.due = Infinity;
     this.prune();
-    if (this.closed || this.suspended || this.busy || (!this.references.size && !this.queries.size))
+    if (
+      this.closed ||
+      this.suspended ||
+      this.busy ||
+      (!this.references.size && !this.queries.size && !this.candidateReferences.size)
+    )
       return;
     const now = this.time.now();
     const cadence = Math.min(
@@ -159,6 +166,7 @@ export class CatalogRefresh {
     const jitter = Math.floor(Math.max(0, Math.min(1, this.time.random())) * backoff * 0.1);
     const expiry = Math.min(
       this.expiresAt,
+      ...this.candidateReferences.values(),
       ...[...this.queries.values()].flatMap((row) =>
         row.report?.status === 'ready'
           ? [row.report.expiresAt, row.report.fetchedAt + cadence]
@@ -179,7 +187,12 @@ export class CatalogRefresh {
     this.timer = undefined;
     this.due = Infinity;
     this.prune();
-    if (this.closed || this.suspended || this.busy || (!this.references.size && !this.queries.size))
+    if (
+      this.closed ||
+      this.suspended ||
+      this.busy ||
+      (!this.references.size && !this.queries.size && !this.candidateReferences.size)
+    )
       return;
     this.claimsExpireAt = Infinity;
     this.hasClaims = false;
@@ -318,6 +331,7 @@ export class CatalogRefresh {
   }
   /** Each run collects an exact bounded inventory. Failed or obsolete runs cannot replace it. */
   begin(): { catalog: Catalog; finish: (current: boolean) => void } {
+    this.candidateReferences.clear();
     this.timer?.();
     this.timer = undefined;
     this.due = Infinity;
@@ -421,6 +435,62 @@ export class CatalogRefresh {
       },
     };
   }
+  /** Hypothetical reads add interest without replacing the authoritative source inventory. */
+  candidates(): Catalog {
+    const revision = this.revision;
+    return {
+      access: this.original.access,
+      provider: {
+        ...this.catalog.provider,
+        lookup: async (references, access, execution) => {
+          access = this.approved(access);
+          if (revision !== this.revision) throw new Error('Candidate observation is stale.');
+          if (
+            new Set([...this.references, ...this.candidateReferences.keys(), ...references]).size >
+            CATALOG_REFRESH_LIMITS.references
+          )
+            throw new Error('Catalog dependency inventory exceeds limits.');
+          const report = await this.own(
+            (signal) =>
+              this.original.provider.lookup(
+                references,
+                { ...access, maxAgeMs: 0 },
+                { ...execution, signal },
+              ),
+            execution,
+          );
+          if (revision !== this.revision || execution.signal?.aborted)
+            throw new Error('Candidate observation is stale.');
+          if (
+            report.failures.some((row) =>
+              ['permission_denied', 'credential_binding'].includes(row.code),
+            ) ||
+            report.data.entries.some(
+              (row) => row.status === 'unavailable' && row.reason === 'permission_denied',
+            )
+          )
+            this.denyAuthority('candidates');
+          else {
+            this.deniedScopes.delete('candidates');
+            this.hasClaims ||= report.data.entries.some((row) => row.status !== 'unavailable');
+          }
+          const cadence = this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.cadenceMs;
+          const expiresAt = Math.min(
+            this.time.now() + cadence,
+            ...report.data.entries.map((row) => row.provenance.expiresAt),
+          );
+          for (const reference of references)
+            this.candidateReferences.set(
+              reference,
+              Math.min(this.candidateReferences.get(reference) ?? Infinity, expiresAt),
+            );
+          this.observedAt ||= this.time.now();
+          if (!this.busy) this.schedule();
+          return report;
+        },
+      },
+    };
+  }
   /** Recent identity queries are advisory and separate from body/absence observations. */
   async refreshQueries(execution: CatalogExecutionContext): Promise<void> {
     if (!this.fresh || !this.original.provider.suggest) return;
@@ -471,6 +541,7 @@ export class CatalogRefresh {
     for (const controller of this.controllers) controller.abort();
     this.queries.clear();
     this.references.clear();
+    this.candidateReferences.clear();
     await Promise.allSettled([...this.work]);
   }
 }

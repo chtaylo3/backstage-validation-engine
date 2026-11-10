@@ -143,6 +143,7 @@ Its hints cannot supply authoritative entity bodies or replace authorized fresh 
 SQS, Kafka, and hosted governance remain outside the editor phases.
 
 Phase 4 adds CEL/RE2 editor metadata, candidate evidence, and guarded repair contributions through these interfaces.
+The [rule contribution guide](rule-editor-contributions.md) defines approved artifacts, logical repair routing, host evidence, bounds, and invalidation.
 CEL and RE2 execution remains unchanged in this phase.
 Arbitrary executable loading, process transport, permission brokers, and untrusted-code isolation require separate implementation and approval.
 Phase 5 remains deferred for native Trust automation, installed JetBrains qualification, and longer release workloads.

@@ -141,7 +141,8 @@ For field and value suggestions, hover, definitions, schema repairs, catalog sea
 configuration reload, and JetBrains setup, see [editor features](docs/editor-features.md).
 
 For the implemented built-in interfaces, see [capability interfaces](docs/capability-interfaces.md).
-For future CEL, RE2, and plugin contributions, see the
+For declared CEL and RE2 editor hints and guarded repairs, see [rule contributions](docs/rule-editor-contributions.md).
+For plugin conformance requirements, see the
 [rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
 execution controls, and conformance tests for each supported function.
 The [five-phase editor plan](docs/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.

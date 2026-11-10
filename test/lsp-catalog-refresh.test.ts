@@ -143,6 +143,72 @@ async function read(h: ReturnType<typeof setup>, refs = ['group:default/team']) 
   run.finish(true);
   return report;
 }
+void test('candidate-only facts keep bounded refresh interest without replacing authoritative source inventory', async () => {
+  const h = setup(500);
+  await read(h, ['group:default/source']);
+  const candidate = h.refresh.candidates();
+  await candidate.provider.lookup(['group:default/candidate'], h.access, h.execution);
+  assert.equal(h.refresh.status.references, 1);
+  assert.equal(h.refresh.status.candidateReferences, 1);
+  assert.equal(h.delay, 500);
+  assert.equal(h.calls.at(-1)?.maxAgeMs, 0);
+  h.setUnavailable(true);
+  await candidate.provider.lookup(['group:default/failed'], h.access, h.execution);
+  assert.equal(h.refresh.status.references, 1);
+  h.advance();
+  assert.equal(h.invalidations, 1);
+  await assert.rejects(
+    candidate.provider.lookup(['group:default/late'], h.access, h.execution),
+    /stale/,
+  );
+  await h.refresh.close();
+  const zero = setup(0);
+  await zero.refresh
+    .candidates()
+    .provider.lookup(['group:default/only'], zero.access, zero.execution);
+  assert.equal(zero.refresh.status.references, 0);
+  assert.equal(zero.refresh.status.candidateReferences, 1);
+  assert.equal(zero.delay, 30_000);
+  zero.advance();
+  assert.equal(zero.invalidations, 1);
+  await zero.refresh.close();
+});
+void test('candidate-only permission claims revoke immediately and recovered claims rearm denial', async () => {
+  const h = setup();
+  const original = h.provider.lookup.bind(h.provider);
+  let allowed = true;
+  h.provider.lookup = async (...args) => {
+    const report = await original(...args);
+    return allowed
+      ? report
+      : {
+          ...report,
+          data: createDataSnapshot(
+            report.data.entries.map((entry) => ({
+              key: entry.key,
+              provenance: entry.provenance,
+              status: 'unavailable' as const,
+              reason: 'permission_denied' as const,
+            })),
+          ),
+        };
+  };
+  const fresh = () =>
+    h.refresh.candidates().provider.lookup(['group:default/candidate'], h.access, h.execution);
+  await fresh();
+  allowed = false;
+  await fresh();
+  assert.equal(h.invalidations, 1);
+  await fresh();
+  assert.equal(h.invalidations, 1);
+  allowed = true;
+  await fresh();
+  allowed = false;
+  await fresh();
+  assert.equal(h.invalidations, 2);
+  assert.equal(h.refresh.status.references, 0);
+  await h.refresh.close();
+});
 void test('body and absence dependencies use qualified cadence, bypass caches only on refresh, and retain full-body revisions', async () => {
   const h = setup();
   assert.equal(h.refresh.status.timer, false);

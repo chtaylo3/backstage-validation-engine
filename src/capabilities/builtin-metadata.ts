@@ -212,12 +212,33 @@ export function schemaValueSuggestions(
         .filter((kind) => acceptsValue(fields, kind))
         .map((value) => ({ value, label: 'Entity kind' }))
     : fieldValues(fields);
+  const checked = new Map<
+    string,
+    { label: string; classification: 'default' | 'example' | 'suggestion' }
+  >();
+  for (const { schema, node } of fields) {
+    if (!schema.label.startsWith('Editor rule ') || !Array.isArray(node.$bveEditorCandidates))
+      continue;
+    for (const candidate of node.$bveEditorCandidates) {
+      if (
+        !object(candidate) ||
+        typeof candidate.label !== 'string' ||
+        !['default', 'example', 'suggestion'].includes(String(candidate.classification))
+      )
+        continue;
+      checked.set(JSON.stringify(candidate.value), {
+        label: candidate.label,
+        classification: candidate.classification as 'default' | 'example' | 'suggestion',
+      });
+    }
+  }
   return {
     candidates: values.slice(0, 100).map(({ value, label }) => ({
       value,
-      label,
+      label: checked.get(JSON.stringify(value))?.label ?? label,
       classification:
-        label === 'Required value'
+        checked.get(JSON.stringify(value))?.classification ??
+        (label === 'Required value'
           ? 'required'
           : label === 'Allowed value'
             ? 'allowed'
@@ -225,7 +246,7 @@ export function schemaValueSuggestions(
               ? 'default'
               : label === 'Example'
                 ? 'example'
-                : 'suggestion',
+                : 'suggestion'),
       sources: sources(fields),
     })),
   };
@@ -278,7 +299,12 @@ export function builtinMetadataSession(dependencies: readonly string[]) {
     },
     {
       dependencies,
-      languageProfiles: ['host-contract/0.2', 'draft-07/bve/1', 're2js@2.9.0/schema-v1'],
+      languageProfiles: [
+        'host-contract/0.2',
+        'draft-07/bve/1',
+        're2js@2.9.0/schema-v1',
+        'bve-cel/1',
+      ],
     },
   );
 }

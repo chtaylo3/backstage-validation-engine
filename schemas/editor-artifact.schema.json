@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:backstage-validation:editor-artifact:bve-editor/1",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "artifactVersion",
+    "id",
+    "digest",
+    "policyDigest",
+    "profileDigest",
+    "contributions"
+  ],
+  "properties": {
+    "artifactVersion": {
+      "const": "bve-editor/1",
+      "type": "string"
+    },
+    "id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "policyDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "profileDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "contributions": {
+      "minItems": 1,
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ruleId",
+          "ruleDigest",
+          "languageProfile",
+          "subjectStage",
+          "kind",
+          "apiVersion",
+          "path",
+          "description",
+          "repairs"
+        ],
+        "properties": {
+          "ruleId": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "ruleDigest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "languageProfile": {
+            "anyOf": [
+              {
+                "const": "bve-cel/1",
+                "type": "string"
+              },
+              {
+                "const": "draft-07/re2js@2.9.0/schema-v1",
+                "type": "string"
+              }
+            ]
+          },
+          "subjectStage": {
+            "const": "normalized",
+            "type": "string"
+          },
+          "kind": {
+            "minLength": 1,
+            "maxLength": 63,
+            "type": "string"
+          },
+          "apiVersion": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "path": {
+            "pattern": "^(?:/(?:[^~/]|~[01])+)+$",
+            "maxLength": 512,
+            "type": "string"
+          },
+          "description": {
+            "minLength": 1,
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "choices": {
+            "maxItems": 16,
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 4096,
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "examples": {
+            "maxItems": 16,
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 4096,
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "defaultValue": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            ]
+          },
+          "repairs": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

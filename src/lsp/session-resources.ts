@@ -80,6 +80,9 @@ export class SessionGeneration {
   get catalog() {
     return this.refresh?.catalog ?? this.resources.catalog;
   }
+  get candidateCatalog() {
+    return this.refresh?.candidates() ?? this.resources.catalog;
+  }
   get filesystem() {
     return this.resources.filesystem;
   }

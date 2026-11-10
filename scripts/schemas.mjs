@@ -1,11 +1,15 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { contractSchemas } from '../dist/contracts/index.js';
-import { capabilitySchemas } from '../dist/capabilities/index.js';
+import { capabilitySchemas, EditorArtifactSchema } from '../dist/capabilities/index.js';
 
 const check = process.argv.includes('--check');
 const directory = new URL('../schemas/', import.meta.url);
 if (!check) await mkdir(directory, { recursive: true });
-for (const [name, schema] of Object.entries({ ...contractSchemas, ...capabilitySchemas })) {
+for (const [name, schema] of Object.entries({
+  ...contractSchemas,
+  ...capabilitySchemas,
+  'editor-artifact': EditorArtifactSchema,
+})) {
   const file = new URL(`${name}.schema.json`, directory);
   const expected = `${JSON.stringify(schema, null, 2)}\n`;
   if (check) {

@@ -1,15 +1,15 @@
 # Editor features
 
-The language server supplies field and value completion, hover, local definitions, and guarded schema repairs.
+The language server supplies field and value completion, hover, local definitions, and guarded schema and declared rule repairs.
 VS Code also supplies catalog search and persistent selection history.
 Trusted launcher configuration selects schemas, policy authority, sources, and credentials.
 
-The [rule and editor capability plan](plugin-capabilities-plan.md) specifies future CEL, RE2, and plugin extensions.
+The [rule and editor capability plan](plugin-capabilities-plan.md) specifies CEL, RE2, and plugin requirements.
 It defines the interfaces and conformance requirements for each function.
 Built-in providers now use the versioned [capability interfaces](capability-interfaces.md). Arbitrary executable plugin loading remains unavailable.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
 Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](lsp-editor-improvements-implementation-record.md).
-Phase 3 adds live catalog refresh. Phase 4 retains the remaining CEL/RE2 editor contribution work.
+Phase 3 adds live catalog refresh. Phase 4 implements [declared CEL/RE2 contributions](rule-editor-contributions.md), with qualification and acceptance recorded separately.
 
 ## Completion and documentation
 

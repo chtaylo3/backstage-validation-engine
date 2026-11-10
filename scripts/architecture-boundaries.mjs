@@ -26,6 +26,8 @@ const ownership = new Set([
   'src/lsp/config-watches.ts',
   'src/host/catalog-config.ts',
   'src/host/builtin-validation.ts',
+  'src/host/rule-contributions.ts',
+  'src/capabilities/editor-artifacts.ts',
   'src/capabilities/session.ts',
   'src/capabilities/bindings.ts',
   'src/capabilities/builtin-metadata.ts',

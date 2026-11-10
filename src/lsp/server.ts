@@ -143,6 +143,7 @@ export function attachLspServer(
         workspace,
         filesystem: available ? session.filesystem : undefined,
         catalog: available ? (refresh?.catalog ?? session.catalog) : undefined,
+        candidateCatalog: available ? session.candidateCatalog : undefined,
         completion: session.completion,
         editor: session.editor,
         validation: session.validation,
@@ -266,7 +267,17 @@ export function attachLspServer(
         references.items = references.items.filter((item) =>
           editor.acceptsReference(params, item.label, generation, documents),
         );
-        if (references.items.length || context.signal.aborted) return references;
+        if (context.signal.aborted) return references;
+        if (references.items.length) {
+          const declared = editor.complete(params, generation, documents, true);
+          references.items = [...declared.items, ...references.items]
+            .filter(
+              (item, index, items) =>
+                items.findIndex((other) => other.label === item.label) === index,
+            )
+            .slice(0, 100);
+          return references;
+        }
         return editor.complete(params, generation, documents);
       },
     ),

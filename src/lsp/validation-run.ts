@@ -21,6 +21,7 @@ import type { EditorService } from './editor.js';
 import { diagnostic, incomplete, admissionTimeout } from './diagnostics.js';
 import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 import type { ValidationRun } from './validation-coordinator.js';
+import { prepareRuleContributions } from '../host/rule-contributions.js';
 
 interface ValidationInputs {
   readonly dependencyGeneration?: number;
@@ -42,6 +43,8 @@ interface ValidationInputs {
   >;
   readonly filesystem: FilesystemSource | undefined;
   readonly catalog:
+    { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } | undefined;
+  readonly candidateCatalog?:
     { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } | undefined;
   readonly completion: CompletionService;
   readonly editor: EditorService;
@@ -172,15 +175,23 @@ export async function runValidation(
     await editor.refine(report, generation);
     if (!current()) return;
     evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
-    if (
-      fixesEnabled &&
+    const repairEligible =
       report.interrupted === 'none' &&
       report.rules.failures.length === 0 &&
       report.coverage.every((row) => !row.required || row.status === 'verified') &&
       !report.findings.some((row) =>
         ['configuration', 'dependency', 'execution', 'resource'].includes(row.category),
-      )
-    ) {
+      );
+    const dataExpiresAt = Math.min(
+      Infinity,
+      ...report.request.data.entries.map((row) =>
+        Math.min(
+          row.provenance.expiresAt,
+          row.provenance.fetchedAt + (catalog?.access.maxAgeMs || FIX_LIMITS.ttlMs / 2),
+        ),
+      ),
+    );
+    if (fixesEnabled && repairEligible) {
       fixes.replace({
         generation,
         findings: report.findings,
@@ -188,10 +199,7 @@ export async function runValidation(
         source: report.request.source,
         ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
         documents: snapshot.allDocuments,
-        expiresAt: Math.min(
-          Date.now() + FIX_LIMITS.ttlMs,
-          ...report.request.data.entries.map((row) => row.provenance.expiresAt),
-        ),
+        expiresAt: Math.min(Date.now() + FIX_LIMITS.ttlMs, dataExpiresAt),
       });
     }
     for (const document of frame) {
@@ -220,6 +228,52 @@ export async function runValidation(
       )
         diagnostics.push(incomplete(digest, document.version, evidence));
       await publish(document.uri, document.version, diagnostics);
+    }
+    // Required diagnostics publish first. Optional work cannot replace them on failure.
+    if (config.editorArtifacts.length && current()) {
+      try {
+        const contributions = await prepareRuleContributions({
+          report,
+          context: config,
+          artifacts: config.editorArtifacts,
+          generation: input.dependencyGeneration ?? 0,
+          signal: context.signal,
+          current,
+          ...(input.candidateCatalog ? { catalog: input.candidateCatalog } : {}),
+          render: (subjectId, path, value, ruleId) =>
+            editor.renderRuleCandidate(
+              subjectId,
+              path,
+              value,
+              ruleId,
+              generation,
+              snapshot.allDocuments,
+              report.findings,
+            ),
+        });
+        if (current()) {
+          editor.installRuleContributions(contributions, generation);
+          if (fixesEnabled && repairEligible)
+            fixes.replace({
+              generation,
+              findings: report.findings,
+              suggestions: [
+                ...editor.repairs(report.findings, generation, snapshot.allDocuments),
+                ...editor.ruleRepairs(generation, snapshot.allDocuments),
+              ],
+              source: report.request.source,
+              ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
+              documents: snapshot.allDocuments,
+              expiresAt: Math.min(
+                Date.now() + FIX_LIMITS.ttlMs,
+                editor.ruleExpiresAt,
+                dataExpiresAt,
+              ),
+            });
+        }
+      } catch {
+        // Admission pressure, cancellation and worker failure affect hints only.
+      }
     }
     await refreshingQueries;
   } catch (error) {
