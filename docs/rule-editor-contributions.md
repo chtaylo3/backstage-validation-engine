@@ -127,6 +127,11 @@ Predicates do not enumerate values, and the editor does not infer a unique repai
 Preparation retains the original validation deadline and cancellation signal.
 It yields between declaration batches. It creates no interpreter pool per document.
 Completion and hover read prepared metadata. They do not parse sources or execute CEL.
+If rule evidence expires, a later protocol request schedules one new bounded validation generation.
+The host clears the expired marker before scheduling, so repeated requests cannot create an unbounded renewal queue.
+Pure local schema metadata remains advisory while renewal runs. Expired policy contributions and old repair tokens remain unavailable.
+An unchanged local-only document needs no background timer, source edit, or version change to renew its rule hints.
+A new request starts a new validation budget. Stages within that preparation retain its original deadline.
 Queue pressure or candidate failure leaves required diagnostics intact.
 When a bound is reached, later optional candidates remain absent.
 

@@ -1,4 +1,5 @@
-export type InvalidationReason = 'buffer' | 'disk' | 'configuration' | 'selection' | 'dependencies';
+export type InvalidationReason =
+  'buffer' | 'disk' | 'configuration' | 'selection' | 'dependencies' | 'metadata';
 export interface ValidationRun {
   readonly generation: number;
   readonly signal: AbortSignal;

@@ -427,13 +427,23 @@ Candidate failures now participate in backoff. Recoverable exceptions retain bou
 Unavailable TTLs do not become successful claim expiry. Successful source and candidate facts still cap the next retry.
 Deterministic controls cover 30-second, 60-second, and 120-second outage retries, recovery, and late aborted failures.
 
-Focused development results include 13 direct contribution cases and nine stdio cases with no failures or skips.
+Parent review also identified local-only rule hints that expired without a later renewal path.
+Protocol admission now schedules one bounded replacement generation when an unchanged document receives a request after rule proof expiry.
+It clears the expired marker, revokes repair tokens, and retains pure local metadata as advisory while preparation runs.
+An actual in-process JSON-RPC control advances the wall clock and uses production workers.
+Completion and hover each renew hints at the same document version, without edits or a catalog resource.
+Eight simultaneous requests produce one replacement generation. The old repair token never reaches client edit dispatch.
+
+Focused development results include 13 direct contribution cases and ten protocol cases with no failures or skips.
 An additional stdio control exposed reference completion returning before declared rule hints.
 The host now merges prepared rule hints with reference choices. Both backend contracts pass the repair and post-edit round trip.
 These checks use real production workers and both supported HTTP backend contracts where stated.
 The held-candidate control publishes required diagnostics and an early source repair before optional I/O completes.
 That source token becomes stale at its approved 250 ms freshness bound before client dispatch.
 The preliminary `18aa2e6` and `8647a1f` checkpoints each passed 1068 source, 42 client, and 1068 packaged tests.
+The corrected outage checkpoint `910ca90` passed 1071 source, 42 client, and 1071 packaged tests.
+Its preceding `6d9720d` gate stopped before product tests on unstable first-pass formatter output in a new test method chain.
+The stable formatter output changed no assertion. Its stopped gate log remains retained.
 Their exact products and reports remain in their separate ignored evidence directories.
 Final qualification must use the corrected outage candidate. Installed qualification remains pending at this code checkpoint.
 Parent acceptance remains pending. Phase 5 remains deferred.

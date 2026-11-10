@@ -173,7 +173,8 @@ export function attachLspServer(
       if (reason === 'dependencies') sessions.current.completion.invalidateRemote();
       fixes.invalidate();
       sessions.current.completion.invalidate();
-      sessions.current.editor.invalidate();
+      if (reason === 'metadata') sessions.current.editor.expireRules(coordinator.generation);
+      else sessions.current.editor.invalidate();
       workspace.invalidate();
     },
   );
@@ -246,6 +247,8 @@ export function attachLspServer(
   });
   const requests = new RequestContexts(workspace, () => {
     sessions.current.refresh?.ensureFresh();
+    if (sessions.available && sessions.current.editor.rulePreparationExpired)
+      coordinator.invalidate('metadata');
     return {
       initialized,
       stopped,

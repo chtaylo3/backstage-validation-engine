@@ -470,6 +470,28 @@ export class EditorService {
       this.rulesMonotonic = performance.now();
     }
   }
+  get rulePreparationExpired(): boolean {
+    return this.rules.length > 0 && this.currentRules().length !== this.rules.length;
+  }
+  /** A new request can renew optional proofs while pure local metadata remains advisory. */
+  expireRules(generation: number): void {
+    this.lifetime++;
+    this.controller?.abort();
+    this.rules = [];
+    this.generation = generation;
+    this.files = new Map(
+      [...this.files].map(([uri, indexed]) => [
+        uri,
+        {
+          ...indexed,
+          documents: indexed.documents.map((selected) => ({
+            ...selected,
+            schemas: selected.schemas.filter((schema) => !schema.label.startsWith('Policy ')),
+          })),
+        },
+      ]),
+    );
+  }
   private currentRules(): readonly PreparedRuleMetadata[] {
     const now = Date.now(),
       elapsed = performance.now() - this.rulesMonotonic;

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { writeFile } from 'node:fs/promises';
+import { PassThrough } from 'node:stream';
+import { createConnection } from 'vscode-languageserver';
 import { setTimeout as pause } from 'node:timers/promises';
 import {
   CodeActionRequest,
@@ -9,8 +11,17 @@ import {
   DidChangeTextDocumentNotification,
   DidCloseTextDocumentNotification,
   ExecuteCommandRequest,
+  InitializeRequest,
+  PublishDiagnosticsNotification,
+  ApplyWorkspaceEditRequest,
+  HoverRequest,
+  createProtocolConnection,
 } from 'vscode-languageserver/node';
-import type { CodeAction, CompletionList } from 'vscode-languageserver/node';
+import type {
+  CodeAction,
+  CompletionList,
+  PublishDiagnosticsParams,
+} from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseLspConfig } from '../src/lsp/config.js';
 import {
@@ -24,8 +35,10 @@ import {
 import { editorArtifact } from './harness/editor-artifact.js';
 import { startLspClient } from './harness/lsp-client.js';
 import { fixPolicy } from './harness/fix-fixture.js';
-import { digestJson } from '../src/core/json.js';
+import { digestJson, digestText } from '../src/core/json.js';
 import { URI } from './helpers.js';
+import { attachLspServer } from '../src/lsp/server.js';
+import { closeSharedCelRuntime } from '../src/runtime/cel/index.js';
 
 const lifecycleRule = {
   id: 'lifecycle-rule',
@@ -39,14 +52,129 @@ const lifecycleRule = {
 };
 const position = { line: 5, character: 13 };
 async function until<T>(read: () => Promise<T | undefined>): Promise<T> {
-  const end = Date.now() + 10_000;
+  const end = performance.now() + 10_000;
   for (;;) {
     const value = await read();
     if (value) return value;
-    if (Date.now() > end) throw new Error('Rule contribution did not become ready.');
+    if (performance.now() > end) throw new Error('Rule contribution did not become ready.');
     await pause(10);
   }
 }
+void test('unchanged local-only requests renew expired rule proofs once and retain advisory metadata while pending', async (t) => {
+  let wall = Date.now();
+  t.mock.method(Date, 'now', () => wall);
+  const text = componentText().replace('production', 'experimental');
+  const run = policyRun({ text, rules: [lifecycleRule] });
+  const config = parseLspConfig({
+    ...run.context,
+    identity: run.request.identity,
+    source: run.request.source,
+    editorArtifacts: [editorArtifact(run)],
+    debounceMs: 0,
+  });
+  assert.equal(config.catalog, undefined);
+  const inbound = new PassThrough(),
+    outbound = new PassThrough();
+  const connection = createConnection(
+    (logger) => createProtocolConnection(inbound, outbound, logger),
+    { initialize: () => {}, shutdownReceived: false, exit: () => {} },
+  );
+  const server = attachLspServer(connection, config);
+  const client = createProtocolConnection(outbound, inbound);
+  const reports: PublishDiagnosticsParams[] = [];
+  let dispatches = 0;
+  client.onNotification(PublishDiagnosticsNotification.type, (row) => {
+    reports.push(row);
+  });
+  client.onRequest(ApplyWorkspaceEditRequest.type, () => {
+    dispatches++;
+    return { applied: false };
+  });
+  connection.listen();
+  client.listen();
+  t.after(async () => {
+    await server.close();
+    await closeSharedCelRuntime();
+    client.dispose();
+    connection.dispose();
+    inbound.destroy();
+    outbound.destroy();
+  });
+  await client.sendRequest(InitializeRequest.type, {
+    processId: null,
+    rootUri: null,
+    capabilities: {
+      workspace: {
+        applyEdit: true,
+        workspaceEdit: { documentChanges: true, failureHandling: 'textOnlyTransactional' },
+      },
+      textDocument: {
+        publishDiagnostics: { dataSupport: true },
+        codeAction: { codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } } },
+      },
+    },
+  });
+  await client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 1, languageId: 'yaml', text },
+  });
+  const completion = () =>
+    client.sendRequest(CompletionRequest.type, {
+      textDocument: { uri: URI },
+      position,
+    }) as Promise<CompletionList>;
+  const checked = () =>
+    until(async () => {
+      const result = await completion();
+      return result.items.some(
+        (row) => row.label === 'production' && row.detail?.includes('Checked rule'),
+      )
+        ? result
+        : undefined;
+    });
+  await checked();
+  assert.equal(reports.length, 1);
+  const actions = (await client.sendRequest(CodeActionRequest.type, {
+    textDocument: { uri: URI },
+    range: { start: position, end: position },
+    context: { diagnostics: [] },
+  })) as CodeAction[];
+  const old = actions.find((row) => row.title.includes('checked rule lifecycle-rule'))!;
+  assert(old);
+  wall += 30_001;
+  const advisory = await completion();
+  assert(advisory.items.some((row) => row.label === 'production' && row.detail === 'Example'));
+  assert(!advisory.items.some((row) => row.detail?.includes('Checked rule')));
+  await Promise.all(Array.from({ length: 8 }, completion));
+  assert.deepEqual(await client.sendRequest(ExecuteCommandRequest.type, old.command!), {
+    applied: false,
+    reason: 'stale',
+  });
+  await checked();
+  assert.equal(reports.length, 2, 'Repeated requests enqueue only one replacement generation.');
+  wall += 30_001;
+  await client.sendRequest(HoverRequest.type, {
+    textDocument: { uri: URI },
+    position: { line: 5, character: 3 },
+  });
+  await until(async () => {
+    const result = await client.sendRequest(HoverRequest.type, {
+      textDocument: { uri: URI },
+      position: { line: 5, character: 3 },
+    });
+    return result && JSON.stringify(result.contents).includes('Approved lifecycle choices')
+      ? true
+      : undefined;
+  });
+  assert.equal(reports.length, 3);
+  assert(reports.every((row) => row.uri === URI && row.version === 1));
+  for (const report of reports) {
+    assert(report.diagnostics.length > 0);
+    const data: unknown = report.diagnostics[0]!.data;
+    assert(data && typeof data === 'object' && 'sourceDigest' in data);
+    assert.equal(data.sourceDigest, digestText(text));
+  }
+  assert.equal(dispatches, 0);
+});
 void test('stdio merges checked owner candidates with reference completion and revalidates an explicit repair on both contracts', async (t) => {
   const matrix = await policyMatrix(t);
   for (const selected of matrix.fixtures)
