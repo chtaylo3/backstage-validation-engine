@@ -205,8 +205,8 @@ The stamped Linux x64 VSIX SHA-256 is `01ec061c90c26d7e41313bc5d45342e20c8c8ee5c
 Both stamped packages use clean revision `31cf440d0be2013d94e10e76de926b8af516109a`.
 Development evidence does not qualify a release.
 
-The SSH preflight runs under Docker Desktop and WSL2 and returns connection refused from its ephemeral loopback port.
-This environment did not provide a successful SSH remote connection. That lane remains unqualified.
+The SSH attempt at `31cf440` returned connection refused under Docker Desktop and WSL2.
+That attempt executed no product sessions. The SSH networking follow-up below records the later development fix and qualification.
 The WSL remote harness requires a Windows desktop process; this checkout runs as a Linux process.
 Native Windows/macOS, hosted release runs, twenty race repetitions, and long release soaks were not executed here.
 Their separate release requirements and existing thresholds remain unchanged.
@@ -264,4 +264,32 @@ The package digests for this reviewed candidate are:
 These independent runs qualify the stated Linux checks.
 The earlier Backstage, dev-container, compatibility, and load results above retain their recorded source revisions.
 Those lanes, SSH, native Windows/macOS, and hosted release qualification were not repeated for the review fixes.
-The prior SSH preflight limitation remains unresolved. No remote branch or pull request was changed.
+The prior SSH preflight limitation remained unresolved during that review. The networking follow-up below records its later resolution.
+No remote branch or pull request was changed.
+
+## SSH networking follow-up
+
+Commit `677f835` separates native Linux CI networking from local development networking.
+The CI SSH lane explicitly selects host networking. Development auto selection uses a bridge container and a Docker-assigned loopback port.
+Docker Desktop and WSL2 select the published route even when `CI=true` is present.
+The harness reads the actual port mapping and verifies the owned remote hostname after key authentication.
+Authentication failures do not trigger retries or a weaker transport. Connection startup retries have a fixed 30-second bound.
+
+Nine new regression tests cover strategy selection, container arguments, port validation, listener/configuration agreement, startup retry, authentication refusal, identity mismatch, and deadlines.
+A fractional remaining-budget case also checks that Node receives an integer subprocess timeout.
+The full quality gate passes 985 source tests and 42 client tests without failures or skips.
+Client coverage remains 100% of lines and 95.88% of branches, above the unchanged thresholds.
+
+A real authenticated preflight passes over the published transport on Docker Desktop and WSL2.
+The newly stamped VSIX at `677f835b9a9c23b191d6c21b6b0b53eb56482233` then passes all four real SSH sessions.
+Both VS Code 1.106.3 and 1.145.2 complete disconnect and reconnect, with owned server cleanup observed before container removal.
+The report records `requested: auto`, `selected: published`, four passed cases, and zero failed or unexecuted cases.
+The VSIX SHA-256 is `804f14ecd34bef9e9ff8dc6d7ce6a74aa485236551fe51d260d1545e25d135a0`.
+Evidence is retained under ignored `.artifacts/ssh-network/677f835/`, including the prior blocked report and the new terminal results.
+
+The ordinary CI workflow now runs real authenticated preflights for both host and published transports on Ubuntu.
+The remote qualification workflow also runs both preflights, then the complete SSH lane with explicit host networking.
+Preflight reports declare zero product sessions. They cannot substitute for installed-editor qualification.
+Native Linux hosted execution was not run from this checkout. It remains pending the next pushed CI run.
+The local development result does not qualify native Windows/macOS, the Windows desktop WSL lane, or a hosted release.
+No branch was pushed and no pull request was changed.
