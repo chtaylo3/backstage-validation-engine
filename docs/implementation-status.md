@@ -357,6 +357,18 @@ Consult that run for actual results. Local installed-VSIX testing exercises real
 completion, fixes, saved-file watchers and process cleanup. Interactive UX/upgrade, JetBrains,
 Marketplace publication and real-backend qualification remain release work.
 
+## LSP ownership separation
+
+The LSP now separates workspace mutation, validation scheduling, request context, diagnostic publication, and session resource ownership.
+CLI catalog admission no longer depends on LSP configuration. The root SARIF API uses neutral reporting with a compatible CLI wrapper.
+Native validators and editor schemas share pin admission while preserving independent presentation-schema failure behavior.
+The architectural import gate covers domain/runtime boundaries, aliases, barrels, and ownership cycles.
+
+Connection edit reservations survive reload and local timeout. Terminal shutdown cannot wait indefinitely for a silent client.
+Session replacement has one activation commit point and closes abandoned resources and late registrations.
+The process configuration watch remains live across invalid reloads. Credential watches retire with their session.
+See [the implementation record](lsp-separation-implementation-record.md) for phase evidence and qualification status.
+
 ## Editor authoring and workspace increment
 
 Field-name and schema-value suggestions now use pinned native schemas, exact custom-kind artifacts,

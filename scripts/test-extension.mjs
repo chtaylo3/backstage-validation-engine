@@ -9,7 +9,7 @@ import { runVSCodeCommand } from './extension-test-cli.mjs';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
-import { debugPort, controlTrust } from './extension-test-ui.mjs';
+import { debugPort, controlTrust, controlSearch } from './extension-test-ui.mjs';
 import { previousFixture } from './extension-test-upgrade.mjs';
 import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import { setTimeout as pause } from 'node:timers/promises';
@@ -350,8 +350,10 @@ async function execute(spec, output, fault, peer) {
       spec.id === 'workspace-close-live' && process.platform === 'darwin'
         ? await debugPort()
         : undefined;
-    if (closePort)
-      args.push('--remote-debugging-port=' + closePort, '--remote-debugging-address=127.0.0.1');
+    const searchPort = spec.id === 'editor-search' ? await debugPort() : undefined;
+    const uiPort = closePort ?? searchPort;
+    if (uiPort)
+      args.push('--remote-debugging-port=' + uiPort, '--remote-debugging-address=127.0.0.1');
     let seenCloseWindow = false;
     await atomic(
       path.join(base, 'launch.json'),
@@ -383,6 +385,7 @@ async function execute(spec, output, fault, peer) {
           BVE_EXTENSION_TEST_PROGRESS: progressFile,
           BVE_EXTENSION_TEST_PROFILE: profile,
           BVE_EXTENSION_TEST_CLOSE_MARKER: closeMarker,
+          BVE_EXTENSION_TEST_CONTROL_DIRECTORY: base,
           BVE_EXTENSION_TEST_FAULT: fault ?? '',
           BVE_EXTENSION_TEST_PEER: peer?.id ?? '',
           BVE_EXTENSION_TEST_PEER_CONTROL: peer?.control ?? '',
@@ -608,6 +611,22 @@ async function execute(spec, output, fault, peer) {
         );
         if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
       }
+    } else if (searchPort) {
+      const abort = new globalThis.AbortController();
+      let exited = false;
+      const editor = launch(args, {}, base, abort.signal).finally(() => {
+        exited = true;
+      });
+      const ui = controlSearch({ port: searchPort, base, isExited: () => exited }).catch(
+        (error) => {
+          abort.abort();
+          throw error;
+        },
+      );
+      const completed = await Promise.allSettled([editor, ui]);
+      const failed = completed.find((entry) => entry.status === 'rejected');
+      if (failed) throw failed.reason;
+      result = completed[0].value;
     } else result = await launch(args, {}, base);
     const progress = await readProgress(progressFile);
     if (closedCleanly && !result.error && progress) {

@@ -43,7 +43,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test:compile && node scripts/test.mjs",
-    "test:harness": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/fixture-matrix.test.js .test-dist/test/catalog-api.test.js .test-dist/test/catalog-provider.test.js .test-dist/test/backstage-references.test.js .test-dist/test/release-refresh.test.js .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js .test-dist/test/editor-intelligence.test.js .test-dist/test/editor-workspace.test.js",
+    "test:harness": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/fixture-matrix.test.js .test-dist/test/catalog-api.test.js .test-dist/test/catalog-provider.test.js .test-dist/test/backstage-references.test.js .test-dist/test/release-refresh.test.js .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js .test-dist/test/editor-intelligence.test.js .test-dist/test/editor-workspace.test.js .test-dist/test/lsp-owners.test.js .test-dist/test/lsp-workspace-state.test.js .test-dist/test/lsp-coordinator.test.js .test-dist/test/lsp-request-context.test.js .test-dist/test/lsp-session-resources.test.js .test-dist/test/lsp-config-watches.test.js .test-dist/test/native-schema-artifacts.test.js",
     "fixtures:refresh": "tsc -p tsconfig.test.json && node .test-dist/test/harness/refresh-cli.js",
     "fixtures:check-upstream": "tsc -p tsconfig.test.json && node .test-dist/test/harness/refresh-cli.js --check",
     "fixtures:serve": "tsc -p tsconfig.test.json && node .test-dist/test/harness/serve-cli.js",
@@ -59,8 +59,8 @@
     "example:provider": "npm run build && node examples/read-catalog.mjs",
     "example:references": "npm run build && node examples/prepare-references.mjs",
     "jetbrains:template": "npm run build && node scripts/jetbrains-template.mjs",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test && node scripts/test-client.mjs",
-    "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js .test-dist/test/editor-intelligence.test.js .test-dist/test/editor-workspace.test.js",
+    "check": "npm run architecture:check && npm run typecheck && npm run lint && npm run format:check && npm run schemas:check && npm test && node scripts/test-client.mjs",
+    "test:lsp": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/catalog-rules.test.js .test-dist/test/lsp.test.js .test-dist/test/lsp-filesystem.test.js .test-dist/test/filesystem-source.test.js .test-dist/test/lsp-filesystem-budget.test.js .test-dist/test/scalar-fixes.test.js .test-dist/test/lsp-fixes.test.js .test-dist/test/lsp-fixes-integration.test.js .test-dist/test/catalog-suggestions.test.js .test-dist/test/completion.test.js .test-dist/test/lsp-completion.test.js .test-dist/test/editor-intelligence.test.js .test-dist/test/editor-workspace.test.js .test-dist/test/lsp-owners.test.js .test-dist/test/lsp-workspace-state.test.js .test-dist/test/lsp-coordinator.test.js .test-dist/test/lsp-request-context.test.js .test-dist/test/lsp-session-resources.test.js .test-dist/test/lsp-config-watches.test.js .test-dist/test/native-schema-artifacts.test.js",
     "example:cli": "npm run build && node examples/create-cli-release.mjs",
     "test:compile": "node scripts/clean.mjs tests && tsc -p tsconfig.test.json",
     "test:packaged": "npm run test:compile && node scripts/test.mjs --packaged",
@@ -74,6 +74,7 @@
     "test:extension:load": "node scripts/test-extension.mjs --endurance",
     "test:extension:soak": "node scripts/test-extension.mjs --soak",
     "test:extension:remote": "node scripts/test-extension-remote.mjs",
+    "test:extension:ssh-network": "node scripts/test-ssh-network.mjs",
     "test:extension:qualification": "node scripts/verify-extension-qualification.mjs",
     "cli:package": "npm run build && node scripts/package-cli.mjs",
     "backstage:test:check": "node scripts/backstage-test-env.mjs check",
@@ -86,7 +87,8 @@
     "backstage:test:clean": "node scripts/backstage-test-env.mjs clean",
     "backstage:test:editor": "node scripts/backstage-test-env.mjs editor",
     "test:backstage:development": "node scripts/backstage-test-env.mjs development",
-    "test:backstage:release": "node scripts/backstage-test-env.mjs release"
+    "test:backstage:release": "node scripts/backstage-test-env.mjs release",
+    "architecture:check": "node scripts/architecture-boundaries.mjs"
   },
   "overrides": {
     "minimatch": "11.0.1",

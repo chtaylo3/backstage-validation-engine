@@ -14,7 +14,7 @@ import { validatePolicySources } from '../core/policy-sources.js';
 import { verifyPolicyRelease } from '../policy/releases.js';
 import { createVerifiedPolicyResult } from '../policy/verified-result.js';
 import { closeSharedCelRuntime } from '../runtime/cel/index.js';
-import { createLspCatalog, parseLspConfig } from '../lsp/config.js';
+import { createHostCatalog, parseCatalogSettings } from '../host/catalog-config.js';
 import { formatSarif, formatSarifError } from './sarif.js';
 
 const HELP = `Usage: bve validate --release RELEASE.json --trust HOST-TRUST.json
@@ -70,7 +70,7 @@ async function emit(value: unknown, path?: string) {
 async function main() {
   let format = 'json';
   let output: string | undefined;
-  let catalog: Awaited<ReturnType<typeof createLspCatalog>>;
+  let catalog: Awaited<ReturnType<typeof createHostCatalog>>;
   const cancellation = new AbortController();
   const abort = () => cancellation.abort();
   process.once('SIGINT', abort);
@@ -130,17 +130,14 @@ async function main() {
       explicit?.data ??
       (data === undefined ? createDataSnapshot([]) : parseContract('data-snapshot', data));
     if (catalogInput !== undefined) {
-      catalog = await createLspCatalog(
-        parseLspConfig({
-          profile: context.profile,
-          policy: context.policy,
-          activation: context.activation,
-          schemaArtifacts: context.schemaArtifacts,
+      catalog = await createHostCatalog(
+        parseCatalogSettings(catalogInput),
+        {
+          adapterId: context.profile.adapterId,
           identity: context.identity,
-          source,
-          ...(previous ? { baseline: previous } : {}),
-          catalog: catalogInput,
-        }),
+          policyDigest: digestJson(context.policy),
+          profileDigest: digestJson(context.profile),
+        },
         process.env,
       );
     }

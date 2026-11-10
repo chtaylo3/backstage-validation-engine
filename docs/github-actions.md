@@ -5,13 +5,14 @@ integration: automated checks of proposed source changes. The workflow uses the 
 `.nvmrc`, locked dependencies, immutable action commits, and read-only repository permissions. Its
 jobs run independently:
 
-| Job                               | Scope                                                                                                                     |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Full harness, Linux/Windows/macOS | Typecheck, lint, formatting, generated schema/build checks and every production `test/*.test.ts` file                     |
-| Dependency audits                 | Full and production dependency audits. Both must pass                                                                     |
-| Full harness coverage             | Entire suite with JUnit, machine-readable counts and LCOV                                                                 |
-| CLI candidate                     | Exact-revision archive, published dependency lock, checksum and package provenance                                        |
-| VSIX, Linux/Windows/macOS         | Self-contained package, entire suite using packaged Node/server, installed-extension tests in VS Code 1.106.3 and 1.145.2 |
+| Job                                  | Scope                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Full harness, Linux/Windows/macOS    | Typecheck, lint, formatting, generated schema/build checks and every production `test/*.test.ts` file                     |
+| Dependency audits                    | Full and production dependency audits. Both must pass                                                                     |
+| Authenticated SSH fixture networking | Real key authentication over native host networking and published loopback ports; setup evidence only                     |
+| Full harness coverage                | Entire suite with JUnit, machine-readable counts and LCOV                                                                 |
+| CLI candidate                        | Exact-revision archive, published dependency lock, checksum and package provenance                                        |
+| VSIX, Linux/Windows/macOS            | Self-contained package, entire suite using packaged Node/server, installed-extension tests in VS Code 1.106.3 and 1.145.2 |
 
 A feature push and an open pull request produce separate runs with the same job names.
 The push run checks the branch commit. The pull-request run checks its proposed merge with the base branch.
@@ -19,6 +20,10 @@ These results can differ when the base branch adds changes.
 
 Client coverage requires tests to execute at least 90% of client code lines and 85% of branches.
 Passing assertions alone do not satisfy those thresholds. Both `npm run check` and the separate client job enforce them.
+
+The SSH networking job uses an isolated fixture and fresh keys. It checks both transports on native Linux for each push and pull request.
+The remote qualification workflow also checks both transports before its full SSH lane, which explicitly selects host networking.
+These preflights do not count as installed remote-editor sessions. See [SSH fixture networking](vscode-qualification.md#ssh-fixture-networking) for local development.
 
 The test runner discovers the complete compiled suite and records an inventory. It runs one test
 file at a time and retains the 30-second limit for each test. HTTP fixtures use temporary loopback
@@ -149,6 +154,17 @@ exact-artifact release verdict. See the [support/evidence matrix](vscode-qualifi
 commands, environment pins, workload definitions, acceptance checks and remaining qualification
 limits. Long workflows consume the actual CI VSIX rather than rebuilding a different artifact with
 the same source revision.
+
+The compatibility workflow also supports a reusable call from CI. If GitHub has not yet registered
+its standalone manual trigger, run quick qualification through the registered CI workflow:
+
+```sh
+gh workflow run ci.yml --ref CANDIDATE_REF -F qualify_vscode=true
+```
+
+CI first builds and tests the exact revision's three VSIX candidates. It then calls the same quick
+desktop, SSH, dev-container, and WSL jobs. This option does not start release soaks or publication.
+Normal pushes and pull requests leave this explicit qualification disabled.
 
 The first increment 3 matrix at `d8b2f15` passed 74 installed-editor executions on Linux and
 Windows. Its macOS run exposed a transport-error shutdown status race and the native behavior where

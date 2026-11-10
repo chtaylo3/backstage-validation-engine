@@ -130,6 +130,49 @@ before launching. Dev Containers attach consent uses a visible native workbench 
 the click for the workflow-owned container. It does not modify the extension's private consent
 storage.
 
+## SSH fixture networking
+
+Native Linux CI explicitly selects `--ssh-network=host` for the full SSH lane.
+The fixture shares the runner network and starts SSH on an available loopback port.
+The ordinary CI workflow and remote qualification workflow authenticate over both supported transports before qualification.
+
+Local development defaults to `--ssh-network=auto`. It selects published ports outside CI, including Docker Desktop and WSL2.
+Auto selection also keeps published ports when a Desktop or WSL2 environment sets `CI=true`.
+The fixture uses a bridge network and container port 22. Docker assigns a host port published only on `127.0.0.1`.
+The harness reads that mapping and uses it in the real SSH configuration.
+This avoids reliance on Docker Desktop's optional [host networking](https://docs.docker.com/engine/network/drivers/host/).
+Docker documents [loopback port publication](https://docs.docker.com/engine/network/port-publishing/) separately from host networking.
+
+Test authenticated connectivity without starting an editor:
+
+```sh
+npm run test:extension:ssh-network
+# Explicit development route:
+npm run test:extension:ssh-network -- --network=published
+# Native Linux CI route:
+npm run test:extension:ssh-network -- --network=host
+```
+
+Each preflight creates and removes its own container and key pair.
+It verifies the remote hostname after key authentication and records its selected transport and endpoint.
+Reports under `.artifacts/vscode/ssh-network-preflight/` record zero product sessions.
+A successful preflight cannot satisfy the four installed SSH disconnect/reconnect cases.
+
+For a full local run, build and test the same candidate revision with the pinned Node version:
+
+```sh
+BVE_SSH_CANDIDATE_REVISION="$(git rev-parse HEAD)"
+GITHUB_SHA="$BVE_SSH_CANDIDATE_REVISION" npm run extension:package
+env -u ELECTRON_RUN_AS_NODE -u BVE_LSP_CONFIG -u BVE_MANUAL_CATALOG_TOKEN \
+  GITHUB_SHA="$BVE_SSH_CANDIDATE_REVISION" xvfb-run -a \
+  npm run test:extension:remote -- --mode=ssh-remote
+```
+
+`--ssh-network=published` and `--ssh-network=host` explicitly override auto selection.
+The full report records the selected strategy. A failed strategy does not trigger a transport fallback.
+The readiness check retries refused or timed-out connections for at most 30 seconds before any editor session starts.
+Authentication or hostname mismatch fails immediately. Product checks, artifact identity, disconnect cleanup, and reconnect assertions remain unchanged.
+
 ## Current qualification status
 
 Increment 2 is qualified at `d3884ed` by

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { watchFile, unwatchFile } from 'node:fs';
+import { TrustedFileWatches } from './config-watches.js';
 import { createConnection } from 'vscode-languageserver';
 import {
   createProtocolConnection,
@@ -15,6 +15,7 @@ import { attachLspServer } from './server.js';
 import type { LspServerResources } from './server.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
 
+let startupCleanup: (() => Promise<void>) | undefined;
 try {
   if (process.argv.length !== 4 || process.argv[2] !== '--config')
     throw new Error('Expected --config <trusted-config.json>.');
@@ -49,6 +50,7 @@ try {
     };
   };
   const initial = await resources();
+  startupCleanup = initial.dispose;
   if (
     !config.profile.requiredProcessors.length &&
     config.policy.rules.some((rule) => rule.kind === 'cel' || rule.selector)
@@ -73,31 +75,18 @@ try {
       ),
     watchdog,
   );
-  let watched: { filename: string; changed: () => void }[] = [];
-  const clearWatches = () => {
-    for (const { filename, changed } of watched) unwatchFile(filename, changed);
-    watched = [];
-  };
-  const selectWatches = (current: typeof config) => {
-    clearWatches();
-    for (const filename of new Set([
-      configPath,
-      ...(current.catalog?.tokenFile ? [current.catalog.tokenFile] : []),
-    ])) {
-      const changed = () => {
-        void server.reload().catch(() => undefined);
-      };
-      watchFile(filename, { persistent: false, interval: 500 }, changed);
-      watched.push({ filename, changed });
-    }
-  };
+  let watches: TrustedFileWatches | undefined = undefined;
   const server = attachLspServer(connection, config, {
     ...initial,
     reload: async () => resources(await readTrustedLspConfig(configPath)),
-    configurationChanged: selectWatches,
-    onClose: clearWatches,
+    configurationChanged: (current) => watches?.credential(current.catalog?.tokenFile),
+    onClose: () => watches?.close(),
   });
-  selectWatches(config);
+  startupCleanup = server.close;
+  watches = new TrustedFileWatches(configPath, () => {
+    void server.reload().catch(() => undefined);
+  });
+  server.own(watches.credential(config.catalog?.tokenFile));
   let stopping = false;
   const stop = (code: number) => {
     if (stopping) return;
@@ -125,6 +114,7 @@ try {
     stop(watchdog.shutdownReceived ? 0 : 1);
   });
 } catch {
+  if (startupCleanup) await startupCleanup().catch(() => undefined);
   await closeSharedCelRuntime().catch(() => undefined);
   process.stderr.write('Unable to start language server; check trusted launcher configuration.\n');
   process.exitCode = 1;

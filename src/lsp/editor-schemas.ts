@@ -1,7 +1,5 @@
-import { createRequire } from 'node:module';
-import path from 'node:path';
 import { RE2JS } from 're2js';
-import { BUILTIN_KINDS } from '../compatibility/types.js';
+import { nativeSchemaArtifacts } from '../compatibility/schema-artifacts.js';
 import type { LspConfig } from './config.js';
 
 export type SchemaNode = Readonly<Record<string, unknown>>;
@@ -9,6 +7,7 @@ export interface EditorSchema {
   readonly root: SchemaNode;
   readonly names: ReadonlyMap<string, SchemaNode>;
   readonly label: string;
+  readonly artifactIdentity?: string;
 }
 export const forbidden: SchemaNode = Object.freeze({ $bveForbidden: true });
 export const object = (value: unknown): value is SchemaNode =>
@@ -28,37 +27,20 @@ export const parts = (pointer: string) =>
 
 /** Presentation schemas come from the exact installed native adapter, never the network. */
 export function nativeEditorSchemas(config: LspConfig): ReadonlyMap<string, EditorSchema> {
-  const require = createRequire(import.meta.url);
-  const packageName =
-    config.profile.adapterId === '@backstage/catalog-model@1.10.2'
-      ? '@backstage/catalog-model'
-      : 'backstage-catalog-model-older';
-  const metadata = require(`${packageName}/package.json`) as { version: string };
-  if (`@backstage/catalog-model@${metadata.version}` !== config.profile.adapterId)
+  const artifacts = nativeSchemaArtifacts(config.profile.adapterId);
+  if (artifacts.status !== 'ready')
     throw new Error('Pinned editor schema dependency is unavailable.');
-  const directory = path.join(
-    path.dirname(require.resolve(`${packageName}/package.json`)),
-    'dist/schema',
+  return new Map(
+    [...artifacts.schemas].map(([kind, schema]) => [
+      kind,
+      Object.freeze({
+        root: schema.root,
+        names: schema.names,
+        artifactIdentity: schema.identity,
+        label: artifacts.adapterId,
+      }),
+    ]),
   );
-  const read = (name: string): SchemaNode => {
-    const loaded: unknown = require(path.join(directory, `${name}.schema.json.cjs.js`));
-    if (!object(loaded) || !object(loaded.default))
-      throw new Error('Editor schema is unavailable.');
-    return loaded.default;
-  };
-  const names = new Map<string, SchemaNode>();
-  for (const name of ['Entity', 'EntityMeta', 'EntityEnvelope', 'shared/common']) {
-    const schema = read(name);
-    if (typeof schema.$id === 'string') names.set(schema.$id, schema);
-  }
-  const result = new Map<string, EditorSchema>();
-  result.set('', { root: names.get('Entity')!, names, label: config.profile.adapterId });
-  for (const kind of BUILTIN_KINDS) {
-    const root = read(`kinds/${kind}.v1alpha1`);
-    if (typeof root.$id === 'string') names.set(root.$id, root);
-    result.set(kind, { root, names, label: config.profile.adapterId });
-  }
-  return result;
 }
 
 function reference(schema: EditorSchema, ref: string): SchemaNode | undefined {

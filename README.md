@@ -64,6 +64,7 @@ does not prove that its runs passed. `.npmrc` disables dependency lifecycle scri
 | `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |
 | `npm run test:coverage`                   | Run tests with the experimental coverage report from Node           |
 | `npm run test:client`                     | Check VS Code client behavior and coverage thresholds               |
+| `npm run test:extension:ssh-network`      | Check authenticated SSH fixture networking                          |
 | `npm run lint`                            | Run ESLint with TypeScript type information                         |
 | `npm run format`                          | Format source, examples, and documentation                          |
 | `npm run schemas:generate`                | Regenerate checked-in JSON Schemas from the contract definitions    |

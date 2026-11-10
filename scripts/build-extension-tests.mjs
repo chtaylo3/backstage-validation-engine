@@ -1,7 +1,27 @@
+import { execFile } from 'node:child_process';
 import { readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { build } from 'esbuild';
+
+export async function buildRemoteFixture(root, outfile) {
+  await build({
+    entryPoints: [path.join(root, 'scripts/extension-remote-fixture.mjs')],
+    outfile,
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    banner: {
+      js: 'import { createRequire as bveFixtureCreateRequire } from "node:module"; const require = bveFixtureCreateRequire(import.meta.url);',
+    },
+    target: 'node24',
+  });
+  await promisify(execFile)(process.execPath, ['--check', outfile], {
+    timeout: 30_000,
+    windowsHide: true,
+  });
+}
 
 export async function buildExtensionTests(root = fileURLToPath(new URL('../', import.meta.url))) {
   const testDirectory = path.join(root, '.artifacts/vscode/test');
@@ -26,17 +46,7 @@ export async function buildExtensionTests(root = fileURLToPath(new URL('../', im
     external: ['vscode'],
     sourcemap: true,
   });
-  await build({
-    entryPoints: [path.join(root, 'scripts/extension-remote-fixture.mjs')],
-    outfile: path.join(testDirectory, 'remote-prepare.mjs'),
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    banner: {
-      js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
-    },
-    target: 'node24',
-  });
+  await buildRemoteFixture(root, path.join(testDirectory, 'remote-prepare.mjs'));
   await build({
     entryPoints: [path.join(root, 'extensions/vscode/test/evidence.ts')],
     outfile: path.join(testDirectory, 'evidence.mjs'),

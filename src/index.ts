@@ -43,6 +43,6 @@ export type {
 export { resolvePolicyBundles, POLICY_BUNDLE_LIMITS } from './policy/bundles.js';
 export { verifyPolicyRelease, signPolicyRelease } from './policy/releases.js';
 export type { PolicyReleasePayload } from './policy/releases.js';
-export { formatSarif, formatSarifError } from './cli/sarif.js';
+export { formatSarif, formatSarifError } from './reporting/sarif.js';
 export { createVerifiedPolicyResult } from './policy/verified-result.js';
 export type { FailureEvidence, FailureCause, FailureStage } from './runtime/failure-evidence.js';

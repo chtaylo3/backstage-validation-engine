@@ -94,9 +94,12 @@ export class EditorService {
   private controller: AbortController | undefined;
   private readonly history = new Map<string, number>();
   private clock = 0;
-  constructor(private readonly config: LspConfig) {
+  constructor(
+    private readonly config: LspConfig,
+    schemaLoader: typeof nativeEditorSchemas = nativeEditorSchemas,
+  ) {
     try {
-      this.native = nativeEditorSchemas(config);
+      this.native = schemaLoader(config);
     } catch {
       this.native = new Map();
     }
@@ -190,6 +193,7 @@ export class EditorService {
                     : {},
                 names: new Map(),
                 label,
+                artifactIdentity: artifact.digest,
               });
           };
           if (custom && !this.native.has(kind)) add(custom.schema, `Custom kind ${kind}`);
@@ -282,6 +286,7 @@ export class EditorService {
                 : {},
             names: new Map(),
             label: `Policy ${rule.id}`,
+            artifactIdentity: artifact.digest,
           });
       }
       const indexed = { ...selected, schemas, schemaValue: entity.normalized };
