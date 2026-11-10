@@ -61,6 +61,28 @@ jobs:
       - run: npm audit
       - run: npm audit --omit=dev
 
+  ssh_network:
+    name: Authenticated SSH fixture networking
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+      - name: Native Linux host network
+        run: npm run test:extension:ssh-network -- --network=host
+      - name: Published development port
+        run: npm run test:extension:ssh-network -- --network=published
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ssh-network-preflight
+          path: .artifacts/vscode/ssh-network-preflight/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
   coverage:
     name: Full harness coverage
     runs-on: ubuntu-24.04

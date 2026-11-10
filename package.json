@@ -74,6 +74,7 @@
     "test:extension:load": "node scripts/test-extension.mjs --endurance",
     "test:extension:soak": "node scripts/test-extension.mjs --soak",
     "test:extension:remote": "node scripts/test-extension-remote.mjs",
+    "test:extension:ssh-network": "node scripts/test-ssh-network.mjs",
     "test:extension:qualification": "node scripts/verify-extension-qualification.mjs",
     "cli:package": "npm run build && node scripts/package-cli.mjs",
     "backstage:test:check": "node scripts/backstage-test-env.mjs check",

@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir, release } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -13,10 +13,20 @@ import { launchEditor } from './extension-test-process.mjs';
 import { debugPort, observeWorkbench } from './extension-test-ui.mjs';
 import { classify, junit } from '../.artifacts/vscode/test/reporting.mjs';
 import semver from 'semver';
+import {
+  selectSshNetwork,
+  sshNetworkArgs,
+  prepareSshConnection,
+  authenticateSsh,
+} from './extension-ssh-network.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mode = process.argv.find((value) => value.startsWith('--mode='))?.slice(7);
 const payload = process.argv.includes('--prepare-wsl-payload');
+const requestedSshNetwork = process.argv
+  .find((value) => value.startsWith('--ssh-network='))
+  ?.slice(14);
+assert(!requestedSshNetwork || mode === 'ssh-remote', '--ssh-network applies only to SSH.');
 assert(
   payload || ['ssh-remote', 'dev-container', 'wsl'].includes(mode),
   'Select a real remote environment.',
@@ -110,6 +120,7 @@ const distro = 'BveCI-' + randomUUID();
 let container,
   imported = false;
 let remote;
+let sshNetwork;
 const desktops = [];
 const hosts = [];
 let remotePath = (value) => Promise.resolve(value);
@@ -172,6 +183,22 @@ try {
     await preflight('Docker daemon', () =>
       run('docker', ['version', '--format', '{{.Server.Version}}']),
     );
+    if (mode === 'ssh-remote') {
+      const docker = JSON.parse(
+        await run('docker', ['info', '--format', '{{json .OperatingSystem}}']),
+      );
+      sshNetwork = selectSshNetwork({
+        requested: requestedSshNetwork ?? 'auto',
+        ci: process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true',
+        docker,
+        kernel: release(),
+      });
+      evidence.sshNetwork = {
+        requested: requestedSshNetwork ?? 'auto',
+        selected: sshNetwork,
+        docker,
+      };
+    }
     await preflight('Build pinned remote workspace image', () =>
       run(
         'docker',
@@ -199,8 +226,7 @@ try {
       containerName,
       '--hostname',
       containerName,
-      '--network',
-      'host',
+      ...(mode === 'ssh-remote' ? sshNetworkArgs(sshNetwork) : ['--network', 'host']),
       '--env',
       'BVE_EDITOR_CATALOG_TOKEN=' + catalogToken,
       '--env',
@@ -310,20 +336,21 @@ try {
     });
     let sshConfig;
     if (mode === 'ssh-remote') {
-      const key = path.join(session, 'id_ed25519');
-      await run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', key]);
-      await remote('cp', [key + '.pub', '/root/.ssh/authorized_keys']);
-      await remote('chmod', ['600', '/root/.ssh/authorized_keys']);
-      // Reserve a loopback port; the container shares this ephemeral runner's network.
-      const port = await debugPort();
-      await remote('/usr/sbin/sshd', ['-p', String(port)]);
-      sshConfig = path.join(session, 'ssh-config');
-      await writeFile(
-        sshConfig,
-        `Host bve\n HostName 127.0.0.1\n Port ${port}\n User root\n IdentityFile ${key}\n IdentitiesOnly yes\n StrictHostKeyChecking no\n UserKnownHostsFile ${path.join(session, 'known_hosts')}\n SendEnv BVE_EDITOR_CATALOG_TOKEN BVE_LSP_CONFIG\n`,
-      );
+      const connection = await prepareSshConnection({
+        network: sshNetwork,
+        container,
+        session,
+        run,
+        remote,
+      });
+      sshConfig = connection.config;
+      evidence.sshNetwork.endpoint = { host: connection.host, port: connection.port };
       await preflight('Authenticated ephemeral SSH workspace', () =>
-        run('ssh', ['-F', sshConfig, 'bve', 'hostname']),
+        authenticateSsh({
+          config: sshConfig,
+          expectedHostname: containerName,
+          run,
+        }),
       );
     }
     for (const version of ['1.106.3', '1.145.2']) {
