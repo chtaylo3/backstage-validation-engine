@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                              | Parent acceptance             |
-| ----------------------------------------------- | ---------------------------------- | ----------------------------- |
-| 1: documentation                                | Accepted                           | Accepted by parent            |
-| 2: contracts and built-in adapters              | Accepted                           | Accepted by parent            |
-| 3: live catalog refresh                         | Accepted                           | Accepted by parent            |
-| 4: CEL and RE2 contributions                    | Implemented, qualification pending | Requires parent review        |
-| 5: client reliability and release qualification | Deferred by the user               | Requires future authorization |
+| Phase                                           | State                          | Parent acceptance             |
+| ----------------------------------------------- | ------------------------------ | ----------------------------- |
+| 1: documentation                                | Accepted                       | Accepted by parent            |
+| 2: contracts and built-in adapters              | Accepted                       | Accepted by parent            |
+| 3: live catalog refresh                         | Accepted                       | Accepted by parent            |
+| 4: CEL and RE2 contributions                    | Implemented, locally qualified | Requires parent review        |
+| 5: client reliability and release qualification | Deferred by the user           | Requires future authorization |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -462,8 +462,81 @@ The local-expiry checkpoint `fd1c6b1` passed 1072 source, 42 client, and 1072 pa
 Its first full source gate passed 1071 of 1072 tests. An existing conditional-schema completion case returned no candidate instead of `internal`.
 That case and all 15 editor-intelligence cases passed in the unchanged isolated rerun. The cause remains unclassified.
 The initial failed inventory, complete log, and unchanged isolated rerun remain under `phase4/fd1c6b1-initial-gate`.
-Its preceding `6d9720d` gate stopped before product tests on unstable first-pass formatter output in a new test method chain.
+The `6d9720d` gate stopped before product tests on unstable first-pass formatter output in a new test method chain.
 The stable formatter output changed no assertion. Its stopped gate log remains retained.
 Their exact products and reports remain in their separate ignored evidence directories.
-Final qualification must use the corrected outage candidate. Installed qualification remains pending at this code checkpoint.
-Parent acceptance remains pending. Phase 5 remains deferred.
+These checkpoints precede final qualification below. Parent acceptance remains separate from phase-agent qualification.
+
+### Final executed qualification
+
+Qualified source and test revision: `54ce7a932c46b85e70f3fec0a68c15852af7e28b`.
+Last production-code revision: `aae421fc43097756d2ca8ac85d4e79f262225766`.
+The later commits correct only installed-test inspection and its documentation.
+The final gate used a detached checkout of committed inputs with an actual locked dependency installation.
+The installed tests reused a linked editor-binary cache outside the product inputs.
+The user-owned untracked review remained unchanged in the primary checkout.
+
+| Executed gate                     | Final result                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm run check`                   | Architecture, types, lint, formatting, generated schemas, 1074 source tests, and 42 client tests passed |
+| Client coverage                   | 100% lines and 95.88% branches. Thresholds remain 90% and 85%                                           |
+| Exact `npm run extension:package` | Passed with the qualified revision in build metadata and nine attributed client components              |
+| `npm run test:packaged`           | 1074 tests passed against the packaged runtime and real packaged stdio/CLI entrypoints                  |
+| Focused installed contributions   | Two of two case/version executions passed with the committed, uninstrumented test                       |
+| Ordinary portable installed suite | 92 of 92 declared case/version executions passed, with no unexecuted cases                              |
+| Bounded finite-candidate control  | Exactly 16 of 33 declared values received full-pipeline checks, with zero pending jobs afterward        |
+
+Source, client, and packaged gates report zero failures, cancellations, and skips.
+Installed qualification covers VS Code `1.106.3` and `1.145.2` on Linux x64.
+The two focused executions plus 92 ordinary executions give 94 logical installed case/version records.
+The ordinary suite retains its existing native Trust, race, workspace, and multi-window assertions.
+It does not perform phase 5's reliability redesign or longer repeated workloads.
+
+The final VSIX contains 52,083,269 bytes.
+Its SHA-256 is `755e65147ef27360da5092395b23988e518cfb913e39ed49b280ff3b972823a4`.
+The package includes Node `24.22.1`. Qualification used npm `11.19.1`.
+The candidate record binds source and packaged inventories to the qualified revision.
+Installed report metadata repeats that revision and the exact VSIX digest.
+The retained products include the VSIX, checksum, build information, client SBOM, and third-party notices.
+
+The separate candidate-bound control ran one Component with CEL and schema RE2 rules.
+It admitted 16 candidates, checked both rules for every accepted candidate, and left zero pending shared-runtime jobs.
+It observed 40 event-loop heartbeats and approximately 115 ms elapsed time.
+The control also found identical rule states in the shared core's CLI and editor modes for the same pinned input.
+These are local observations, not latency guarantees for arbitrary repositories.
+
+Canonical evidence directory: `.artifacts/lsp-editor-improvements/phase4/54ce7a9/`.
+`qualification-summary.json` and `candidate.json` identify the source, counts, and exact artifact.
+The `source`, `client`, and `packaged` directories retain inventories and raw reports.
+`installed-rule-contributions` and `installed-portable` retain complete installed reports, progress, logs, and catalog events.
+`controls/bounds.json` retains the finite-admission measurements. `products` retains the exact candidate files.
+Earlier failures and parent negative controls remain in their separate phase 4 directories.
+
+### Acceptance evidence
+
+| Criterion | Concrete evidence                                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P4-A1     | Approved artifact admission, eligible missing-field hints, checked values, and safe hover use actual qualified states. Direct, shared-protocol, and installed cases pass                               |
+| P4-A2     | Evidence retains actual rule states and coverage. An unrelated failing rule remains visible in direct and installed controls                                                                           |
+| P4-A3     | Failed, erroneous, unavailable, blocked, and false-selector controls suppress corresponding prescriptions while required findings remain                                                               |
+| P4-A4     | Selector-changing candidates must still pass the target rule. Both HTTP contracts collect new facts for changed owner references and reject matching-but-missing targets                               |
+| P4-A5     | Production CEL and schema RE2 controls distinguish substring from anchored matching. Unsupported syntax and separate profile limits retain existing failure behavior                                   |
+| P4-A6     | Real shared workers exercise false results, errors, profile limits, 64-job pressure, cancellation, replacement, and recovery. The frozen corpus remains intact                                         |
+| P4-A7     | Explicit scalar/map repairs preserve host rendering. Single-use, client-rejection, actual installed application, and post-edit validation controls pass                                                |
+| P4-A8     | Protocol controls reject old tokens after source edits, close/reopen, policy reload, and credential changes. Installed remote-only changes revoke old proofs. Local expiry renews without source edits |
+| P4-A9     | Structured payload ranges, aliases, ambiguous mappings, and bounded exact array indices pass positive and negative controls. Sibling hover receives no false rule provenance                           |
+| P4-A10    | Candidate work shares the process pool, uses sequential finite admission, retains the original deadline, yields between batches, and cannot postpone required diagnostics behind optional I/O          |
+| P4-A11    | Existing source/CLI regressions and the frozen CEL corpus pass. The separate pinned-input control finds identical shared-core CLI/editor decisions                                                     |
+| P4-A12    | Full source/client, exact packaging, packaged harness, focused installed contributions, and all 92 ordinary portable installed records pass                                                            |
+
+### Qualification limits and handoff
+
+Source and packaged protocol controls use both supported HTTP backend contracts, `1.55.3` and `1.56.3`.
+The installed contribution case uses the `1.55.3` mutable HTTP fixture. It does not qualify a new production Backstage installation.
+Permission-filtered absence retains the phase 3 limitation. It cannot establish global deletion.
+There is no new cross-OS, remote-client, JetBrains, or long release-workload qualification for these changes.
+
+The feature branch remains local. No push, PR, merge, workflow dispatch, or publication belongs to this phase.
+This evidence-only handoff changes documentation after qualification. It does not rebuild the tested candidate.
+Parent review and formal phase acceptance remain pending at this handoff.
+Phase 5 remains deferred and must not start automatically.
