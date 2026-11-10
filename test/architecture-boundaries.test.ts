@@ -27,6 +27,10 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     'src/core/dynamic.ts': "export const load = () => import('../lsp/adapter.js');",
     'src/providers/require.ts':
       "import { createRequire } from 'node:module'; const load = createRequire(import.meta.url); load('../lsp/adapter.js');",
+    'src/providers/aliased-loader.ts':
+      "import { createRequire as factory } from 'node:module'; const load = factory(import.meta.url); load('../lsp/adapter.js');",
+    'src/runtime/namespace-loader.ts':
+      "import * as modules from 'node:module'; const load = modules.createRequire(import.meta.url); load('../lsp/adapter.js');",
   };
   for (const [name, contents] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(directory, name)), { recursive: true });
@@ -40,13 +44,22 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     () => assert.fail('Forbidden imports passed.'),
     (error: unknown) => error as { stderr: string },
   );
-  for (const name of ['contracts/reverse', 'runtime/reverse', 'core/dynamic', 'providers/require'])
+  for (const name of [
+    'contracts/reverse',
+    'runtime/reverse',
+    'core/dynamic',
+    'providers/require',
+    'providers/aliased-loader',
+    'runtime/namespace-loader',
+  ])
     assert(failure.stderr.includes(name));
   for (const name of [
     'src/contracts/reverse.ts',
     'src/runtime/reverse.ts',
     'src/core/dynamic.ts',
     'src/providers/require.ts',
+    'src/providers/aliased-loader.ts',
+    'src/runtime/namespace-loader.ts',
   ])
     await writeFile(path.join(directory, name), 'export const value = 1;');
   const success = await execute(process.execPath, [

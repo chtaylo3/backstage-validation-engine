@@ -47,14 +47,37 @@ function forbidden(origin, target) {
 function dependencies(source) {
   const result = [];
   const loaders = new Set(['require']);
+  const factories = new Set(['createRequire']);
+  const namespaces = new Set();
+  for (const statement of source.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !['node:module', 'module'].includes(statement.moduleSpecifier.text)
+    )
+      continue;
+    const clause = statement.importClause;
+    if (clause?.name) namespaces.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) namespaces.add(bindings.name.text);
+    else if (bindings && ts.isNamedImports(bindings))
+      for (const binding of bindings.elements)
+        if ((binding.propertyName ?? binding.name).text === 'createRequire')
+          factories.add(binding.name.text);
+  }
+  const factory = (expression) =>
+    (ts.isIdentifier(expression) && factories.has(expression.text)) ||
+    (ts.isPropertyAccessExpression(expression) &&
+      ts.isIdentifier(expression.expression) &&
+      namespaces.has(expression.expression.text) &&
+      expression.name.text === 'createRequire');
   function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
       node.initializer &&
       ts.isCallExpression(node.initializer) &&
-      ts.isIdentifier(node.initializer.expression) &&
-      node.initializer.expression.text === 'createRequire'
+      factory(node.initializer.expression)
     )
       loaders.add(node.name.text);
     if (
