@@ -443,6 +443,81 @@ void test('an eligible missing field supplies a field name and a verified single
   assert.equal(repairs.length, 1);
   assert.match(repairs[0]!.finding.edits[0]!.text, /"classification": "internal"/u);
 });
+void test('a checked array index supplies completion, hover and logical repair without granting proof to sibling indices', async (t) => {
+  const declared = { ...rule, expression: 'entity.metadata.tags[0] == "good"' };
+  const text = componentText().replace(
+    'metadata: {name: service}',
+    'metadata: {name: service, tags: [bad, other]}',
+  );
+  const run = policyRun({ rules: [declared], text });
+  const f = await fixture(
+    t,
+    run,
+    artifact(run, { path: '/metadata/tags/0', choices: ['good', 'bad'] }),
+  );
+  const rows = await f.prepare();
+  assert.deepEqual(
+    rows[0]!.candidates.map((row) => row.value),
+    ['good'],
+  );
+  f.service.installRuleContributions(rows, 1);
+  const document = f.documents.get(URI)!;
+  const first = text.indexOf('[bad') + 1,
+    second = text.indexOf('other');
+  const complete = (offset: number) =>
+    f.service.complete(
+      { textDocument: { uri: URI }, position: document.positionAt(offset) },
+      1,
+      f.documents,
+    );
+  assert(
+    complete(first).items.some(
+      (row) => row.label === 'good' && row.detail?.includes('Checked rule'),
+    ),
+  );
+  assert(!complete(second).items.some((row) => row.detail?.includes('Checked rule')));
+  const hover = f.service.hover(URI, document.positionAt(first), 1, f.documents);
+  assert(hover && JSON.stringify(hover.contents).includes('Approved lifecycle choices'));
+  const siblingHover = f.service.hover(URI, document.positionAt(second), 1, f.documents);
+  assert(
+    !siblingHover || !JSON.stringify(siblingHover.contents).includes('Approved lifecycle choices'),
+  );
+  assert(
+    !siblingHover || !JSON.stringify(siblingHover.contents).includes('Editor rule lifecycle-rule'),
+  );
+  const repairs = f.service.ruleRepairs(1, f.documents);
+  assert.equal(repairs.length, 1);
+  assert.equal(repairs[0]!.finding.location.path, '/metadata/tags/0');
+  assert.equal(document.offsetAt(repairs[0]!.finding.edits[0]!.range.start), first);
+  assert.equal(
+    TextDocument.applyEdits(
+      document,
+      repairs[0]!.finding.edits.map((row) => ({ range: row.range, newText: row.text })),
+    ),
+    text.replace('[bad', '["good"'),
+  );
+});
+void test('array paths outside the bounded tuple range cannot acquire candidate evidence or logical repairs', async (t) => {
+  const text = componentText().replace(
+    'metadata: {name: service}',
+    'metadata: ' +
+      JSON.stringify({ name: 'service', tags: Array.from({ length: 257 }, () => 'bad') }),
+  );
+  for (const index of [255, 256]) {
+    const declared = { ...rule, expression: `entity.metadata.tags[${index}] == "good"` };
+    const run = policyRun({ rules: [declared], text });
+    const f = await fixture(
+      t,
+      run,
+      artifact(run, { path: `/metadata/tags/${index}`, choices: ['good'] }),
+    );
+    const rows = await f.prepare();
+    const expected = index === 255 ? 1 : 0;
+    assert.equal(rows[0]!.candidates.length, expected);
+    f.service.installRuleContributions(rows, 1);
+    assert.equal(f.service.ruleRepairs(1, f.documents).length, expected);
+  }
+});
 
 void test('candidate preparation under shared production queue pressure preserves required results and recovers', async (t) => {
   const f = await fixture(t);

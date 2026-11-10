@@ -434,7 +434,13 @@ An actual in-process JSON-RPC control advances the wall clock and uses productio
 Completion and hover each renew hints at the same document version, without edits or a catalog resource.
 Eight simultaneous requests produce one replacement generation. The old repair token never reaches client edit dispatch.
 
-Focused development results include 13 direct contribution cases and ten protocol cases with no failures or skips.
+Parent review identified declared array paths that rendered a candidate but lost its hints during schema traversal.
+Metadata now follows the actual qualified subject shape and uses exact tuple items with noncontributing placeholders.
+Array index 0 supplies checked completion, hover, and a logical repair. A sibling index receives no such proof.
+Boolean `true` placeholders also prevent false rule provenance in sibling hover.
+Boundary controls accept index 255 and suppress index 256. Whole-array replacement and appends remain unsupported.
+
+Focused development results include 15 direct contribution cases and ten protocol cases with no failures or skips.
 An additional stdio control exposed reference completion returning before declared rule hints.
 The host now merges prepared rule hints with reference choices. Both backend contracts pass the repair and post-edit round trip.
 These checks use real production workers and both supported HTTP backend contracts where stated.
@@ -442,6 +448,10 @@ The held-candidate control publishes required diagnostics and an early source re
 That source token becomes stale at its approved 250 ms freshness bound before client dispatch.
 The preliminary `18aa2e6` and `8647a1f` checkpoints each passed 1068 source, 42 client, and 1068 packaged tests.
 The corrected outage checkpoint `910ca90` passed 1071 source, 42 client, and 1071 packaged tests.
+The local-expiry checkpoint `fd1c6b1` passed 1072 source, 42 client, and 1072 packaged tests on an unchanged full rerun.
+Its first full source gate passed 1071 of 1072 tests. An existing conditional-schema completion case returned no candidate instead of `internal`.
+That case and all 15 editor-intelligence cases passed in the unchanged isolated rerun. The cause remains unclassified.
+The initial failed inventory, complete log, and unchanged isolated rerun remain under `phase4/fd1c6b1-initial-gate`.
 Its preceding `6d9720d` gate stopped before product tests on unstable first-pass formatter output in a new test method chain.
 The stable formatter output changed no assertion. Its stopped gate log remains retained.
 Their exact products and reports remain in their separate ignored evidence directories.

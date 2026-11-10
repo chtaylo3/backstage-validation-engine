@@ -39,6 +39,7 @@ import type { FixDocument, SuggestedFix } from './fixes.js';
 import type { LspConfig } from './config.js';
 import type { validatePolicySources } from '../core/policy-sources.js';
 import type { PreparedRuleMetadata } from '../host/rule-contributions.js';
+import { RULE_EDITOR_LIMITS } from '../host/rule-contributions.js';
 
 interface IndexedDocument {
   readonly subjectId?: string;
@@ -84,6 +85,26 @@ function encoded(value: unknown, raw: string, json: boolean): string {
   if (typeof value === 'string' && !json && raw.startsWith("'"))
     return `'${value.replace(/'/gu, "''")}'`;
   return JSON.stringify(value);
+}
+/** Exact normalized array indices cannot turn one candidate proof into an item-wide hint. */
+function ruleSegments(
+  value: unknown,
+  path: string,
+): { name: string; index?: number }[] | undefined {
+  const segments: { name: string; index?: number }[] = [];
+  for (const name of parts(path)) {
+    if (Array.isArray(value)) {
+      const index = Number(name);
+      if (!/^(?:0|[1-9][0-9]*)$/u.test(name) || index >= RULE_EDITOR_LIMITS.arrayItems)
+        return undefined;
+      segments.push({ name, index });
+      value = value[index];
+    } else {
+      segments.push({ name });
+      value = object(value) ? value[name] : undefined;
+    }
+  }
+  return segments;
 }
 
 /** Bounded, generation-scoped editor metadata, separate from authoritative validation. */
@@ -416,6 +437,8 @@ export class EditorService {
     const schemas: EditorSchema[] = rulesOnly ? [] : [...selected.schemas];
     for (const row of this.currentRules()) {
       if (!includeRules || row.subjectId !== selected.subjectId) continue;
+      const segments = ruleSegments(selected.schemaValue, row.path);
+      if (!segments) continue;
       let root: Record<string, unknown> = {
         description: `${row.description}\nRule: ${row.ruleId}. Candidates pass the checked rule after the full pipeline runs. Other findings can remain.`,
         examples: row.candidates.map((candidate) => candidate.value),
@@ -429,7 +452,16 @@ export class EditorService {
               : 'suggestion',
         })),
       };
-      for (const name of parts(row.path).reverse()) root = { properties: { [name]: root } };
+      for (const segment of segments.reverse()) {
+        if (segment.index !== undefined) {
+          const items: (Record<string, unknown> | true)[] = Array.from(
+            { length: segment.index + 1 },
+            () => true as const,
+          );
+          items[segment.index] = root;
+          root = { items };
+        } else root = { properties: { [segment.name]: root } };
+      }
       schemas.push({
         root,
         names: new Map(),
@@ -571,6 +603,7 @@ export class EditorService {
     )
       return undefined;
     const { file: indexed, selected } = target;
+    if (!ruleSegments(selected.schemaValue, path)) return undefined;
     const node = selected.document.nodes.get(target.path);
     let edit: TextEdit | undefined;
     if (node && !node.blocked && !node.container) {

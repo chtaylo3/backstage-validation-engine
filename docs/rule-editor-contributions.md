@@ -158,6 +158,9 @@ An obsolete background reply cannot install metadata into a replacement generati
 ## Supported edits and limits
 
 Repairs support one scalar replacement or one property insertion into an unambiguous authored map.
+Declared array paths bind one exact qualified index. Tuple schemas use noncontributing `true` placeholders for other indices.
+A checked index cannot grant its hints or repair evidence to sibling items.
+Array indices above 255, appends, and whole-array replacements remain unsupported.
 The host retains JSON/YAML quoting, comments, CRLF, and UTF-16 ranges.
 Structured includes retain the actual payload file and range.
 Aliased scalar targets, ambiguous include mappings, unsupported operations, and multi-file edits do not produce repairs.

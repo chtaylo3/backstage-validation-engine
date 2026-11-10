@@ -16,6 +16,7 @@ export const RULE_EDITOR_LIMITS = Object.freeze({
   candidates: 16,
   contributions: 64,
   declarations: 1024,
+  arrayItems: 256,
   ttlMs: 30_000,
 });
 type Report = Awaited<ReturnType<typeof validatePolicySources>>;
