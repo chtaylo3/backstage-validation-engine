@@ -1,0 +1,64 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "proposals"
+  ],
+  "properties": {
+    "proposals": {
+      "maxItems": 16,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "findingId",
+          "subjectId",
+          "path",
+          "operation",
+          "value",
+          "label"
+        ],
+        "properties": {
+          "findingId": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "subjectId": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 4096,
+            "pattern": "^(?:/(?:[^~]|~[01])*)*$",
+            "type": "string"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "const": "setValue",
+                "type": "string"
+              },
+              {
+                "const": "insertProperty",
+                "type": "string"
+              }
+            ]
+          },
+          "value": {
+            "$ref": "urn:backstage-validation:json-value:0.2"
+          },
+          "label": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$id": "urn:backstage-validation:capability:repairs-output:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "pluginId",
+    "artifactDigest",
+    "manifestDigest",
+    "capabilities"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "bve-plugin/1",
+      "type": "string"
+    },
+    "pluginId": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string"
+    },
+    "artifactDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "manifestDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "capabilities": {
+      "maxItems": 9,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "maximum": 1000,
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "$id": "urn:backstage-validation:capability:plugin-handshake:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

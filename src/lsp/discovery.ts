@@ -4,6 +4,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import type { LspConfig } from './config.js';
+import { builtinCapabilitySession } from '../capabilities/session.js';
+import { parseBinding } from '../capabilities/admission.js';
+import { digestJson } from '../core/json.js';
+import { createDataSnapshot } from '../core/snapshots.js';
+import { randomUUID } from 'node:crypto';
+import type { Immutable } from '../core/json.js';
+import type { SourceSnapshot } from '../contracts/schemas.js';
 
 const excluded = [
   '**/node_modules/**',
@@ -41,7 +48,7 @@ export function filesystemEvent(config: LspConfig, uri: string): boolean {
   );
 }
 /** Discovery only enumerates host-selected roots. The reader still checks each file before use. */
-export async function discoverFiles(
+async function scanApprovedFiles(
   config: LspConfig,
   budget: RequestBudget,
   checkDirectory: (directory: string) => Promise<void>,
@@ -81,4 +88,67 @@ export async function discoverFiles(
     }
   }
   return [...files].sort();
+}
+
+/** The host approves roots before providing this built-in scanner. Every returned file is read again through containment checks. */
+export async function discoverFiles(
+  config: LspConfig,
+  budget: RequestBudget,
+  checkDirectory: (directory: string) => Promise<void>,
+  source: Immutable<SourceSnapshot> = config.source,
+): Promise<string[]> {
+  const settings = config.filesystem?.discovery;
+  if (!settings) return [];
+  const provider = builtinCapabilitySession(
+    'bve.builtin.source-discovery',
+    {
+      'source-discovery': async () => ({
+        sources: (await scanApprovedFiles(config, budget, checkDirectory)).map((uri) => ({ uri })),
+        complete: true,
+      }),
+    },
+    {
+      async: ['source-discovery'],
+      required: ['source-discovery'],
+      permissions: ['source-discovery'],
+    },
+  );
+  try {
+    const identity = {
+      sourceDigest: source.digest,
+      ...(config.baseline ? { baselineDigest: config.baseline.digest } : {}),
+      policyDigest: config.activation.policyDigest,
+      profileDigest: config.activation.profileDigest,
+      activationDigest: digestJson(config.activation),
+      dataDigest: createDataSnapshot([]).digest,
+      dependencyDigest: digestJson([]),
+      authorityContextDigest: digestJson(config.identity),
+      activationGeneration: config.activation.generation,
+      workspaceGeneration: 0,
+      sessionGeneration: 0,
+      dependencyGeneration: 0,
+    };
+    const result = await provider.provide(
+      'source-discovery',
+      {
+        roots: [...settings.roots],
+        include: [...settings.include],
+        exclude: [...(settings.exclude ?? [])],
+      },
+      {
+        requestId: randomUUID(),
+        binding: parseBinding({ ...identity, contextId: digestJson(identity) }),
+        deadlineAt: budget.deadlineAt,
+        signal: budget.signal,
+      },
+    );
+    if (result.status !== 'ready' || !result.value.complete)
+      throw new Error('Source discovery is unavailable.');
+    const uris = result.value.sources.map((source) => source.uri);
+    if (uris.some((uri) => !approvedFilesystemUri(config, uri)))
+      throw new Error('Discovered source is not approved.');
+    return uris;
+  } finally {
+    await provider.close();
+  }
 }

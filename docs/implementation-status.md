@@ -411,8 +411,8 @@ and 95.88% branch coverage. `npm run check` now enforces that gate too.
 The [rule and editor capability plan](plugin-capabilities-plan.md) specifies the next contract work
 for CEL, RE2, and approved providers. It defines shared lifecycle and result bindings, separate
 interfaces for each editor function, candidate/repair evidence, runtime requirements, and PC-01
-through PC-10 conformance gates. These proposed interfaces and general executable-plugin support
-are not implemented by the current schema-focused editor increment.
+through PC-10 conformance gates. Phase 2 implements [versioned capability interfaces](capability-interfaces.md), host approval, and built-in adapters.
+General executable-plugin loading remains unavailable. The phase record separates implementation from parent acceptance.
 
 The plan also specifies live catalog dependency refresh and PC-11 qualification. Cache expiry alone
 does not currently revalidate idle editor buffers. Bounded background refresh, optional change
@@ -427,7 +427,8 @@ Phase 1 updates documentation. Phase 2 implements capability contracts and adapt
 Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions.
 Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.
 
-Phases 2 through 4 remain unimplemented at this documentation checkpoint.
+Phase 2 now implements built-in capability contracts and adapters. Its gate results and parent acceptance belong to the phase record.
+Phases 3 and 4 remain unimplemented at this checkpoint.
 SQS, Kafka, the durable hosted controller, and authoritative GitHub publication remain outside this editor implementation.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
 The broader governed pilot and stable-release roadmap retain their separate authority and qualification requirements.

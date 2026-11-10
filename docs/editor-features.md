@@ -5,9 +5,11 @@ VS Code also supplies catalog search and persistent selection history.
 Trusted launcher configuration selects schemas, policy authority, sources, and credentials.
 
 The [rule and editor capability plan](plugin-capabilities-plan.md) specifies future CEL, RE2, and plugin extensions.
-It defines the interfaces and conformance requirements for each function. Generic plugin negotiation remains future implementation work.
+It defines the interfaces and conformance requirements for each function.
+Built-in providers now use the versioned [capability interfaces](capability-interfaces.md). Arbitrary executable plugin loading remains unavailable.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
-Capability interfaces, live catalog refresh, and CEL/RE2 contributions remain unimplemented phases 2 through 4.
+Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](lsp-editor-improvements-implementation-record.md).
+Live catalog refresh and CEL/RE2 contributions remain phases 3 and 4.
 
 ## Completion and documentation
 

@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "request"
+  ],
+  "properties": {
+    "request": {
+      "$ref": "urn:backstage-validation:validation-request:0.2"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:validation-input:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

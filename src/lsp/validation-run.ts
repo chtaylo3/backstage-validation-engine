@@ -3,7 +3,8 @@ import type { Diagnostic } from 'vscode-languageserver/node';
 import { digestText } from '../core/json.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { validatePolicySources } from '../core/policy-sources.js';
+import type { BuiltinValidationService } from '../host/builtin-validation.js';
+import { CapabilityError } from '../capabilities/admission.js';
 import type { LocalCatalogSources } from '../core/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
@@ -17,7 +18,7 @@ import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 import type { CompletionService } from './completion.js';
 import type { EditorService } from './editor.js';
-import { diagnostic, incomplete } from './diagnostics.js';
+import { diagnostic, incomplete, admissionTimeout } from './diagnostics.js';
 import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 import type { ValidationRun } from './validation-coordinator.js';
 
@@ -42,6 +43,7 @@ interface ValidationInputs {
     { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } | undefined;
   readonly completion: CompletionService;
   readonly editor: EditorService;
+  readonly validation: BuiltinValidationService;
   readonly fixes: FixRegistry;
   readonly fixesEnabled: boolean;
   readonly configurationUnavailable: boolean;
@@ -60,6 +62,7 @@ export async function runValidation(
     catalog,
     completion,
     editor,
+    validation,
     fixes,
     fixesEnabled,
     configurationUnavailable,
@@ -131,14 +134,20 @@ export async function runValidation(
     void (input.operations ? input.operations.track(indexing) : indexing);
     const preparing = editor.update(request, generation);
     const prepared = input.operations ? input.operations.track(preparing) : preparing;
-    const report = await validatePolicySources(request, config, {
-      ...(deliver ? { onLocalSources: deliver } : {}),
-      onFailure: (row) => {
-        if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
-      },
-      signal: context.signal,
-      ...(catalog ? { catalog: catalog } : {}),
-    }).finally(() => deliver?.());
+    const report = await validation
+      .run(
+        request,
+        {
+          ...(deliver ? { onLocalSources: deliver } : {}),
+          onFailure: (row) => {
+            if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
+          },
+          signal: context.signal,
+          ...(catalog ? { catalog: catalog } : {}),
+        },
+        { workspaceGeneration: generation, current },
+      )
+      .finally(() => deliver?.());
     if (!current()) return;
     await prepared;
     if (!current()) return;
@@ -206,15 +215,23 @@ export async function runValidation(
               : error.reason === 'changed'
                 ? 'source_changed'
                 : 'snapshot_unavailable'
-            : failureCause(error),
+            : error instanceof CapabilityError && error.code === 'deadline'
+              ? 'request_timeout'
+              : failureCause(error),
           deadlineAt,
         ),
       );
     if (current())
       for (const document of frame) {
         if (!current()) return;
+        const digest = digestText(document.getText());
         await publish(document.uri, document.version, [
-          incomplete(digestText(document.getText()), document.version, evidence),
+          incomplete(digest, document.version, evidence),
+          ...(error instanceof CapabilityError &&
+          error.code === 'deadline' &&
+          error.phase === 'admission'
+            ? [admissionTimeout(digest, document.version, evidence)]
+            : []),
         ]);
       }
   }

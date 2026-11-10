@@ -31,6 +31,9 @@ void test('architecture checks reject adapter dependencies through aliases, barr
       "import { createRequire as factory } from 'node:module'; const load = factory(import.meta.url); load('../lsp/adapter.js');",
     'src/runtime/namespace-loader.ts':
       "import * as modules from 'node:module'; const load = modules.createRequire(import.meta.url); load('../lsp/adapter.js');",
+    'src/capabilities/reverse.ts': "export type { Adapter } from '../lsp/adapter.js';",
+    'src/capabilities/host-reverse.ts': "export { adapter } from '../host/builtin.js';",
+    'src/host/builtin.ts': 'export const adapter = 1;',
   };
   for (const [name, contents] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(directory, name)), { recursive: true });
@@ -51,6 +54,8 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     'providers/require',
     'providers/aliased-loader',
     'runtime/namespace-loader',
+    'capabilities/reverse',
+    'capabilities/host-reverse',
   ])
     assert(failure.stderr.includes(name));
   for (const name of [
@@ -60,6 +65,8 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     'src/providers/require.ts',
     'src/providers/aliased-loader.ts',
     'src/runtime/namespace-loader.ts',
+    'src/capabilities/reverse.ts',
+    'src/capabilities/host-reverse.ts',
   ])
     await writeFile(path.join(directory, name), 'export const value = 1;');
   const success = await execute(process.execPath, [

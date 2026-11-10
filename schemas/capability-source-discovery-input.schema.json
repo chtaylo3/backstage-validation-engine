@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "roots",
+    "include",
+    "exclude"
+  ],
+  "properties": {
+    "roots": {
+      "maxItems": 16,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 4096,
+        "type": "string"
+      }
+    },
+    "include": {
+      "maxItems": 32,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 4096,
+        "type": "string"
+      }
+    },
+    "exclude": {
+      "maxItems": 32,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 4096,
+        "type": "string"
+      }
+    }
+  },
+  "$id": "urn:backstage-validation:capability:source-discovery-input:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

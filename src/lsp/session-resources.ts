@@ -2,6 +2,8 @@ import type { CatalogAccessContext, CatalogProvider } from '../providers/types.j
 import { abortable } from '../providers/async.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
+import { BuiltinValidationService } from '../host/builtin-validation.js';
+import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import type { LspConfig } from './config.js';
 import type { FilesystemSource } from './filesystem.js';
 import { SessionOperations } from './request-context.js';
@@ -38,6 +40,7 @@ export class SessionGeneration {
   readonly operations = new SessionOperations();
   readonly completion: CompletionService;
   readonly editor: EditorService;
+  readonly validation: BuiltinValidationService;
   private readonly registrations = new Set<SessionRegistration>();
   private disposal: Promise<void> | undefined;
   private retired = false;
@@ -50,8 +53,18 @@ export class SessionGeneration {
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
-    this.completion = new CompletionService(resources.config, resources.catalog);
-    this.editor = new EditorService(resources.config);
+    this.completion = new CompletionService(resources.config, resources.catalog, undefined, {
+      sessionGeneration: generation,
+    });
+    const authorityContextDigest = capabilityAuthorityDigest(
+      resources.config.identity,
+      resources.catalog,
+    );
+    this.editor = new EditorService(resources.config, undefined, {
+      sessionGeneration: generation,
+      authorityContextDigest,
+    });
+    this.validation = new BuiltinValidationService(resources.config, generation);
   }
   get config() {
     return this.resources.config;
@@ -100,7 +113,12 @@ export class SessionGeneration {
     this.disposal = (async () => {
       const deadline = performance.now() + this.closeMs;
       const draining = await bounded(
-        Promise.allSettled([this.operations.drain(), this.completion.close()]),
+        Promise.allSettled([
+          this.operations.drain(),
+          this.completion.close(),
+          this.editor.close(),
+          this.validation.close(),
+        ]),
         deadline - performance.now(),
       ).then(
         (outcomes) => outcomes.every((outcome) => outcome.status === 'fulfilled'),

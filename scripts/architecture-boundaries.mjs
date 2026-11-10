@@ -5,6 +5,7 @@ import ts from 'typescript';
 
 const domain = new Set([
   'contracts',
+  'capabilities',
   'core',
   'parsing',
   'policy',
@@ -23,6 +24,10 @@ const ownership = new Set([
   'src/lsp/client-edits.ts',
   'src/lsp/config-watches.ts',
   'src/host/catalog-config.ts',
+  'src/host/builtin-validation.ts',
+  'src/capabilities/session.ts',
+  'src/capabilities/bindings.ts',
+  'src/capabilities/builtin-metadata.ts',
   'src/compatibility/schema-artifacts.ts',
   'src/reporting/sarif.ts',
 ]);

@@ -1,0 +1,26 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "kind",
+    "namespace",
+    "prefix"
+  ],
+  "properties": {
+    "kind": {
+      "pattern": "^[a-z][a-z0-9]{0,62}$",
+      "type": "string"
+    },
+    "namespace": {
+      "pattern": "^[a-z0-9_.-]{1,63}$",
+      "type": "string"
+    },
+    "prefix": {
+      "maxLength": 63,
+      "pattern": "^[a-z0-9_.-]*$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:search-input:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

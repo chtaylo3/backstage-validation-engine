@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "contextId",
+    "sourceDigest",
+    "policyDigest",
+    "profileDigest",
+    "activationDigest",
+    "dataDigest",
+    "dependencyDigest",
+    "authorityContextDigest",
+    "activationGeneration",
+    "workspaceGeneration",
+    "sessionGeneration",
+    "dependencyGeneration"
+  ],
+  "properties": {
+    "contextId": {
+      "minLength": 1,
+      "maxLength": 4096,
+      "type": "string"
+    },
+    "sourceDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "baselineDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "policyDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "profileDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "activationDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "dataDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "dependencyDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "authorityContextDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "activationGeneration": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "workspaceGeneration": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "sessionGeneration": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "dependencyGeneration": {
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:binding:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

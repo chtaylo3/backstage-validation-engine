@@ -1,0 +1,203 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "path",
+    "subject",
+    "subjectStage",
+    "scope",
+    "schemas",
+    "findingId",
+    "subjectId",
+    "current",
+    "required"
+  ],
+  "properties": {
+    "path": {
+      "maxLength": 4096,
+      "pattern": "^(?:/(?:[^~]|~[01])*)*$",
+      "type": "string"
+    },
+    "subject": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "state"
+          ],
+          "properties": {
+            "state": {
+              "const": "absent",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "state",
+            "value"
+          ],
+          "properties": {
+            "state": {
+              "const": "present",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "urn:backstage-validation:json-value:0.2"
+            }
+          }
+        }
+      ]
+    },
+    "subjectStage": {
+      "anyOf": [
+        {
+          "const": "authored",
+          "type": "string"
+        },
+        {
+          "const": "resolved",
+          "type": "string"
+        },
+        {
+          "const": "normalized",
+          "type": "string"
+        }
+      ]
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "const": "unknown",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "status",
+            "kind",
+            "apiVersion"
+          ],
+          "properties": {
+            "status": {
+              "const": "known",
+              "type": "string"
+            },
+            "kind": {
+              "minLength": 1,
+              "maxLength": 63,
+              "type": "string"
+            },
+            "apiVersion": {
+              "minLength": 1,
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "schemas": {
+      "maxItems": 128,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "root",
+          "definitions",
+          "label"
+        ],
+        "properties": {
+          "root": {
+            "$ref": "urn:backstage-validation:json-value:0.2"
+          },
+          "definitions": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "$ref": "urn:backstage-validation:json-value:0.2"
+              }
+            }
+          },
+          "label": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "artifactDigest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "ruleId": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "findingId": {
+      "minLength": 1,
+      "maxLength": 4096,
+      "type": "string"
+    },
+    "subjectId": {
+      "minLength": 1,
+      "maxLength": 4096,
+      "type": "string"
+    },
+    "current": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "state"
+          ],
+          "properties": {
+            "state": {
+              "const": "absent",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "state",
+            "value"
+          ],
+          "properties": {
+            "state": {
+              "const": "present",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "urn:backstage-validation:json-value:0.2"
+            }
+          }
+        }
+      ]
+    },
+    "required": {
+      "type": "boolean"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:repairs-input:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

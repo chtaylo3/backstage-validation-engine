@@ -136,6 +136,7 @@ export function attachLspServer(
         catalog: available ? session.catalog : undefined,
         completion: session.completion,
         editor: session.editor,
+        validation: session.validation,
         fixes,
         fixesEnabled,
         configurationUnavailable: !available,

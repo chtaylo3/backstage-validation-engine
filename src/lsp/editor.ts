@@ -7,13 +7,22 @@ import type {
   Location,
   TextEdit,
 } from 'vscode-languageserver/node';
-import type { Finding, ValidationRequest } from '../contracts/schemas.js';
+import type { Finding, JsonValue, ValidationRequest } from '../contracts/schemas.js';
 import type { Immutable } from '../core/json.js';
-import { digestText } from '../core/json.js';
+import { digestText, immutableJson } from '../core/json.js';
+import { builtinMetadataSession } from '../capabilities/builtin-metadata.js';
+import { capabilityBinding } from '../capabilities/bindings.js';
+import type { CapabilitySession } from '../capabilities/session.js';
+import type {
+  CapabilityId,
+  CapabilityInputs,
+  CapabilityOutputs,
+  Presence,
+} from '../capabilities/schemas.js';
 import { BUILTIN_KINDS } from '../compatibility/types.js';
 import { getSharedCelRuntime } from '../runtime/cel/index.js';
 import { ParsingBudget } from '../parsing/budget.js';
-import { SourceLineIndex, childPointer } from '../parsing/locations.js';
+import { SourceLineIndex } from '../parsing/locations.js';
 import { admitsKind } from '../policy/admission.js';
 import { editorDocuments, editorTarget } from './editor-documents.js';
 import type { EditorDocument, EditorFile } from './editor-documents.js';
@@ -21,10 +30,7 @@ import {
   nativeEditorSchemas,
   object,
   parts,
-  primitive,
   resolveFields,
-  fieldValues,
-  fieldDescription,
   acceptsValue,
   forbidden,
 } from './editor-schemas.js';
@@ -38,46 +44,39 @@ interface IndexedDocument {
   readonly schemas: readonly EditorSchema[];
   readonly basePath: string;
   readonly schemaValue: unknown;
+  readonly subjectStage: 'authored' | 'resolved' | 'normalized';
 }
 interface IndexedFile {
   readonly file: EditorFile;
   readonly documents: readonly IndexedDocument[];
 }
 const empty = (): CompletionList => ({ isIncomplete: true, items: [] });
-function initialValue(
-  fields: readonly ResolvedField[],
-  depth = 0,
-  remaining = { nodes: 32 },
-): unknown {
-  if (--remaining.nodes < 0) return null;
-  const required = fields.find(({ node }) => Object.hasOwn(node, 'const'))?.node.const;
-  if (primitive(required)) return required;
-  if (depth > 4) return null;
-  if (fields.some(({ node }) => node.type === 'object' || object(node.properties))) {
-    const output: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-    const names = new Set(
-      fields.flatMap(({ node }) =>
-        Array.isArray(node.required)
-          ? node.required.filter((name): name is string => typeof name === 'string')
-          : [],
-      ),
-    );
-    for (const name of [...names].slice(0, 16)) {
-      const children = fields.flatMap(({ node, schema }) =>
-        object(node.properties) && object(node.properties[name])
-          ? [{ node: node.properties[name], schema }]
-          : [],
-      );
-      if (remaining.nodes <= 0) break;
-      output[name] = initialValue(children, depth + 1, remaining);
+/** Incomplete object values are absent, never converted into explicit JSON null. */
+function metadataSubject(input: unknown): Presence {
+  let nodes = 0;
+  const visit = (value: unknown, depth: number): JsonValue => {
+    if (++nodes > 100_000 || depth > 64) throw new Error('Metadata projection exceeds limits.');
+    if (
+      value === null ||
+      typeof value === 'string' ||
+      typeof value === 'boolean' ||
+      (typeof value === 'number' && Number.isFinite(value))
+    )
+      return value;
+    if (Array.isArray(value)) return value.map((child: unknown) => visit(child, depth + 1));
+    if (object(value)) {
+      const result: Record<string, JsonValue> = Object.create(null) as Record<string, JsonValue>;
+      for (const [key, child] of Object.entries(value))
+        if (child !== undefined) result[key] = visit(child, depth + 1);
+      return result;
     }
-    return output;
+    throw new Error('Metadata projection is incomplete.');
+  };
+  try {
+    return input === undefined ? { state: 'absent' } : { state: 'present', value: visit(input, 0) };
+  } catch {
+    return { state: 'absent' };
   }
-  if (fields.some(({ node }) => node.type === 'array')) return [];
-  if (fields.some(({ node }) => node.type === 'number' || node.type === 'integer')) return 0;
-  if (fields.some(({ node }) => node.type === 'boolean')) return false;
-  if (fields.some(({ node }) => node.type === 'null')) return null;
-  return '';
 }
 function encoded(value: unknown, raw: string, json: boolean): string {
   if (typeof value === 'string' && !json && raw.startsWith("'"))
@@ -94,10 +93,26 @@ export class EditorService {
   private controller: AbortController | undefined;
   private readonly history = new Map<string, number>();
   private clock = 0;
+  private request: Immutable<ValidationRequest> | undefined;
+  readonly capabilities: CapabilitySession;
   constructor(
     private readonly config: LspConfig,
     schemaLoader: typeof nativeEditorSchemas = nativeEditorSchemas,
+    private readonly capabilityOptions: {
+      readonly provider?: CapabilitySession;
+      readonly sessionGeneration?: number;
+      readonly dependencyGeneration?: () => number;
+      readonly authorityContextDigest?: string;
+    } = {},
   ) {
+    this.capabilities =
+      capabilityOptions.provider ??
+      builtinMetadataSession([
+        config.profile.adapterId,
+        ...config.schemaArtifacts.map(
+          (artifact) => `${artifact.id}@${artifact.version}:${artifact.digest}`,
+        ),
+      ]);
     try {
       this.native = schemaLoader(config);
     } catch {
@@ -108,6 +123,7 @@ export class EditorService {
     this.lifetime++;
     this.generation = -1;
     this.files.clear();
+    this.request = undefined;
     this.controller?.abort();
   }
   record(value: string): void {
@@ -194,6 +210,7 @@ export class EditorService {
                 names: new Map(),
                 label,
                 artifactIdentity: artifact.digest,
+                ...(label.startsWith('Policy ') ? { ruleId: label.slice(7) } : {}),
               });
           };
           if (custom && !this.native.has(kind)) add(custom.schema, `Custom kind ${kind}`);
@@ -217,7 +234,13 @@ export class EditorService {
             }
             add(rule.schema, `Policy ${rule.id}`);
           }
-          indexed.push({ document, schemas, basePath: '', schemaValue: document.value });
+          indexed.push({
+            document,
+            schemas,
+            basePath: '',
+            schemaValue: document.value,
+            subjectStage: 'authored',
+          });
         }
         files.set(source.uri, {
           file: {
@@ -234,6 +257,7 @@ export class EditorService {
       }
       if (lifetime === this.lifetime && !controller.signal.aborted) {
         this.files = files;
+        this.request = request;
         this.generation = generation;
       }
     } catch {
@@ -287,9 +311,15 @@ export class EditorService {
             names: new Map(),
             label: `Policy ${rule.id}`,
             artifactIdentity: artifact.digest,
+            ruleId: rule.id,
           });
       }
-      const indexed = { ...selected, schemas, schemaValue: entity.normalized };
+      const indexed: IndexedDocument = {
+        ...selected,
+        schemas,
+        schemaValue: entity.normalized,
+        subjectStage: 'normalized',
+      };
       files.set(file.file.uri, {
         ...file,
         documents: file.documents.map((row) => (row === selected ? indexed : row)),
@@ -335,6 +365,7 @@ export class EditorService {
               document: documents[0]!,
               schemas: payload.indexed.schemas,
               schemaValue: payload.indexed.schemaValue,
+              subjectStage: payload.indexed.subjectStage,
               basePath: payload.path,
             },
           ],
@@ -343,7 +374,10 @@ export class EditorService {
     } catch {
       /* The original deadline also bounds include metadata. */
     }
-    if (this.generation === generation && this.files === original) this.files = files;
+    if (this.generation === generation && this.files === original) {
+      this.files = files;
+      this.request = report.request;
+    }
   }
   private fields(selected: IndexedDocument, path: string): ResolvedField[] {
     return resolveFields(selected.schemas, selected.basePath + path, selected.schemaValue);
@@ -363,6 +397,64 @@ export class EditorService {
       ? file
       : undefined;
   }
+  private metadata(selected: IndexedDocument, path: string): CapabilityInputs['hover'] {
+    return {
+      path: selected.basePath + path,
+      subjectStage: selected.subjectStage,
+      scope:
+        object(selected.schemaValue) &&
+        typeof selected.schemaValue.kind === 'string' &&
+        typeof selected.schemaValue.apiVersion === 'string'
+          ? {
+              status: 'known',
+              kind: selected.schemaValue.kind,
+              apiVersion: selected.schemaValue.apiVersion,
+            }
+          : { status: 'unknown' },
+      subject: metadataSubject(selected.schemaValue),
+      schemas: selected.schemas.map((schema) => ({
+        root: immutableJson(schema.root) as JsonValue,
+        definitions: Object.fromEntries(
+          [...schema.names].map(([name, value]) => [name, immutableJson(value) as JsonValue]),
+        ),
+        label: schema.label,
+        ...(schema.artifactIdentity ? { artifactDigest: schema.artifactIdentity } : {}),
+        ...(schema.ruleId ? { ruleId: schema.ruleId } : {}),
+      })),
+    };
+  }
+  private contribution<K extends CapabilityId>(
+    id: K,
+    input: CapabilityInputs[K],
+    generation: number,
+  ): Immutable<CapabilityOutputs[K]> | undefined {
+    const request = this.request,
+      lifetime = this.lifetime;
+    if (!request || this.generation !== generation) return undefined;
+    try {
+      const result = this.capabilities.providePrepared(id, input, {
+        requestId: request.run.runId,
+        binding: capabilityBinding(request, {
+          workspaceGeneration: generation,
+          sessionGeneration: this.capabilityOptions.sessionGeneration ?? 0,
+          dependencyGeneration: this.capabilityOptions.dependencyGeneration?.() ?? 0,
+          ...(this.capabilityOptions.authorityContextDigest
+            ? { authorityContextDigest: this.capabilityOptions.authorityContextDigest }
+            : {}),
+        }),
+        deadlineAt: Date.now() + Math.min(50, this.config.profile.limits.requestTimeoutMs),
+        current: () =>
+          this.request === request && this.lifetime === lifetime && this.generation === generation,
+      });
+      return result.status === 'ready' ? result.value : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  async close(): Promise<void> {
+    this.invalidate();
+    await this.capabilities.close();
+  }
   complete(
     params: CompletionParams,
     generation: number,
@@ -373,79 +465,77 @@ export class EditorService {
     const target = editorTarget(indexed.file, params.position);
     const selected = indexed.documents.find((row) => row.document === target?.document);
     if (!target || !selected) return empty();
-    const fields = this.fields(selected, target.path);
     if (target.key) {
       const existing = selected.document.nodes.get(target.path)?.value;
-      const keys = new Map<string, boolean>();
-      const required = new Set(
-        fields.flatMap(({ node }) =>
-          Array.isArray(node.required)
-            ? node.required.filter((name: unknown): name is string => typeof name === 'string')
-            : [],
-        ),
+      const metadata = this.contribution(
+        'fields',
+        {
+          ...this.metadata(selected, target.path),
+          prefix: target.prefix,
+          existing: object(existing) ? Object.keys(existing) : [],
+        },
+        generation,
       );
-      for (const { node } of fields)
-        if (object(node.properties))
-          for (const key of Object.keys(node.properties)) {
-            if (
-              !key.startsWith(target.prefix) ||
-              (object(existing) && Object.hasOwn(existing, key) && key !== target.prefix)
-            )
-              continue;
-            if (
-              !this.fields(selected, childPointer(target.path, key)).some(
-                ({ node }) => node.$bveForbidden,
-              )
-            )
-              keys.set(key, required.has(key));
-          }
+      if (!metadata) return empty();
       return {
         isIncomplete: true,
-        items: [...keys]
-          .sort(([a, ar], [b, br]) => Number(br) - Number(ar) || a.localeCompare(b))
-          .slice(0, 100)
-          .map(([key, required], index) => {
-            const children = this.fields(selected, childPointer(target.path, key));
-            const raw = indexed.file.text.slice(
-              indexed.file.lines.offset(target.range.start),
-              indexed.file.lines.offset(target.range.end),
-            );
-            const name =
-              target.flow || raw.startsWith('"')
-                ? JSON.stringify(key)
-                : raw.startsWith("'")
-                  ? `'${key.replace(/'/gu, "''")}'`
-                  : /^[A-Za-z_][A-Za-z0-9_.-]*$/u.test(key) && !/^(?:true|false|null)$/iu.test(key)
-                    ? key
-                    : JSON.stringify(key);
-            const value = initialValue(children);
-            let suffix = target.colon
-              ? ''
-              : target.flow
-                ? `: ${JSON.stringify(value)}`
-                : `: ${typeof value === 'object' && value !== null ? JSON.stringify(value) : ''}`;
-            if (!target.colon && target.flow) {
-              const end = indexed.file.lines.offset(target.range.end)!;
-              if (!/^\s*[,}]/u.test(indexed.file.text.slice(end))) suffix += ',';
-            }
-            return {
-              label: key,
-              kind: CompletionItemKind.Property,
-              detail: required ? 'Required field' : 'Optional field',
-              documentation: { kind: MarkupKind.PlainText, value: fieldDescription(children) },
-              sortText: String(index).padStart(3, '0'),
-              insertTextFormat: InsertTextFormat.PlainText,
-              textEdit: { range: target.range, newText: name + suffix },
-            };
-          }),
+        items: metadata.fields.map((field, index) => {
+          const key = field.name,
+            required = field.required;
+          const raw = indexed.file.text.slice(
+            indexed.file.lines.offset(target.range.start),
+            indexed.file.lines.offset(target.range.end),
+          );
+          const name =
+            target.flow || raw.startsWith('"')
+              ? JSON.stringify(key)
+              : raw.startsWith("'")
+                ? `'${key.replace(/'/gu, "''")}'`
+                : /^[A-Za-z_][A-Za-z0-9_.-]*$/u.test(key) && !/^(?:true|false|null)$/iu.test(key)
+                  ? key
+                  : JSON.stringify(key);
+          const value = field.initialValue;
+          let suffix = target.colon
+            ? ''
+            : target.flow
+              ? `: ${JSON.stringify(value)}`
+              : `: ${typeof value === 'object' && value !== null ? JSON.stringify(value) : ''}`;
+          if (!target.colon && target.flow) {
+            const end = indexed.file.lines.offset(target.range.end)!;
+            if (!/^\s*[,}]/u.test(indexed.file.text.slice(end))) suffix += ',';
+          }
+          return {
+            label: key,
+            kind: CompletionItemKind.Property,
+            detail: required ? 'Required field' : 'Optional field',
+            documentation: { kind: MarkupKind.PlainText, value: field.description },
+            sortText: String(index).padStart(3, '0'),
+            insertTextFormat: InsertTextFormat.PlainText,
+            textEdit: { range: target.range, newText: name + suffix },
+          };
+        }),
       };
     }
-    let values = fieldValues(fields);
-    if (!selected.basePath && target.path === '/kind')
-      values = [...BUILTIN_KINDS, ...this.config.profile.customKinds.map((row) => row.kind)]
-        .filter((kind) => admitsKind(this.config.profile, indexed.file.uri, kind))
-        .filter((kind) => acceptsValue(fields, kind))
-        .map((value) => ({ value, label: 'Entity kind' }));
+    const supplied = this.contribution(
+      'values',
+      {
+        ...this.metadata(selected, target.path),
+        ...(!selected.basePath && target.path === '/kind'
+          ? {
+              kinds: [
+                ...BUILTIN_KINDS,
+                ...this.config.profile.customKinds.map((row) => row.kind),
+              ].filter((kind) => admitsKind(this.config.profile, indexed.file.uri, kind)),
+            }
+          : {}),
+      },
+      generation,
+    );
+    const values = (supplied?.candidates ?? []).filter(({ value }) =>
+      acceptsValue(this.fields(selected, target.path), value),
+    );
+    const description =
+      this.contribution('hover', this.metadata(selected, target.path), generation)?.text ?? '';
     const raw = indexed.file.text.slice(
       indexed.file.lines.offset(target.range.start),
       indexed.file.lines.offset(target.range.end),
@@ -453,17 +543,24 @@ export class EditorService {
     return {
       isIncomplete: true,
       items: values
-        .filter(({ value }) => String(value).toLowerCase().startsWith(target.prefix.toLowerCase()))
+        .filter(({ value }) =>
+          (typeof value === 'string' ? value : JSON.stringify(value))
+            .toLowerCase()
+            .startsWith(target.prefix.toLowerCase()),
+        )
         .sort(
           (a, b) =>
-            (this.history.get(String(b.value)) ?? 0) - (this.history.get(String(a.value)) ?? 0),
+            (this.history.get(typeof b.value === 'string' ? b.value : JSON.stringify(b.value)) ??
+              0) -
+            (this.history.get(typeof a.value === 'string' ? a.value : JSON.stringify(a.value)) ??
+              0),
         )
         .slice(0, 100)
         .map(({ value, label }, index) => ({
           label: typeof value === 'string' ? value : JSON.stringify(value),
           kind: CompletionItemKind.Value,
           detail: label,
-          documentation: { kind: MarkupKind.PlainText, value: fieldDescription(fields) },
+          documentation: { kind: MarkupKind.PlainText, value: description },
           sortText: String(index).padStart(3, '0'),
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit: { range: target.range, newText: encoded(value, raw, indexed.file.json) },
@@ -501,8 +598,11 @@ export class EditorService {
           node.container
         )
           continue;
-        const fields = this.fields(selected, node.path);
-        const value = fieldDescription(fields);
+        const value = this.contribution(
+          'hover',
+          this.metadata(selected, node.path),
+          generation,
+        )?.text;
         if (value)
           return {
             contents: { kind: MarkupKind.PlainText, value },
@@ -543,10 +643,17 @@ export class EditorService {
           ? root.metadata.namespace
           : 'default'
         : pattern.namespace;
-    const match = /^(?:([^:/]+):)?(?:([^/]+)\/)?([^/]+)$/u.exec(value);
-    if (!match) return [];
-    const reference =
-      `${match[1] ?? pattern.defaultKind}:${match[2] ?? namespace}/${match[3]}`.toLowerCase();
+    const reference = this.contribution(
+      'references',
+      {
+        path: selected.basePath + target.path,
+        value,
+        defaultKind: pattern.defaultKind,
+        namespace,
+      },
+      generation,
+    )?.references[0]?.identity;
+    if (!reference) return [];
     const locations: Location[] = [];
     for (const row of this.files.values())
       for (const { document } of row.documents) {
@@ -587,19 +694,25 @@ export class EditorService {
       );
       if (!selected?.document.valid) continue;
       const path = finding.location.path;
-      const fields = this.fields(selected, path);
       const node = selected.document.nodes.get(path);
-      const choices: { value: unknown; label: string }[] = fieldValues(fields);
-      if (!node && fields.length && !choices.length) {
-        const name = parts(path).at(-1);
-        const parentFields = this.fields(selected, path.slice(0, path.lastIndexOf('/')));
-        if (
-          parentFields.some(
+      const name = parts(path).at(-1);
+      const parentFields = this.fields(selected, path.slice(0, path.lastIndexOf('/')));
+      const supplied = this.contribution(
+        'repairs',
+        {
+          ...this.metadata(selected, path),
+          findingId: finding.id,
+          subjectId: JSON.stringify([finding.location.uri, finding.location.document]),
+          current: node
+            ? { state: 'present', value: immutableJson(node.value) as JsonValue }
+            : { state: 'absent' },
+          required: parentFields.some(
             ({ node }) => Array.isArray(node.required) && node.required.includes(name),
-          )
-        )
-          choices.push({ value: initialValue(fields), label: 'Placeholder; complete this field' });
-      }
+          ),
+        },
+        generation,
+      );
+      const choices = supplied?.proposals ?? [];
       for (const choice of choices.slice(0, 16)) {
         let edit: TextEdit | undefined;
         if (

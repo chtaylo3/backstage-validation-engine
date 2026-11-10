@@ -1,10 +1,12 @@
 # Rule and editor capability plan
 
-Status: design requirements for the next implementation increments. The proposed interfaces below are not implemented plugin APIs.
+Status: phase 2 implements versioned interfaces and host admission for the existing built-in providers.
+The [implemented interface guide](capability-interfaces.md) defines the current records, boundaries, and limitations.
+External executable plugin loading, live refresh, and CEL/RE2 editor contributions remain separate work.
 The current wire contract remains version 0.2. A capability is a function that the host permits a provider to supply.
 This plan covers rule execution and the editor functions that rules can support.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.
-This document supplies capability behavior and conformance requirements. Its interfaces remain unimplemented at the phase 1 documentation checkpoint.
+This document supplies capability behavior and conformance requirements. The phase 1 checkpoint recorded these interfaces as unimplemented.
 
 ## Current implementation and required direction
 
@@ -12,7 +14,8 @@ CEL validation already runs through the managed `bve-cel/1` runtime.
 RE2 already handles CEL `matches` operations and supported schema patterns.
 The current rule union contains `cel`, `schema`, and `catalog`. It has no standalone `re2` or executable-plugin rule kind.
 The editor currently derives field and value hints from trusted schemas and uses the existing catalog provider for references.
-Generic plugin capability negotiation, CEL repair providers, and standalone RE2 rule adapters remain future work.
+Built-in negotiation and lifecycle admission now use `bve-plugin/1`.
+CEL repair contributions, standalone RE2 rule adapters, and arbitrary executable loading remain future work.
 
 Future CEL, RE2, schema, catalog, and approved executable providers must use one set of host contracts.
 CLI, editors, and hosted execution must share validation semantics.
@@ -52,8 +55,8 @@ Every invocation must bind its result to the exact execution context.
 The host must supply immutable input projections and retain source locations and processing history.
 Raw source, network access, filesystem access, and credentials are not implicit provider inputs.
 
-The following TypeScript sketch defines the proposed shape. Named input and output records are specified by the capability table below.
-Production work must add generated JSON Schemas, semantic validation, and protocol tests before exposing these names as APIs.
+The following sketch retains the original design baseline. The implemented [version 1 records](capability-interfaces.md) use independently versioned schemas and semantic admission.
+Their activation, workspace, session, and dependency generations remain distinct. Named function records preserve the requirements in the table below.
 
 ```ts
 type CapabilityId =
@@ -390,7 +393,8 @@ The [phase record](lsp-editor-improvements-implementation-record.md) distinguish
 | 4           | Add CEL and RE2 metadata, finite candidates, applicability, candidate evidence, and guarded repair proposals through qualified runtime paths.                | PC-02, PC-03, PC-04, PC-06, and focused installed-client integration.           |
 | 5, deferred | Improve native Trust automation, qualify installed JetBrains clients, and complete longer final-candidate endurance and release qualification.               | PC-10 and the declared final support/release matrix.                            |
 
-Phases 2 through 4 remain planned. Phase 5 does not start automatically.
+Phase 2 implements the built-in interfaces and awaits its recorded qualification and parent acceptance.
+Phases 3 and 4 remain planned. Phase 5 does not start automatically.
 Built-in adapters and approved declarative artifacts do not require an arbitrary executable plugin loader.
 External executable providers need separate approval, process supervision, permission brokers, and qualified isolation.
 Their future gates include PC-01 through PC-09 and PC-11 for external-data providers.
