@@ -91,6 +91,7 @@ export class CapabilitySession {
     { work: Promise<unknown>; controller: AbortController }
   >();
   private readonly owned = new Set<Promise<unknown>>();
+  private readonly invocations = new Set<Promise<unknown>>();
   private readonly negotiated = new Map<CapabilityId, 'prepared' | 'async'>();
   private disposal: Promise<void> | undefined;
   constructor(
@@ -183,11 +184,21 @@ export class CapabilitySession {
         // A late acquisition still receives cleanup after a timed-out initialization or close.
         void result
           .then(() => {
-            if (this.stopped || this.failed)
-              return bounded(
+            if (this.stopped || this.failed) {
+              const cleanup = bounded(
                 Promise.resolve().then(() => endpoint.dispose()),
                 closeMs,
               );
+              this.owned.add(cleanup);
+              void cleanup.then(
+                () => this.owned.delete(cleanup),
+                () => {
+                  this.owned.delete(cleanup);
+                  this.cleanupFailed = true;
+                },
+              );
+              return cleanup;
+            }
             return undefined;
           })
           .catch(() => {
@@ -214,6 +225,7 @@ export class CapabilitySession {
       failed: this.failed,
       active: this.active.size,
       owned: this.owned.size,
+      invocations: this.invocations.size,
       capabilities: [...this.negotiated.keys()],
     });
   }
@@ -388,7 +400,22 @@ export class CapabilitySession {
     budget.throwIfInterrupted();
     return this.admit(id, result, request, context);
   }
-  async provide<K extends CapabilityId>(
+  provide<K extends CapabilityId>(
+    id: K,
+    input: CapabilityInputs[K] | Immutable<CapabilityInputs[K]>,
+    context: CapabilityInvocation,
+  ): Promise<Immutable<CapabilityResult<K>>> {
+    if (this.stopped || this.failed) return Promise.reject(new CapabilityError('closed'));
+    if (!this.initialized) return Promise.reject(new CapabilityError('unsupported'));
+    const invocation = this.invoke(id, input, context);
+    this.invocations.add(invocation);
+    void invocation.then(
+      () => this.invocations.delete(invocation),
+      () => this.invocations.delete(invocation),
+    );
+    return invocation;
+  }
+  private async invoke<K extends CapabilityId>(
     id: K,
     input: CapabilityInputs[K] | Immutable<CapabilityInputs[K]>,
     context: CapabilityInvocation,
@@ -435,14 +462,17 @@ export class CapabilitySession {
     } finally {
       if (abort) budget.signal.removeEventListener('abort', abort);
       if (budget.signal.aborted) {
+        const cancelling = Promise.resolve().then(() => this.endpoint.cancel(request.invocationId));
+        this.owned.add(cancelling);
+        void cancelling.then(
+          () => this.owned.delete(cancelling),
+          () => {
+            this.owned.delete(cancelling);
+            this.cleanupFailed = true;
+          },
+        );
         try {
-          const outcomes = await bounded(
-            Promise.allSettled([
-              work,
-              Promise.resolve().then(() => this.endpoint.cancel(request.invocationId)),
-            ]),
-            this.closeMs,
-          );
+          const outcomes = await bounded(Promise.allSettled([work, cancelling]), this.closeMs);
           if (outcomes[1]?.status === 'rejected') {
             this.failed = true;
             this.cleanupFailed = true;
@@ -461,17 +491,33 @@ export class CapabilitySession {
     this.stopped = true;
     for (const { controller } of this.active.values()) controller.abort();
     this.disposal = (async () => {
-      const outcomes = await Promise.allSettled([
-        bounded(Promise.allSettled([...this.owned]), this.closeMs),
-        bounded(
-          this.ready.catch(() => undefined).then(() => this.endpoint.dispose()),
-          this.closeMs,
+      const deadline = performance.now() + this.closeMs;
+      const drain = async () => {
+        while (this.invocations.size || this.owned.size) {
+          await bounded(
+            Promise.allSettled([...this.invocations, ...this.owned]),
+            deadline - performance.now(),
+          );
+        }
+      };
+      const outcomes: PromiseSettledResult<unknown>[] = [];
+      outcomes.push(
+        await drain().then(
+          (value) => ({ status: 'fulfilled' as const, value }),
+          (reason: unknown) => ({ status: 'rejected' as const, reason }),
         ),
-        bounded(
-          this.ready.catch(() => undefined),
-          this.closeMs,
+      );
+      // Final disposal follows cancellation acknowledgement. It still runs after a failed drain.
+      const finalizing = bounded(
+        this.ready.catch(() => undefined).then(() => this.endpoint.dispose()),
+        deadline - performance.now(),
+      );
+      outcomes.push(
+        await finalizing.then(
+          (value) => ({ status: 'fulfilled' as const, value }),
+          (reason: unknown) => ({ status: 'rejected' as const, reason }),
         ),
-      ]);
+      );
       if (this.cleanupFailed || outcomes.some((outcome) => outcome.status === 'rejected'))
         throw new CapabilityError('cleanup');
     })();

@@ -135,7 +135,21 @@ An isolated compiled-copy negative control replaced that host projection with ge
 The fault result is retained under `.artifacts/lsp-editor-improvements/phase2/negative-budget/` and does not qualify a product candidate.
 No coverage threshold or existing product assertion was lowered.
 
-The full gate will use a clean committed checkout because the unrelated user-owned review remains unformatted and untracked in the shared workspace.
+Candidate `e2fe020` completed an initial full source run with one existing native corpus failure.
+That run reported 1,000 passed and one failed case. Sixteen corpus child cases were not reached after the parent assertion failed.
+The native case returned two of eight entities. Its unchanged isolated rerun passed all 17 cases.
+The cause remains unexplained. Neither this observation nor the dependency-link layout establishes a cause.
+The failed gate and isolated pass remain under `.artifacts/lsp-editor-improvements/phase2/e2fe020-initial-gate/`.
+
+Parent review then reproduced a separate cancellation ownership race in `e2fe020`.
+The corrected session retains each whole invocation through its cancellation finalizer, including cleanup that starts after close begins.
+Close drains current owners and finalizers before provider disposal. Rejected cleanup prevents successful retirement.
+Gate-based tests cover caller cancellation, close-triggered cancellation, and rejected cancellation acknowledgement.
+A retained negative control confirms that the original close resolved while cancellation remained unsettled.
+That control released its gate and remains under `.artifacts/lsp-editor-improvements/phase2/negative-finalizer/`.
+The corrected conformance file passed all 24 of its cases.
+
+The final gate will use a clean committed checkout because the unrelated user-owned review remains unformatted and untracked in the shared workspace.
 That file and the separate planning repository remain untouched.
 
 ### Committed candidate qualification

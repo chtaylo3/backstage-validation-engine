@@ -545,6 +545,85 @@ void test('a failed cancellation acknowledgement poisons the generation even aft
   await assert.rejects(session.close(), code('cleanup'));
 });
 
+void test('close owns cancellation finalizers that start before or after close and reports failed cleanup', async () => {
+  for (const mode of ['caller-cancel', 'close-cancel', 'failed-cancel'] as const) {
+    const f = fixture('hover', { mode: 'async', closeMs: 1000 });
+    let entered!: () => void,
+      cancelEntered!: () => void,
+      release!: () => void,
+      fail!: (error: Error) => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const cancelling = new Promise<void>((resolve) => {
+      cancelEntered = resolve;
+    });
+    const gate = new Promise<void>((resolve, reject) => {
+      release = resolve;
+      fail = reject;
+    });
+    let cancellationSettled = false,
+      closeSettled = false;
+    f.endpoint.provide = (_request, { signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('Owned work cancelled.')), {
+          once: true,
+        });
+        entered();
+      });
+    f.endpoint.cancel = () => {
+      cancelEntered();
+      return gate.finally(() => {
+        cancellationSettled = true;
+      });
+    };
+    f.endpoint.dispose = () => {
+      assert.equal(
+        cancellationSettled,
+        true,
+        'Provider disposal follows the invocation finalizer.',
+      );
+    };
+    const session = f.create(),
+      controller = new AbortController();
+    const operation = session.provide('hover', metadata, {
+      ...f.context(),
+      deadlineAt: Date.now() + 5000,
+      signal: controller.signal,
+    });
+    await started;
+    if (mode !== 'close-cancel') controller.abort();
+    const closing = session.close();
+    void closing.then(
+      () => {
+        closeSettled = true;
+      },
+      () => {
+        closeSettled = true;
+      },
+    );
+    try {
+      await cancelling;
+      await pause(0);
+      assert.equal(cancellationSettled, false);
+      assert.equal(closeSettled, false);
+      assert.equal(session.status.invocations, 1);
+      if (mode === 'failed-cancel') fail(new Error('Cancellation cleanup failed.'));
+      else release();
+      await assert.rejects(operation, code('cancelled'));
+      if (mode === 'failed-cancel') await assert.rejects(closing, code('cleanup'));
+      else await closing;
+      assert.equal(cancellationSettled, true);
+      assert.equal(session.status.active, 0);
+      assert.equal(session.status.invocations, 0);
+      assert.equal(session.status.owned, 0);
+    } finally {
+      release();
+      await Promise.allSettled([operation, closing]);
+    }
+  }
+});
+
 void test('a caller cannot wait outside its budget while initialization remains pending', async () => {
   const f = fixture();
   let complete!: (value: unknown) => void;

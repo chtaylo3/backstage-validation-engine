@@ -115,11 +115,12 @@ Discovery contains at most 1,000 identities. Existing catalog, source, and CEL l
 Every invocation uses its original deadline and cancellation signal through `RequestBudget`.
 The host rejects calls until asynchronous initialization completes through `whenReady()`.
 Calls cannot wait outside admission while initialization remains pending.
-Cancellation drains owned work before reuse. Failed cancellation cleanup makes that provider generation unavailable.
+Cancellation drains owned work and the complete invocation finalizer before reuse. Failed cancellation cleanup makes that provider generation unavailable.
 An asynchronous return from a prepared provider is a protocol error. The host cancels and retains that work until retirement.
 
 `close()` rejects new calls immediately, cancels active work, attempts provider disposal, and waits within its configured cleanup bound.
 The maximum cleanup bound is five seconds. Hosts can lower it.
+Close includes cancellation acknowledgements that begin after close starts. Final provider disposal follows those acknowledgements.
 An uncooperative invocation makes close fail. It cannot survive a successful close through untracked ownership.
 An initialization that acquires a resource after a failed bounded close still receives disposal.
 Disposal is idempotent. Failed cleanup does not restore the provider generation.
