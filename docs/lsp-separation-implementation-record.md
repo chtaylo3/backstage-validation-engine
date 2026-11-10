@@ -210,3 +210,58 @@ This environment did not provide a successful SSH remote connection. That lane r
 The WSL remote harness requires a Windows desktop process; this checkout runs as a Linux process.
 Native Windows/macOS, hosted release runs, twenty race repetitions, and long release soaks were not executed here.
 Their separate release requirements and existing thresholds remain unchanged.
+
+## Independent review and verification
+
+Independent review started at `3f5d328`. The starting quality gate passed 975 source tests and 42 client tests.
+Two regression cases then established defects before correction.
+A current clean validation could leave findings from an older document lifetime visible.
+Commit `8da9087` separates validation publication from lifecycle clears.
+A clean validation replaces older findings. Close, rename, and exclusion clears still check their captured document lifetime.
+The regression also checks that an older lifetime cannot clear newer findings, even with a later global generation.
+The import checker missed literal loads through an aliased or namespaced Node `createRequire` factory.
+Commit `831e809` recognizes those factories. The existing negative import fixture now covers both forms.
+The initial regression run failed both cases. After correction, the focused owner, architecture, diagnostic, filesystem, and reload run passed 73 assertions.
+No other blocking defect was found in the reviewed ownership, request freshness, catalog admission, schema loading, and protocol paths.
+Fresh CLI and Linux x64 VSIX packages were built from clean commit `831e8090d6a12bdd9d871310e45be3969c2b6f26`.
+The following independent runs include both review fixes. They do not reuse the subagent's earlier packages.
+
+| Check                               | Result                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| `npm run check`                     | 976 source tests and 42 client tests pass; no failures or skips                               |
+| Client coverage                     | 100% lines and 95.88% branches; unchanged 90% and 85% thresholds                              |
+| `npm run test:packaged`             | All 976 tests pass with the fresh packaged runtime and server; no skips                       |
+| `npm run test:extension` under Xvfb | All 88 installed executions pass on VS Code 1.106.3 and 1.145.2, Linux x64                    |
+| Import-boundary regression          | Aliased and namespaced factories cannot bypass literal-load checks                            |
+| Diagnostic-lifetime regression      | Current clean results clear older findings; stale lifecycle clears cannot erase newer results |
+
+### Independent performance comparison
+
+The first review run crossed cold-readiness and reload tolerances when compared with the earlier historical measurements.
+The repeat used an isolated Git archive of `fdac6f6`, the corrected current harness, and the same locked dependencies.
+Baseline and reviewed measurements ran sequentially under current machine conditions after the installed suite completed.
+Node version, platform, architecture, adapter, fixture digest, and measurement policy match.
+The branch and thresholds were not changed. The new baseline was slower than the earlier historical baseline.
+
+| Scenario                      | Fresh baseline p95 ms | Reviewed p95 ms | Increase ms | Threshold crossed |
+| ----------------------------- | --------------------- | --------------- | ----------- | ----------------- |
+| `coldReadiness`               | 354.952               | 414.997         | +60.045     | No                |
+| `singleFileValidation`        | 10.280                | 9.329           | -0.952      | No                |
+| `rapidEditConvergence`        | 9.650                 | 10.891          | +1.240      | No                |
+| `reloadAndShutdown`           | 5.785                 | 8.093           | +2.308      | No                |
+| `localCompletionWithHeldHttp` | 1.706                 | 1.050           | -0.656      | No                |
+| `watchedCaptureWithOverlay`   | 12.387                | 11.604          | -0.783      | No                |
+
+The paired repeat crosses no recorded threshold. Original and repeat measurements remain available for review.
+The independent logs, inventories, installed report, package digests, and comparisons are under ignored `.artifacts/lsp-separation/parent-review-831e809/`.
+The package digests for this reviewed candidate are:
+
+| Package                                                               | SHA-256                                                            |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `.artifacts/vscode/backstage-validation-engine-0.1.0-linux-x64.vsix`  | `0a878c4215501e498602197490666f6aa71e85728c67727565f7e98e4b1f4cd1` |
+| `.artifacts/cli/chtaylo3-backstage-validation-engine-0.1.0-dev.0.tgz` | `f7c4100def8c51f0a8312785d734e51a70e8464d4d01638749d900ba3f3e38ca` |
+
+These independent runs qualify the stated Linux checks.
+The earlier Backstage, dev-container, compatibility, and load results above retain their recorded source revisions.
+Those lanes, SSH, native Windows/macOS, and hosted release qualification were not repeated for the review fixes.
+The prior SSH preflight limitation remains unresolved. No remote branch or pull request was changed.
