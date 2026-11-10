@@ -407,6 +407,8 @@ The phase 2 interfaces carry field, value, hover, and logical repair contributio
 The host matches repair proposals against its candidate evidence before using the existing single-document guarded command path.
 Structured includes retain actual payload ranges. Ambiguous mappings and alias targets do not produce repairs.
 The new installed case combines CEL and schema RE2, candidate-only catalog additions/removals, stale-token rejection, and post-edit validation.
+Its catalog, CEL, and schema checks are independent required rules.
+Prerequisite-dependent candidate acceptance and rejection use separate direct controls with both backend contracts.
 
 ### Development checks and corrections
 

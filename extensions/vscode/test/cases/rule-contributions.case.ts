@@ -24,7 +24,7 @@ export async function run(fixture: Fixture): Promise<void> {
     (await choices()).some((item) => item.label === name && item.detail?.includes('Checked rule'));
   await until(
     () => checked('remote-team'),
-    'CEL and RE2 candidates pass the real catalog prerequisite',
+    'CEL and RE2 candidates pass the required catalog check',
   );
   assert(!(await checked('remote-missing')), 'A pattern match cannot prove catalog existence.');
   const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
