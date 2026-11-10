@@ -269,3 +269,14 @@ Repeated denial remains latched until successful reconciliation, so it cannot co
 Tests first establish a ready cached query and a valid guarded action, then observe denial before the old body TTL expires.
 The old action never reaches client edit dispatch. Authorized-view filtered missing responses retain their separate semantics.
 The hardened focused suite passed 24 tests before the final clean gates below.
+
+The first hardened candidate was `e986072c55eebbcb50dcf484c389498271ee34ef`.
+Its full source gate reported 1040 passes and two failure records for one failed child and its parent.
+The unchanged one-shot 403 regression expected the initial dependency warning.
+Unconditional denial invalidation cancelled that initial run before any prior remote claims existed.
+A succeeding replacement lookup then hid the warning. This was an implementation regression.
+The correction latches initial denial and publishes it honestly. Immediate invalidation only revokes previously established remote claims.
+The failed gate remains retained separately. No existing assertion or deadline was changed.
+
+The corrected focused selection passed 77 refresh and existing LSP tests with no failures, cancellations, or skips.
+The original initial-403 assertion remains unchanged and passes.

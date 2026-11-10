@@ -48,6 +48,7 @@ export class CatalogRefresh {
   private failures = 0;
   private queryFailed = false;
   private denied = false;
+  private hasClaims = false;
   private observedAt = 0;
   private expiresAt = Infinity;
   private references = new Set<string>();
@@ -166,6 +167,7 @@ export class CatalogRefresh {
     this.prune();
     if (this.closed || this.busy || (!this.references.size && !this.queries.size)) return;
     this.claimsExpireAt = Infinity;
+    this.hasClaims = false;
     this.revision++;
     this.fresh = true;
     this.expiresAt = Infinity;
@@ -176,6 +178,8 @@ export class CatalogRefresh {
   private denyAuthority(): void {
     if (this.closed || this.denied) return;
     this.denied = true;
+    if (!this.hasClaims) return;
+    this.hasClaims = false;
     this.timer?.();
     this.timer = undefined;
     this.due = Infinity;
@@ -271,6 +275,7 @@ export class CatalogRefresh {
     if (this.closed || revision !== this.revision || execution.signal?.aborted)
       throw new Error('Catalog observation is stale.');
     row.report = report;
+    if (report.status === 'ready') this.hasClaims = true;
     if (report.status === 'unavailable') {
       this.queryFailed = true;
       if (!this.busy) this.failures++;
@@ -328,6 +333,7 @@ export class CatalogRefresh {
               )
             )
               this.denyAuthority();
+            else this.hasClaims ||= report.data.entries.some((row) => row.status !== 'unavailable');
             reports.push(report);
             return report;
           } catch (error) {
@@ -356,6 +362,7 @@ export class CatalogRefresh {
               report.data.entries.some((row) => row.status === 'unavailable'),
           );
           this.failures = failed ? this.failures + 1 : 0;
+          this.hasClaims ||= entries.some((row) => row.status !== 'unavailable');
           this.observedAt = this.time.now();
           this.expiresAt = Math.min(
             Infinity,
