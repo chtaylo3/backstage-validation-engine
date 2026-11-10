@@ -440,6 +440,16 @@ Array index 0 supplies checked completion, hover, and a logical repair. A siblin
 Boolean `true` placeholders also prevent false rule provenance in sibling hover.
 Boundary controls accept index 255 and suppress index 256. Whole-array replacement and appends remain unsupported.
 
+The array-capable checkpoint `aae421f` passed 1074 source, 42 client, and 1074 packaged tests.
+Its first two installed contribution executions failed a new hover assertion.
+An unchanged-meaning readiness check in `7710d23` still failed on both editor pins.
+Raw installed probes established two test-reader errors: hover content properties are not enumerable, and plain-text conversion encodes display spaces as `&nbsp;`.
+The test now reads `content.value` and normalizes only that display-space encoding before comparing the same required phrase.
+The existing 20-second readiness bound remains unchanged. No product budget or assertion meaning changed.
+An instrumented development probe on VS Code 1.145.2 then completed catalog changes, stale-token rejection, current repair application, and post-edit validation.
+The raw failures, product binaries, instrumented test bundles, and response probes remain in separate ignored evidence directories.
+Final qualification uses the committed, uninstrumented test on both editor pins.
+
 Focused development results include 15 direct contribution cases and ten protocol cases with no failures or skips.
 An additional stdio control exposed reference completion returning before declared rule hints.
 The host now merges prepared rule hints with reference choices. Both backend contracts pass the repair and post-edit round trip.

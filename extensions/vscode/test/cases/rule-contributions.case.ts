@@ -33,7 +33,13 @@ export async function run(fixture: Fixture): Promise<void> {
       fixture.uri,
       new vscode.Position(6, 3),
     );
-    return hover?.some((row) => JSON.stringify(row.contents).includes('Remote ownership rule'));
+    return hover?.some((row) =>
+      row.contents.some((content) =>
+        (typeof content === 'string' ? content : content.value)
+          .replaceAll('&nbsp;', ' ')
+          .includes('Remote ownership rule'),
+      ),
+    );
   }, 'Prepared rule hover remains available after dependency refresh');
   await fixture.control({ op: 'add-refresh' });
   await until(
