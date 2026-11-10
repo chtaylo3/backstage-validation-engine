@@ -125,7 +125,7 @@ An uncooperative invocation makes close fail. It cannot survive a successful clo
 An initialization that acquires a resource after a failed bounded close still receives disposal.
 Disposal is idempotent. Failed cleanup does not restore the provider generation.
 
-## Deferred implementation and qualification
+## Live dependencies and remaining qualification
 
 Phase 3 implements host-owned polling and remote-only revalidation through `CatalogRefresh`.
 The session passes its dependency generation into validation, editor metadata, and catalog search bindings.

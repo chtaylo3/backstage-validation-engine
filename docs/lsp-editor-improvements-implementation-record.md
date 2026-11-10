@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                   | Parent acceptance                |
-| ----------------------------------------------- | ----------------------- | -------------------------------- |
-| 1: documentation                                | Accepted                | Accepted by parent               |
-| 2: contracts and built-in adapters              | Accepted                | Accepted by parent parent review |
-| 3: live catalog refresh                         | Implemented, qualifying | Pending parent review            |
-| 4: CEL and RE2 contributions                    | Not implemented         | Requires accepted phase 3        |
-| 5: client reliability and release qualification | Deferred by the user    | Requires future authorization    |
+| Phase                                           | State                          | Parent acceptance                |
+| ----------------------------------------------- | ------------------------------ | -------------------------------- |
+| 1: documentation                                | Accepted                       | Accepted by parent               |
+| 2: contracts and built-in adapters              | Accepted                       | Accepted by parent parent review |
+| 3: live catalog refresh                         | Implemented, locally qualified | Pending parent review            |
+| 4: CEL and RE2 contributions                    | Not implemented                | Requires accepted phase 3        |
+| 5: client reliability and release qualification | Deferred by the user           | Requires future authorization    |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -298,3 +298,84 @@ The `502d3a4dd42341d1dd9b64796ce411eac1bcbdf4` full gate stopped at lint before 
 The new denial-recovery control used arithmetic on a value narrowed to `never` by assertion signatures.
 The test now captures that counter as an explicit number. The production implementation is unchanged by this correction.
 The failed lint output remains retained. The final full gate uses the corrected committed test input.
+
+### Final phase 3 qualification
+
+Qualified source and test revision: `d6dada9b197a8e8b68a94707ad2f2a3680888224`.
+The last production implementation change is `502d3a4dd42341d1dd9b64796ce411eac1bcbdf4`. The next commit corrects a test counter and records evidence.
+Later documentation-only commits do not identify a different tested product.
+The clean qualification checkout is `/tmp/bve-lsp-phase3-qualified`.
+It uses a real matching `npm ci --ignore-scripts` installation, with no dependency-directory symlink.
+
+| Command or check                                                                | Result                                                                                                                                                   |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_SHA=d6dada9b197a8e8b68a94707ad2f2a3680888224 npm run check`             | 1044 source tests and 42 client tests passed. No failures, cancellations, or skips. Architecture, types, lint, formatting, and generated schemas passed. |
+| Client coverage in the same gate                                                | 100% lines and 95.88% branches. Existing 90% line and 85% branch thresholds remain unchanged.                                                            |
+| `GITHUB_SHA=d6dada9b197a8e8b68a94707ad2f2a3680888224 npm run extension:package` | Linux x64 VSIX built with Node 24.22.1. Build metadata identifies the exact qualified revision.                                                          |
+| `npm run test:packaged`                                                         | 1044 tests passed through the packaged runtime and CLI/LSP entry points. No failures, cancellations, or skips.                                           |
+| `npm run test:extension -- --case=<case>` under Xvfb                            | Six cases passed on VS Code 1.106.3 and 1.145.2. The retained final reports contain 12 successful executions.                                            |
+
+The installed cases are `catalog-refresh`, `editor-intelligence`, `reference-completion`, `editor-search`, `diagnostics`, and `versioned-fix`.
+GUI launches remove inherited `ELECTRON_RUN_AS_NODE`, `BVE_LSP_CONFIG`, and `BVE_MANUAL_CATALOG_TOKEN` values.
+Each test uses the installed VSIX and a fresh editor profile.
+The first installed loop passed all cases but copied the wrong results directory during evidence collection.
+Its collection command failed. The unchanged installed tests ran again with the correct `editor-focused` report path.
+The record retains the initial logs and the final complete reports. No test assertion, timeout, or product changed between those installed runs.
+
+The VSIX contains 52,064,547 bytes.
+Its SHA-256 is `36564bc8ca0f32ad53939961bfc15c8db3fca5f99578562bd91ac497b529f3e6`.
+The client SBOM contains nine components. Its third-party notices match the earlier qualified dependency inventory.
+The current client notice SHA-256 is `26a9459ad12db5d8eb1b19a1027eb934cdf09172afcfa69a70e10aac0adba229`.
+
+Artifacts are retained under `.artifacts/lsp-editor-improvements/phase3/d6dada9/`.
+They include `qualification-summary.json`, `candidate.json`, gate logs, source/client/packaged inventories, the focused log, primary-source review files, and six installed-report directories.
+Every final installed report identifies the same qualified revision and VSIX digest.
+Earlier candidate reports remain in their separate revision directories.
+
+### Phase 3 acceptance criteria
+
+| Criterion | Evidence and scope                                                                                                                                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-A1     | Mutable HTTP/stdin cases add, remove, rename, and modify teams on both backend contracts. Version 7 and source content remain unchanged. The installed case adds and removes remote teams without edits, saves, or reloads.                                                                             |
+| P3-A2     | A remote addition clears the prior missing finding. Empty-query and negative lookup results cannot hide the new team. Query-only sessions exercise this without opening a document.                                                                                                                     |
+| P3-A3     | Real body lookup reports missing after removal. Matching remote choices disappear. Rules without an existence requirement do not acquire speculative missing findings.                                                                                                                                  |
+| P3-A4     | The old identity disappears and the renamed identity appears. No authored value or document version changes. No automatic client edit occurs.                                                                                                                                                           |
+| P3-A5     | A real full-body child-list modification changes the observed dependency digest at the same identity. Fresh body reads and same-version publication prove reevaluation even when the rule outcome stays the same.                                                                                       |
+| P3-A6     | Current same-version diagnostics replace or clear previous findings. Aborted late query replies reject before cache admission. Existing coordinator, request-context, publisher, and lifetime regressions remain intact.                                                                                |
+| P3-A7     | Expiry and observed remote invalidation revoke a previously offered repair before `workspace/applyEdit`. A fresh explicit query denial also revokes it before the old body TTL expires.                                                                                                                 |
+| P3-A8     | Normalized authority mismatches reject before cache reuse or shared work. Explicit denial revokes established claims, initial denial stays visible, and repeated denial cannot continuously cancel recovery. Permission-filtered absence has the limitation below.                                      |
+| P3-A9     | Live deletion, invalid replacement, and conflict masks retain precedence over remote results. Local choices remain usable during explicit remote denial.                                                                                                                                                |
+| P3-A10    | Deterministic clock tests establish cadence, observation expiry, a positive scheduling floor, zero-age bypass semantics, bounded recent scopes and references, and exponential backoff. Existing provider regressions retain batching, queue, response, and transport bounds.                           |
+| P3-A11    | Local source additions reached same-version results in 259 ms on each backend contract at a 250 ms target interval. Packaged observations took 260 ms and 261 ms. Installed additions took 397 ms and 426 ms at a 500 ms interval. A held advisory query cannot delay timely required body diagnostics. |
+| P3-A12    | Reload, invalid preparation, cleanup failure, and shutdown suspend refresh immediately. The failed-reload control proves timer cancellation, rejected cached requests, signalled entered reads, and rejected late replies. Existing CLI tests retain single-run behavior.                               |
+| P3-A13    | Mutable HTTP fixtures exercise both supported catalog contracts. The installed remote-only case runs on both VS Code pins against the 1.55.3 fixture contract.                                                                                                                                          |
+| P3-A14    | The final full source/client gate, packaged harness, and six focused installed cases pass with existing thresholds and assertions.                                                                                                                                                                      |
+
+The installed refresh case made five catalog requests per editor execution across its addition and removal sequence.
+The second catalog fixture remained unused in that installed case. The stdio matrix separately exercises both contracts.
+These observations qualify the tested local conditions. They are not hard latency or traffic guarantees for arbitrary deployments.
+Healthy targets include cadence, configured debounce, and one admitted request budget.
+Outages, queue pressure, bounded backoff, and expired observations retain explicit incomplete state rather than fresh claims.
+
+### Verified permission-filtering limitation
+
+The review concern about filtered permission denial was verified against both pinned primary sources.
+The [1.55.3 authorization implementation](https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/service/AuthorizedEntitiesCatalog.ts) and [1.56.3 authorization implementation](https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/service/AuthorizedEntitiesCatalog.ts) filter denied entity reads into null batch entries or empty query results.
+The pinned [router](https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/service/createRouter.ts) and [response writer](https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/service/response/write.ts) map an empty by-name result to not found.
+
+An HTTP 403 or credential binding failure is observable explicit denial. The fixture uses that separate path for denial and recovery controls.
+Permission-framework filtering can instead look like authorized-view absence.
+The engine cannot distinguish that response from global deletion through these endpoints.
+A missing-reference finding therefore establishes missing from the approved view, not global nonexistence.
+This phase does not add a permission broker or a new backend authorization protocol.
+
+### Handoff to parent and phase 4
+
+Phase 3 is implemented and locally qualified. Parent acceptance remains pending.
+`SessionGeneration.refresh` owns polling, `generation`, `ensureFresh()`, `begin()`, `refreshQueries()`, `suspend()`, and cleanup.
+The session passes the dependency generation into validation, schema/editor contributions, and catalog search capability bindings.
+The coordinator invalidates current metadata, remote queries, guarded repairs, and publication before remote collection.
+Future rule contributions must retain these generation, authority, data, source, and expiry guards.
+Facts introduced only by a proposed candidate still need their own authorized collection and eligibility evidence in phase 4.
+No CEL/RE2 editor contribution, optional event adapter, external executable loader, or publication is implemented by phase 3.
+Phase 5 remains deferred. This candidate has no new cross-OS, remote-client, JetBrains, native Trust, or endurance qualification.
