@@ -355,7 +355,8 @@ The rerun retained the same assertions and time bounds. The original logs, scree
 This rerun does not establish a fix for native Trust UI reliability.
 
 The separate [post-merge CI run](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42755077373) targets the merge commit.
-At this phase 1 documentation checkpoint, it was still running with no failed jobs and Windows installed-editor work pending.
+It passed at merge commit `d2e54748dbd34e9f1e881c2abf77689cf197b40f` before the parent accepted phase 1 documentation.
+The earlier phase 1 agent checkpoint observed its Windows installed-editor job still running.
 Its status is separate from the successful exact-head qualification above.
 
 These runs qualify the stated native VS Code and remote-workspace checks for the tested head.

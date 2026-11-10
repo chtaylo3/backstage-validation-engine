@@ -6,13 +6,13 @@ Plan commit `4b34f78` defines the authorized scope and acceptance criteria.
 
 ## Phase state
 
-| Phase                                           | State                              | Parent acceptance             |
-| ----------------------------------------------- | ---------------------------------- | ----------------------------- |
-| 1: documentation                                | Implemented, pending parent review | Pending                       |
-| 2: contracts and built-in adapters              | Not implemented                    | Requires accepted phase 1     |
-| 3: live catalog refresh                         | Not implemented                    | Requires accepted phase 2     |
-| 4: CEL and RE2 contributions                    | Not implemented                    | Requires accepted phase 3     |
-| 5: client reliability and release qualification | Deferred by the user               | Requires future authorization |
+| Phase                                           | State                | Parent acceptance             |
+| ----------------------------------------------- | -------------------- | ----------------------------- |
+| 1: documentation                                | Accepted             | Accepted by parent            |
+| 2: contracts and built-in adapters              | Not implemented      | Requires accepted phase 1     |
+| 3: live catalog refresh                         | Not implemented      | Requires accepted phase 2     |
+| 4: CEL and RE2 contributions                    | Not implemented      | Requires accepted phase 3     |
+| 5: client reliability and release qualification | Deferred by the user | Requires future authorization |
 
 SQS, Kafka, durable hosted governance, and authoritative GitHub publication remain outside these editor phases.
 Arbitrary executable plugin loading also remains outside phases 1 through 4.
@@ -22,7 +22,7 @@ Each phase requires parent review before the next implementation starts.
 
 Implementation date: 2026-11-09, America/New_York time.
 This phase changes documentation only. It preserves historical checkpoints and separates current results from remaining qualification.
-The phase implementation commit will be recorded in the parent acceptance entry after local commit and review.
+Implementation commit: `202dac4920d471118f45783d219e4a31b153b862`.
 
 The separation plan now identifies phases 0 through 9 as implemented and merged in PR #2.
 The separation record contains the tested head, merge commit, native/remote results, candidate digests, and retained macOS failure.
@@ -64,5 +64,9 @@ Existing product results above belong to their stated source revisions.
 
 ### Parent acceptance
 
-Pending. The parent must accept this documentation commit before phase 2 implementation starts.
-Phases 2 through 4 remain unimplemented. Phase 5 remains deferred.
+Accepted by the parent after reviewing all ten changed documents and repeating scoped formatting and diff checks.
+The parent matched the canonical hosted summary against retained candidate counts and digests.
+The parent also inspected local Markdown targets and anchors.
+The post-merge CI run subsequently passed at merge commit `d2e54748dbd34e9f1e881c2abf77689cf197b40f`.
+All P1 acceptance criteria are satisfied. Phase 2 is admitted for implementation.
+Phases 2 through 4 remain unimplemented at this review checkpoint. Phase 5 remains deferred.
