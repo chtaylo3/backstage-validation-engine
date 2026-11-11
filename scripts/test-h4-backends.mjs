@@ -1,5 +1,7 @@
 // Focused H4 controls. This command never launches an editor or release-wide workload.
 import assert from 'node:assert/strict';
+import { createServer } from 'node:net';
+import { once } from 'node:events';
 import { performance } from 'node:perf_hooks';
 import { randomBytes, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
@@ -225,6 +227,15 @@ if (!selected) {
     await renderSeed(baseSeed, catalogDirectory);
     await docker(['volume', 'create', '--label', 'io.bve.integration.run=' + runId, stateVolume]);
     volumeCreated = true;
+    const reservation = createServer();
+    reservation.listen(0, '127.0.0.1');
+    await once(reservation, 'listening');
+    const address = reservation.address();
+    assert(address && typeof address !== 'string');
+    const selectedPort = address.port;
+    await new Promise((resolve, reject) =>
+      reservation.close((error) => (error ? reject(error) : resolve())),
+    );
     await docker([
       'run',
       '--detach',
@@ -236,7 +247,7 @@ if (!selected) {
       '--env-file',
       envFile,
       '--publish',
-      '127.0.0.1::7007',
+      '127.0.0.1:' + selectedPort + ':7007',
       '--mount',
       'type=volume,src=' + stateVolume + ',dst=/state',
       '--mount',
