@@ -92,7 +92,8 @@
     "backstage:test:editor": "node scripts/backstage-test-env.mjs editor",
     "test:backstage:development": "node scripts/backstage-test-env.mjs development",
     "test:backstage:release": "node scripts/backstage-test-env.mjs release",
-    "architecture:check": "node scripts/architecture-boundaries.mjs"
+    "architecture:check": "node scripts/architecture-boundaries.mjs",
+    "test:cel-go": "npm run test:compile && node scripts/compare-cel-go.mjs"
   },
   "overrides": {
     "minimatch": "11.0.1",
@@ -117,6 +118,8 @@
     "@types/vscode": "1.145.0",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.1.0",
+    "ajv-draft-04": "1.0.0",
+    "ajv-formats": "3.0.1",
     "esbuild": "0.28.2",
     "eslint": "10.13.0",
     "prettier": "3.9.10",

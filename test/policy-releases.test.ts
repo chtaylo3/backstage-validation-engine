@@ -125,9 +125,27 @@ void test('release signature rejects payload tampering across policy/profile/act
     { ...f.release, signature: { ...f.release.signature, algorithm: 'none' } },
     { ...f.release, keys: f.trust.keys },
   ];
+  const expected = [
+    ['integrity', '/signature', 'release signature verification failed'],
+    ['integrity', '/signature', 'release signature verification failed'],
+    ['integrity', '/signature', 'release signature verification failed'],
+    ['integrity', '/signature', 'release signature verification failed'],
+    ['integrity', '/signature', 'release key is not trusted'],
+    ['invalid_contract', '/signature/algorithm', 'must be equal to constant'],
+    ['invalid_contract', '', 'must NOT have additional properties'],
+  ] as const;
   for (const [index, release] of variants.entries())
     await t.test(String(index), () =>
-      assert.throws(() => verifyPolicyRelease(release, f.trust, f.now), ContractError),
+      assert.throws(
+        () => verifyPolicyRelease(release, f.trust, f.now),
+        (error: unknown) => {
+          assert(error instanceof ContractError);
+          const [code, path, message] = expected[index]!;
+          assert.equal(error.code, code);
+          assert(error.issues.some((issue) => issue.path === path && issue.message === message));
+          return true;
+        },
+      ),
     );
   const impostor = releaseFixture();
   assert.throws(() => verifyPolicyRelease(impostor.release, f.trust, f.now), /signature/);

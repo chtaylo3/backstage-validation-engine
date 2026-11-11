@@ -1,0 +1,27 @@
+{
+  "license": "Apache-2.0 for independently authored YAML/CEL controls; RFC vector bytes under IETF Trust Legal Provisions, BCP 78.",
+  "yaml": {
+    "source": "https://yaml.org/spec/1.2.2/#1032-tag-resolution",
+    "revision": "1.2.2, sections 10.3.2 and 6.9.1",
+    "attribution": "YAML Language Development Team. Authored short inputs follow the core-schema resolution table. The specification is not vendored."
+  },
+  "canonicalJson": {
+    "source": "https://www.rfc-editor.org/rfc/rfc8785.html",
+    "sections": [
+      "3.2.2.3",
+      "3.2.3",
+      "Appendix B"
+    ],
+    "copyright": "Copyright (c) 2020 IETF Trust and the persons identified as the document authors. All rights reserved.",
+    "license": "https://trustee.ietf.org/license-info",
+    "profile": "Only finite safe integral numbers and finite fractional numbers are admitted. This is not full RFC 8785."
+  },
+  "ed25519": {
+    "source": "https://www.rfc-editor.org/rfc/rfc8032.html#section-7.1",
+    "copyright": "Copyright (c) 2017 IETF Trust and the persons identified as the document authors. All rights reserved.",
+    "license": "https://trustee.ietf.org/license-info",
+    "publicKeyHex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    "messageHex": "",
+    "signatureHex": "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+  }
+}

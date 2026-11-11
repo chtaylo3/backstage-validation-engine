@@ -1,0 +1,257 @@
+{
+  "draft7Revision": "245a45abc90190c0bff04d97e6d2b541b4bb9f12",
+  "files": [
+    {
+      "path": "draft7/type.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/type.json",
+      "sha256": "091aa31e688df20891de7884878b527745ddac0a3ced6d19a5ea4aa075dbbe00",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/required.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/required.json",
+      "sha256": "66946289772a5e931835060187b18e63bc215fbebf981b2d40d1c945145676f4",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/const.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/const.json",
+      "sha256": "65d2b152fbbbdd3291beb3dcc048dea1644acf3c59c68b5f72f521b5a927fcf9",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/enum.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/enum.json",
+      "sha256": "069890108f4f83e62c9be9f42af63b5de911555e6644d83cd89c08ff644a43bb",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/properties.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/properties.json",
+      "sha256": "b8246287c2b214d0e17ed4b1904b92cfde803d52546a901ce123a7ecce5b75cb",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/additionalProperties.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/additionalProperties.json",
+      "sha256": "6ab2e5091d2d75fc047767b42cafdb493b67f2559b05bf33202a154363824b4c",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/patternProperties.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/patternProperties.json",
+      "sha256": "2e27cf7e3c459d15c7d9a40f3daebdf673ca49c283b3bbcb3ac1f4c2d333ec4d",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/propertyNames.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/propertyNames.json",
+      "sha256": "847e2fb9ba870632c9a13c04133511a3af9d98165de56df64c99b1d6f2eac355",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/dependencies.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/dependencies.json",
+      "sha256": "e5c757b8c79b669eab621eb7b2801c99aecd94dd16aa4e41662992509d249fd5",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/items.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/items.json",
+      "sha256": "6480f868b34c832265c9ee42a7643e16873c74f11c8d735d8eea5e494c93ed02",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/additionalItems.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/additionalItems.json",
+      "sha256": "c25888a38a6db63d31daa9bce5647038513a54a327dabaeb2548189f6a51fb64",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/contains.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/contains.json",
+      "sha256": "2a27945551b0189c264709147b46608fedb1d50b0d841817757ef60ba445f024",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/minItems.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/minItems.json",
+      "sha256": "706f786718b5af39ca447d006909aa3adba53ebffe450d97cc7773f47d97bb46",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/maxItems.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/maxItems.json",
+      "sha256": "913397eff076de4eb63982c6682fb40cfd6117900da34f8fbb3a71839bcc813c",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/uniqueItems.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/uniqueItems.json",
+      "sha256": "382d4e81ffe448139bb8c31b481ff0e13d6625f7887adf34518bd35e54eeac0a",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/minProperties.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/minProperties.json",
+      "sha256": "c958aade9248bf33ae2670171379671f0484aeec434c44c9f2adf4b87f39bcf7",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/maxProperties.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/maxProperties.json",
+      "sha256": "b57f784fdb7ec266cef13afd2de4ab9f2cfc7e2bdd86428d90be0212106babd3",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/minLength.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/minLength.json",
+      "sha256": "6faf7b73d1eac9615da33147a05e0fdde90737b62a175d1ce2a9a0bc98eaaaa5",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/maxLength.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/maxLength.json",
+      "sha256": "3330342d36c85a7334ea3f7deb168beae26617ce83cc1d43b6ba2f618b3c2f4e",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/minimum.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/minimum.json",
+      "sha256": "8e13e2a245ecffc0c39481430583ef3b11ce1ac3eb5d02617bfe6f8a022b1579",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/maximum.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/maximum.json",
+      "sha256": "b3094bf70bea8df1eb17c22a9afb47af1bcf3b8d6616bfb8bce95c1ee874e2e3",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/exclusiveMinimum.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/exclusiveMinimum.json",
+      "sha256": "08435add3250275173074d2b7ad519806baae83be95d7397d3a514b8ad7561d3",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/exclusiveMaximum.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/exclusiveMaximum.json",
+      "sha256": "a51392482efa787d7fcea34de78de441a8807b1881ec0bc414f013cab0bf5812",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/multipleOf.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/multipleOf.json",
+      "sha256": "541644c3d94e5f8c6a1088a5e3b576d360c82430a29eddb6f9e2cc946826458c",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/allOf.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/allOf.json",
+      "sha256": "940b67eca31bc9035a9864a5b00a720e6880d7780e6e4db85403bfa12222fd7a",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/anyOf.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/anyOf.json",
+      "sha256": "1175062b77388b03432d61f1b43448a71b5b2bb03696215ebe52fa5be69eec61",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/oneOf.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/oneOf.json",
+      "sha256": "0eff07bc5ec108eb324aeb61d9ff130a3e689b0ab4b26af40561e6b1eda3a26c",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/not.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/not.json",
+      "sha256": "c225b4d75dfb2a485006236f005070a2aae2f60090c761ffaf947a3259de77da",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/if-then-else.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/if-then-else.json",
+      "sha256": "3712305f35008ed0b25652a8a297a421f394bb6f6336fdb8f56075cdf4759044",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/boolean_schema.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/boolean_schema.json",
+      "sha256": "9c8828d325b88a0c632fca22405d5481548b49fb0f9f5536ee401e4d66aa8582",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/pattern.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/pattern.json",
+      "sha256": "92f42bdbf24f20b2b6378a8dfa882a8b40746170303f5dbe5b4cade420599507",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/definitions.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/definitions.json",
+      "sha256": "b1159d8adeb80362bfc09b925b20f4bacdf698f8fe437d9859b4403dfff87b24",
+      "license": "MIT"
+    },
+    {
+      "path": "draft7/LICENSE",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/LICENSE",
+      "sha256": "837402bd25fad9b704265801ca3f92566a98157c1f9a7acd6f446299ba1c305a",
+      "license": "MIT"
+    },
+    {
+      "path": "sarif-schema-2.1.0.json",
+      "url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+      "sha256": "c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e",
+      "license": "OASIS terms and attribution retained in SARIF-NOTICE.txt and SARIF-LICENSE.upstream"
+    },
+    {
+      "path": "draft7/ref.json",
+      "url": "https://raw.githubusercontent.com/json-schema-org/JSON-Schema-Test-Suite/245a45abc90190c0bff04d97e6d2b541b4bb9f12/tests/draft7/ref.json",
+      "sha256": "217aebe267fab77ff9bb3332d559054cf1602077abb3395dae417c0b6db6d789",
+      "license": "MIT"
+    },
+    {
+      "path": "SARIF-LICENSE.upstream",
+      "url": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/LICENSE.md",
+      "sha256": "1ee371a08c4bc2a64cf4382990271676835c3d75bc984560a181de54c88471c5",
+      "license": "OASIS IPR and Feedback License"
+    },
+    {
+      "path": "independent-vectors.json",
+      "url": "https://www.rfc-editor.org/rfc/rfc8032.html#section-7.1",
+      "sha256": "134e125f32179addf213c013ca362412150ed5f1f770b96ae843b42f67577905",
+      "license": "IETF BCP 78, RFC legal notice in vector metadata"
+    },
+    {
+      "path": "SARIF-NOTICE.txt",
+      "url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html",
+      "sha256": "8df0c1e693b747e803443935dcae48ac276a51b511d3cb14f06375c83a4319d2",
+      "license": "OASIS publication notice and attribution"
+    }
+  ],
+  "curation": {
+    "defaultGroupIndex": 0,
+    "overrides": {
+      "draft7/if-then-else.json": 5,
+      "draft7/ref.json": 1
+    },
+    "excludedGroups": [
+      {
+        "path": "draft7/definitions.json",
+        "group": 0,
+        "reason": "External metaschema retrieval is excluded"
+      },
+      {
+        "path": "draft7/if-then-else.json",
+        "group": 0,
+        "reason": "Strict Ajv admission rejects ignored if without then or else"
+      },
+      {
+        "path": "draft7/ref.json",
+        "group": 0,
+        "reason": "Recursive references are excluded"
+      }
+    ]
+  }
+}

@@ -157,3 +157,22 @@ scope/generation. Execution pins the resolved bundle digest.
 `createVerifiedPolicyResult` binds reports to that context and limits freshness to the release
 validity window. Expiry adds incomplete required coverage. See
 [policy and CLI semantics](policy-cli.md).
+
+## Independent boundary and signature evidence
+
+The [H3 controls](../test/default-boundaries.test.ts) admit equality at each exercised count or byte ceiling.
+They reject the first excess unit. UTF-8 bytes and UTF-16 character counts remain distinct.
+Canonical JSON admits 32 MiB serialized UTF-8, 100,000 values, and depth 64.
+The root is depth zero. Quotation marks count toward serialized string bytes.
+The [independent vectors](../test/fixtures/conformance/README.md) retain supplementary-key ordering and fixed ECMAScript numeric strings.
+Unsafe integral numbers remain excluded even when RFC 8785 lists their serialization.
+The tests do not claim full RFC 8785 conformance.
+
+Release verification admits a canonical signed package of exactly two MiB and rejects one extra byte.
+The bundle inventory permits 64 members and an inheritance depth of 16 members.
+Host trust permits a maximum age of 604,800,000 milliseconds, which is seven days.
+Release validity ends at the earlier expiry or trusted maximum age. That end instant is exclusive.
+The last preceding millisecond remains valid when all other authority conditions hold.
+A larger host maximum age fails contract admission.
+Independent `node:crypto` controls verify the RFC 8032 signature and separately constructed release signing bytes.
+Tampering tests assert the specific structural or integrity rejection that occurs first.

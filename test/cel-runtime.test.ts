@@ -10,7 +10,7 @@ import {
   getSharedCelRuntime,
   digestText,
 } from '../src/index.js';
-import type { EvaluationContext } from '../src/index.js';
+import type { CelErrorCode, EvaluationContext } from '../src/index.js';
 import { ManagedCelPool } from '../src/runtime/cel/pool.js';
 import { snapshotCelInput } from '../src/runtime/cel/input.js';
 
@@ -40,21 +40,42 @@ void test(
       digestText(source),
       'sha256:5dbcd903f3caaff62067c4c99e0f04e21d980c53827825536fba4176a74d4fc1',
     );
-    const fixtures = JSON.parse(source) as {
+    const reviewed = await readFile('test/fixtures/cel-qualification-v2.json', 'utf8');
+    assert.equal(
+      digestText(reviewed),
+      'sha256:09884eddbbf1468a446c27a12e932ecac3f0e32923624aae532b1cae01cd1377',
+    );
+    const revision = JSON.parse(reviewed) as {
+      errorCodes: Record<string, CelErrorCode>;
+      additions: {
+        name: string;
+        expression: string;
+        entity: unknown;
+        expected: boolean | 'error';
+        errorCode?: CelErrorCode;
+      }[];
+    };
+    const historical = JSON.parse(source) as {
       name: string;
       expression: string;
       entity: unknown;
       expected: boolean | 'error';
     }[];
+    assert.equal(historical.length, 43);
+    const fixtures = [...historical, ...revision.additions];
     const pool = new ManagedCelPool();
     try {
       await pool.warm();
-      assert.equal(fixtures.length, 43);
+      assert.equal(fixtures.length, 61);
       for (const fixture of fixtures) {
         await t.test(fixture.name, async () => {
           const result = pool.evaluate(fixture.expression, fixture.entity, context('frozen'));
-          if (fixture.expected === 'error') await assert.rejects(result, CelError);
-          else assert.equal(await result, fixture.expected);
+          if (fixture.expected === 'error') {
+            const code =
+              'errorCode' in fixture ? fixture.errorCode : revision.errorCodes[fixture.name];
+            assert.equal(typeof code, 'string', 'Every error needs a reviewed identity.');
+            await assert.rejects(result, errorCode(code as string));
+          } else assert.equal(await result, fixture.expected);
         });
       }
       assert.equal(pool.stats().workerStarts, 2);

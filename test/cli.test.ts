@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import {
   createSourceSnapshot,
+  createDataSnapshot,
   createValidationResult,
   digestJson,
   formatSarif,
@@ -17,6 +20,7 @@ import type { formatSarifError } from '../src/index.js';
 import { makeRequest, NOW, URI, verifiedCoverage } from './helpers.js';
 import { releaseFixture } from './harness/release-fixture.js';
 import { componentText, ownerRule, policyMatrix } from './harness/policy-fixture.js';
+import { sarifValidator } from './harness/sarif-schema.js';
 import { schemaArtifact } from './harness/custom-kind-fixture.js';
 
 const artifact = schemaArtifact({
@@ -109,6 +113,8 @@ void test('CLI SARIF supports atomic output files and stable fingerprints withou
   assert.equal(output.code, 1);
   assert.equal(output.stdout, '');
   const result = JSON.parse(await readFile(path, 'utf8')) as ReturnType<typeof formatSarif>;
+  const validateSarif = await sarifValidator();
+  assert.equal(validateSarif(result), true, JSON.stringify(validateSarif.errors));
   assert.equal(result.version, '2.1.0');
   assert.equal(result.runs[0]?.columnKind, 'utf16CodeUnits');
   assert.equal(result.runs[0]?.invocations[0]?.executionSuccessful, true);
@@ -143,6 +149,12 @@ void test('CLI unavailable required processing emits incomplete JSON and SARIF r
   assert(result.ruleStates.every((row) => row.status === 'blocked'));
   const sarif = await cli([...f.args, '--format', 'sarif']);
   assert.equal(sarif.code, 2);
+  const validateSarif = await sarifValidator();
+  assert.equal(
+    validateSarif(JSON.parse(sarif.stdout) as unknown),
+    true,
+    JSON.stringify(validateSarif.errors),
+  );
   const report = JSON.parse(sarif.stdout) as ReturnType<typeof formatSarif>;
   assert.equal(report.runs[0]?.invocations[0]?.executionSuccessful, false);
   assert(report.runs[0]?.results.some((row) => row.ruleId === 'backstage/processors/unavailable'));
@@ -164,6 +176,12 @@ void test('CLI rejects tampered/expired releases, weak trust and invalid argumen
   assert.equal((JSON.parse(output.stdout) as { error: { code: string } }).error.code, 'integrity');
   const sarif = await cli([...f.args, '--format', 'sarif']);
   assert.equal(sarif.code, 2);
+  const validateSarif = await sarifValidator();
+  assert.equal(
+    validateSarif(JSON.parse(sarif.stdout) as unknown),
+    true,
+    JSON.stringify(validateSarif.errors),
+  );
   assert.equal(
     (JSON.parse(sarif.stdout) as ReturnType<typeof formatSarifError>).runs[0]?.invocations[0]
       ?.executionSuccessful,
@@ -323,4 +341,266 @@ void test('CLI binds host catalog credentials and validates against both pinned 
       assert(backend.requests().length > before);
       assert(!output.stdout.includes('policy-test-secret'));
     });
+});
+
+void test('CLI --help, --baseline and --data preserve exact requested contract identities', async (t) => {
+  const help = await cli(['--help']);
+  assert.equal(help.code, 0);
+  assert.equal(help.stderr, '');
+  assert.match(help.stdout, /^Usage: bve validate/);
+  for (const flag of ['--baseline', '--data', '--output']) assert(help.stdout.includes(flag));
+  const f = await fixture(t);
+  const baseline = f.source;
+  const data = createDataSnapshot([]);
+  await writeFile(resolve(f.directory, 'baseline.json'), JSON.stringify(baseline));
+  await writeFile(resolve(f.directory, 'data.json'), JSON.stringify(data));
+  const args = [
+    ...f.args,
+    '--baseline',
+    resolve(f.directory, 'baseline.json'),
+    '--data',
+    resolve(f.directory, 'data.json'),
+  ];
+  const output = await cli(args);
+  assert.equal(output.code, 0, output.stdout + output.stderr);
+  const result = parseContract('validation-result', JSON.parse(output.stdout) as unknown);
+  assert.equal(result.provenance.baselineDigest, baseline.digest);
+  assert.equal(result.provenance.dataDigest, data.digest);
+  await writeFile(
+    resolve(f.directory, 'data.json'),
+    JSON.stringify({ ...data, digest: digestJson('wrong') }),
+  );
+  const badData = await cli(args);
+  assert.equal(badData.code, 2);
+  assert.equal((JSON.parse(badData.stdout) as { error: { code: string } }).error.code, 'integrity');
+  await writeFile(resolve(f.directory, 'data.json'), JSON.stringify(data));
+  await writeFile(
+    resolve(f.directory, 'baseline.json'),
+    JSON.stringify(
+      createSourceSnapshot({
+        repository: 'foreign',
+        revision: baseline.revision,
+        files: baseline.files,
+      }),
+    ),
+  );
+  const badBaseline = await cli(args);
+  assert.equal(badBaseline.code, 2);
+  assert.equal(
+    (JSON.parse(badBaseline.stdout) as { error: { code: string } }).error.code,
+    'invalid_contract',
+  );
+});
+
+void test('CLI output-write failure returns exact exit 2, a redacted fallback, and removes temporary output', async (t) => {
+  const f = await fixture(t);
+  // Renaming a regular temp file over a directory fails on all supported hosts, including root.
+  const occupied = resolve(f.directory, 'occupied');
+  await mkdir(occupied);
+  const before = (await readdir(f.directory)).sort();
+  const output = await cli([...f.args, '--output', occupied]);
+  assert.equal(output.code, 2);
+  assert.equal(output.stderr, '');
+  assert.deepEqual(JSON.parse(output.stdout) as unknown, {
+    contractVersion: '0.2',
+    outcome: 'error',
+    enforcement: 'block',
+    error: {
+      code: 'input_error',
+      message: 'Validation input or trusted configuration could not be loaded.',
+    },
+  });
+  assert.deepEqual((await readdir(f.directory)).sort(), before);
+  const successful = await cli([...f.args, '--output', resolve(f.directory, 'normal.json')]);
+  assert.equal(successful.code, 0);
+  assert.equal(successful.stdout, '');
+  assert.equal(
+    parseContract(
+      'validation-result',
+      JSON.parse(await readFile(resolve(f.directory, 'normal.json'), 'utf8')) as unknown,
+    ).outcome,
+    'completed',
+  );
+});
+
+// Windows does not deliver POSIX SIGINT/SIGTERM to a Node child through child.kill.
+// Its source/package gates still execute the portable option/write controls above.
+if (process.platform !== 'win32') {
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    void test(
+      `CLI actual ${signal} cancels entered remote work and exits 2 with observed cleanup`,
+      { timeout: 15000 },
+      async (t) => {
+        const f = await fixture(t);
+        const { selector: _selector, ...rule } = ownerRule;
+        void _selector;
+        const release = releaseFixture({ rules: [rule] });
+        await writeFile(resolve(f.directory, 'release.json'), JSON.stringify(release.release));
+        await writeFile(resolve(f.directory, 'trust.json'), JSON.stringify(release.trust));
+        let enter!: () => void;
+        const entered = new Promise<void>((done) => {
+          enter = done;
+        });
+        let close!: () => void;
+        const closed = new Promise<void>((done) => {
+          close = done;
+        });
+        const server = createServer((_request, response) => {
+          response.once('close', close);
+          enter();
+          // Keep this exact request pending until the CLI cancellation closes its connection.
+        });
+        await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+        t.after(() => {
+          server.closeAllConnections();
+          return new Promise<void>((done) => server.close(() => done()));
+        });
+        const address = server.address();
+        assert(address && typeof address === 'object');
+        await writeFile(
+          resolve(f.directory, 'catalog.json'),
+          JSON.stringify({
+            connectionId: 'signal-control',
+            baseUrl: `http://127.0.0.1:${address.port}`,
+            principalId: 'reader',
+            credentialRevision: '1',
+            scope: ['catalog:read'],
+            maxAgeMs: 0,
+            allowInsecureHttp: true,
+            tokenEnv: 'BVE_SIGNAL_TOKEN',
+          }),
+        );
+        const child = spawn(
+          process.execPath,
+          [
+            process.env.BVE_TEST_CLI_ENTRY ?? resolve('.test-dist/src/cli/main.js'),
+            ...f.args,
+            '--catalog-config',
+            resolve(f.directory, 'catalog.json'),
+          ],
+          {
+            env: { ...process.env, BVE_SIGNAL_TOKEN: 'synthetic-signal-token' },
+            stdio: ['ignore', 'pipe', 'pipe'],
+          },
+        );
+        let stdout = '';
+        let stderr = '';
+        child.stdout.setEncoding('utf8').on('data', (part: string) => {
+          stdout += part;
+        });
+        child.stderr.setEncoding('utf8').on('data', (part: string) => {
+          stderr += part;
+        });
+        const exit = once(child, 'close');
+        t.after(() => {
+          if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+        });
+        await Promise.race([
+          entered,
+          exit.then(() => {
+            throw new Error(`CLI exited before network entry: ${stdout} ${stderr}`);
+          }),
+        ]);
+        assert.equal(child.exitCode, null);
+        const sentAt = performance.now();
+        assert.equal(child.kill(signal), true);
+        const [code, deathSignal] = (await exit) as [number | null, NodeJS.Signals | null];
+        await closed;
+        assert(
+          performance.now() - sentAt < 10000,
+          'Observation timeout exceeds the 5,000 ms product request ceiling.',
+        );
+        assert.equal(code, 2, stdout + stderr);
+        assert.equal(deathSignal, null, 'The CLI handles the signal and emits a result.');
+        assert.equal(stderr, '');
+        const result = parseContract('validation-result', JSON.parse(stdout) as unknown);
+        assert.equal(result.resources.interrupted, 'cancelled');
+        assert.equal(result.outcome, 'incomplete');
+        assert(result.coverage.some((row) => row.required && row.status === 'blocked'));
+        assert(!stdout.includes('synthetic-signal-token'));
+        assert.throws(
+          () => process.kill(child.pid!, 0),
+          (error: unknown) => (error as NodeJS.ErrnoException).code === 'ESRCH',
+        );
+      },
+    );
+  }
+}
+
+void test('CLI rules-stage failures retain exact runtime identity, coverage, interruption and exit 2', async (t) => {
+  for (const [name, expression, extra, status, reason, interrupted, outcome] of [
+    ['parse', 'entity.spec.[', '', 'invalid_policy', 'invalid_expression', 'none', 'error'],
+    [
+      'profile',
+      'fetch("https://example.com") == true',
+      '',
+      'invalid_policy',
+      'invalid_expression',
+      'none',
+      'error',
+    ],
+    [
+      'regex',
+      'entity.spec.owner.matches("[")',
+      '',
+      'invalid_policy',
+      'invalid_expression',
+      'none',
+      'error',
+    ],
+    ['result_type', '1 + 1', '', 'invalid_policy', 'invalid_expression', 'none', 'error'],
+    ['evaluation', 'entity.spec.missing == 1', '', 'error', undefined, 'none', 'error'],
+    [
+      'regex_limit',
+      'entity.spec.owner.matches(entity.spec.pattern)',
+      '  pattern: ' + 'a'.repeat(513) + '\n',
+      'incomplete',
+      'resource_limit',
+      'resource_limit',
+      'incomplete',
+    ],
+    [
+      'input_limit',
+      'true',
+      '  payload: ' + 'a'.repeat(65537) + '\n',
+      'incomplete',
+      'resource_limit',
+      'resource_limit',
+      'incomplete',
+    ],
+  ] as const) {
+    await t.test(name, async (t) => {
+      const f = await fixture(t, componentText('team', extra));
+      const release = releaseFixture({
+        rules: [
+          {
+            id: 'failure',
+            version: '1',
+            kind: 'cel',
+            mandatory: true,
+            severity: 'error',
+            requires: [],
+            expression,
+          },
+        ],
+      });
+      await writeFile(resolve(f.directory, 'release.json'), JSON.stringify(release.release));
+      await writeFile(resolve(f.directory, 'trust.json'), JSON.stringify(release.trust));
+      const output = await cli(f.args);
+      assert.equal(output.code, 2, output.stdout + output.stderr);
+      const result = parseContract('validation-result', JSON.parse(output.stdout) as unknown);
+      assert.equal(result.outcome, outcome);
+      assert.equal(result.resources.interrupted, interrupted);
+      assert.equal(result.ruleStates.length, 1);
+      assert.equal(result.ruleStates[0]?.status, status);
+      assert.equal(result.ruleStates[0]?.reason, reason);
+      assert(
+        result.coverage.some(
+          (row) => row.stage === 'rules' && row.required && row.status === 'blocked',
+        ),
+      );
+      assert.equal(result.findings.length, 0);
+      assert.equal(output.stderr, '');
+    });
+  }
 });
