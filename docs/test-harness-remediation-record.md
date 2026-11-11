@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 is accepted. H2 is ready for parent review. H3 through H6 wait for their preceding acceptance gates.
+Status: H1 and H2 are accepted. H3 is admitted for implementation. H4 through H6 wait for their preceding acceptance gates.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -36,15 +36,15 @@ No complete H1 finding closes through these baseline corrections.
 
 ## Package state
 
-| Package | Agent state      | Parent decision | Required next evidence                                   |
-| ------- | ---------------- | --------------- | -------------------------------------------------------- |
-| H1      | Complete         | Accepted        | Scoped evidence and limitations recorded below           |
-| H2      | Ready for review | Pending         | Independent parent inspection and repeated H2 controls   |
-| H3      | Not assigned     | Pending         | Accepted H2 and independent core/CLI controls            |
-| H4      | Not assigned     | Pending         | Accepted H3 and focused backend evidence                 |
-| H5      | Not assigned     | Pending         | Accepted H4 and installed editor evidence                |
-| H6      | Not assigned     | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
-| H7      | Deferred         | Not admitted    | Separate authorization and final-candidate qualification |
+| Package | Agent state  | Parent decision | Required next evidence                                   |
+| ------- | ------------ | --------------- | -------------------------------------------------------- |
+| H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
+| H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
+| H3      | Admitted     | Pending         | Independent core/CLI contracts and boundary controls     |
+| H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
+| H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
+| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
+| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
 
 ## Required record for each package
 
@@ -78,6 +78,7 @@ Next package admitted:
 
 The approval and baseline update alone closed no findings.
 The following dispositions record parent acceptance after implementation and independent controls.
+H2 dispositions appear in its per-finding traceability table below.
 Use `Accepted`, `Partial`, `Open`, or `Deferred` for implementation state.
 Use `Clarified` only for a parent-reviewed correction to the original recommendation.
 
@@ -275,7 +276,7 @@ H2 is admitted next on `feature/test-harness-remediation`, starting from the par
 The frozen finding register remains unchanged. Only these eight implementation dispositions are accepted.
 No remote write, new PR, publication, merge, actual-backend qualification, or deferred H7 work belongs to this decision.
 
-## H2 implementation for parent review
+## H2 accepted implementation
 
 Assigned agent: `harness_h2_lsp_behavior`. Handoff date: 2026-11-11.
 The user approved H1 through H6 on 2026-11-10 with sequential parent gates. H7 remains deferred.
@@ -283,7 +284,7 @@ H2 starts from H1 acceptance commit `be94423ebd96a50f0ac32143f4760968e3240f2b` o
 The exact tested source and tests are `103c754d0464ee724a6565795482b1085fc01a2a`.
 Production code last changed in `043a6a5`. Later implementation commits change tests and documentation only.
 This final record update is documentation only. H1 acceptance and the frozen register remain unchanged.
-Parent acceptance of H2 remains pending. The agent does not close findings or admit H3.
+The parent accepted H2 after the agent handoff and independent controls below.
 
 ### Changed behavior and compatibility
 
@@ -340,7 +341,7 @@ The shared validation engine and credential authority bindings remain unchanged.
 
 ### Acceptance mapping
 
-These are agent results for parent review. Every criterion remains pending parent acceptance.
+These are agent results. The separate parent acceptance below defines their accepted scope.
 
 | Criterion | Executed boundary and independent expected result                                                                                                                                                                                            | Agent result                      |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
@@ -356,40 +357,40 @@ These are agent results for parent review. Every criterion remains pending paren
 ### Per-finding traceability
 
 Each row has executed evidence in the full source and packaged logs below.
-The quoted selector or file identifies its focused control. All implementation dispositions remain `Partial` until parent review.
-R3-F11 and R3-F16 propose clarification after parent inspection.
+The quoted selector or file identifies its focused control. The parent accepted the implementation dispositions below.
+R3-F11 and R3-F16 are clarified after parent inspection. They do not require replacement behavior.
 
-| Finding | Criterion    | Selector and observed outcome                                                                                                                                                                                                    | Implementation state | Parent decision                        |
-| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------- |
-| R3-F1   | H2-A1        | `UTF-16 incremental edits preserve same-line emoji offsets and reject stale document versions`: retained coverage identity before description-only edit. Removed guard and separate equal/older variants fail.                   | Partial              | Pending                                |
-| R3-F2   | H2-A2        | `rapid editor changes cancel old HTTP and never publish superseded diagnostics` and `lsp-owners.test.ts`: every captured publication satisfies the allowed version/lifetime history.                                             | Partial              | Pending                                |
-| R3-F3   | H2-A3        | `child stdio publishes a nonempty finding before an ordered close clear`: nonempty syntax finding precedes the same URI/version clear.                                                                                           | Partial              | Pending                                |
-| R3-F4   | H2-A3        | `child cancellation responses retain the declared completion, hover and definition shapes`: real paired wire frames produce exact empty shapes. Entered-provider and completed-local cancellation controls remain distinct.      | Partial              | Pending                                |
-| R3-F5   | H2-A5        | `included YAML completion edits the open payload scalar and watch refreshes invalidate candidates`: actual unlink, exact deleted source digest, absent old candidate, and live hover.                                            | Partial              | Pending                                |
-| R3-F6   | H2-A4        | `empty YAML values, quotes, JSON and CRLF preserve punctuation/comments and UTF-16 offsets`: complete resulting strings and parsed owner values match independent expectations.                                                  | Partial              | Pending                                |
-| R3-F7   | H2-A4        | `JSON field completion produces valid JSON including insertion between existing members`: inserted lifecycle, preserved neighbors, complete expected text, and valid revalidation after value entry.                             | Partial              | Pending                                |
-| R3-F8   | H2-A4        | `scalar-fixes.test.ts` and included guarded round trip: independent edit application preserves complete source and validates the intended rule.                                                                                  | Partial              | Pending                                |
-| R3-F9   | H2-A6        | Scalar 4,096/4,097 bytes, 64/65 generated repairs, complete 8 MiB/next-byte frames, 8 KiB/next-byte headers, 16/17 edits, 16 KiB/next-byte replacements and credentials. Independent constants are explicit.                     | Partial              | Pending                                |
-| R3-F10  | H2-A3        | `stdio completion and hover work on unfinished YAML while authoritative validation reports syntax`: exact `yaml/syntax`, `Invalid YAML syntax.`, plaintext hover, and expected component-type description.                       | Partial              | Pending                                |
-| R3-F11  | H2-A7        | `the client version check rejects an edit if typing races its delivery` stays distinct from `stdio stale, forged and reopened fix requests never reach workspace/applyEdit`. The explanatory comment preserves both orderings.   | Partial              | Pending clarification                  |
-| R3-F12  | H2-A8        | `an entered local-index gate produces an exact incomplete reply before the ready candidate`: actual preparation promise enters before empty/incomplete response, then release admits the literal team candidate.                 | Partial              | Pending                                |
-| R3-F13  | H2-A2        | `lsp-coordinator.test.ts` and `lsp-session-resources.test.ts`: entered/retiring/activated/disposed/failure signals replace the cited fixed turn counts.                                                                          | Partial              | Pending                                |
-| R3-F14  | H2-A6        | `token storage uses bounded FIFO eviction`: 129 issued tokens evict the oldest while the next-oldest remains usable at capacity 128.                                                                                             | Partial              | Pending                                |
-| R3-F15  | H2-A3        | `each missing required client capability independently denies fix dispatch`: separate apply-edit, document-change, literal-action, and diagnostic-data omissions yield no dispatch.                                              | Partial              | Pending                                |
-| R3-F16  | H2-A7        | Fixed independent coordinate vectors remain. Incidental fixture cursors can derive offsets without replacing those expected vectors.                                                                                             | Partial              | Pending clarification                  |
-| R3-H1   | H2-A3        | `rejected watcher registration reports its reason and save still refreshes the live child`: initial rejection, changed saved-file outcome, restoration, then accepted registration after trusted reload.                         | Partial              | Pending                                |
-| R3-H2   | H2-A3        | The same registration test inspects the exact client log warning. The lifecycle matrix retains the stopped log count after ordered request responses.                                                                            | Partial              | Pending                                |
-| R3-H3   | H2-A3        | `child encoding offers select UTF-16 or reject unsupported-only offers`: absent, UTF-16, mixed UTF-8/16, mixed UTF-32/16, UTF-8-only, and unsupported offers retain the declared contract.                                       | Partial              | Pending                                |
-| R3-H4   | H2-A3        | `client roots cannot widen the trusted filesystem source selection`: no client root, foreign root, and mixed folders keep approved diagnostics and reject the actual outside file.                                               | Partial              | Pending                                |
-| R3-U1   | H2-A1, H2-A3 | `duplicate child didOpen cannot replace the first document lifetime or bytes`: different version/text cannot replace the original observed coverage binding.                                                                     | Partial              | Pending                                |
-| R3-U2   | H2-A6        | `lsp-boundaries.test.ts`: 1,000 authoritative documents versus document 1,001, incomplete latch and fresh-server recovery. Exactly 1,000 changes admit validation, while 1,001 require full synchronization.                     | Partial              | Pending                                |
-| R3-U3   | H2-A6        | Controlled 50/500 ms selectors, one/two-character remote prefix, 32/33 cache scopes, and 262,144/262,145 cache bytes. Next-oldest scopes survive eviction.                                                                       | Partial              | Pending                                |
-| R3-U4   | H2-A6        | `fix registry caps actions at 32 and retains precisely the first 64 eligible candidates`: both action edges and candidates 1, 32, 33, 64, and 65 have independent admission outcomes.                                            | Partial              | Pending                                |
-| R3-U5   | H2-A3        | `child stdio rejects lifecycle requests before initialize and after shutdown` and `a rejected pre-initialize shutdown cannot authorize a successful EOF or exit`: exact errors and actual exit 1.                                | Partial              | Pending                                |
-| R3-U6   | H2-A4        | `hover and definition resolve an unqualified reference to its unique local entity`: unique target remains positive, competing matching definitions return no target.                                                             | Partial              | Pending                                |
-| R3-U7   | H2-A6        | Three actual filesystem discovery selectors admit 10,000 entries, depth 32, and 1,000 files. Each next value rejects with exact `Discovery exceeds limits.` and recovers after removal.                                          | Partial              | Pending                                |
-| R3-U8   | H2-A6        | `catalog credential files rotate between authenticated requests without replacing the provider`: authenticated byte boundary, real atomic replacement, actual symlink rejection, recovery, and isolated missing-flag simulation. | Partial              | Pending within executed platform scope |
-| R3-U9   | H2-A4        | `schema enum repair applies the selected guarded edit and revalidates only its intended rule`: selected internal value reaches the actual edit, target rule passes, unrelated rule remains failed.                               | Partial              | Pending                                |
+| Finding | Criterion    | Selector and observed outcome                                                                                                                                                                                                    | Implementation state | Parent decision                      |
+| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------ |
+| R3-F1   | H2-A1        | `UTF-16 incremental edits preserve same-line emoji offsets and reject stale document versions`: retained coverage identity before description-only edit. Removed guard and separate equal/older variants fail.                   | Accepted             | Accepted                             |
+| R3-F2   | H2-A2        | `rapid editor changes cancel old HTTP and never publish superseded diagnostics` and `lsp-owners.test.ts`: every captured publication satisfies the allowed version/lifetime history.                                             | Accepted             | Accepted                             |
+| R3-F3   | H2-A3        | `child stdio publishes a nonempty finding before an ordered close clear`: nonempty syntax finding precedes the same URI/version clear.                                                                                           | Accepted             | Accepted                             |
+| R3-F4   | H2-A3        | `child cancellation responses retain the declared completion, hover and definition shapes`: real paired wire frames produce exact empty shapes. Entered-provider and completed-local cancellation controls remain distinct.      | Accepted             | Accepted                             |
+| R3-F5   | H2-A5        | `included YAML completion edits the open payload scalar and watch refreshes invalidate candidates`: actual unlink, exact deleted source digest, absent old candidate, and live hover.                                            | Accepted             | Accepted                             |
+| R3-F6   | H2-A4        | `empty YAML values, quotes, JSON and CRLF preserve punctuation/comments and UTF-16 offsets`: complete resulting strings and parsed owner values match independent expectations.                                                  | Accepted             | Accepted                             |
+| R3-F7   | H2-A4        | `JSON field completion produces valid JSON including insertion between existing members`: inserted lifecycle, preserved neighbors, complete expected text, and valid revalidation after value entry.                             | Accepted             | Accepted                             |
+| R3-F8   | H2-A4        | `scalar-fixes.test.ts` and included guarded round trip: independent edit application preserves complete source and validates the intended rule.                                                                                  | Accepted             | Accepted                             |
+| R3-F9   | H2-A6        | Scalar 4,096/4,097 bytes, 64/65 generated repairs, complete 8 MiB/next-byte frames, 8 KiB/next-byte headers, 16/17 edits, 16 KiB/next-byte replacements and credentials. Independent constants are explicit.                     | Accepted             | Accepted                             |
+| R3-F10  | H2-A3        | `stdio completion and hover work on unfinished YAML while authoritative validation reports syntax`: exact `yaml/syntax`, `Invalid YAML syntax.`, plaintext hover, and expected component-type description.                       | Accepted             | Accepted                             |
+| R3-F11  | H2-A7        | `the client version check rejects an edit if typing races its delivery` stays distinct from `stdio stale, forged and reopened fix requests never reach workspace/applyEdit`. The explanatory comment preserves both orderings.   | Clarified            | Clarified                            |
+| R3-F12  | H2-A8        | `an entered local-index gate produces an exact incomplete reply before the ready candidate`: actual preparation promise enters before empty/incomplete response, then release admits the literal team candidate.                 | Accepted             | Accepted                             |
+| R3-F13  | H2-A2        | `lsp-coordinator.test.ts` and `lsp-session-resources.test.ts`: entered/retiring/activated/disposed/failure signals replace the cited fixed turn counts.                                                                          | Accepted             | Accepted                             |
+| R3-F14  | H2-A6        | `token storage uses bounded FIFO eviction`: 129 issued tokens evict the oldest while the next-oldest remains usable at capacity 128.                                                                                             | Accepted             | Accepted                             |
+| R3-F15  | H2-A3        | `each missing required client capability independently denies fix dispatch`: separate apply-edit, document-change, literal-action, and diagnostic-data omissions yield no dispatch.                                              | Accepted             | Accepted                             |
+| R3-F16  | H2-A7        | Fixed independent coordinate vectors remain. Incidental fixture cursors can derive offsets without replacing those expected vectors.                                                                                             | Clarified            | Clarified                            |
+| R3-H1   | H2-A3        | `rejected watcher registration reports its reason and save still refreshes the live child`: initial rejection, changed saved-file outcome, restoration, then accepted registration after trusted reload.                         | Accepted             | Accepted                             |
+| R3-H2   | H2-A3        | The same registration test inspects the exact client log warning. The lifecycle matrix retains the stopped log count after ordered request responses.                                                                            | Accepted             | Accepted                             |
+| R3-H3   | H2-A3        | `child encoding offers select UTF-16 or reject unsupported-only offers`: absent, UTF-16, mixed UTF-8/16, mixed UTF-32/16, UTF-8-only, and unsupported offers retain the declared contract.                                       | Accepted             | Accepted                             |
+| R3-H4   | H2-A3        | `client roots cannot widen the trusted filesystem source selection`: no client root, foreign root, and mixed folders keep approved diagnostics and reject the actual outside file.                                               | Accepted             | Accepted                             |
+| R3-U1   | H2-A1, H2-A3 | `duplicate child didOpen cannot replace the first document lifetime or bytes`: different version/text cannot replace the original observed coverage binding.                                                                     | Accepted             | Accepted                             |
+| R3-U2   | H2-A6        | `lsp-boundaries.test.ts`: 1,000 authoritative documents versus document 1,001, incomplete latch and fresh-server recovery. Exactly 1,000 changes admit validation, while 1,001 require full synchronization.                     | Accepted             | Accepted                             |
+| R3-U3   | H2-A6        | Controlled 50/500 ms selectors, one/two-character remote prefix, 32/33 cache scopes, and 262,144/262,145 cache bytes. Next-oldest scopes survive eviction.                                                                       | Accepted             | Accepted                             |
+| R3-U4   | H2-A6        | `fix registry caps actions at 32 and retains precisely the first 64 eligible candidates`: both action edges and candidates 1, 32, 33, 64, and 65 have independent admission outcomes.                                            | Accepted             | Accepted                             |
+| R3-U5   | H2-A3        | `child stdio rejects lifecycle requests before initialize and after shutdown` and `a rejected pre-initialize shutdown cannot authorize a successful EOF or exit`: exact errors and actual exit 1.                                | Accepted             | Accepted                             |
+| R3-U6   | H2-A4        | `hover and definition resolve an unqualified reference to its unique local entity`: unique target remains positive, competing matching definitions return no target.                                                             | Accepted             | Accepted                             |
+| R3-U7   | H2-A6        | Three actual filesystem discovery selectors admit 10,000 entries, depth 32, and 1,000 files. Each next value rejects with exact `Discovery exceeds limits.` and recovers after removal.                                          | Accepted             | Accepted                             |
+| R3-U8   | H2-A6        | `catalog credential files rotate between authenticated requests without replacing the provider`: authenticated byte boundary, real atomic replacement, actual symlink rejection, recovery, and isolated missing-flag simulation. | Accepted             | Accepted within executed Linux scope |
+| R3-U9   | H2-A4        | `schema enum repair applies the selected guarded edit and revalidates only its intended rule`: selected internal value reaches the actual edit, target rule passes, unrelated rule remains failed.                               | Accepted             | Accepted                             |
 
 ### Final commands, counts, and candidate
 
@@ -457,4 +458,50 @@ The missing-flag experiment simulates that platform condition on Linux. It is no
 H4 retains required actual-backend evidence. H5 retains installed editor and measurement-policy work. H7 remains deferred.
 The original review SHA-256 remains `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
 No push, PR, publication, merge, H3 implementation, or further delegation occurs in H2.
-Parent inspection, independent controls, formal decisions, and next-package admission remain pending.
+
+### Parent acceptance
+
+Parent decision: accepted on 2026-11-11. All eight H2 criteria pass within the recorded Linux scope.
+The agent handoff is `ec2274cfb8584c75be355b275da710c392b0a465`.
+Only the LSP guide, editor guide, and implementation record differ from the exact qualified source `103c754d0464ee724a6565795482b1085fc01a2a` at that handoff.
+The parent inspected every finding's mapping, expected outcomes, barriers, faults, and retained qualification inventories.
+The parent preserves 27 accepted implementation findings and two clarified recommendations.
+
+| Criterion | Parent inspection and independent evidence                                                                                                                                                                                                                                                                                        | Decision                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| H2-A1     | Reproduced the old false pass at the H1 source. The strengthened test passes with the correct guard and fails with that guard removed before another edit can mask the result.                                                                                                                                                    | Accepted                         |
+| H2-A2     | Inspected complete publication histories and entered lifetime barriers. Repeated the rapid-change race through the final packaged stdio server.                                                                                                                                                                                   | Accepted                         |
+| H2-A3     | Used independent raw JSON-RPC frames against the actual package. Initialization, shutdown, unknown-method, foreign-document, EOF, and exit outcomes match fixed expected codes. Inspected the child cancellation, registration, root, and encoding controls.                                                                      | Accepted                         |
+| H2-A4     | Inspected complete text and independent edit application. Repeated guarded enum and included-payload repairs and individual capability omissions against the actual package.                                                                                                                                                      | Accepted                         |
+| H2-A5     | Repeated actual dependency deletion, the exact changed snapshot barrier, candidate removal, and live hover through the packaged server.                                                                                                                                                                                           | Accepted                         |
+| H2-A6     | Repeated independently authored workspace count/change/recovery controls through the packaged module. Repeated real packaged credential byte limits, symlink rejection, and recovery. Removed frame guards fail their intended complete-frame assertions. Inspected controlled timing, cache, discovery, action, and token edges. | Accepted within executed scope   |
+| H2-A7     | Inspected both distinct delivery races and retained independent UTF-16 vectors. R3-F11 and R3-F16 receive clarification dispositions.                                                                                                                                                                                             | Accepted with two clarifications |
+| H2-A8     | Matched the source/client/packaged inventories, revision, runtime, and real VSIX checksum. Confirmed that shared core, runtime, policy, and lockfile inputs do not change in H2.                                                                                                                                                  | Accepted                         |
+
+The independent raw protocol probe does not reuse the child test harness or SDK.
+It observes `-32002` before initialization, `-32601` for an initialized unknown method, and `-32600` after shutdown.
+The normal shutdown exits 0. Two separately rejected pre-initialize shutdowns exit 1 after EOF or exit.
+The actual packaged credential reader admits 16,384 raw bytes, rejects 16,385 bytes and a symbolic link, and recovers with a regular replacement.
+Five independently authored workspace observations cover exact document/change counts, unavailable input, and full resynchronization.
+The independent packaged race, watch, repair, and capability repeat passes nine checks with zero failure, cancellation, or skip.
+
+The parent also ran six isolated guard controls from compiled modules that match the packaged originals byte for byte.
+Correct and restored versions each pass the stale-version and framing selectors.
+Removing the stale-version, payload-size, header-size, or admitted-shutdown guard causes its intended assertion failure.
+The parent inspected all 13 agent fault controls, including the credential experiment without `O_NOFOLLOW`.
+That experiment remains a Linux simulation and does not qualify Windows execution.
+
+The parent recomputed the final VSIX checksum and size. They match the artifact identity recorded above.
+All three final inventories report success without failures, cancellation, skips, or todo cases.
+The source and packaged file inventories match exactly.
+Independent evidence remains under `.artifacts/harness-remediation/H2/parent/`.
+`raw-protocol-candidate.json`, `rejected-shutdown-candidate.json`, and `packaged-credential-review.json` retain actual packaged responses.
+`workspace-boundary-candidate.json`, `final-guard-review.json`, `packaged-behavior-review.log`, and `inventory-review.json` retain the other parent checks.
+
+Parent probe setup needed a compiled-indentation matcher correction and a nested inventory-summary reader correction.
+Those corrections changed no candidate input. The first matcher attempt remains under `review-attempt-1/`.
+The original review retains its recorded digest. The history path scan remains part of this acceptance evidence.
+
+H3 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
+H4 retains actual-backend evidence. H5 retains installed editor and performance-policy work. H7 remains deferred.
+No push, PR, publication, merge, hosted qualification, installed-client qualification, or H3 implementation belongs to this H2 decision.

@@ -48,8 +48,8 @@ Document any public contract change before implementation. Do not invent a new f
 | Package | Outcome                                                            | Dependency                                        | State    |
 | ------- | ------------------------------------------------------------------ | ------------------------------------------------- | -------- |
 | H1      | Release evidence rejects false success                             | Approval and baseline recorded                    | Accepted |
-| H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Admitted |
-| H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Waiting  |
+| H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Accepted |
+| H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Admitted |
 | H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Waiting  |
 | H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Waiting  |
 | H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Waiting  |
