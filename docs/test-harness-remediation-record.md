@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 and H2 are accepted. H3 implementation awaits parent acceptance. H4 through H6 wait for their preceding acceptance gates.
+Status: H1 through H3 are accepted. H4 is admitted. H5 and H6 wait for their preceding gates. Additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -40,8 +40,8 @@ No complete H1 finding closes through these baseline corrections.
 | ------- | ------------ | --------------- | -------------------------------------------------------- |
 | H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
 | H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
-| H3      | Complete     | Pending         | Parent review of H3 criteria and the separate open N1    |
-| H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
+| H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.         |
+| H4      | Admitted     | Pending         | Focused actual-backend and catalog evidence              |
 | H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
 | H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
 | H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
@@ -78,7 +78,8 @@ Next package admitted:
 
 The approval and baseline update alone closed no findings.
 The following dispositions record parent acceptance after implementation and independent controls.
-H2 dispositions appear in its per-finding traceability table below.
+H2 and H3 dispositions appear in their per-finding traceability tables below.
+Additional N1 remains open beyond the original frozen register.
 Use `Accepted`, `Partial`, `Open`, or `Deferred` for implementation state.
 Use `Clarified` only for a parent-reviewed correction to the original recommendation.
 
@@ -506,9 +507,9 @@ H3 is admitted next on `feature/test-harness-remediation`, starting from the par
 H4 retains actual-backend evidence. H5 retains installed editor and performance-policy work. H7 remains deferred.
 No push, PR, publication, merge, hosted qualification, installed-client qualification, or H3 implementation belongs to this H2 decision.
 
-## H3 implementation pending parent acceptance
+## H3 accepted implementation
 
-Assigned agent: `harness_h3_core_cli`. Parent acceptance remains pending.
+Assigned agent: `harness_h3_core_cli`. The parent accepted the scoped package on 2026-11-11.
 The user approved H1 through H6 sequentially on 2026-11-10. H3 starts after accepted H2.
 The admitted baseline is `c7feb6baa4417afcf1d6fc9bf1596e6c3801be3d` on `feature/test-harness-remediation`.
 The source/test candidate is `313c9ea9fdac26a7666a51ae7d1cfd2380775e09`.
@@ -578,25 +579,25 @@ They observe incomplete cancellation, exit 2, connection closure, and process de
 Output rename failure retains a redacted stdout envelope and removes temporary files.
 Successful output writes retain their original behavior.
 
-### Proposed finding and acceptance mapping
+### Accepted finding and acceptance mapping
 
-These rows propose completion. The parent owns the acceptance decision.
+The parent accepted these thirteen original findings after independent controls and inspection. N1 remains separately open.
 
-| Finding | Criterion | Independent expected result and executed boundary                                                                                                                                                                          |
-| ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1-F1   | H3-A1     | `core-failure-mapping.test.ts`: fixed 17-row state/reason/interruption/outcome table, complete required coverage, blocked dependents and exits. Actual CLI runs cover seven interpreter failures.                          |
-| R1-F2   | H3-A2     | `cel-runtime.test.ts` and comparator: every error in the original corpus and sidecar requires its fixed identity. Wrong error identity is a retained faulty variant.                                                       |
-| R1-F3   | H3-A4     | `default-boundaries.test.ts`: actual AST depth 64/65, parser frames, list 1,000/1,001 and call arguments 32/33. Earlier expression/node and unique-map bounds remain explicit.                                             |
-| R1-F4   | H3-A2     | Frozen original plus 18 reviewed function/mixed-literal/exclusion inputs. Pinned CEL-Go comparison runs locally and in a separate CI job. One approved timestamp-method difference remains explicit.                       |
-| R1-F5   | H3-A3     | `independent-conformance.test.ts`: cited YAML core scalars, all seven explicit JSON-compatible tags, 1.2 directive, alias-key and stricter JSON exclusions.                                                                |
-| R1-F6   | H3-A4     | Exact default byte/count/depth boundaries and first-excess controls. Earlier raw-source/token/expression bounds are proven and documented. Host age admits seven days structurally and rejects that exclusive end instant. |
-| R1-F7   | H3-A3     | Official pinned draft-07 subset: 181 fixed valid flags, safe local references, and explicit rejected profile features. Source license and byte digests remain retained.                                                    |
-| R1-F8   | H3-A3     | Actual normal/incomplete/error CLI SARIF and formatter controls pass the unmodified OASIS schema through a draft-04 validator with full formats. Targeted invalid variants fail.                                           |
-| R1-F9   | H3-A3     | Fixed RFC/ECMAScript string vectors include supplementary UTF-16 key order and numeric edge representations. Unsafe integral doubles remain rejected.                                                                      |
-| R1-F10  | H3-A3     | Exact tamper rejection code/path/message. Independent RFC 8032 and separately constructed release signing bytes pass `node:crypto`, while altered messages/signatures fail.                                                |
-| R1-F11  | H3-A5     | Two lowered per-request scheduling controls share one real pool with a default request. Not-applicable and every incomplete prerequisite block dependents without preventing independent work.                             |
-| R1-F12  | H3-A6     | Actual CLI options, output-file success/failure, and POSIX SIGINT/SIGTERM. Every signal observes entered work, result exit 2, closed connection and dead process.                                                          |
-| R1-F13  | H3-A5     | Compilation spies observe pre-ceiling reuse, cache clearing after 256 entries, and correct recompilation across 800 programs/patterns.                                                                                     |
+| Finding | Criterion | Independent expected result and executed boundary                                                                                                                                                                          | Implementation state | Parent decision |
+| ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | --------------- |
+| R1-F1   | H3-A1     | `core-failure-mapping.test.ts`: fixed 17-row state/reason/interruption/outcome table, complete required coverage, blocked dependents and exits. Actual CLI runs cover seven interpreter failures.                          | Accepted             | Accepted        |
+| R1-F2   | H3-A2     | `cel-runtime.test.ts` and comparator: every error in the original corpus and sidecar requires its fixed identity. Wrong error identity is a retained faulty variant.                                                       | Accepted             | Accepted        |
+| R1-F3   | H3-A4     | `default-boundaries.test.ts`: actual AST depth 64/65, parser frames, list 1,000/1,001 and call arguments 32/33. Earlier expression/node and unique-map bounds remain explicit.                                             | Accepted             | Accepted        |
+| R1-F4   | H3-A2     | Frozen original plus 18 reviewed function/mixed-literal/exclusion inputs. Pinned CEL-Go comparison runs locally and in a separate CI job. One approved timestamp-method difference remains explicit.                       | Accepted             | Accepted        |
+| R1-F5   | H3-A3     | `independent-conformance.test.ts`: cited YAML core scalars, all seven explicit JSON-compatible tags, 1.2 directive, alias-key and stricter JSON exclusions.                                                                | Accepted             | Accepted        |
+| R1-F6   | H3-A4     | Exact default byte/count/depth boundaries and first-excess controls. Earlier raw-source/token/expression bounds are proven and documented. Host age admits seven days structurally and rejects that exclusive end instant. | Accepted             | Accepted        |
+| R1-F7   | H3-A3     | Official pinned draft-07 subset: 181 fixed valid flags, safe local references, and explicit rejected profile features. Source license and byte digests remain retained.                                                    | Accepted             | Accepted        |
+| R1-F8   | H3-A3     | Actual normal/incomplete/error CLI SARIF and formatter controls pass the unmodified OASIS schema through a draft-04 validator with full formats. Targeted invalid variants fail.                                           | Accepted             | Accepted        |
+| R1-F9   | H3-A3     | Fixed RFC/ECMAScript string vectors include supplementary UTF-16 key order and numeric edge representations. Unsafe integral doubles remain rejected.                                                                      | Accepted             | Accepted        |
+| R1-F10  | H3-A3     | Exact tamper rejection code/path/message. Independent RFC 8032 and separately constructed release signing bytes pass `node:crypto`, while altered messages/signatures fail.                                                | Accepted             | Accepted        |
+| R1-F11  | H3-A5     | Two lowered per-request scheduling controls share one real pool with a default request. Not-applicable and every incomplete prerequisite block dependents without preventing independent work.                             | Accepted             | Accepted        |
+| R1-F12  | H3-A6     | Actual CLI options, output-file success/failure, and POSIX SIGINT/SIGTERM. Every signal observes entered work, result exit 2, closed connection and dead process.                                                          | Accepted             | Accepted        |
+| R1-F13  | H3-A5     | Compilation spies observe pre-ceiling reuse, cache clearing after 256 entries, and correct recompilation across 800 programs/patterns.                                                                                     | Accepted             | Accepted        |
 
 H3-A7 requires the exact-candidate source/client and packaged results below.
 The guides updated are parsing, CEL runtime, contracts, and policy CLI.
@@ -631,15 +632,15 @@ The old sorted observer passes swapped production lanes. The earlier default-val
 The corrected observers fail those same production faults at request-specific count or provenance assertions.
 Scratch failure reports remain separate from normal release and test inventories.
 
-| Criterion | Final evidence and proposed decision                                                                                                                                                                       |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H3-A1     | Complete 17-code rules-stage table and seven actual CLI interpreter classes pass. Proposed complete.                                                                                                       |
-| H3-A2     | All 61 corpus inputs require fixed outcomes/error identities and pass pinned Go comparison. One reviewed profile difference remains. N1 remains separately open. Proposed complete for this curated scope. |
-| H3-A3     | Cited YAML, 181 official draft-07 flags, unmodified OASIS draft-04/full formats, fixed canonical JSON, and independent signatures pass. Proposed complete.                                                 |
-| H3-A4     | Exact defaults and first-excess controls pass, with earlier binding ceilings documented. Proposed complete.                                                                                                |
-| H3-A5     | Caller-bound scheduling, blocked prerequisites, and cache clearing/recompilation pass. Their focused faults fail. Proposed complete.                                                                       |
-| H3-A6     | Distinct supplied options, data freshness, POSIX signals, output failure, and observed cleanup pass through actual subprocesses and the installed archive. Proposed complete on the declared platform.     |
-| H3-A7     | Final exact-revision source/client, packaged, and installed archive CLI gates pass. Historical evidence and original review remain preserved. Proposed complete.                                           |
+| Criterion | Final evidence and parent decision                                                                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H3-A1     | Complete 17-code rules-stage table and seven actual CLI interpreter classes pass. Accepted.                                                                                                       |
+| H3-A2     | All 61 corpus inputs require fixed outcomes/error identities and pass pinned Go comparison. One reviewed profile difference remains. N1 remains separately open. Accepted for this curated scope. |
+| H3-A3     | Cited YAML, 181 official draft-07 flags, unmodified OASIS draft-04/full formats, fixed canonical JSON, and independent signatures pass. Accepted.                                                 |
+| H3-A4     | Exact defaults and first-excess controls pass, with earlier binding ceilings documented. Accepted.                                                                                                |
+| H3-A5     | Caller-bound scheduling, blocked prerequisites, and cache clearing/recompilation pass. Their focused faults fail. Accepted.                                                                       |
+| H3-A6     | Distinct supplied options, data freshness, POSIX signals, output failure, and observed cleanup pass through actual subprocesses and the installed archive. Accepted on the executed platform.     |
+| H3-A7     | Final exact-revision source/client, packaged, and installed archive CLI gates pass. Historical evidence and original review remain preserved. Accepted.                                           |
 
 Final VSIX SHA-256: `94a6756c4e10e54a9c8ad319d351ae2bf556c3a46a2759033690db7e2bbc8a25`.
 Its size is 52,086,896 bytes. The build stamp names the tested revision, Node version, and `linux-x64`.
@@ -748,4 +749,52 @@ The CI comparator is wired but no hosted CI result is claimed.
 Normal source tests remain offline and need no Go installation.
 No real-backend, installed editor, native-client, endurance, H4, or deferred H7 qualification belongs to H3.
 The shared engine, contract 0.2, host trust, and existing limits remain authoritative.
-Parent acceptance remains pending. H4 is not admitted by this agent record.
+The agent handoff preceded the separate parent decision below.
+
+### Parent acceptance
+
+Parent decision: accepted on 2026-11-11 for all seven H3 criteria within the declared curated and Linux scope.
+Documentation handoff: `fb93066fbc5b11921d89029386350e6536e0c678`.
+Only this record differs from qualified source/test revision `313c9ea9fdac26a7666a51ae7d1cfd2380775e09` at that handoff.
+The parent inspected all thirteen finding mappings, independent expectations, boundaries, source licenses, faults, and complete inventories.
+The two documented interpreter corrections and timestamp-method exclusion retain their reviewed scope.
+N1 remains an unresolved language-compatibility finding. It receives no supported-vector or approved-exception claim.
+
+| Criterion | Independent parent evidence                                                                                                                                                                                                     | Decision                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| H3-A1     | All seventeen fixed typed failures cross the actual packaged rules API with expected states, reasons, required blocked coverage, interruption, outcome, and exit 2. Actual archive CLI repeats cover seven interpreter classes. | Accepted                                     |
+| H3-A2     | Repeated the sixty-one-case comparison from final committed inputs. Verified the official Go tag and toolchain archive. Inspected frozen corpus bytes, exact error identities, adapters, and the timestamp difference.          | Accepted for curated scope. N1 remains open. |
+| H3-A3     | Reviewed YAML, official draft-07 flags, complete licenses, and signature controls. Repeated fixed canonical JSON vectors and twenty-one actual formatter/schema verdicts. Disabling formats fails the invalid-date assertion.   | Accepted                                     |
+| H3-A4     | Inspected exact defaults, first-excess cases, and earlier binding proofs. Actual packaged workers accept unary and binary depth 64 and reject 65, including a nested map overflow.                                              | Accepted                                     |
+| H3-A5     | Inspected caller-bound scheduling, prerequisites, compilation spies, and their focused faults. The old sorted observer passes swapped production lanes. The request-specific observer fails.                                    | Accepted                                     |
+| H3-A6     | Repeated twelve actual installed-archive CLI checks. Independently constructed both default substitutions: old observers pass, current observers fail, and restoration passes.                                                  | Accepted on the executed platform            |
+| H3-A7     | Recomputed VSIX/CLI hashes, sizes, lock digest, and stamps. Matched source/client/packaged and installed CLI counts to the exact qualified revision.                                                                            | Accepted                                     |
+
+Twelve additional vectors execute through the actual packaged managed workers.
+They cover mixed literals, unary/binary/nested depth, preserved arithmetic and method exclusions, boolean results, and forbidden host calls.
+Both workers remain healthy and are observed closed afterward.
+The seventeen mapping controls use fixed error injection through the shipped rules API.
+They remain distinct from the separate actual worker execution.
+
+The independent SARIF probe admits and rejects all twenty-one fixed normal, incomplete, and error variants as expected.
+An isolated format-disabled validator fails the intended invalid-date assertion.
+The canonical probe covers fourteen numeric cases, including eight documented unsafe-integral rejections, plus UTF-16 sorting and nonfinite rejection.
+Its first exploratory assumption that all finite RFC samples were admitted was incorrect. The documented restrictions remain unchanged.
+
+The independent installed CLI repeat passes twelve nodes with zero failure, cancellation, skip, or todo.
+Five isolated option controls confirm both earlier false passes and the restored positive through byte-identical packaged CLI code.
+The repeated comparator passes sixty-one cases with the same one reviewed profile difference.
+The parent inspected all nine agent faults and their corrected results.
+N1 source and raw observations were independently reviewed. Its evaluator source is unchanged across the investigated and qualified revisions.
+
+Evidence remains under `.artifacts/harness-remediation/H3/parent/`.
+`managed-cel-candidate.json`, `rules-mapping-candidate.json`, and `canonical-candidate.json` retain independent expected outcomes.
+`sarif-verdict-candidate.json`, `sarif-fault-review.json`, and `installed-cli-review.log` retain format and subprocess observations.
+`cli-substitution-review.json` retains five false-pass/restoration controls.
+`cel-go-candidate.json`, `cel-go-tag-review.json`, `n1-source-review.json`, and `artifact-inventory-review.json` retain provenance and scope.
+`setup-cleanup.json` records the observed installer termination before any behavior gate started.
+The original review retains its recorded digest. History and link validation accompany this documentation decision.
+
+H4 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
+All thirteen original H3 dispositions are accepted. Additional N1 remains open and must survive H6 reconciliation.
+No hosted run, push, PR, publication, merge, actual-backend qualification, installed-editor qualification, or deferred H7 work belongs to this decision.

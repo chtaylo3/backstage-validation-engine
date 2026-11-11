@@ -43,14 +43,19 @@ Preserve the shared engine, contract 0.2 behavior, capability ownership rules, a
 A product defect found through stronger tests needs the smallest justified correction and its regression control.
 Document any public contract change before implementation. Do not invent a new field or failure code to satisfy a test.
 
+Implementation also identified [open finding N1](test-harness-remediation-record.md#additional-open-finding-n1), beyond the original 86 findings.
+Duplicate-key CEL map literals retain the last value in both pinned implementations, despite the language-defined error.
+N1 remains unresolved and receives no conformance or supported-vector claim. H6 must preserve that disposition.
+This finding does not expand H7 or authorize an additional language-semantics change.
+
 ## Delivery order
 
 | Package | Outcome                                                            | Dependency                                        | State    |
 | ------- | ------------------------------------------------------------------ | ------------------------------------------------- | -------- |
 | H1      | Release evidence rejects false success                             | Approval and baseline recorded                    | Accepted |
 | H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Accepted |
-| H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Admitted |
-| H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Waiting  |
+| H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Accepted |
+| H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Admitted |
 | H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Waiting  |
 | H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Waiting  |
 | H7      | Final client, transport, and endurance qualification               | Separate authorization and accepted H1 through H6 | Deferred |
