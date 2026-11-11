@@ -158,3 +158,16 @@ disabled.
 `executePolicyRules` also supports explicit catalog-existence rules. `executeCelRules` remains a
 compatible alias. Catalog bindings are evaluated outside the interpreter. The `bve-cel/1` variables,
 semantics and frozen corpus remain unchanged. See the [catalog policy/LSP guide](lsp.md).
+
+## H3 reviewed semantic clarification
+
+List and map literals can contain values of different CEL types.
+For example, `[1, "x", true, null]` and `{"a": 1, "b": "x"}` are supported.
+Mixed numeric literals retain their explicit CEL types. JSON entity numbers remain doubles.
+The worker selects `homogeneousAggregateLiterals: false` in the pinned interpreter.
+This corrects the interpreter default without changing limits, functions, or host access.
+The original 43-case corpus remains unchanged.
+
+The profile excludes timestamp receiver methods such as `getFullYear`.
+CEL-Go accepts that method. BVE rejects it with `profile` because its method allowlist excludes it.
+The independent comparison records this difference and does not rewrite expressions.
