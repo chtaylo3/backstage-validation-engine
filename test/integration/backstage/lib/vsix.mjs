@@ -65,7 +65,9 @@ export function admitVsixPath(name) {
     );
   if (exactPayload.has(name)) return;
   if (
-    /^extension\/server\/dist\/(?:[a-z-]+\/)*[a-z0-9-]+\.(?:js|js.map|d.ts|d.ts.map)$/u.test(name)
+    /^extension\/server\/dist\/(?:[a-z-]+\/)*[a-z0-9-]+\.(?:js(?:\.map)?|d\.ts(?:\.map)?)$/u.test(
+      name,
+    )
   )
     return;
   if (/^extension\/server\/schemas\/[a-z0-9-]+\.schema\.json$/u.test(name)) return;

@@ -65,6 +65,7 @@ void test('VSIX policy admits declared payload and rejects crafted forbidden pat
   assert.equal((await inspectVsix(file, 'candidate')).files.length, clean.length);
   for (const forbidden of [
     'extension/server/nested/catalog.sqlite',
+    'extension/server/dist/lsp/stdio.jsXmap',
     'extension/server/node_modules/@backstage/test/index.js',
     'extension/server/seed.json',
     'extension/server/yarn.lock',
