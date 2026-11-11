@@ -1199,7 +1199,8 @@ Agent disposition: implemented. Parent acceptance remains pending. H7 remains de
 Baseline: `17cf56a27ed860baef1126caa86820bdfbf93420` on `feature/test-harness-remediation`.
 The 2026-11-10 approval admits H6 after parent acceptance of H5 on 2026-11-11.
 This phase changes harness controls and evidence documentation. It preserves public validation 0.2 and production request budgets.
-The committed source and final qualification identities follow below after execution.
+Qualified source/test revision: `34680c887e13abe8c45453e6753f2c5212040225`.
+Final documentation changes only record the completed gates and correct one dated provider statement.
 
 ### Finding and criterion mapping
 
@@ -1376,5 +1377,60 @@ All final client, native Trust reliability, JetBrains, remote-loss, and enduranc
 
 The first targeted attempt passed 82 of 83 controls. It failed a mistyped focused case ID in the new inventory expectation.
 The corrected repeat passed all 83. Both earlier attempts remain retained.
-Final committed source/client, exact-stamped package, and packaged suite results follow after execution.
+The final expanded targeted selection passes 84 of 84 controls. It includes the additional evidence-upload regression guard.
+The full committed gates below pass on their first final-candidate attempts.
 No H6 parent decision, hosted workflow dispatch, push, PR, merge, or publication occurs in this handoff.
+
+### Final committed qualification
+
+A dedicated clean checkout excludes the primary checkout's preserved, untracked `out/` directory.
+No earlier phase worktree, evidence, user demo, nested planning repository, or development package metadata changes.
+The final gates run serially at source `34680c887e13abe8c45453e6753f2c5212040225`.
+The locked offline install audits 276 packages with zero vulnerabilities. Node is 24.22.1.
+
+| Actual command or selector                                                                                                                                                                                                                                 | Outcome                                                                                                                    | Retained evidence under `.artifacts/harness-remediation/H6/`                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `node --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/backstage-release-evidence.test.js .test-dist/test/backstage-release-workflow.test.js .test-dist/test/catalog-provider.test.js .test-dist/test/harness-evidence-boundaries.test.js` | 84 pass, zero failures/cancellations/skips/todos                                                                           | `targeted/final.log`                                                                |
+| `node scripts/qualification-inventory.mjs`                                                                                                                                                                                                                 | Clean source stamp, 58/50 installed modules, 47 declared and 59/118 expanded Backstage cases                               | `qualification/declared-inventory.json`                                             |
+| `GITHUB_SHA=34680c887e13abe8c45453e6753f2c5212040225 npm run check`                                                                                                                                                                                        | Architecture, types, lint, formatting, generated schemas, 1,377 source and 45 client tests pass                            | `qualification/source-client.log`, `qualification/source/`, `qualification/client/` |
+| `GITHUB_SHA=34680c887e13abe8c45453e6753f2c5212040225 npm_config_cache=<retained-cache> npm_config_offline=true npm run extension:package`                                                                                                                  | Exact-revision Linux x64 VSIX passes packaging with nine client SBOM components                                            | `qualification/package.log`, `qualification/artifact-identity.json`                 |
+| `GITHUB_SHA=34680c887e13abe8c45453e6753f2c5212040225 npm run test:packaged`                                                                                                                                                                                | 1,377 tests pass through bundled Node and configured packaged CLI/LSP entrypoints                                          | `qualification/packaged.log`, `qualification/packaged/`                             |
+| Isolated workflow/authority/inventory faulty source copies                                                                                                                                                                                                 | All 11 intended faults fail their direct controls. Both restored suites pass.                                              | `mutations/summary.json`, `mutations/*.log`, `mutations/run-controls.py`            |
+| Read-only traceability and local link inspection                                                                                                                                                                                                           | 86 unique findings retain exclusive owners. All six H6 criteria map to evidence. Original review digest remains unchanged. | `targeted/traceability.json`                                                        |
+
+The source, client, and packaged gates report zero failures, cancellations, skips, and todos.
+Client coverage is 99.79% lines, 95.87% branches, and 98.25% functions. Thresholds remain 90% lines and 85% branches.
+The package contains 5,079 entries and 52,088,726 bytes. Its target is Linux x64.
+VSIX SHA-256: `78c9d84d3eeb04d643cb10b83519c3b439665908e53c9967b79e295f7f3155cb`.
+Bundled Node SHA-256: `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb`.
+Root lock SHA-256: `dbd025198eb555e06edf78f0c8f420eef786c445a9eaf01b488ea34ec4669b8b`.
+`qualification/manifest.json` binds commands, counts, changed paths, acceptance mappings, artifact identity, and limits.
+The retained VSIX copy stays under that qualification directory. The root development package metadata remains unchanged.
+
+The 11 agent fault controls cover upload conditions, manual approval, CLI dependency, revision binding, automated entry, immutable pin, sanitized path, authority retention/leak/expiry, and portable omission.
+The mutation driver initially assumed TAP output while Node emitted its default reporter. Selecting TAP corrects only the evidence driver.
+The intended faulty workflow already failed at its direct assertion. The final fault summary excludes this driver mismatch as a separate outcome.
+The earlier compile attempt rejected an optional-regexp assertion overload. The corrected assertion preserves its rejection behavior.
+The first targeted inventory attempt used `dirty-watch` instead of actual `race-dirty-watch`. Both failed and corrected attempts remain identified above.
+No final gate needs a rerun, assertion weakening, budget increase, or skipped case.
+
+### Independent parent inspection awaiting acceptance
+
+The parent independently repeats 26 positive controls, applies ten faults, and restores all 26 positives.
+Every fault fails its intended assertion. Fresh independent compilation matches all three executed control files byte for byte.
+`parent/isolated-controls/report.json` and `parent/compiled-controls-review.json` retain those outcomes.
+The parent also uses nine fixed-literal selector controls and an admit-all fault across compiled names and bare IDs.
+Twelve independently authored release-report negative controls fail. Two weakened guards demonstrate invalid editor/driver evidence would otherwise pass.
+See `parent/accepted-source-selection-review.json` and `parent/accepted-source-release-verdict-review.json` for their exact source binding.
+These independent sets overlap the agent controls. Their counts are not added into one distinct-fault claim.
+
+The parent independently recomputes golden/input digests, declared counts, and the clean inventory command.
+Its traceability inspection covers all 86 findings and 51 plan criteria, including the deferred H7 criteria.
+It inspects local links across the affected guides. These inspections do not accept or execute the deferred criteria.
+`parent/artifact-review.json` independently verifies the VSIX identity, Node hash, and clean checkout.
+All 5,079 archive entries are compared with qualified H5. Production code, runtime, and dependency inventories are identical.
+Only the build revision and server SBOM UUID/timestamp differ. This comparison does not promote older native/backend evidence to H6 qualification.
+
+Parent H6 acceptance remains pending. R4-F10 remains Partial, R4-F7/R4-F12 remain deferred, and N1 remains OPEN.
+No hosted workflow, native Trust/H7 test, actual-backend rerun, publication, push, PR, or merge occurs.
+The agent stops after this documentation handoff and waits for the parent decision.

@@ -474,3 +474,8 @@ R4-F7 and R4-F12 remain deferred. All final client, JetBrains, native Trust reli
 Additional N1 remains OPEN outside the original 86 findings. Both pinned CEL implementations retain the last duplicate map key despite the language-defined error.
 N1 is not fixed, waived, or included in supported conformance vectors. H7 receives no additional scope from this finding.
 Screenshots are OPTIONAL DIAGNOSTICS. Required native Trust state and UI assertions remain independent.
+
+The final H6 source/test candidate is `34680c887e13abe8c45453e6753f2c5212040225`.
+Its clean serial gates pass 1,377 source tests, 45 client tests, and 1,377 packaged tests without failures or skips.
+The exact Linux package and independent fault evidence are bound in the [H6 qualification record](test-harness-remediation-record.md#final-committed-qualification).
+H6 parent acceptance remains pending. These gates do not extend installed-client, backend, or endurance qualification.

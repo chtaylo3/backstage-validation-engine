@@ -134,8 +134,9 @@ validation package support remain separate. Full pipeline performance qualificat
 
 Local qualification on 2026-10-29: all 31 provider checks passed within the full 356-test
 `npm run check`. The built example also passed against the standalone 1.56 fixture server. It
-returned two present observations and one missing observation, then completed shutdown. Hosted CI
-and real Backstage deployment runs remain open.
+returned two present observations and one missing observation, then completed shutdown.
+Hosted CI and actual Backstage deployment runs were open at that checkpoint.
+The [H4 record](test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) records later focused backend evidence and its exact candidate.
 
 ## Safe failure evidence
 

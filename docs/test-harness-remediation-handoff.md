@@ -138,3 +138,12 @@ H4's actual-backend evidence retains its older source and CLI identity. Final H6
 R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
 R4-F7 and R4-F12 remain deferred. N1 remains OPEN beyond the original 86 findings.
 No H7 work or native Trust execution is admitted by this handoff.
+
+The qualified H6 source/test revision is `34680c887e13abe8c45453e6753f2c5212040225`.
+The clean serial gates pass 1,377 source, 45 client, and 1,377 packaged tests with zero failures, cancellations, or skips.
+The exact Linux x64 VSIX SHA-256 is `78c9d84d3eeb04d643cb10b83519c3b439665908e53c9967b79e295f7f3155cb`.
+It contains 5,079 entries and 52,088,726 bytes. Node 24.22.1 and existing coverage thresholds remain unchanged.
+Evidence manifest: `.artifacts/harness-remediation/H6/qualification/manifest.json`.
+Agent faults: `mutations/summary.json`. Independent parent outcomes: `parent/isolated-controls/report.json` and the separate selector/verdict/artifact reviews.
+The [H6 record](test-harness-remediation-record.md#final-committed-qualification) supplies commands, counts, failed development attempts, per-finding mappings, and limits.
+Parent acceptance remains pending. Stop here before H7.
