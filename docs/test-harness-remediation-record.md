@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 and H2 are accepted. H3 is admitted for implementation. H4 through H6 wait for their preceding acceptance gates.
+Status: H1 and H2 are accepted. H3 implementation awaits parent acceptance. H4 through H6 wait for their preceding acceptance gates.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -40,7 +40,7 @@ No complete H1 finding closes through these baseline corrections.
 | ------- | ------------ | --------------- | -------------------------------------------------------- |
 | H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
 | H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
-| H3      | Admitted     | Pending         | Independent core/CLI contracts and boundary controls     |
+| H3      | Complete     | Pending         | Parent review of H3 criteria and the separate open N1    |
 | H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
 | H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
 | H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
@@ -505,3 +505,247 @@ The original review retains its recorded digest. The history path scan remains p
 H3 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
 H4 retains actual-backend evidence. H5 retains installed editor and performance-policy work. H7 remains deferred.
 No push, PR, publication, merge, hosted qualification, installed-client qualification, or H3 implementation belongs to this H2 decision.
+
+## H3 implementation pending parent acceptance
+
+Assigned agent: `harness_h3_core_cli`. Parent acceptance remains pending.
+The user approved H1 through H6 sequentially on 2026-11-10. H3 starts after accepted H2.
+The admitted baseline is `c7feb6baa4417afcf1d6fc9bf1596e6c3801be3d` on `feature/test-harness-remediation`.
+The source/test candidate is `313c9ea9fdac26a7666a51ae7d1cfd2380775e09`.
+The later handoff changes only this implementation record.
+
+### Behavior and compatibility
+
+The rules-stage controls inject all 17 declared CEL failures through `executePolicyRules`.
+They assert independent rule states, reasons, required coverage, interruption, and result exit 2.
+Positive controls execute all rules successfully through a production pool and return exit 0.
+Actual CLI subprocesses also exercise seven attainable interpreter failure classes.
+Not-applicable and incomplete prerequisites block dependents. Independent rules still execute.
+Separate one-worker and one-outstanding-job requests run alongside a default request against one production pool.
+Entered and released gates prove each request's concurrency without assigning pool ownership to a request.
+Observation guards and failure cleanup bound the test harness itself.
+
+The original 43-case CEL corpus retains its bytes and historical digest.
+A versioned sidecar pins exact error codes and 18 additional fixed cases.
+The pinned CEL-Go comparator retains each original expression and maps JSON entity numbers to CEL doubles.
+Its fixed expectations distinguish parse, check, evaluation, and boolean-result admission.
+Go accepts `1 + 1` and returns integer `2`. The report retains that raw successful value.
+The `result_type` adapter applies BVE's existing boolean-result rule.
+One reviewed profile difference remains: Go accepts `getFullYear`, while BVE rejects that unallowlisted method with `profile`.
+
+The new positive literal cases demonstrated the interpreter's restrictive homogeneous-literal default.
+The parent approved heterogeneous literal support before the correction.
+Commit `3c4ca8a` documents that behavior before the implementation commit.
+The only interpreter configuration change is `homogeneousAggregateLiterals: false`.
+The stronger AST test also demonstrated that the vendor parser's frame limit did not enforce actual AST depth.
+Commit `8c61144` defines root-depth-zero semantics before the iterative admission guard.
+That guard rejects AST depth 65 with `parse` before recursive regex traversal or evaluation.
+A unary chain at depth 64 executes successfully. The existing ceiling remains 64.
+
+The official draft-07 subset executes 181 unmodified expected-valid flags from 32 accepted feature groups.
+An additional upstream group receives an explicit remote-reference exclusion control.
+The curated source contains 33 complete upstream feature files and its MIT license.
+Unselected groups receive no conformance claim. Strict lone-`if` admission and recursive references remain explicit exclusions.
+YAML controls cite the 1.2.2 core table and retain explicit tags, directive, alias-key, and non-JSON exclusions.
+Canonical controls retain fixed UTF-16 key ordering and ECMAScript numeric strings.
+Unsafe integral doubles remain excluded under contract 0.2.
+`node:crypto` verifies the published RFC 8032 vector and signatures over separately constructed release bytes.
+Tampering tests assert the structural or integrity failure that occurs first.
+
+Unmodified OASIS 2.1.0 Errata 01 schema bytes qualify normal, incomplete, and error SARIF.
+Pinned test-only `ajv-draft-04` and `ajv-formats` enforce draft-04 structure and full formats.
+Invalid URI, URI-reference, date-time, version, and missing-tool controls fail admission.
+The only regex compatibility setting is `unicodeRegExp: false` for the schema's legacy pattern.
+The minimal devDependency lock update adds these two validators. Production dependencies remain unchanged.
+
+Default controls reach exact parser, CEL input, snapshot, canonical JSON, and release boundaries.
+They retain UTF-8 multibyte inputs, seven-day host age, and exclusive authority expiry.
+Quoted sequences reach 100,000 syntax/value nodes at exactly 200,000 tokens.
+An extra scalar crosses the earlier token bound. Aliases independently reach 100,000 expanded values.
+Expansion reaches one MiB per document and 16 MiB across documents before rejecting one extra byte.
+A one-document fixture reaches the diagnostic quota independently of the document quota.
+The expression ceiling prevents an authored AST above 4,096 nodes and unique-key 1,000-entry maps.
+The tests retain these earlier rejections without changing ceilings.
+More than 256 programs and patterns demonstrate cache clearing, bounded reuse, and correct recompilation.
+No least-recently-used policy is introduced.
+
+The actual CLI controls cover `--baseline`, `--data`, `--help`, output-write failure, SIGINT, and SIGTERM.
+The baseline has a distinct prior revision. Supplied data is nonempty and differs from the default snapshot.
+That data controls the exact publication deadline. Expired and future data fail admission.
+Validated-but-substituted baseline/data faults fail the corrected caller-specific provenance assertions.
+The signal controls wait for an entered HTTP request before sending the signal.
+They observe incomplete cancellation, exit 2, connection closure, and process death.
+Output rename failure retains a redacted stdout envelope and removes temporary files.
+Successful output writes retain their original behavior.
+
+### Proposed finding and acceptance mapping
+
+These rows propose completion. The parent owns the acceptance decision.
+
+| Finding | Criterion | Independent expected result and executed boundary                                                                                                                                                                          |
+| ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1-F1   | H3-A1     | `core-failure-mapping.test.ts`: fixed 17-row state/reason/interruption/outcome table, complete required coverage, blocked dependents and exits. Actual CLI runs cover seven interpreter failures.                          |
+| R1-F2   | H3-A2     | `cel-runtime.test.ts` and comparator: every error in the original corpus and sidecar requires its fixed identity. Wrong error identity is a retained faulty variant.                                                       |
+| R1-F3   | H3-A4     | `default-boundaries.test.ts`: actual AST depth 64/65, parser frames, list 1,000/1,001 and call arguments 32/33. Earlier expression/node and unique-map bounds remain explicit.                                             |
+| R1-F4   | H3-A2     | Frozen original plus 18 reviewed function/mixed-literal/exclusion inputs. Pinned CEL-Go comparison runs locally and in a separate CI job. One approved timestamp-method difference remains explicit.                       |
+| R1-F5   | H3-A3     | `independent-conformance.test.ts`: cited YAML core scalars, all seven explicit JSON-compatible tags, 1.2 directive, alias-key and stricter JSON exclusions.                                                                |
+| R1-F6   | H3-A4     | Exact default byte/count/depth boundaries and first-excess controls. Earlier raw-source/token/expression bounds are proven and documented. Host age admits seven days structurally and rejects that exclusive end instant. |
+| R1-F7   | H3-A3     | Official pinned draft-07 subset: 181 fixed valid flags, safe local references, and explicit rejected profile features. Source license and byte digests remain retained.                                                    |
+| R1-F8   | H3-A3     | Actual normal/incomplete/error CLI SARIF and formatter controls pass the unmodified OASIS schema through a draft-04 validator with full formats. Targeted invalid variants fail.                                           |
+| R1-F9   | H3-A3     | Fixed RFC/ECMAScript string vectors include supplementary UTF-16 key order and numeric edge representations. Unsafe integral doubles remain rejected.                                                                      |
+| R1-F10  | H3-A3     | Exact tamper rejection code/path/message. Independent RFC 8032 and separately constructed release signing bytes pass `node:crypto`, while altered messages/signatures fail.                                                |
+| R1-F11  | H3-A5     | Two lowered per-request scheduling controls share one real pool with a default request. Not-applicable and every incomplete prerequisite block dependents without preventing independent work.                             |
+| R1-F12  | H3-A6     | Actual CLI options, output-file success/failure, and POSIX SIGINT/SIGTERM. Every signal observes entered work, result exit 2, closed connection and dead process.                                                          |
+| R1-F13  | H3-A5     | Compilation spies observe pre-ceiling reuse, cache clearing after 256 entries, and correct recompilation across 800 programs/patterns.                                                                                     |
+
+H3-A7 requires the exact-candidate source/client and packaged results below.
+The guides updated are parsing, CEL runtime, contracts, and policy CLI.
+The frozen findings register and accepted H1/H2 evidence remain unchanged.
+
+### Exact commands and final evidence
+
+All final commands use committed inputs at `313c9ea9fdac26a7666a51ae7d1cfd2380775e09` on Linux x64.
+Node is `24.22.1`. npm is `11.19.1`.
+Separate clean worktrees use separate `.test-dist` directories and actual locked dependencies.
+Source/client, packaged, scratch faults, comparator, and archive CLI controls run sequentially.
+No native editor or backend load overlaps these gates.
+
+| Command or control                                                                                                                  | Final executed result                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm ci --offline --no-audit --no-fund --cache <verified-cache>`                                                                    | 275 locked packages installed. Install scripts and lock integrity remain enabled.                                                                                                  |
+| `npm run check`                                                                                                                     | Architecture, types, lint, formatting, schemas, 1,273 source tests and 43 client tests pass. Zero failure, cancellation, skip, or todo. Client coverage: 100% lines, 96% branches. |
+| `GITHUB_SHA=$(git rev-parse HEAD) npm run extension:package`                                                                        | Clean exact-revision VSIX passes stamp and payload inspection. 5,079 files.                                                                                                        |
+| `GITHUB_SHA=$(git rev-parse HEAD) npm run cli:package`                                                                              | Final metadata binds the tested revision and root lock with `sourceDirty: false`.                                                                                                  |
+| `npm run test:packaged`                                                                                                             | All 1,273 tests pass with zero failure, cancellation, skip, or todo. Source/packaged inventories contain the same 75 test files.                                                   |
+| Offline `npm install --prefix <fresh-prefix> <archive>`                                                                             | Final CLI archive installs 24 packages from the existing verified registry cache.                                                                                                  |
+| `BVE_TEST_CLI_ENTRY=<installed-entry> <packaged-node> --test --test-concurrency=1 --test-timeout=30000 .test-dist/test/cli.test.js` | All 22 tests pass through the installed archive entry. Includes distinct baseline/data, freshness, errors, formats, actual signals, and output failure.                            |
+| `go -C scripts/cel-go mod verify`                                                                                                   | All pinned comparator modules verify.                                                                                                                                              |
+| `GO_BINARY=<pinned-go> node scripts/compare-cel-go.mjs <report>`                                                                    | 61 reviewed comparisons pass. One approved timestamp-method difference remains explicit. Go's successful nonboolean integer value is retained before the BVE admission adapter.    |
+| Retained `run-faulty-controls.mjs`                                                                                                  | Nine production faults are detected. Corrected versions pass all 149 selected test nodes. Expected faulty executions fail 15 nodes across nine separate runs.                      |
+
+The nine faults restore homogeneous literals, remove AST admission, change exact errors, remove program-cache clearing,
+change queue-failure mapping, swap actual request lane limits, return successful output-write exit, or substitute validated baseline/data values.
+Eight faults produce the intended assertion failures. The homogeneous default produces three unexpected typed evaluation failures and their containing failure.
+The corrected candidate passes every corresponding control.
+The old sorted observer passes swapped production lanes. The earlier default-valued flag observer passes both validated-value substitutions.
+The corrected observers fail those same production faults at request-specific count or provenance assertions.
+Scratch failure reports remain separate from normal release and test inventories.
+
+| Criterion | Final evidence and proposed decision                                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H3-A1     | Complete 17-code rules-stage table and seven actual CLI interpreter classes pass. Proposed complete.                                                                                                       |
+| H3-A2     | All 61 corpus inputs require fixed outcomes/error identities and pass pinned Go comparison. One reviewed profile difference remains. N1 remains separately open. Proposed complete for this curated scope. |
+| H3-A3     | Cited YAML, 181 official draft-07 flags, unmodified OASIS draft-04/full formats, fixed canonical JSON, and independent signatures pass. Proposed complete.                                                 |
+| H3-A4     | Exact defaults and first-excess controls pass, with earlier binding ceilings documented. Proposed complete.                                                                                                |
+| H3-A5     | Caller-bound scheduling, blocked prerequisites, and cache clearing/recompilation pass. Their focused faults fail. Proposed complete.                                                                       |
+| H3-A6     | Distinct supplied options, data freshness, POSIX signals, output failure, and observed cleanup pass through actual subprocesses and the installed archive. Proposed complete on the declared platform.     |
+| H3-A7     | Final exact-revision source/client, packaged, and installed archive CLI gates pass. Historical evidence and original review remain preserved. Proposed complete.                                           |
+
+Final VSIX SHA-256: `94a6756c4e10e54a9c8ad319d351ae2bf556c3a46a2759033690db7e2bbc8a25`.
+Its size is 52,086,896 bytes. The build stamp names the tested revision, Node version, and `linux-x64`.
+Bundled Node SHA-256 remains `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb`.
+Final CLI archive SHA-256: `0feeb3eb31506c617c72985ccf97f024ab2138b529eaa6461745b04a05fed076`.
+Its size is 531,684 bytes. These final test-only commits leave its production payload bytes unchanged.
+Its separate final metadata binds the exact tested revision and immutable dependency lock.
+Root lock SHA-256: `dbd025198eb555e06edf78f0c8f420eef786c445a9eaf01b488ea34ec4669b8b`.
+
+The independent comparator uses CEL-Go `v0.26.1`, commit `8e7beb65e9a70f501fd743c3b70b2a0a2fadac52`.
+Its Go module checksum is `h1:iPbVVEdkhTX++hpe3lzSk7D3G3QSYqLGoHOcEio+UXQ=`.
+The toolchain is Go `1.26.11` on Linux amd64.
+The official archive SHA-256 is `9849f4e04ee35303714e34fbc3ac8ab44ea3e448a95aa182f91e3b9b79c710ec`.
+`toolchain.sha256` also retains the actual executable digest. The module lock digest appears in the comparison report.
+Original corpus SHA-256 remains `5dbcd903f3caaff62067c4c99e0f04e21d980c53827825536fba4176a74d4fc1`.
+Sidecar SHA-256 is `09884eddbbf1468a446c27a12e932ecac3f0e32923624aae532b1cae01cd1377`.
+The unmodified OASIS schema SHA-256 is `c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e`.
+The source manifest retains every schema/vector/license origin and digest, including the full OASIS Notices section.
+
+Final evidence is under `.artifacts/harness-remediation/H3/agent-final/`.
+`qualification-summary.json` binds counts, inputs, candidate identities, control outcomes, and open N1.
+`source-gate/`, `packaged-gate/`, and `inventories/` retain full normal execution logs and inventories.
+`candidates/` retains the actual VSIX, CLI archive, checksums, metadata, build stamp, and component inventories.
+`comparison.json`, `comparison.log`, and `comparator-module-verification.log` retain the final independent comparison.
+`faulty-variants/` retains all nine compiled variants, corrected/faulty logs, exact mutations, and weak-observer source evidence.
+`duplicate-map-investigation/` retains the separate unresolved N1 observations.
+Earlier committed candidates remain under `preliminary-c2175f8/`, `preliminary-7ade4b7/`, and `preliminary-1789d87/`.
+The original review SHA-256 remains `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
+
+### Additional open finding N1
+
+N1 is OPEN: duplicate-key map literals retain the last value instead of the language-defined error.
+This is additional unresolved work beyond the original 86 frozen findings.
+The parent required this explicit disposition on 2026-11-11. No existing BVE profile exception covers it.
+N1 remains visible through H6 and parent/user summaries. It does not enter the supported 61-vector corpus.
+It is not an approved intentional semantic difference, a fix, or proof of full CEL conformance.
+
+The bounded probe used exact source revision `7ade4b7f4542c0bf8651ae37d102c6ec09a016d8` after its source gate.
+The final candidate changes only scheduling and CLI tests after that revision. The production evaluator remains byte-for-byte identical.
+BVE production workers and CEL-Go `v0.26.1` both returned `true` for these original expressions:
+
+| Case                     | Expression                                  | Entity input                 | BVE / Go observed |
+| ------------------------ | ------------------------------------------- | ---------------------------- | ----------------- |
+| Constant duplicate       | `{'a': 1, 'a': 2}['a'] == 2`                | `{}`                         | `true` / `true`   |
+| Constant unique positive | `{'a': 1, 'b': 2}['b'] == 2`                | `{}`                         | `true` / `true`   |
+| Derived duplicate        | `{entity.a: 1, entity.b: 2}[entity.a] == 2` | `{"a":"same","b":"same"}`    | `true` / `true`   |
+| Derived unique positive  | `{entity.a: 1, entity.b: 2}[entity.b] == 2` | `{"a":"first","b":"second"}` | `true` / `true`   |
+
+The [CEL language definition](https://github.com/cel-expr/cel-spec/blob/21ec6f4e52e8d694687ff9ed7408d3eccbb955d7/doc/langdef.md#L358-L362)
+at revision `21ec6f4e52e8d694687ff9ed7408d3eccbb955d7`, lines 358 through 362, requires an error for duplicate keys.
+Thus the two implementations agree in this probe but do not meet that language requirement.
+The parent retained production behavior for this scoped H3 handoff and left N1 open.
+`agent-final/duplicate-map-investigation/` retains exact inputs, raw Go/BVE outputs, and the pinned language source.
+
+### Failed development attempts and limitations
+
+Development used uncommitted H3 inputs above the admitted baseline and the two semantic-documentation commits.
+Those attempts do not qualify the final source/test candidate.
+Their logs remain under `.artifacts/harness-remediation/H3/development/`.
+The first focused run passed 151 of 160 test nodes and failed nine.
+Three heterogeneous-literal failures demonstrated the product defect. Their containing test also failed.
+Two schema groups needed explicit existing-profile exclusions. Their containing test also failed.
+The alias-key fixture needed whitespace after its alias token. Its original spelling was invalid YAML syntax.
+The initial SARIF adapter rejected the legacy `id` keyword and did not provide full draft-04 admission.
+The parent required the pinned draft-04/format validators instead of claiming structural equivalence.
+
+The second focused run passed 172 of 174 nodes.
+One failure exposed the missing actual AST-depth guard through interpreter stack exhaustion.
+The other was an RFC signature transcription error. The corrected bytes match the published vector.
+The later development focused run passed 208 of 208 nodes.
+Additional default/scheduling controls passed 33 of 33. The final CLI/schema/scheduling development selector passed 110 of 110.
+The first scoped formatter invocation also included `.prettierignore`, which has no supported parser.
+Later invocations format only supported intended files.
+Development type/lint runs found ordinary fixture typing, unsafe-spread/destructuring, and numeric-literal errors.
+Corrections preserve the declared precision vector through `Number` conversion of its fixed decimal string.
+No assertion, product ceiling, coverage threshold, or request deadline was weakened.
+
+The initial locked install stalled while fetching the public `yazl` tarball.
+A bounded fetch of that exact tarball succeeded. The parent verified and terminated the stalled installer with SIGTERM.
+The installer exited 143. Its chained behavior gate never started.
+The replacement used `npm ci --offline --no-audit --no-fund` with the verified task cache and install scripts enabled.
+Temporary npm-cache rotation removed the original verbose debug log before harvesting.
+The redirected setup log, actual exit observation, and parent cleanup accounting remain in `setup-attempts.json`.
+No behavior log is missing through that cache rotation.
+
+The first scratch fault runner required every fault to produce an assertion error.
+Restoring homogeneous literals instead produces unexpected `CelError` with `evaluation` in the three fixed positive cases.
+The parent approved an exact semantic-failure matcher for those three cases. Other faults still require assertion failures.
+The first runner failure remains separate in `faulty-variants-attempt-1/`.
+One comparator launch used the module directory instead of the repository root and failed before reading inputs.
+The unchanged comparator passes from the required root. `comparison-attempt-1.log` retains that launch error.
+One offline CLI install used a cache containing tarballs but lacking a required registry metadata response.
+The same archive installs offline from the existing verified registry cache. Both setup logs remain retained.
+
+Earlier complete gates remain preliminary: `c2175f8` passed source/client, `7ade4b7` passed source/client/packaged,
+and `1789d87` also passed installed CLI, comparator, and seven fault controls.
+The provenance commit added the full published OASIS notice before the final source selection.
+Parent review then required caller-specific scheduling assertions and distinct baseline/nonempty-data flag inputs.
+Their replacement controls reject the reviewed sorted-count and validated-but-substituted false-success paths.
+The final candidate receives complete qualification after those test corrections. No previous run substitutes for it.
+
+The complete source/client and packaged gates qualify Linux x64 only in this local run.
+Windows does not deliver POSIX SIGINT/SIGTERM through Node's child-process API.
+The Windows source gate retains portable CLI option/write controls and does not claim graceful-signal qualification.
+The CI comparator is wired but no hosted CI result is claimed.
+Normal source tests remain offline and need no Go installation.
+No real-backend, installed editor, native-client, endurance, H4, or deferred H7 qualification belongs to H3.
+The shared engine, contract 0.2, host trust, and existing limits remain authoritative.
+Parent acceptance remains pending. H4 is not admitted by this agent record.
