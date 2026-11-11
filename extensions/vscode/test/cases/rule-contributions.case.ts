@@ -14,7 +14,7 @@ export async function run(fixture: Fixture): Promise<void> {
   await fixture.diagnostic('owner-re2');
   const choices = async () =>
     (
-      await vscode.commands.executeCommand<vscode.CompletionList>(
+      await fixture.provider<vscode.CompletionList>(
         'vscode.executeCompletionItemProvider',
         fixture.uri,
         position,
@@ -28,7 +28,7 @@ export async function run(fixture: Fixture): Promise<void> {
   );
   assert(!(await checked('remote-missing')), 'A pattern match cannot prove catalog existence.');
   await until(async () => {
-    const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
+    const hover = await fixture.provider<vscode.Hover[]>(
       'vscode.executeHoverProvider',
       fixture.uri,
       new vscode.Position(6, 3),
@@ -48,7 +48,7 @@ export async function run(fixture: Fixture): Promise<void> {
   );
   assert.equal(document.version, version);
   const actions = async () =>
-    (await vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
+    (await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
       'vscode.executeCodeActionProvider',
       fixture.uri,
       range,

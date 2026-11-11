@@ -186,6 +186,24 @@ The separate PR run passed. An isolated macOS rerun also passed 88/88 with uncha
 The original failure evidence remains retained. This does not establish a fix for native Trust automation reliability.
 The [five-phase editor plan](lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
 
+## Installed request and input controls
+
+Rule-contribution readiness reads completion, hover, and code-action results through a bounded helper.
+Only an explicit editor `Canceled` error is retried, within the existing 20-second readiness bound.
+The report records each cancellation and its provider command. Other errors still fail the case.
+A cancelled read cannot count as an empty result or prove that a candidate disappeared.
+Guarded edit commands are never retried through this helper.
+
+Native clicks locate the named control again after pointer focus and before mouse release.
+This handles a focus-induced scroll that moves the Trust button between the two input events.
+The helper releases the mouse even if the control cannot be reacquired.
+Trust state still comes from the real workspace API and visible workbench controls.
+Neither correction increases timeouts, retries a failed scenario, or changes the Trust assertions.
+
+The unit controls cover cancellation, successful reads, error propagation, deadlines, focus movement, and mouse release after failure.
+A separate owned-renderer experiment exercises actual native input against a button that moves when focused.
+The broader phase 5 qualification and reliability work remains deferred.
+
 ## Historical qualification checkpoints
 
 The checkpoints below retain their original candidate revisions and limitations.
