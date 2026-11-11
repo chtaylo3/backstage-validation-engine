@@ -6,7 +6,7 @@ import { openEvidence, writeJson } from './evidence.mjs';
 import { validateSeed, renderSeed, digest, loadSeed } from './seed.mjs';
 import { request, converge, refresh, readEntities } from './catalog.mjs';
 import { createClientFixture, runCli, installClient, sourceFor } from './clients.mjs';
-import { assertH4CliReason } from './h4-cli-contracts.mjs';
+import { assertH4CliCase } from './h4-cli-contracts.mjs';
 import { verifyHostControl } from './host-controls.mjs';
 
 await mkdir('/run/work/home', { recursive: true });
@@ -51,7 +51,7 @@ async function cliCase(id, fixture, text, expected, options) {
       ...options,
     });
     assert.equal(value.code, expected, 'Require the documented CLI exit.');
-    if ((options?.format ?? 'json') === 'json') assertH4CliReason(id, value.report);
+    if ((options?.format ?? 'json') === 'json') assertH4CliCase(id, value);
     if (expected === 0 && (options?.format ?? 'json') === 'json')
       assert.equal(value.report.outcome, 'completed');
     if (
@@ -131,7 +131,7 @@ async function connected() {
   await cliCase(
     'cli.native-rejection',
     fixture,
-    fixture.validText.replace('type: service\n', ''),
+    fixture.validText.replace('  type: service\n', ''),
     1,
   );
   const violation = await cliCase('cli.policy-violation', fixture, fixture.invalidText, 1);

@@ -14,7 +14,7 @@ import {
   refresh,
   readEntities,
 } from '../test/integration/backstage/lib/catalog.mjs';
-import { assertH4CliReason } from '../test/integration/backstage/lib/h4-cli-contracts.mjs';
+import { assertH4CliCase } from '../test/integration/backstage/lib/h4-cli-contracts.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const integration = path.join(root, 'test/integration/backstage');
@@ -196,6 +196,10 @@ if (!selected) {
           selected,
         ]),
       );
+      const targets = JSON.parse(await readFile(path.join(integration, 'targets.json'), 'utf8'));
+      assert.deepEqual(report.application.installed.packages, targets.targets[selected].packages);
+      assert.equal(report.application.installed.nodeVersion, 'v' + targets.nodeVersion);
+      assert.equal(report.application.installed.sqliteDriverVersion, '12.4.1');
       return { image: report.application.image, baseImage: report.application.baseImage };
     });
     await record('pinned-upstream-substitution-and-reference-tables', async () =>
@@ -389,6 +393,7 @@ if (!selected) {
       await import('../test/integration/backstage/lib/clients.mjs');
     const engine = await installClient();
     const fixture = await createClientFixture();
+    const cliResults = new Map();
     const cli = async (id, text, expected, options = {}) =>
       record(id, async () => {
         const result = await runCli(fixture, text, {
@@ -403,7 +408,8 @@ if (!selected) {
           ...options,
         });
         assert.equal(result.code, expected);
-        assertH4CliReason(id, result.report);
+        assertH4CliCase(id, result);
+        cliResults.set(id, result);
         return {
           exit: result.code,
           ...(result.report.ruleStates
@@ -451,7 +457,7 @@ if (!selected) {
       }
     };
     await cli('cli.valid-json', fixture.validText, 0);
-    await cli('cli.native-rejection', fixture.validText.replace('type: service\n', ''), 1);
+    await cli('cli.native-rejection', fixture.validText.replace('  type: service\n', ''), 1);
     await cli('cli.malformed-yaml', 'apiVersion: [\n', 1);
     await cli('cli.missing-credentials', fixture.validText, 2, {
       token: null,
@@ -459,6 +465,55 @@ if (!selected) {
     });
     await cli('cli.invalid-credentials', fixture.validText, 2, { token: 'invalid-h4-token' });
     await cli('cli.permission-denied', fixture.validText, 2, { token: tokens.denied });
+    await record('cli-specific-reason-negative-controls', async () => {
+      const mutations = [
+        [
+          'cli.permission-denied',
+          (value) => {
+            value.code = 0;
+          },
+        ],
+        [
+          'cli.native-rejection',
+          (value) => {
+            value.report.findings = [{ ruleId: 'yaml/syntax' }];
+          },
+        ],
+        [
+          'cli.malformed-yaml',
+          (value) => {
+            value.report.findings = [];
+          },
+        ],
+        [
+          'cli.invalid-credentials',
+          (value) => {
+            value.report.ruleStates = [];
+          },
+        ],
+        [
+          'cli.permission-denied',
+          (value) => {
+            value.report.coverage = value.report.coverage.map((row) => ({
+              ...row,
+              reason: 'wrong reason',
+            }));
+          },
+        ],
+        [
+          'cli.missing-credentials',
+          (value) => {
+            value.report.error.code = 'wrong_reason';
+          },
+        ],
+      ];
+      for (const [id, mutate] of mutations) {
+        const value = globalThis.structuredClone(cliResults.get(id));
+        mutate(value);
+        assert.throws(() => assertH4CliCase(id, value), { name: 'AssertionError' });
+      }
+      return { rejectedMutations: mutations.length };
+    });
     await record('actual-provider-distinct-credential-causes', async () => ({
       reader: await provider(tokens.reader, 'present'),
       filtered: await provider(tokens.filtered, 'missing'),

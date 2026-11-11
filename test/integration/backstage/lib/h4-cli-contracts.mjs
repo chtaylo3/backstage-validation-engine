@@ -57,3 +57,21 @@ export function assertH4CliReason(id, report) {
     );
   }
 }
+
+export function assertH4CliCase(id, value) {
+  const expected = {
+    'cli.valid-json': 0,
+    'cli.native-rejection': 1,
+    'cli.malformed-yaml': 1,
+    'cli.required-processor': 2,
+    'cli.missing-credentials': 2,
+    'cli.invalid-credentials': 2,
+    'cli.permission-denied': 2,
+    'cli.outage': 2,
+    'cli.mutation': 0,
+    'cli.recovery': 0,
+  };
+  if (Object.hasOwn(expected, id))
+    assert.equal(value.code, expected[id], 'Require the independently declared scenario exit.');
+  assertH4CliReason(id, value.report);
+}
