@@ -8,8 +8,10 @@ import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   let document = await fixture.document();
   const pid = fixture.pid();
-  const original = document.getText();
+  const original = document.getText().replace('owner: team', 'owner: missing');
+  await fixture.replace(document, original);
   await fixture.currentDiagnostic(document);
+  await fixture.missingOwner(document);
   const old = await fixture.fix();
   const config = JSON.parse(await readFile(process.env.BVE_EXTENSION_TEST_CONFIG!, 'utf8')) as {
     profile: { limits: { fileBytes: number } };
@@ -71,6 +73,8 @@ export async function run(fixture: Fixture): Promise<void> {
   await fixture.apply(await fixture.fix());
   await until(() => !fixture.has('production-only'), 'fresh guarded repair after bounded recovery');
   assert(document.getText().includes('lifecycle: "production"'));
+  assert(fixture.has('owner-exists'));
+  await fixture.alive(pid, document, 'owner-exists');
   assert.equal(fixture.pid(), pid);
   assert(fixture.api!.status().running);
 }

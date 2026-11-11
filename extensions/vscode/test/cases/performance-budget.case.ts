@@ -19,19 +19,31 @@ export async function run(fixture: Fixture): Promise<void> {
     );
   const present = (value: vscode.CompletionList) =>
     value.items.some((item) => item.label === 'group:default/team');
+  const positiveStarted = performance.now();
   assert(present(await completion()), 'Real completion succeeds before the induced fault.');
+  const positiveElapsedMs = performance.now() - positiveStarted;
+  await until(
+    async () => (await fixture.trace()).includes("Received response 'textDocument/completion"),
+    'positive completion response reaches the trace',
+  );
   const pid = fixture.pid();
-  const offset = (await fixture.trace()).length;
+  const before = await fixture.trace();
+  const previousId = Number(
+    [...before.matchAll(/Sending request 'textDocument\/completion - \((\d+)\)'/gu)].at(-1)![1],
+  );
+  const offset = before.length;
   const resume = await suspendServer(pid);
   let pending: Promise<vscode.CompletionList> | undefined;
+  let requestId: number | undefined;
   const started = performance.now();
   try {
     pending = completion();
-    await until(
-      async () =>
-        (await fixture.trace()).slice(offset).includes("Sending request 'textDocument/completion"),
-      'actual completion request queued while owned server is suspended',
-    );
+    await until(async () => {
+      const trace = (await fixture.trace()).slice(offset);
+      const request = /Sending request 'textDocument\/completion - \((\d+)\)'/u.exec(trace);
+      if (request) requestId = Number(request[1]);
+      return requestId !== undefined && requestId > previousId;
+    }, 'new correlated completion request queued while owned server is suspended');
     // This timer injects a defined latency fault after the ordered request barrier.
     await pause(METRIC_BUDGETS.completionP95Ms + 250);
   } finally {
@@ -64,6 +76,8 @@ export async function run(fixture: Fixture): Promise<void> {
       {
         kind: 'deliberately induced single-operation latency negative control',
         elapsedMs,
+        positiveElapsedMs,
+        requestId,
         budgetMs: METRIC_BUDGETS.completionP95Ms,
         observationTimeoutMs: 60_000,
         resultPresent: true,

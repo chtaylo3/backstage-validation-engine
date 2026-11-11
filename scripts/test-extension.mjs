@@ -207,12 +207,14 @@ async function execute(spec, output, fault, peer) {
             entity: `entity-${index}`,
             lifecycle: spec.id === 'endurance-saturation' ? 'experimental' : 'production',
           }))
-        : multi
-          ? [
-              { name: 'other/catalog.yaml', entity: 'other' },
-              { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
-            ]
-          : [];
+        : spec.id === 'race-close-reopen'
+          ? [{ name: 'survivor.yaml', entity: 'survivor' }]
+          : multi
+            ? [
+                { name: 'other/catalog.yaml', entity: 'other' },
+                { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
+              ]
+            : [];
     const config = await prepareFixture({
       session,
       workspace,
@@ -250,15 +252,22 @@ async function execute(spec, output, fault, peer) {
         }),
       );
       await mkdir(path.join(workspace, 'unapproved'), { recursive: true });
-      await cp(
-        path.join(workspace, 'catalog.yaml'),
+      await writeFile(
         path.join(workspace, 'unapproved/catalog.yaml'),
+        (await readFile(path.join(workspace, 'catalog.yaml'), 'utf8')).replace(
+          '{name: service}',
+          '{name: unapproved-control}',
+        ),
       );
     }
     if (
       [
         'catalog-refresh',
         'editor-credentials',
+        'versioned-fix',
+        'endurance-saturation',
+        'workspace-two-windows',
+        'trust-grant',
         'rule-contributions',
         'race-delayed-validation',
         'race-delayed-completion',
@@ -364,7 +373,15 @@ async function execute(spec, output, fault, peer) {
       }
       await writeFile(config, JSON.stringify(value));
     }
-    if (['race-dirty-watch', 'editor-intelligence', 'editor-discovery'].includes(spec.id)) {
+    if (
+      [
+        'race-dirty-watch',
+        'race-close-reopen',
+        'editor-intelligence',
+        'editor-discovery',
+        'editor-credentials',
+      ].includes(spec.id)
+    ) {
       const value = JSON.parse(await readFile(config, 'utf8'));
       value.coverageObservation = true;
       await writeFile(config, JSON.stringify(value));

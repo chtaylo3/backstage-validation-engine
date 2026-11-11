@@ -21,9 +21,16 @@ export async function run(fixture: Fixture): Promise<void> {
   const discovered = vscode.Uri.file(path.join(root, 'selected/catalog-info.yaml'));
   const excluded = vscode.Uri.file(path.join(root, 'excluded/catalog-info.yaml'));
   const nonmatching = vscode.Uri.file(path.join(root, 'selected/secret.yaml'));
-  for (const uri of [discovered, excluded, nonmatching]) {
+  for (const [uri, entity] of [
+    [discovered, 'included-control'],
+    [excluded, 'excluded-control'],
+    [nonmatching, 'nonmatching-control'],
+  ] as const) {
     await mkdir(path.dirname(uri.fsPath), { recursive: true });
-    await writeFile(uri.fsPath, main.getText().replace('{name: service}', '{name: discovered}'));
+    await writeFile(
+      uri.fsPath,
+      main.getText().replace('{name: service}', '{name: ' + entity + '}'),
+    );
   }
   const selected = {
     ...initial,
@@ -57,13 +64,59 @@ export async function run(fixture: Fixture): Promise<void> {
     );
     assert(!actions?.some((row) => guardedCommand(row)));
   }
+  const beforeDepth = await fixture.observed(main);
+  const traceOffset = (await fixture.trace()).length;
   const deep = path.join(root, ...Array<string>(34).fill('depth'));
   await mkdir(deep, { recursive: true });
-  await writeFile(path.join(deep, 'catalog-info.yaml'), main.getText());
-  await fixture.replace(main, main.getText() + '# depth-bound processing\n');
+  await writeFile(
+    path.join(deep, 'catalog-info.yaml'),
+    main.getText().replace('{name: service}', '{name: depth-control}'),
+  );
+  const deepUri = vscode.Uri.file(path.join(deep, 'catalog-info.yaml')).toString();
+  await until(async () => {
+    const trace = (await fixture.trace()).slice(traceOffset);
+    return (
+      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
+      trace.includes(deepUri)
+    );
+  }, 'native deep discovery notification reaches the client stream');
+  const depthReceipt = await fixture.api!.filesystemObservation();
+  assert(
+    depthReceipt && depthReceipt.generation > beforeDepth.generation,
+    'Deep fixture event must be admitted after settled validation.',
+  );
+  assert(
+    depthReceipt.uris.some((uri) =>
+      uri.startsWith(vscode.Uri.file(path.join(root, 'depth')).toString()),
+    ),
+    'Admitted receipt must identify the deep discovery stimulus.',
+  );
+  await fixture.replace(main, main.getText() + '# depth-bound processing after admitted watcher\n');
   await until(
-    () => fixture.has('validation/incomplete'),
-    'installed discovery depth cap fails closed',
+    () =>
+      vscode.languages
+        .getDiagnostics(main.uri)
+        .some(
+          (row) =>
+            (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+            main.version,
+        ),
+    'current-version validation after the discovery depth stimulus',
+  );
+  assert(
+    fixture.has('validation/incomplete'),
+    'Discovery above 32 directory levels must publish incomplete.',
+  );
+  const bound = vscode.languages
+    .getDiagnostics(main.uri)
+    .find((row) => row.code === 'validation/incomplete') as vscode.Diagnostic & {
+    data: { execution: { stage: string; cause: string }[] };
+  };
+  assert(
+    bound.data.execution.some(
+      (row) => row.stage === 'filesystem' && row.cause === 'snapshot_unavailable',
+    ),
+    'Public failure evidence must identify unavailable filesystem capture.',
   );
   assert.equal(fixture.pid(), pid);
   const old = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(

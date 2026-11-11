@@ -126,12 +126,18 @@ export async function trustScenario(
   await capture('capture-granted');
   if (mode === 'grant') {
     const document = await fixture.document();
+    const pid = fixture.pid();
+    await fixture.replace(document, document.getText().replace('owner: team', 'owner: missing'));
+    await fixture.currentDiagnostic(document);
+    await fixture.missingOwner(document);
     await fixture.apply(await fixture.fix());
     await until(
       () => document.getText().includes('lifecycle: "production"'),
       'fix works after real consent',
     );
     await until(() => !fixture.has('production-only'), 'diagnostics clear in trusted workspace');
+    assert(fixture.has('owner-exists'), 'Independent finding survives the trusted fix.');
+    await fixture.alive(pid, document, 'owner-exists');
     assert.equal(await document.save(), true);
     await state('done');
     return;

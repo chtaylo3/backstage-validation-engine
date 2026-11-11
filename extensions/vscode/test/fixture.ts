@@ -277,6 +277,20 @@ export class Fixture {
     assert.equal(this.pid(), pid);
     assert(!exited(pid));
   }
+  async missingOwner(document: vscode.TextDocument): Promise<void> {
+    const finding = await this.diagnostic('owner-exists');
+    const data = (finding as vscode.Diagnostic & { data: { category: string; version: number } })
+      .data;
+    assert.equal(
+      data.category,
+      'policy',
+      'A completed 404 is a missing entity, not unavailable catalog data.',
+    );
+    assert.equal(data.version, document.version);
+    assert.equal(finding.severity, vscode.DiagnosticSeverity.Error);
+    const read = await this.control({ op: 'assert-missing' });
+    this.note('authenticated byName 404 complete missing-owner control request ' + read.id);
+  }
   async stoppedEdit(document: vscode.TextDocument, message: string): Promise<void> {
     await vscode.commands.executeCommand('backstageValidation.showOutput');
     assert(

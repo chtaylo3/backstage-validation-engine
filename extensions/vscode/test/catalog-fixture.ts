@@ -146,6 +146,18 @@ export async function createEditorCatalog(root: string, token: string = randomUU
           );
         if (!read) throw new Error('No new authenticated catalog read.');
         result = { id: String(read.id) };
+      } else if (value.op === 'assert-missing') {
+        const missing = selected.fixture
+          .requests()
+          .find(
+            (entry) =>
+              entry.id > (value.after ?? 0) &&
+              entry.operation === 'byName' &&
+              entry.status === 404 &&
+              entry.principalId === 'editor-reader',
+          );
+        if (!missing) throw new Error('No authenticated complete missing-entity lookup.');
+        result = { id: String(missing.id) };
       } else if (value.op === 'assert-denied') {
         const denied = selected.fixture
           .requests()

@@ -97,6 +97,7 @@ export async function run(fixture: Fixture): Promise<void> {
     'CEL and RE2 agree after the real editor change',
   );
   assert(fixture.has('production-only'), 'Unrelated validation remains authoritative.');
+  await fixture.alive(pid, document);
   assert.equal(fixture.pid(), pid);
   fixture.note(
     'Finite CEL/RE2 choices collected fresh catalog facts, refreshed candidate-only dependencies without edits, rejected a stale token, and passed post-edit validation.',

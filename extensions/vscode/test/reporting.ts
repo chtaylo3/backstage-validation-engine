@@ -6,6 +6,14 @@ export type Phase = 'launch' | 'setup' | 'run' | 'cleanup' | 'complete';
 export interface Progress {
   id: string;
   editorVersion?: string;
+  clientRuntime?: {
+    node: string;
+    v8: string;
+    electron: string | null;
+    platform: string;
+    arch: string;
+    extensionHostPid: number;
+  };
   phase: Phase;
   status: 'running' | 'passed' | 'failed';
   error?: string;

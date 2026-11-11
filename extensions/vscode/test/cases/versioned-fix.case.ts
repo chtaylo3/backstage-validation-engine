@@ -6,7 +6,7 @@ export async function run(fixture: Fixture): Promise<void> {
   const pid = fixture.pid();
   await fixture.replace(document, document.getText().replace('owner: team', 'owner: missing'));
   await fixture.currentDiagnostic(document);
-  await fixture.diagnostic('owner-exists');
+  await fixture.missingOwner(document);
   const version = document.version;
   await fixture.apply(await fixture.fix());
   await until(

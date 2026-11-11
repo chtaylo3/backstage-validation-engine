@@ -57,9 +57,15 @@ const mutations = [
     expected: 'AssertionError',
     changes: [
       {
-        file: server + 'workspace-state.js',
-        before: 'return approvedFilesystemUri(this.config, uri);',
-        after: 'return true;',
+        file: server + 'discovery.js',
+        before: 'export function approvedFilesystemUri(config, uri) {',
+        after: 'export function approvedFilesystemUri(config, uri) { return true;',
+      },
+      {
+        file: client,
+        before: '  return {\n    documentSelector,',
+        after:
+          '  documentSelector.push({ scheme: "file", pattern: "**/*" });\n  return {\n    documentSelector,',
       },
     ],
   },
@@ -102,6 +108,25 @@ const mutations = [
         file: client,
         before: 'async function reloadConfiguration() {',
         after: 'async function reloadConfiguration() { return;',
+      },
+    ],
+  },
+  {
+    id: 'reload-false-response-cannot-borrow-later-true',
+    cases: ['editor-intelligence'],
+    expected: 'correlated reload response must report reloaded:true',
+    changes: [
+      {
+        file: server + 'server.js',
+        before:
+          "connection.onRequest('bve/reloadConfiguration', () => admitted(reloadConfiguration));",
+        after: "connection.onRequest('bve/reloadConfiguration', () => ({ reloaded: false }));",
+      },
+      {
+        file: server + 'server.js',
+        before: "connection.onRequest('bve/filesystemObservation', () => {",
+        after:
+          "connection.onRequest('bve/filesystemObservation', () => { return { reloaded: true };",
       },
     ],
   },
@@ -168,6 +193,32 @@ const mutations = [
     ],
   },
   {
+    id: 'credential-generation-guards-bypassed',
+    cases: ['editor-credentials'],
+    expected: 'applied: true',
+    changes: [
+      {
+        file: server + 'fixes.js',
+        before: '        this.state = undefined;\n        this.tokens.clear();',
+        after: '',
+      },
+      { file: server + 'fixes.js', before: 'state.generation !== generation ||', after: '' },
+    ],
+  },
+  {
+    id: 'credential-recovery-refuses-repairs',
+    cases: ['editor-credentials'],
+    expected: 'fresh post-recovery guarded repair must apply',
+    changes: [
+      {
+        file: server + 'server.js',
+        before: 'connection.onExecuteCommand((params, token) => {',
+        after:
+          "connection.onExecuteCommand((params, token) => { return { applied: false, reason: 'stale' };",
+      },
+    ],
+  },
+  {
     id: 'hover-constraint-removed',
     cases: ['editor-intelligence'],
     expected: 'Installed hover must contain its actual constraint',
@@ -205,6 +256,12 @@ const mutations = [
     ],
   },
   {
+    id: 'discovery-depth-guard-bypassed',
+    cases: ['editor-discovery'],
+    expected: 'Discovery above 32 directory levels must publish incomplete',
+    changes: [{ file: server + 'discovery.js', before: 'if (depth > 32)', after: 'if (false)' }],
+  },
+  {
     id: 'history-restore-omitted',
     cases: ['editor-search'],
     expected: 'Fresh activation must restore actual installed completion history ranking',
@@ -236,6 +293,7 @@ const rows = [];
 const python = `import json,sys,zipfile
 source,target,changes=sys.argv[1:]
 changes=json.loads(changes)
+counts=[]
 with zipfile.ZipFile(source) as old,zipfile.ZipFile(target,'w') as new:
  for entry in old.infolist():
   data=old.read(entry.filename)
@@ -243,10 +301,12 @@ with zipfile.ZipFile(source) as old,zipfile.ZipFile(target,'w') as new:
    if change['file']!=entry.filename:continue
    text=data.decode('utf-8');count=text.count(change['before'])
    assert count>0 and (change.get('all') or count==1),(change['file'],change['before'],count)
+   counts.append({'file':entry.filename,'occurrences':count,'before':change['before']})
    text=text.replace(change['before'],change['after'],-1 if change.get('all') else 1)
    data=text.encode('utf-8');change['matched']=True
   new.writestr(entry,data)
 assert all(c.get('matched') for c in changes),changes
+print(json.dumps(counts))
 `;
 try {
   for (const fault of mutations.filter((row) => !selected || row.id === selected)) {
@@ -295,6 +355,7 @@ try {
         .update(await readFile(vsix))
         .digest('hex'),
       changes: fault.changes,
+      mutationMatches: JSON.parse(patched.stdout),
       exitStatus: result.status,
       counts: report.counts,
       failures,

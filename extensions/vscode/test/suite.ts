@@ -10,6 +10,14 @@ export async function run(): Promise<void> {
   const progress: Progress = {
     id: process.env.BVE_EXTENSION_TEST_CASE!,
     editorVersion: vscode.version,
+    clientRuntime: {
+      node: process.version,
+      v8: process.versions.v8,
+      electron: process.versions.electron ?? null,
+      platform: process.platform,
+      arch: process.arch,
+      extensionHostPid: process.pid,
+    },
     phase: 'setup',
     status: 'running',
     serverPids: [],
