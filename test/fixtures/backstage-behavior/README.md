@@ -3,6 +3,7 @@
 These tables define independent expected values for H4. The two supported backend targets are Backstage 1.55.3 and 1.56.3.
 `sources.json` records source commits, URLs, and SHA-256 digests. The source texts come from the locked backend packages' source maps.
 The `.ts.txt` suffix keeps upstream source out of the repository TypeScript build. `LICENSE.upstream` retains the upstream Apache 2.0 license.
+`NOTICE.upstream` retains the published notices. The manifest binds both texts to each upstream commit and digest.
 
 `substitutions.json` defines input bytes and separate upstream and local expected results. Both upstream processors reject non-string targets.
 The local snapshot profile deliberately rejects mixed mappings, duplicate JSON keys and unsafe numbers.

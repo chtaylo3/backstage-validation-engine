@@ -17,6 +17,7 @@ test.after(closeSharedCelRuntime);
 
 void test('reviewed backend behavior sources retain exact identities and both supported pins', async () => {
   const manifest = (await load('sources.json')) as {
+    notices: { path: string; sha256: string; backstageVersion: string; url: string }[];
     sources: {
       path: string;
       sha256: string;
@@ -30,6 +31,14 @@ void test('reviewed backend behavior sources retain exact identities and both su
     '1.56.3',
   ]);
   assert.equal(manifest.sources.length, 8);
+  assert.equal(manifest.notices.length, 4);
+  for (const notice of manifest.notices)
+    assert.equal(
+      createHash('sha256')
+        .update(await readFile(root + notice.path))
+        .digest('hex'),
+      notice.sha256,
+    );
   for (const row of manifest.sources) {
     assert.equal(
       createHash('sha256')

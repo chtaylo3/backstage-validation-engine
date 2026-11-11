@@ -65,5 +65,31 @@
       "sha256": "ccefdb5eae4dec5d99898e104cc29f69ff05150f6f9ff0b94cc3ca2ddcdbe93b",
       "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/service/AuthorizedEntitiesCatalog.ts"
     }
+  ],
+  "notices": [
+    {
+      "backstageVersion": "1.55.3",
+      "path": "LICENSE.upstream",
+      "sha256": "e3620220d6f8a43cb5c968720f86d4e7c6e97847ee61a9c7694039896efb869b",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/LICENSE"
+    },
+    {
+      "backstageVersion": "1.55.3",
+      "path": "NOTICE.upstream",
+      "sha256": "36395569b3867d0769a40ffb908709c0b5fbfd79bf4b827856dd34feeed644ba",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/NOTICE"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "path": "LICENSE.upstream",
+      "sha256": "e3620220d6f8a43cb5c968720f86d4e7c6e97847ee61a9c7694039896efb869b",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/LICENSE"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "path": "NOTICE.upstream",
+      "sha256": "36395569b3867d0769a40ffb908709c0b5fbfd79bf4b827856dd34feeed644ba",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/NOTICE"
+    }
   ]
 }
