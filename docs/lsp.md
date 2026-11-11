@@ -147,10 +147,10 @@ See [the implementation record](lsp-separation-implementation-record.md) for qua
   replacement or close/reopen to recover. Exceeding open-document capacity blocks the session until
   restart.
 
-The server uses the official language-server SDK for framing/JSON-RPC lifecycle and the official
-text-document implementation for UTF-16 edits. The preflight stream bounds messages before the SDK
-parses them. Stdout contains protocol messages. Startup errors use fixed text on stderr without
-upstream details.
+The server uses the official language-server SDK for JSON-RPC and protocol types.
+The official text-document implementation supplies UTF-16 edits.
+The preflight stream bounds messages before SDK parsing. The wire adapter enforces initialize/shutdown admission.
+Stdout contains protocol messages. Startup errors use fixed text on stderr without upstream details.
 
 Optional launcher-approved filesystem refresh is described below. Pull diagnostics and broader
 release qualification remain future work. Existing hover, reload, and packaging behavior is documented
@@ -552,24 +552,26 @@ Watcher registration rejection produces a sanitized warning. Save notifications 
 All ceilings below are inclusive. A byte means one UTF-8 byte unless the row states another unit.
 The launcher can impose a smaller source/profile ceiling. The first binding limit controls admission.
 
-| Boundary                       | Admitted ceiling                                                                           | Rejection and recovery                                                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Message payload and header     | 8,388,608 payload bytes and 8,192 header bytes, including header delimiters                | Invalid framing closes the transport. Reconnect with valid frames.                                                                            |
-| Open documents                 | 1,000 open documents and at most 1,000 unique pinned/buffer files                          | The next open makes the session incomplete. Closing a buffer does not clear this latch. Start a fresh trusted server.                         |
-| Changes in one notification    | 1,000 ordered changes                                                                      | The next change invalidates that buffer. Incremental changes cannot repair lost synchronization. Send a full replacement or close and reopen. |
-| Scalar repair generation       | 64 repairs per validation and 4,096 bytes per authored scalar or serialized replacement    | Larger scalars remain findings without speculative edits. Replacement quotes count toward the byte ceiling.                                   |
-| Guarded edit                   | 16 nonoverlapping edits in one document and 16,384 replacement bytes in total              | An over-limit edit never reaches the client. A fresh eligible action remains available after valid revalidation.                              |
-| Action and candidate inventory | 32 actions per response, first 64 eligible candidates                                      | A query can select candidate 64. Candidate 65 is outside that inventory. The 16-candidate evaluation limit remains separate.                  |
-| Opaque fix tokens              | 128 live tokens in FIFO order                                                              | Inserting token 129 evicts the oldest token. The next-oldest remains usable. Successful application consumes the generation.                  |
-| Remote query cache             | 32 scopes and 262,144 serialized report bytes                                              | The next demand evicts oldest scopes until both ceilings hold. Cache hits do not change insertion order.                                      |
-| Discovery                      | 10,000 examined entries, root depth 0 through directory depth 32, and 1,000 selected files | Exceeding any ceiling fails discovery. Removing the excess permits a fresh capture. Unmatched entries still count.                            |
-| Credential capture             | 16,384 raw file bytes before whitespace trimming                                           | Oversized, symbolic, replaced, or unstable file entries fail capture. A valid atomic replacement between requests restores access.            |
+| Boundary                       | Admitted ceiling                                                                           | Rejection and recovery                                                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Message payload and header     | 8,388,608 payload bytes and 8,192 header bytes, including header delimiters                | Invalid framing closes the transport. Reconnect with valid frames.                                                                                                                     |
+| Open documents                 | 1,000 open documents                                                                       | Open-count overflow makes the session incomplete. Closing a buffer does not clear this latch. Start a fresh trusted server.                                                            |
+| Unique source/buffer URIs      | 1,000 unique URIs in the current source and open buffers                                   | Below the open-count ceiling, unique-file overflow makes the affected buffer unavailable. Close it or reduce the source union, then fully synchronize any retained unavailable buffer. |
+| Changes in one notification    | 1,000 ordered changes                                                                      | The next change invalidates that buffer. Incremental changes cannot repair lost synchronization. Send a full replacement or close and reopen.                                          |
+| Scalar repair generation       | 64 repairs per validation and 4,096 bytes per authored scalar or serialized replacement    | Larger scalars remain findings without speculative edits. Replacement quotes count toward the byte ceiling.                                                                            |
+| Guarded edit                   | 16 nonoverlapping edits in one document and 16,384 replacement bytes in total              | An over-limit edit never reaches the client. A fresh eligible action remains available after valid revalidation.                                                                       |
+| Action and candidate inventory | 32 actions per response, first 64 eligible candidates                                      | A query can select candidate 64. Candidate 65 is outside that inventory. The 16-candidate evaluation limit remains separate.                                                           |
+| Opaque fix tokens              | 128 live tokens in FIFO order                                                              | Inserting token 129 evicts the oldest token. The next-oldest remains usable. Successful application consumes the generation.                                                           |
+| Remote query cache             | 32 scopes and 262,144 serialized report bytes                                              | The next demand evicts oldest scopes until both ceilings hold. Cache hits do not change insertion order.                                                                               |
+| Discovery                      | 10,000 examined entries, root depth 0 through directory depth 32, and 1,000 selected files | Exceeding any ceiling fails discovery. Removing the excess permits a fresh capture. Unmatched entries still count.                                                                     |
+| Credential capture             | 16,384 raw file bytes before whitespace trimming                                           | Oversized, symbolic, replaced, or unstable file entries fail capture. A valid atomic replacement between requests restores access.                                                     |
 
 A two-character prefix admits remote suggestions. A shorter prefix still permits eligible local suggestions.
 Completion returns local fallback after 50 ms. Advisory picker search and its remote operation have a 500 ms ceiling.
 These budgets differ from the larger test observation timeout.
 The source discovery entry test uses unmatched files to isolate 10,000 entries from the lower 1,000-selected-file ceiling.
-The unique source-file ceiling can also bind before the open-document ceiling when other pinned files exist.
+The unique source-file ceiling can bind first when other pinned files exist.
+It follows buffer-unavailable recovery. It does not set the open-count latch.
 The 1,000-document wire test uses the launcher's supported 250 ms debounce to isolate count admission from repeated validation preemption.
 It does not claim zero-debounce load or performance qualification.
 
