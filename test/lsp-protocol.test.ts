@@ -198,7 +198,7 @@ void test('client roots cannot widen the trusted filesystem source selection', a
     { rootUri: disk.config.source.rootUri!, workspaceFolders: [{ uri: outside, name: 'outside' }] },
   ].entries())
     await t.test(
-      ['no client root', 'foreign client root', 'mixed workspace folders'][index]!,
+      ['no client root', 'foreign client root', 'mixed workspace folders'][index],
       async (t) => {
         const host = await startLspClient(t, disk.config, { initializeParams: roots });
         const before = host.diagnostics.length;
