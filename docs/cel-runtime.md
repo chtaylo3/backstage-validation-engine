@@ -171,3 +171,10 @@ The original 43-case corpus remains unchanged.
 The profile excludes timestamp receiver methods such as `getFullYear`.
 CEL-Go accepts that method. BVE rejects it with `profile` because its method allowlist excludes it.
 The independent comparison records this difference and does not rewrite expressions.
+
+AST depth counts edges from the root node at depth zero.
+A chain of 64 unary operators over a literal reaches depth 64 and remains admitted.
+A chain of 65 operators exceeds the existing ceiling and fails with `parse`.
+The worker must enforce this bound before recursive regex traversal or evaluation.
+The pinned parser also limits recursive expression frames to 64, including its top-level frame.
+That separate parser bound admits 63 nested parentheses and rejects 64.
