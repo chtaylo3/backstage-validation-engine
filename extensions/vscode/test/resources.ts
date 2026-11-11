@@ -35,8 +35,7 @@ export function verifyResourceGrowth(
     for (const generation of generations) {
       const origin = generation[0]?.operation;
       if (origin === undefined) continue;
-      const warmed = generation.filter((row) => row.operation - origin >= budgets.warmupOperations);
-      const warm = warmed.slice(Math.floor(warmed.length / 4));
+      const warm = generation.filter((row) => row.operation - origin >= budgets.warmupOperations);
       if (warm.length < 3) continue;
       measured++;
       const first = warm[0]!,

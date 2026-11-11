@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { readProvider, until } from './readiness.js';
-import type { CoverageObservation } from '../../../src/lsp/coverage-observation.js';
+import type {
+  CoverageObservation,
+  FilesystemObservation,
+} from '../../../src/lsp/coverage-observation.js';
 export { until } from './readiness.js';
 
 export interface Api {
+  filesystemObservation(): Promise<FilesystemObservation | null>;
   coverage(uri: string, version: number, digest: string): Promise<CoverageObservation | null>;
   status(): { running: boolean; pid?: number; disconnected?: boolean };
 }
@@ -17,7 +22,7 @@ export const invalidTeam =
 export async function bounded<T>(
   work: PromiseLike<T>,
   description: string,
-  ms = 25_000,
+  ms = 65_000,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -232,6 +237,93 @@ export class Fixture {
         `${error instanceof Error ? error.message : String(error)}; version=${document.version}; status=${JSON.stringify(this.api?.status())}; diagnostics=${JSON.stringify(vscode.languages.getDiagnostics(document.uri).map((row) => ({ code: row.code, message: row.message, data: (row as vscode.Diagnostic & { data?: unknown }).data })))}`,
         { cause: error },
       );
+    }
+  }
+  async observed(document: vscode.TextDocument, after = -1): Promise<CoverageObservation> {
+    let result: CoverageObservation | null = null;
+    const digest = 'sha256:' + createHash('sha256').update(document.getText()).digest('hex');
+    await until(async () => {
+      result = await this.api!.coverage(document.uri.toString(), document.version, digest);
+      return result !== null && result.generation > after;
+    }, 'completed validation of exact version/digest after generation ' + after);
+    const actual = result as CoverageObservation | null;
+    assert(actual);
+    this.note(
+      'coverage generation ' +
+        actual.generation +
+        ' version ' +
+        document.version +
+        ' digest ' +
+        digest,
+    );
+    return actual;
+  }
+  async alive(pid: number, document: vscode.TextDocument, code = 'production-only'): Promise<void> {
+    assert(this.api!.status().running, 'The positive control cannot use a dead server.');
+    assert.equal(this.pid(), pid);
+    await until(
+      () =>
+        vscode.languages
+          .getDiagnostics(document.uri)
+          .some(
+            (row) =>
+              row.code === code &&
+              (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+                document.version,
+          ),
+      'surviving current-version finding ' + code,
+    );
+    assert(this.api!.status().running);
+    assert.equal(this.pid(), pid);
+    assert(!exited(pid));
+  }
+  async stoppedEdit(document: vscode.TextDocument, message: string): Promise<void> {
+    await vscode.commands.executeCommand('backstageValidation.showOutput');
+    assert(
+      (await this.trace()).includes(message),
+      'Expected user-visible stopped reason: ' + message,
+    );
+    assert.equal(
+      vscode.languages
+        .getDiagnostics(document.uri)
+        .filter((row) => row.source === 'backstage-validation').length,
+      0,
+      'Stopped client clears its diagnostics.',
+    );
+    const publications: vscode.Diagnostic[][] = [];
+    const listener = vscode.languages.onDidChangeDiagnostics((event) => {
+      if (event.uris.some((uri) => uri.toString() === document.uri.toString()))
+        publications.push(
+          vscode.languages
+            .getDiagnostics(document.uri)
+            .filter((row) => row.source === 'backstage-validation'),
+        );
+    });
+    try {
+      await this.replace(
+        document,
+        document.getText() + '# edited after stopped command completed\n',
+      );
+      // Completion crosses the editor extension-host boundary after the edit.
+      // The disposed product provider cannot receive or publish new validation work.
+      await this.provider(
+        'vscode.executeCompletionItemProvider',
+        document.uri,
+        new vscode.Position(6, 11),
+      );
+      await vscode.commands.executeCommand('backstageValidation.stop');
+      assert.equal(this.api!.status().running, false);
+      assert.equal(this.api!.status().pid, undefined);
+      assert(publications.every((rows) => rows.length === 0));
+      assert.equal(
+        vscode.languages
+          .getDiagnostics(document.uri)
+          .filter((row) => row.source === 'backstage-validation').length,
+        0,
+      );
+      this.note('later edit/provider and Stop command completed without product diagnostics');
+    } finally {
+      listener.dispose();
     }
   }
   async control(value: Record<string, unknown>): Promise<{ id: string; reference?: string }> {

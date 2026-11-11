@@ -99,7 +99,7 @@ async function until(predicate: () => boolean) {
 }
 async function openSearch() {
   const current = await startClient();
-  await command('searchReferences');
+  void command('searchReferences');
   return { current, picker: editorState.pickers.at(-1)! };
 }
 function deferred<T>() {
@@ -517,12 +517,12 @@ void test('configuration reload replays only approved open documents and authori
 
 void test('search stays closed without a running trusted client', async () => {
   await extension.activate(context);
-  await command('searchReferences');
+  void command('searchReferences');
   assert.deepEqual(editorState.pickers, []);
   editorState.selected = config;
   await command('restart');
   editorState.trusted = false;
-  await command('searchReferences');
+  void command('searchReferences');
   assert.deepEqual(editorState.pickers, []);
 });
 
@@ -610,7 +610,7 @@ void test('closing search disposes listeners and cancels both scheduled and in-f
   assert.deepEqual(current.requests, []);
   assert(picker.disposed);
   assert.equal(picker.changes.size + picker.accepts.size + picker.hides.size, 0);
-  await command('searchReferences');
+  void command('searchReferences');
   const second = editorState.pickers.at(-1)!;
   const response = deferred<{ reference: string; source: string }[]>();
   current.requestHandler = () => response.promise;
@@ -636,7 +636,7 @@ void test('search without an editor copies a chosen reference and records it onl
     { method: 'bve/recordSelection', value: 'group:default/team' },
   ]);
   assert(picker.disposed);
-  await command('searchReferences');
+  void command('searchReferences');
   editorState.clipboardError = new Error('private clipboard failure');
   editorState.pickers.at(-1)!.accept({ label: 'other', reference: 'group:default/other' });
   await settle();
@@ -658,12 +658,12 @@ void test('search inserts into the captured editor selection and records only su
   assert.deepEqual(current.notifications, [
     { method: 'bve/recordSelection', value: 'group:default/team' },
   ]);
-  await command('searchReferences');
+  void command('searchReferences');
   editor.editResult = false;
   editorState.pickers.at(-1)!.accept({ label: 'rejected', reference: 'group:default/rejected' });
   await settle();
   assert.equal(current.notifications.length, 1);
-  await command('searchReferences');
+  void command('searchReferences');
   editor.editError = new Error('private editor failure');
   editorState.pickers.at(-1)!.accept({ label: 'failed', reference: 'group:default/failed' });
   await settle();
@@ -726,4 +726,62 @@ void test('coverage bridge requires a trusted running client and forwards only t
   await command('stop');
   assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
   assert.equal(current.requestCalls.length, 1);
+});
+
+void test('search command completes after cancellation and after the accepted clipboard/history work', async () => {
+  const current = await startClient();
+  let completed = false;
+  const cancelled = command('searchReferences').then(() => {
+    completed = true;
+  });
+  await settle();
+  assert.equal(completed, false);
+  editorState.pickers.at(-1)!.hide();
+  await cancelled;
+  assert.equal(completed, true);
+  completed = false;
+  const accepted = command('searchReferences').then(() => {
+    completed = true;
+  });
+  const saved = deferred<void>();
+  const update = history.update.bind(history);
+  history.update = async (key, value) => {
+    await saved.promise;
+    await update(key, value);
+  };
+  const picker = editorState.pickers.at(-1)!;
+  picker.accept({ label: 'team', reference: 'group:default/team' });
+  picker.accept({ label: 'other', reference: 'group:default/other' });
+  await settle();
+  assert.equal(completed, false);
+  assert.deepEqual(editorState.clipboard, ['group:default/team']);
+  saved.resolve();
+  await accepted;
+  assert.equal(completed, true);
+  assert.deepEqual(current.notifications, [
+    { method: 'bve/recordSelection', value: 'group:default/team' },
+  ]);
+});
+
+void test('filesystem receipt bridge requires trust and a live client and sends no caller control', async () => {
+  const api = await extension.activate(context);
+  assert.equal(await api.filesystemObservation(), null);
+  editorState.selected = config;
+  await command('restart');
+  const current = clients.at(-1)!;
+  const receipt = {
+    sessionGeneration: 1,
+    generation: 3,
+    uris: ['file:///approved/catalog.yaml'],
+    truncated: false,
+  };
+  current.requestHandler = () => Promise.resolve(receipt);
+  assert.deepEqual(await api.filesystemObservation(), receipt);
+  assert.equal(current.requestCalls.at(-1)!.method, 'bve/filesystemObservation');
+  assert.equal(current.requestCalls.at(-1)!.params, undefined);
+  editorState.trusted = false;
+  assert.equal(await api.filesystemObservation(), null);
+  editorState.trusted = true;
+  await options().errorHandler!.closed();
+  assert.equal(await api.filesystemObservation(), null);
 });

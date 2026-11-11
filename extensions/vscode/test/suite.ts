@@ -44,7 +44,7 @@ export async function run(): Promise<void> {
         ? Number(process.env.BVE_SOAK_SECONDS) * 1000 + 90_000
         : progress.id.startsWith('endurance-')
           ? 240_000
-          : 60_000,
+          : 180_000,
     );
   } catch (error) {
     progress.status = 'failed';

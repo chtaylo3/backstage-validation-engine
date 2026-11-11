@@ -414,7 +414,23 @@ export async function controlSearch({ port, base, isExited }) {
           'reference search results',
         );
       }
-      if (state.step === 'choose' || state.step === 'accept-stale')
+      if (state.step === 'persisted') {
+        const labels = await workbench.evaluate(
+          "Array.from(document.querySelectorAll('.quick-input-widget .monaco-list-row')).filter(row => row.getBoundingClientRect().width > 0).map(row => row.innerText)",
+        );
+        assert(labels.some((label) => label.includes('group:default/team-z')));
+        await atomic(path.join(base, 'persisted-ranking.json'), labels);
+        await workbench.key('Escape', 'Escape', 27);
+      } else if (state.step === 'clipboard') {
+        const labels = await workbench.evaluate(
+          "Array.from(document.querySelectorAll('.quick-input-widget .monaco-list-row')).filter(row => row.getBoundingClientRect().width > 0).map(row => row.innerText)",
+        );
+        assert(labels[0]?.includes('group:default/team') && !labels[0]?.includes('team-z'));
+        assert(labels[1]?.includes('group:default/team-z'));
+        await atomic(path.join(base, 'before-selection-ranking.json'), labels);
+        await workbench.key('ArrowDown', 'ArrowDown', 40);
+        await workbench.key('Enter', 'Enter', 13);
+      } else if (state.step === 'choose' || state.step === 'accept-stale')
         await workbench.key('Enter', 'Enter', 13);
       else if (state.step === 'cancel') await workbench.key('Escape', 'Escape', 27);
       else assert.equal(state.step, 'hold-stale');

@@ -57,7 +57,7 @@ assert(
 );
 assert(!focused || !process.env.CI, 'CI must run the complete installed-extension inventory.');
 const selectedModules = focused
-  ? modules.filter((name) => name === focused + '.case.cjs')
+  ? modules.filter((name) => focused.split(',').includes(name.replace(/\.case\.cjs$/u, '')))
   : racesOnly
     ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
     : trustOnly
@@ -70,6 +70,12 @@ const selectedModules = focused
             ? modules.filter((name) => name.startsWith('endurance-soak.'))
             : modules.filter((name) => !/^(compat-|endurance-|remote-)/u.test(name));
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
+if (focused)
+  assert.equal(
+    selectedModules.length,
+    new Set(focused.split(',')).size,
+    'Every focused case must be discovered exactly once.',
+  );
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
 // (microsoft/vscode#279806). Use one pinned installer; execute every scenario
@@ -177,7 +183,7 @@ async function execute(spec, output, fault, peer) {
     trust ||
     lifecycle ||
     virtual ||
-    ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
+    ['workspace-close-live', 'workspace-reload-live', 'editor-search'].includes(spec.id);
   const additionalWorkspaces = [];
   let denied;
   let catalog;
@@ -188,11 +194,12 @@ async function execute(spec, output, fault, peer) {
       await mkdir(installed, { recursive: true });
     }
     const multi = spec.id === 'workspace-multi-root';
-    const fileCount = spec.id.startsWith('endurance-')
-      ? spec.id === 'endurance-100'
-        ? 100
-        : 1000
-      : 2;
+    const fileCount =
+      spec.id.startsWith('endurance-') && spec.id !== 'endurance-saturation'
+        ? spec.id === 'endurance-100'
+          ? 100
+          : 1000
+        : 2;
     const extraFiles =
       fileCount > 2
         ? Array.from({ length: fileCount - 2 }, (_, index) => ({
@@ -217,6 +224,21 @@ async function execute(spec, output, fault, peer) {
       autonomousSuite: autonomous ? path.join(testRoot, 'suite.cjs') : undefined,
       virtual,
     });
+    if (spec.id === 'editor-search') {
+      const { createSourceSnapshot } = await import('../dist/index.js');
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      const teamFile = path.join(workspace, 'team.yaml');
+      const text = await readFile(teamFile, 'utf8');
+      const expanded = text + '---\n' + text.replace('{name: team}', '{name: team-z}');
+      await writeFile(teamFile, expanded);
+      value.source = createSourceSnapshot({
+        ...value.source,
+        files: value.source.files.map((row) =>
+          row.uri.endsWith('/team.yaml') ? { ...row, text: expanded } : row,
+        ),
+      });
+      await writeFile(config, JSON.stringify(value));
+    }
     let workspaceArgument = workspace;
     if (multi) {
       workspaceArgument = path.join(session, 'multi.code-workspace');
@@ -236,6 +258,7 @@ async function execute(spec, output, fault, peer) {
     if (
       [
         'catalog-refresh',
+        'editor-credentials',
         'rule-contributions',
         'race-delayed-validation',
         'race-delayed-completion',
@@ -259,6 +282,13 @@ async function execute(spec, output, fault, peer) {
         maxAgeMs: ['catalog-refresh', 'rule-contributions'].includes(spec.id) ? 500 : 5000,
         tokenEnv: 'BVE_EDITOR_CATALOG_TOKEN',
       };
+      if (spec.id === 'editor-credentials') {
+        const tokenFile = path.join(session, 'catalog-token');
+        await writeFile(tokenFile, catalog.token, { mode: 0o600 });
+        delete value.catalog.tokenEnv;
+        value.catalog.tokenFile = tokenFile;
+        value.catalog.maxAgeMs = 0;
+      }
       if (spec.id === 'catalog-refresh') {
         const file = path.join(workspace, 'catalog.yaml');
         const text = (await readFile(file, 'utf8')).replace('owner: team', 'owner: remote-refresh');
@@ -332,6 +362,11 @@ async function execute(spec, output, fault, peer) {
         };
         value.editorArtifacts = [{ ...artifact, digest: digestJson(artifact) }];
       }
+      await writeFile(config, JSON.stringify(value));
+    }
+    if (['race-dirty-watch', 'editor-intelligence', 'editor-discovery'].includes(spec.id)) {
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      value.coverageObservation = true;
       await writeFile(config, JSON.stringify(value));
     }
     let launchConfig = config;
@@ -415,7 +450,16 @@ async function execute(spec, output, fault, peer) {
       '--disable-updates',
       '--no-cached-data',
     ];
-    if (['race-apply-delivery', 'save'].includes(spec.id)) {
+    if (
+      [
+        'race-apply-delivery',
+        'save',
+        'race-dirty-watch',
+        'editor-intelligence',
+        'editor-discovery',
+        'performance-budget',
+      ].includes(spec.id)
+    ) {
       args.push('--log', 'chtaylo3.backstage-validation-engine:trace');
       const settings = path.join(profile, 'User/settings.json');
       const value = JSON.parse(await readFile(settings, 'utf8'));
@@ -688,21 +732,41 @@ async function execute(spec, output, fault, peer) {
         if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
       }
     } else if (searchPort) {
-      const abort = new globalThis.AbortController();
-      let exited = false;
-      const editor = launch(args, {}, base, abort.signal).finally(() => {
-        exited = true;
-      });
-      const ui = controlSearch({ port: searchPort, base, isExited: () => exited }).catch(
-        (error) => {
-          abort.abort();
-          throw error;
-        },
-      );
-      const completed = await Promise.allSettled([editor, ui]);
-      const failed = completed.find((entry) => entry.status === 'rejected');
-      if (failed) throw failed.reason;
-      result = completed[0].value;
+      const sessions = [];
+      for (let stage = 0; stage < 2; stage++) {
+        await rm(path.join(base, 'search-control.json'), { force: true });
+        await rm(path.join(base, 'search-ack.json'), { force: true });
+        await rm(progressFile, { force: true });
+        const directory = path.join(base, 'activation-' + stage);
+        await mkdir(directory, { recursive: true });
+        const abort = new globalThis.AbortController();
+        let exited = false;
+        const editor = launch(
+          args,
+          { BVE_EXTENSION_TEST_SEARCH_STAGE: String(stage) },
+          directory,
+          abort.signal,
+        ).finally(() => {
+          exited = true;
+        });
+        const ui = controlSearch({ port: searchPort, base, isExited: () => exited }).catch(
+          (error) => {
+            abort.abort();
+            throw error;
+          },
+        );
+        const completed = await Promise.allSettled([editor, ui]);
+        const failed = completed.find((entry) => entry.status === 'rejected');
+        if (failed) throw failed.reason;
+        result = completed[0].value;
+        const progress = await readProgress(progressFile);
+        sessions.push({ stage, result, progress });
+        await atomic(
+          path.join(base, 'native-sessions.json'),
+          JSON.stringify(sessions, null, 2) + '\n',
+        );
+        if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
+      }
     } else result = await launch(args, {}, base);
     const progress = await readProgress(progressFile);
     if (closedCleanly && !result.error && progress) {

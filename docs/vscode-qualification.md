@@ -1,5 +1,30 @@
 # VS Code qualification evidence
 
+## H5 provisional measurement policy
+
+The parent approved this policy before H5 changes the measurement windows.
+These limits are provisional regression gates. They do not define a responsiveness service-level agreement.
+The existing limits remain unchanged because no independent requirement or baseline justifies different caps.
+Historical measurements describe their own candidates. H5 records new measurements for its exact candidate without tuning these limits.
+
+Cold readiness, edit p95, completion p95, and restart p95 each permit at most 20,000 milliseconds.
+The harness observation deadline is 60,000 milliseconds. Production request deadlines remain unchanged.
+A completed operation over its budget fails the budget assertion before the observation deadline.
+The nearest-rank p95 sorts all observations and selects position `ceil(0.95 * n)`, with positions starting at one.
+Every measured latency operation is included. The harness does not discard latency warmup operations.
+Each focused load requires at least 60 paired edit and completion observations and two restart observations.
+Cold readiness has one observation per editor launch. It has no percentile claim.
+
+Resource samples exclude exactly the first ten operations from each process generation's observed origin.
+The client remains one generation across server restarts. Server measurements use separate PID generations.
+At least three samples after warmup are required for a measured generation.
+Endpoint RSS growth permits at most 128 MiB for each process, and endpoint handle growth permits at most 64 handles.
+There is no additional exclusion of the first quarter of samples after warmup.
+The least-squares RSS slope uses every included sample and permits at most 0.15 MiB per operation.
+A slope requires at least three included samples spanning at least 100 operations within one process generation.
+Short focused workloads measure endpoint growth only. They do not qualify that slope or the deferred long workloads.
+The independent release verdict recomputes these decisions from raw observations and rejects insufficient required windows.
+
 Implementation records which features exist. Qualification records which required tests passed for a
 specific candidate. A workflow file, a successful short test of the harness, or a build from another
 revision does not complete qualification.
@@ -75,13 +100,13 @@ sustained workload test, must run for its full declared duration.
 
 The load and soak fixture contains one Group. The remaining files are Components. Only the edited
 Component initially violates the policy. It uses the production 25 ms debounce, a five-second engine
-deadline and the existing 20-second readiness bound. A separate zero-debounce saturation case makes
-all 999 Components violate policy.
+deadline and the 60-second harness observation bound. The separate saturation case uses two configured files
+and a dirty buffer exactly one byte above the unchanged file-byte admission cap.
 
 Each edit must complete or publish a typed bound. Guarded fixes remain unavailable after incomplete
-validation. The test preserves exact buffer text, then verifies that fixes recover with a smaller
-source. Its observations do not establish capacity to complete every zero-debounce 1000-violation
-workload. Performance budgets are explicit in `resource-metrics.json`. Local timings do not qualify
+validation. The test preserves exact buffer text and rejects an earlier repair token. It then closes and reopens
+the rejected buffer to resynchronize valid source and recover guarded repairs. This deterministic bound does not establish
+capacity to complete every 1,000-file workload. Performance budgets are explicit in `resource-metrics.json`. Local timings do not qualify
 hosted hardware.
 
 The client baseline is measured after product Stop and includes the loaded client module, while cold

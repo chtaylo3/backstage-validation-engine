@@ -32,7 +32,7 @@ import { APPLY_FIX_COMMAND, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 import { filesystemEvent } from './discovery.js';
-import type { CoverageObservation } from './coverage-observation.js';
+import type { CoverageObservation, FilesystemObservation } from './coverage-observation.js';
 
 /** One active request and one latest workspace snapshot; host owns resources and immutable authority. */
 export function attachLspServer(
@@ -57,6 +57,7 @@ export function attachLspServer(
     throw new Error('Trusted filesystem reader configuration mismatch.');
   const fixes = new FixRegistry();
   let coverageObservation: CoverageObservation | undefined;
+  let filesystemObservation: FilesystemObservation | undefined;
   let fixesEnabled = false;
   let atomicTextEdits = false;
   const clientEdits = new ClientEdits((edit, token) =>
@@ -120,6 +121,7 @@ export function attachLspServer(
         return coordinator.cancelActive();
       },
       commit: (session) => {
+        filesystemObservation = undefined;
         workspace.replaceConfiguration(session.config);
         coordinator.invalidate('configuration');
       },
@@ -196,6 +198,7 @@ export function attachLspServer(
   const close = (): Promise<void> => {
     if (disposal) return disposal;
     stopped = true;
+    filesystemObservation = undefined;
     fixes.invalidate();
     publisher.close();
     workspace.close();
@@ -270,6 +273,16 @@ export function attachLspServer(
       available: sessions.available,
       session: sessions.current,
     };
+  });
+  connection.onRequest('bve/filesystemObservation', () => {
+    admitted(() => undefined);
+    if (
+      !sessions.available ||
+      !sessions.current.config.coverageObservation ||
+      filesystemObservation?.sessionGeneration !== sessions.current.generation
+    )
+      return null;
+    return filesystemObservation;
   });
   connection.onRequest('bve/validationCoverage', (params: unknown) => {
     admitted(() => undefined);
@@ -521,25 +534,50 @@ export function attachLspServer(
   connection.onDidChangeWatchedFiles((params) => {
     if (!initialized || stopped || !sessions.current.filesystem || !Array.isArray(params?.changes))
       return;
+    const observe = (uris: string[], truncated: boolean) => {
+      if (sessions.current.config.coverageObservation)
+        filesystemObservation = {
+          sessionGeneration: sessions.current.generation,
+          generation: coordinator.generation,
+          uris,
+          truncated,
+        };
+    };
     if (params.changes.length > 1000) {
-      // Events are invalidation hints; coalesce large batches to the bounded allowlist.
+      // Preserve bounded coalescing without traversing an oversized notification.
       refresh();
+      observe([], true);
       return;
     }
-    if (
-      params.changes.some(
-        (row) =>
-          row &&
-          typeof row.uri === 'string' &&
-          isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) &&
-          [1, 2, 3].includes(row.type) &&
-          (filesystemEvent(sessions.current.config, row.uri) ||
-            sessions.current.config.filesystem!.files.some((uri) =>
-              uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
-            )),
+    const uris: string[] = [];
+    let bytes = 0,
+      admittedEvent = false,
+      truncated = false;
+    for (const row of params.changes) {
+      if (
+        !row ||
+        typeof row.uri !== 'string' ||
+        !isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) ||
+        ![1, 2, 3].includes(row.type) ||
+        !(
+          filesystemEvent(sessions.current.config, row.uri) ||
+          sessions.current.config.filesystem!.files.some((uri) =>
+            uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
+          )
+        )
       )
-    )
+        continue;
+      admittedEvent = true;
+      const size = Buffer.byteLength(row.uri, 'utf8');
+      if (uris.length < 32 && bytes + size <= 64 * 1024) {
+        uris.push(row.uri);
+        bytes += size;
+      } else truncated = true;
+    }
+    if (admittedEvent) {
       refresh();
+      observe(uris, truncated);
+    }
   });
   connection.onDidOpenTextDocument(({ textDocument: item }) => {
     if (initialized && !stopped && workspace.open(item)) schedule();

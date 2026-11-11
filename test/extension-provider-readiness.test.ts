@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readProvider } from '../extensions/vscode/test/readiness.js';
+import {
+  readProvider,
+  until,
+  OBSERVATION_TIMEOUT_MS,
+} from '../extensions/vscode/test/readiness.js';
 
 const cancelled = () => Object.assign(new Error('Canceled'), { name: 'Canceled' });
 
@@ -54,20 +58,41 @@ void test('provider readiness propagates failures that are not editor cancellati
   assert.equal(calls, 1);
 });
 
-void test('repeated editor cancellation fails at the existing readiness deadline', async (t) => {
-  let now = 0;
-  t.mock.method(Date, 'now', () => now);
+void test('repeated editor cancellations share one complete observation deadline', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   let cancellations = 0;
-  await assert.rejects(
-    readProvider(
-      () => Promise.reject(cancelled()),
-      'rule readiness',
-      () => {
-        cancellations++;
-        now = 20_000;
-      },
-    ),
-    /Timed out: rule readiness/u,
+  const pending = readProvider(
+    () => Promise.reject(cancelled()),
+    'rule readiness',
+    () => cancellations++,
   );
+  const rejected = assert.rejects(pending, /Timed out: rule readiness/u);
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   assert.equal(cancellations, 1);
+  t.mock.timers.tick(OBSERVATION_TIMEOUT_MS - 1);
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert(cancellations >= 2);
+  t.mock.timers.tick(1);
+  await rejected;
+});
+void test('an unsettled provider attempt cannot escape the total observation deadline', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let rejectLate!: (error: Error) => void;
+  const pending = until(
+    () =>
+      new Promise<boolean>((_, reject) => {
+        rejectLate = reject;
+      }),
+    'pending provider',
+  );
+  const rejected = assert.rejects(pending, /Timed out: pending provider/u);
+  t.mock.timers.tick(OBSERVATION_TIMEOUT_MS);
+  await rejected;
+  rejectLate(new Error('Late rejected provider work remains observed.'));
+  await Promise.resolve();
+  await Promise.resolve();
 });

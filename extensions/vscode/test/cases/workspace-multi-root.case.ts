@@ -6,6 +6,7 @@ import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   assert.equal(vscode.workspace.workspaceFolders?.length, 2);
   const main = await fixture.document();
+  const pid = fixture.pid();
   await fixture.currentDiagnostic(main);
   for (const name of ['catalog.yaml', 'catalog [a]{b}.yaml']) {
     const uri = vscode.Uri.file(
@@ -26,6 +27,9 @@ export async function run(fixture: Fixture): Promise<void> {
     path.join(process.env.BVE_EXTENSION_TEST_WORKSPACE!, 'unapproved/catalog.yaml'),
   );
   await vscode.commands.executeCommand('vscode.open', unapproved);
+  // This approved round trip occurs after the unapproved open.
+  await fixture.replace(main, main.getText() + '# approved barrier after unapproved open\n');
+  await fixture.alive(pid, main);
   assert.equal(
     vscode.languages
       .getDiagnostics(unapproved)

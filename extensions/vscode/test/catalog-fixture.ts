@@ -146,6 +146,15 @@ export async function createEditorCatalog(root: string, token: string = randomUU
           );
         if (!read) throw new Error('No new authenticated catalog read.');
         result = { id: String(read.id) };
+      } else if (value.op === 'assert-denied') {
+        const denied = selected.fixture
+          .requests()
+          .find(
+            (entry) =>
+              entry.id > (value.after ?? 0) && entry.operation === 'byName' && entry.status === 401,
+          );
+        if (!denied) throw new Error('No new rejected credential lookup.');
+        result = { id: String(denied.id) };
       } else if (value.op === 'requests') result = selected.fixture.requests();
       else throw new Error('Unknown control operation.');
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));

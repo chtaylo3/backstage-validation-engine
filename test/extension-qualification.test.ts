@@ -216,7 +216,7 @@ void test('p95 admits exactly 25 high observations of 500 and rejects the twenty
     latencies: {
       edits: [...Array<number>(475).fill(100), ...Array<number>(25).fill(20001)],
       completions: Array<number>(500).fill(20),
-      restarts: [200],
+      restarts: [200, 200],
     },
     percentiles: { editP95Ms: 100, completionP95Ms: 20, restartP95Ms: 200 },
     samples: Array.from({ length: 8 }, (_, index) => ({

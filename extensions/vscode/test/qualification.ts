@@ -3,7 +3,7 @@ import type { Report } from './reporting.js';
 import { verifyResourceGrowth } from './resources.js';
 import type { ResourceSample } from './resources.js';
 
-/** Host-approved current policy. H5 owns any later budget revision. */
+/** Parent-approved provisional H5 policy. See docs/vscode-qualification.md. */
 export const METRIC_BUDGETS = Object.freeze({
   coldMs: 20_000,
   editP95Ms: 20_000,
@@ -76,7 +76,10 @@ export function verifyMetrics(metrics: ResourceMetrics, duration: number, size =
     ['restarts', 'restartP95Ms'],
   ] as const) {
     const values = metrics.latencies[raw];
-    assert(Array.isArray(values) && values.length > 0, 'Require raw latency observations.');
+    assert(
+      Array.isArray(values) && values.length >= (raw === 'restarts' ? 2 : 60),
+      'Require raw latency observations.',
+    );
     assert(values.every((value) => Number.isFinite(value) && value >= 0));
     const actual = metricPercentile(values);
     assert.equal(

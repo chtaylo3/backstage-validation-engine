@@ -579,3 +579,23 @@ A field insertion can supply an explicit blank placeholder. That placeholder doe
 The user must fill it before the intended validation can pass.
 Repair tests keep client rejection after dispatch separate from server rejection after an earlier `didChange`.
 Fixed UTF-16 coordinate vectors remain independent expected values for fixed fixtures.
+
+## Host observation of admitted filesystem events
+
+A trusted launcher can enable `bve/filesystemObservation` with the existing `coverageObservation: true` flag.
+The installed host requires Workspace Trust and a running client. The request accepts no parameters and controls no server work.
+It returns `null` when disabled, unavailable, or without an admitted event in the current session.
+Normal initialization and shutdown admission rules apply. The projection performs no provider or filesystem reads.
+
+The result contains `sessionGeneration`, `generation`, `uris`, and `truncated`.
+The server records the coordinator generation synchronously after it admits and invalidates for the watcher notification.
+It includes only canonical URIs admitted by the same source-selection predicate that triggers invalidation.
+The latest record contains at most 32 URIs and at most 64 KiB of URI text in UTF-8.
+Further admitted URIs set `truncated: true`. Batches over the existing 1,000-event bound record no URIs and set that flag.
+Configuration replacement clears the record. The projection withholds records from another session or unavailable configuration.
+It retains no event history, credential, catalog access, or file contents.
+
+This observation proves accepted notification receipt. It does not prove filesystem existence or authenticate an operating-system event.
+Installed tests separately drive the real native watcher, observe the client notification, and request this projection in stream order.
+A later coverage observation proves completed validation after the recorded generation.
+These host observations add no public validation 0.2 fields or plugin capability interfaces.

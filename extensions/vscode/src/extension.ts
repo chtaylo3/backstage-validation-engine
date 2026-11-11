@@ -38,7 +38,7 @@ async function recordSelection(value: unknown): Promise<void> {
     await extensionContext.workspaceState.update(historyKey, history.slice(-128));
   }
 }
-function searchReferences(): void {
+function searchReferences(): Promise<void> | undefined {
   const current = client;
   if (!current?.isRunning() || !vscode.workspace.isTrusted) return;
   const editor = vscode.window.activeTextEditor;
@@ -48,6 +48,11 @@ function searchReferences(): void {
   picker.title = 'Backstage: Search Entity References';
   picker.placeholder = 'Enter kind:namespace/name, for example group:default/te';
   picker.matchOnDescription = true;
+  let complete!: () => void;
+  const completed = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  let accepted = false;
   let query = 0;
   let timer: NodeJS.Timeout | undefined;
   let cancellation: vscode.CancellationTokenSource | undefined;
@@ -98,7 +103,8 @@ function searchReferences(): void {
   subscriptions.push(
     picker.onDidAccept(() => {
       const reference = picker.selectedItems[0]?.reference;
-      if (!reference) return;
+      if (!reference || accepted) return;
+      accepted = true;
       picker.hide();
       void (async () => {
         if (
@@ -114,11 +120,14 @@ function searchReferences(): void {
         } else if (!editor) {
           await vscode.env.clipboard.writeText(reference);
           await recordSelection(reference);
-        } else
-          await vscode.window.showInformationMessage(
-            'The document changed during search. Run Search Entity References again.',
-          );
-      })().catch(() => output?.error('Unable to insert the selected reference.'));
+        } else {
+          const message = 'The document changed during search. Run Search Entity References again.';
+          output?.info(message);
+          void vscode.window.showInformationMessage(message).then(undefined, () => undefined);
+        }
+      })()
+        .catch(() => output?.error('Unable to insert the selected reference.'))
+        .finally(complete);
     }),
   );
   subscriptions.push(
@@ -129,9 +138,11 @@ function searchReferences(): void {
       cancellation?.dispose();
       for (const subscription of subscriptions) subscription.dispose();
       picker.dispose();
+      if (!accepted) complete();
     }),
   );
   picker.show();
+  return completed;
 }
 
 function selectedConfig(): string | undefined {
@@ -150,10 +161,28 @@ async function selectors(
   config: string,
   configured = new Map<string, string>(),
 ): Promise<Pick<LanguageClientOptions, 'documentSelector' | 'uriConverters'>> {
-  const text = await readFile(config, 'utf8');
+  let text: string;
+  try {
+    text = await readFile(config, 'utf8');
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    const reason =
+      code === 'ENOENT'
+        ? 'Trusted configuration file was not found.'
+        : code === 'EACCES' || code === 'EPERM'
+          ? 'Trusted configuration file is not readable.'
+          : 'Trusted configuration file is unavailable.';
+    // eslint-disable-next-line preserve-caught-error -- Native causes contain private paths. Only the fixed classification crosses this boundary.
+    throw new Error(reason);
+  }
   if (Buffer.byteLength(text) > 32 * 1024 * 1024)
     throw new Error('Trusted configuration exceeds the size limit.');
-  const value: unknown = JSON.parse(text);
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error('Trusted configuration contains invalid JSON.');
+  }
   if (!record(value) || !record(value.source)) throw new Error('Invalid trusted configuration.');
   historyKey =
     'backstageValidation.history:' +
@@ -235,6 +264,7 @@ async function stop(): Promise<void> {
   const previous = client;
   if (previous) await previous.stop();
   if (client === previous) client = undefined;
+  output?.info('Backstage validation stopped. Use Restart Language Server to resume.');
 }
 async function start(context: vscode.ExtensionContext): Promise<void> {
   await stop();
@@ -364,9 +394,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
         if (client === next && !next.serverProcess) client = undefined;
       },
     );
-    throw new Error(
-      'Unable to start Backstage validation. Check the trusted configuration and output channel.',
-    );
+    throw new Error('Trusted configuration was rejected during server initialization.');
   }
 }
 function schedule(operation: () => Promise<void>): Promise<void> {
@@ -374,13 +402,39 @@ function schedule(operation: () => Promise<void>): Promise<void> {
   pending = work.catch(() => {});
   return work;
 }
+function reportStartupFailure(error: unknown): void {
+  const safe = new Set([
+    'Select an absolute trusted configuration path in User Settings.',
+    'Trusted configuration file was not found.',
+    'Trusted configuration file is not readable.',
+    'Trusted configuration file is unavailable.',
+    'Trusted configuration contains invalid JSON.',
+    'Invalid trusted configuration.',
+    'Trusted configuration exceeds the size limit.',
+    'Trusted configuration exceeds the file limit.',
+    'Only local file sources are supported.',
+    'Invalid configured source URI.',
+    'Ambiguous configured file spellings.',
+    'Invalid discovery root.',
+    'Invalid source root.',
+    'Trusted configuration was rejected during server initialization.',
+  ]);
+  output?.error(
+    error instanceof Error && safe.has(error.message)
+      ? error.message
+      : 'Trusted configuration could not be loaded.',
+  );
+}
 export async function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
   output = vscode.window.createOutputChannel('Backstage Validation', { log: true });
   context.subscriptions.push(
     output,
     vscode.commands.registerCommand('backstageValidation.restart', () =>
-      schedule(() => start(context)),
+      schedule(() => start(context)).catch((error: unknown) => {
+        reportStartupFailure(error);
+        throw error;
+      }),
     ),
     vscode.commands.registerCommand('backstageValidation.stop', () => schedule(stop)),
     vscode.commands.registerCommand('backstageValidation.showOutput', () => output?.show()),
@@ -391,19 +445,25 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('backstageValidation.recordSelection', recordSelection),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('backstageValidation.configPath'))
-        void schedule(() => start(context)).catch(() => {
+        void schedule(() => start(context)).catch((error: unknown) => {
           output?.error('Unable to restart validation; check trusted User Settings.');
+          reportStartupFailure(error);
         });
     }),
   );
   try {
     await schedule(() => start(context));
-  } catch {
+  } catch (error) {
     output.error(
       'Unable to start validation; check trusted User Settings and launcher configuration.',
     );
+    reportStartupFailure(error);
   }
   return {
+    filesystemObservation: async (): Promise<unknown> => {
+      if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
+      return client.sendRequest('bve/filesystemObservation');
+    },
     coverage: async (uri: string, version: number, digest: string): Promise<unknown> => {
       if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
       return client.sendRequest('bve/validationCoverage', { uri, version, digest });

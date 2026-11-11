@@ -154,3 +154,15 @@ Its tested head passed 989 source tests, 989 packaged tests, and 88 installed ca
 Quick qualification also passed 36 desktop cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
 The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
 These results do not complete the deferred release work above.
+
+## H5 installed observation scope
+
+The focused installed matrix tests configuration faults, native watcher handling, explicit reload, search completion, discovery, credential rotation, and diagnostic severity.
+The host observation flag remains disabled by default. Its bounded filesystem projection supports ordered watcher observations without exposing file contents or credentials.
+The [LSP guide](lsp.md#host-observation-of-admitted-filesystem-events) defines that projection and its limits.
+
+Native search tests cover selected text, cancellation, stale selection, and clipboard fallback with no active editor.
+A fresh extension-host activation tests persisted selection history through actual completion ranking between two eligible references.
+Server search results carry their own ordering. VS Code can reorder filtered QuickPick rows independently.
+The focused evidence does not qualify native QuickPick display order as persisted history ranking.
+Long workloads, abrupt transport loss, native Workspace Trust activation reliability, and JetBrains qualification remain deferred.

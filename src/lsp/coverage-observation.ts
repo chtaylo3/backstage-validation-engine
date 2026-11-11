@@ -16,3 +16,11 @@ export interface CoverageObservation {
   }[];
   readonly coverage: Immutable<ValidationResult['coverage']>;
 }
+
+/** Bounded latest admitted notification. Not a filesystem existence or OS-origin claim. */
+export interface FilesystemObservation {
+  readonly sessionGeneration: number;
+  readonly generation: number;
+  readonly uris: readonly string[];
+  readonly truncated: boolean;
+}

@@ -4,14 +4,43 @@ import { invalidTeam, team, until } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   const main = await fixture.document();
+  const pid = fixture.pid();
   await fixture.currentDiagnostic(main);
   const document = await vscode.workspace.openTextDocument(fixture.teamUri);
   await vscode.window.showTextDocument(document);
   await fixture.replace(document, team + '# unsaved buffer owns this file\n');
   assert(document.isDirty);
+  // No catalog refresh exists in this fixture. Finish all preceding buffer work
+  // before the sole external stimulus, then require a newer completed generation.
+  const before = await fixture.observed(document);
+  const version = document.version;
+  const offset = (await fixture.trace()).length;
   await vscode.workspace.fs.writeFile(fixture.teamUri, Buffer.from(invalidTeam));
-  // A fresh guarded action is a round-trip through the latest workspace frame.
-  await fixture.fix();
+  await until(async () => {
+    const trace = (await fixture.trace()).slice(offset);
+    return (
+      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
+      trace.includes(fixture.teamUri.toString())
+    );
+  }, 'exact native dependency watcher notification');
+  const receipt = await fixture.api!.filesystemObservation();
+  assert(receipt, 'The ordered projection must observe an admitted watcher event.');
+  assert(
+    receipt.uris.includes(fixture.teamUri.toString()),
+    'The server must admit this exact dirty dependency watcher event.',
+  );
+  assert(
+    receipt.generation > before.generation,
+    'The watcher handler must invalidate after settled buffer validation.',
+  );
+  const after = await fixture.observed(document, receipt.generation - 1);
+  assert.equal(
+    after.sourceDigest,
+    before.sourceDigest,
+    'Disk invalidity cannot replace the authoritative dirty source.',
+  );
+  assert.equal(document.version, version);
+  await fixture.alive(pid, main);
   assert.equal(fixture.has('owner-exists'), false);
   assert.equal(document.getText(), team + '# unsaved buffer owns this file\n');
   assert.equal(
@@ -27,4 +56,5 @@ export async function run(fixture: Fixture): Promise<void> {
   );
   await vscode.workspace.fs.writeFile(fixture.teamUri, Buffer.from(team));
   await until(() => !fixture.has('owner-exists'), 'external repair clears dependency');
+  await fixture.alive(pid, main);
 }

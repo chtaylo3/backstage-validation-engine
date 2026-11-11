@@ -59,6 +59,7 @@ void test('child stdio rejects lifecycle requests before initialize and after sh
     ],
     ['workspace/executeCommand', { command: 'bve.applyFix', arguments: ['untrusted'] }],
     ['bve/searchReferences', { kind: 'group', namespace: 'default', prefix: 'te' }],
+    ['bve/filesystemObservation', {}],
     ['bve/validationCoverage', { uri: URI, version: 1, digest: digestText(componentText()) }],
     ['bve/reloadConfiguration', {}],
     ['unsupported/probe', {}],

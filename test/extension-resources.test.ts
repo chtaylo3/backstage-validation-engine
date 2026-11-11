@@ -56,3 +56,24 @@ void test('cold or frequently restarted processes cannot claim a measured platea
     /after warmup/,
   );
 });
+
+for (const side of ['client', 'server'] as const) {
+  for (const kind of ['rssMiB', 'handles'] as const) {
+    void test(`the first post-warmup quarter cannot hide a retained ${side} ${kind} leak`, () => {
+      const samples: ResourceSample[] = Array.from({ length: 201 }, (_, operation) => ({
+        operation,
+        elapsedMs: operation * 1000,
+        pid: 42,
+        client: { rssMiB: 200, handles: 30 },
+        server: { rssMiB: 500, handles: 40 },
+      }));
+      verifyResourceGrowth(samples, budgets, true, true);
+      for (const row of samples)
+        if (row.operation >= 30) row[side][kind] += kind === 'rssMiB' ? 129 : 65;
+      assert.throws(
+        () => verifyResourceGrowth(samples, budgets, true, true),
+        kind === 'rssMiB' ? /retained RSS/ : /handle growth/,
+      );
+    });
+  }
+}
