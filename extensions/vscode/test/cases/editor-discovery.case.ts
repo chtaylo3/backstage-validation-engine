@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { configuration, reload } from '../configuration.js';
-import { until, guardedCommand } from '../fixture.js';
+import { until, guardedCommand, documentRange } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   const main = await fixture.document();
@@ -60,7 +60,8 @@ export async function run(fixture: Fixture): Promise<void> {
     const actions = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
       'vscode.executeCodeActionProvider',
       uri,
-      new vscode.Range(5, 0, 5, 30),
+      documentRange(vscode.window.activeTextEditor!.document),
+      vscode.CodeActionKind.QuickFix.value,
     );
     assert(!actions?.some((row) => guardedCommand(row)));
   }
@@ -72,24 +73,35 @@ export async function run(fixture: Fixture): Promise<void> {
     path.join(deep, 'catalog-info.yaml'),
     main.getText().replace('{name: service}', '{name: depth-control}'),
   );
-  const deepUri = vscode.Uri.file(path.join(deep, 'catalog-info.yaml')).toString();
+  // Older native watchers coalesce newly created deep subtrees into directory
+  // events. Use an existing approved file for a precise second rescan pulse.
   await until(async () => {
     const trace = (await fixture.trace()).slice(traceOffset);
     return (
       trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
-      trace.includes(deepUri)
+      trace.includes(vscode.Uri.file(path.join(root, 'depth')).toString())
     );
-  }, 'native deep discovery notification reaches the client stream');
+  }, 'native creation notification for the discovered subtree');
+  const firstReceipt = await fixture.api!.filesystemObservation();
+  assert(firstReceipt && firstReceipt.generation > beforeDepth.generation);
+  const pulseOffset = (await fixture.trace()).length;
+  await vscode.workspace.fs.writeFile(
+    fixture.teamUri,
+    Buffer.from((await readFile(fixture.teamUri.fsPath, 'utf8')) + '# discovery rescan pulse\n'),
+  );
+  await until(async () => {
+    const trace = (await fixture.trace()).slice(pulseOffset);
+    return (
+      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
+      trace.includes(fixture.teamUri.toString())
+    );
+  }, 'precise native rescan pulse after complete subtree creation');
   const depthReceipt = await fixture.api!.filesystemObservation();
   assert(
-    depthReceipt && depthReceipt.generation > beforeDepth.generation,
-    'Deep fixture event must be admitted after settled validation.',
-  );
-  assert(
-    depthReceipt.uris.some((uri) =>
-      uri.startsWith(vscode.Uri.file(path.join(root, 'depth')).toString()),
-    ),
-    'Admitted receipt must identify the deep discovery stimulus.',
+    depthReceipt &&
+      depthReceipt.generation > firstReceipt.generation &&
+      depthReceipt.uris.includes(fixture.teamUri.toString()),
+    'The server must admit the exact rescan pulse after the complete deep fixture exists.',
   );
   await fixture.replace(main, main.getText() + '# depth-bound processing after admitted watcher\n');
   await until(
@@ -122,7 +134,8 @@ export async function run(fixture: Fixture): Promise<void> {
   const old = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
     'vscode.executeCodeActionProvider',
     main.uri,
-    new vscode.Range(5, 0, 5, 30),
+    documentRange(main),
+    vscode.CodeActionKind.QuickFix.value,
   );
   assert(!old?.some((row) => guardedCommand(row)));
   await rm(path.join(root, 'depth'), { recursive: true });
@@ -154,7 +167,8 @@ export async function run(fixture: Fixture): Promise<void> {
   const unavailableActions = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
     'vscode.executeCodeActionProvider',
     main.uri,
-    new vscode.Range(5, 0, 5, 30),
+    documentRange(main),
+    vscode.CodeActionKind.QuickFix.value,
   );
   assert(!unavailableActions?.some((row) => guardedCommand(row)));
   assert.equal(fixture.pid(), pid);

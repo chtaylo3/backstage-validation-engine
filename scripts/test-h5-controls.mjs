@@ -222,6 +222,19 @@ const mutations = [
     ],
   },
   {
+    id: 'incomplete-state-offers-guarded-edit',
+    cases: ['endurance-saturation'],
+    expected: 'Incomplete validation cannot offer a guarded edit',
+    changes: [
+      {
+        file: server + 'server.js',
+        before: 'connection.onCodeAction((params, token) => admitted(() => requests.execute',
+        after:
+          "connection.onCodeAction((params, token) => workspace.unavailableSources && params.range.start.line <= 5 && params.range.end.line >= 5 ? [{ title: 'Injected unsafe repair', kind: 'quickfix', command: { title: 'Injected unsafe repair', command: 'bve.applyFix', arguments: ['unsafe'] } }] : admitted(() => requests.execute",
+      },
+    ],
+  },
+  {
     id: 'stale-repair-admitted',
     cases: ['endurance-saturation', 'editor-credentials'],
     expected: 'AssertionError',

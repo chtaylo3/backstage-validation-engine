@@ -36,6 +36,9 @@ export async function bounded<T>(
     clearTimeout(timer);
   }
 }
+export function documentRange(document: vscode.TextDocument): vscode.Range {
+  return new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+}
 export function exited(pid: number): boolean {
   try {
     process.kill(pid, 0);

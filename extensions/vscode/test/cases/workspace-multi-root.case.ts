@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 import { writeEvidence } from '../evidence.js';
 import { diagnosticPublications } from '../diagnostic-trace.js';
-import { until } from '../fixture.js';
+import { until, documentRange, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   assert.equal(vscode.workspace.workspaceFolders?.length, 2);
@@ -62,11 +62,12 @@ export async function run(fixture: Fixture): Promise<void> {
       .filter((row) => row.source === 'backstage-validation').length,
     0,
   );
-  const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+  const actions = await vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
     'vscode.executeCodeActionProvider',
     unapproved,
-    new vscode.Range(5, 0, 5, 30),
+    documentRange(vscode.window.activeTextEditor!.document),
+    vscode.CodeActionKind.QuickFix.value,
   );
-  assert(!actions?.some((row) => row.command?.command === 'bve.applyFix'));
+  assert(!actions?.some((row) => guardedCommand(row)));
   assert(vscode.window.activeTextEditor!.document.getText().includes('lifecycle: experimental'));
 }

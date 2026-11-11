@@ -139,6 +139,11 @@ export async function run(fixture: Fixture): Promise<void> {
     () => document.getText().includes('lifecycle: "production"') && !fixture.has('production-only'),
     'fresh credential-recovery repair changes and validates the scalar',
   );
+  assert.equal(
+    document.getText(),
+    text.replace('lifecycle: experimental', 'lifecycle: "production"'),
+    'Recovery changes exactly the intended scalar and preserves all other source.',
+  );
   assert(document.version > version);
   await fixture.observed(document, recoveredCoverage.generation);
   assert.equal(fixture.pid(), pid);

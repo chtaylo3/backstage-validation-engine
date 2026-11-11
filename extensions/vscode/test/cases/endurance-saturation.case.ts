@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { until, guardedCommand } from '../fixture.js';
+import { until, guardedCommand, documentRange } from '../fixture.js';
 import { writeEvidence } from '../evidence.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
@@ -38,7 +38,8 @@ export async function run(fixture: Fixture): Promise<void> {
   const actions = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
     'vscode.executeCodeActionProvider',
     document.uri,
-    new vscode.Range(0, 0, 0, 1),
+    documentRange(document),
+    vscode.CodeActionKind.QuickFix.value,
   );
   assert(
     !actions?.some((row) => guardedCommand(row)),
