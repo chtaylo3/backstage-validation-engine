@@ -3,9 +3,11 @@ import path from 'node:path';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { readProvider, until } from './readiness.js';
+import type { CoverageObservation } from '../../../src/lsp/coverage-observation.js';
 export { until } from './readiness.js';
 
 export interface Api {
+  coverage(uri: string, version: number, digest: string): Promise<CoverageObservation | null>;
   status(): { running: boolean; pid?: number; disconnected?: boolean };
 }
 export const team =

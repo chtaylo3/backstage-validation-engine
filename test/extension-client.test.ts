@@ -689,3 +689,37 @@ for (const change of ['version', 'closed', 'editor', 'client'] as const)
     assert.deepEqual(current.notifications, []);
     assert.match(editorState.information.at(-1)!, /document changed during search/u);
   });
+void test('coverage bridge requires a trusted running client and forwards only the read-only document binding', async () => {
+  const api = await extension.activate(context);
+  const binding = {
+    uri: 'file:///workspace/catalog.yaml',
+    version: 7,
+    digest: 'sha256:' + 'a'.repeat(64),
+  };
+  assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
+  assert.equal(clients.length, 0);
+  editorState.selected = config;
+  await command('restart');
+  const current = clients.at(-1)!;
+  const observation = {
+    generation: 9,
+    coverage: [{ stage: 'parse', subject: binding.uri, required: true, status: 'verified' }],
+  };
+  current.requestHandler = (request) => {
+    assert.deepEqual(request, {
+      method: 'bve/validationCoverage',
+      params: binding,
+      token: undefined,
+    });
+    return Promise.resolve(observation);
+  };
+  assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), observation);
+  assert.equal(current.requestCalls.length, 1);
+  editorState.trusted = false;
+  assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
+  assert.equal(current.requestCalls.length, 1);
+  editorState.trusted = true;
+  await command('stop');
+  assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
+  assert.equal(current.requestCalls.length, 1);
+});
