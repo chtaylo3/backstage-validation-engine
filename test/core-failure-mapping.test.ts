@@ -219,13 +219,18 @@ for (const limit of [
     const entered = deferred();
     const counts = new Map<string, number>();
     const maxima = new Map<string, number>();
+    const requestIds = new Map<string, string>();
     let calls = 0;
     let gateChanged = deferred();
     let releasing = false;
     let completion: Promise<void> | undefined;
     const runtime: CelRuntime = {
       async evaluate(expression, entity, context) {
-        const id = context.requestId;
+        assert(entity && typeof entity === 'object' && 'request' in entity);
+        assert(entity.request === 'low' || entity.request === 'high');
+        const id = entity.request;
+        if (requestIds.has(id)) assert.equal(context.requestId, requestIds.get(id));
+        else requestIds.set(id, context.requestId);
         const count = (counts.get(id) ?? 0) + 1;
         counts.set(id, count);
         maxima.set(id, Math.max(maxima.get(id) ?? 0, count));
@@ -259,10 +264,11 @@ for (const limit of [
       const high = policyRun({ mode: 'ci', rules: [rule('a')] });
       const lowRequest = { ...low.request, run: { ...low.request.run, runId: 'low' } };
       const highRequest = { ...high.request, run: { ...high.request.run, runId: 'high' } };
-      const subjects = ['a', 'b', 'c', 'd'].map(subject);
+      const subjects = (request: string) =>
+        ['a', 'b', 'c', 'd'].map((id) => ({ ...subject(id), value: { request } }));
       const work = Promise.all([
-        executePolicyRules(lowRequest, low.context, subjects, { runtime }),
-        executePolicyRules(highRequest, high.context, subjects, { runtime }),
+        executePolicyRules(lowRequest, low.context, subjects('low'), { runtime }),
+        executePolicyRules(highRequest, high.context, subjects('high'), { runtime }),
       ]);
       completion = work.then(
         () => undefined,
@@ -272,7 +278,15 @@ for (const limit of [
         throw new Error('Scheduling completed before the required entry.');
       });
       await within(Promise.race([entered.promise, stopped]));
-      assert.deepEqual([...counts.values()].sort(), [1, 2]);
+      assert.deepEqual(Object.fromEntries(counts), { low: 1, high: 2 });
+      assert.equal(
+        requestIds.get('low'),
+        JSON.stringify(['installation-1', 'repository-1', 'low', 'attempt-1', 1]),
+      );
+      assert.equal(
+        requestIds.get('high'),
+        JSON.stringify(['installation-1', 'repository-1', 'high', 'attempt-1', 1]),
+      );
       assert.equal(pool.stats().workers, 2);
       assert(pool.stats().active <= 2);
       // Release each subsequent entered evaluation through the same gate, without elapsed-time assumptions.
@@ -282,7 +296,7 @@ for (const limit of [
         gates[index]!();
       }
       const reports = await within(work);
-      assert.deepEqual([...maxima.values()].sort(), [1, 2]);
+      assert.deepEqual(Object.fromEntries(maxima), { low: 1, high: 2 });
       assert(
         reports.every(
           (report) =>
