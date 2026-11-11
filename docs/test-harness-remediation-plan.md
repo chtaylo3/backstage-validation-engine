@@ -10,7 +10,7 @@ This plan addresses the intent-versus-implementation review with the corrections
 It defines what each test must prove, the evidence required for acceptance, and the order for implementation.
 The [finding register](test-harness-remediation-findings.md) supplies a separate acceptance requirement for every finding.
 The [agent handoff](test-harness-remediation-handoff.md) defines implementation instructions.
-The [implementation record](test-harness-remediation-record.md) starts with no accepted work packages.
+The [implementation record](test-harness-remediation-record.md) records package evidence and parent acceptance.
 
 ## Baseline and authority
 
@@ -47,8 +47,8 @@ Document any public contract change before implementation. Do not invent a new f
 
 | Package | Outcome                                                            | Dependency                                        | State    |
 | ------- | ------------------------------------------------------------------ | ------------------------------------------------- | -------- |
-| H1      | Release evidence rejects false success                             | Approval and baseline recorded                    | Admitted |
-| H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Waiting  |
+| H1      | Release evidence rejects false success                             | Approval and baseline recorded                    | Accepted |
+| H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Admitted |
 | H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Waiting  |
 | H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Waiting  |
 | H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Waiting  |

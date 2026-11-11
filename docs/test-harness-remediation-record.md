@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 implementation is ready for parent review. No remediation package is accepted yet.
+Status: H1 is accepted. H2 is admitted for implementation. H3 through H6 wait for their preceding acceptance gates.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -36,15 +36,15 @@ No complete H1 finding closes through these baseline corrections.
 
 ## Package state
 
-| Package | Agent state      | Parent decision | Required next evidence                                   |
-| ------- | ---------------- | --------------- | -------------------------------------------------------- |
-| H1      | Ready for review | Pending         | Independent parent inspection and repeated controls      |
-| H2      | Not assigned     | Pending         | Accepted H1 and LSP behavior controls                    |
-| H3      | Not assigned     | Pending         | Accepted H2 and independent core/CLI controls            |
-| H4      | Not assigned     | Pending         | Accepted H3 and focused backend evidence                 |
-| H5      | Not assigned     | Pending         | Accepted H4 and installed editor evidence                |
-| H6      | Not assigned     | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
-| H7      | Deferred         | Not admitted    | Separate authorization and final-candidate qualification |
+| Package | Agent state  | Parent decision | Required next evidence                                   |
+| ------- | ------------ | --------------- | -------------------------------------------------------- |
+| H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
+| H2      | Admitted     | Pending         | LSP behavior and isolated stale-version fault controls   |
+| H3      | Not assigned | Pending         | Accepted H2 and independent core/CLI controls            |
+| H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
+| H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
+| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
+| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
 
 ## Required record for each package
 
@@ -76,21 +76,21 @@ Next package admitted:
 
 ## Finding dispositions
 
-No findings are closed by the approval and baseline update.
-Add one row per finding as the parent reviews implementation evidence.
+The approval and baseline update alone closed no findings.
+The following dispositions record parent acceptance after implementation and independent controls.
 Use `Accepted`, `Partial`, `Open`, or `Deferred` for implementation state.
 Use `Clarified` only for a parent-reviewed correction to the original recommendation.
 
-| Finding | Package | State   | Criterion and evidence                                                     | Parent decision |
-| ------- | ------- | ------- | -------------------------------------------------------------------------- | --------------- |
-| R4-F13  | H1      | Partial | H1-A7: raw metric and faulty-verifier controls below                       | Pending         |
-| R5-F1   | H1      | Partial | H1-A1: actual host missing-report control below                            | Pending         |
-| R5-F2   | H1      | Partial | H1-A1: actual host build-failure control below                             | Pending         |
-| R5-F3   | H1      | Partial | H1-A2: installed crash, host accounting, later case, and PID cleanup below | Pending         |
-| R5-F4   | H1      | Partial | H1-A4: actual CLI variants, identities, and archive parity below           | Pending         |
-| R5-F5   | H1      | Partial | H1-A6: actual clean candidate and crafted archive controls below           | Pending         |
-| R5-F6   | H1      | Partial | H1-A5: observed CLI/LSP parity and installed projection below              | Pending         |
-| R5-F9   | H1      | Partial | H1-A3: actual host cleanup/interruption/unfinished controls below          | Pending         |
+| Finding | Package | State    | Criterion and evidence                                                 | Parent decision                                          |
+| ------- | ------- | -------- | ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| R4-F13  | H1      | Accepted | H1-A7: raw metric and independent 16-control replay                    | Accepted under current policy. H5 owns policy revision.  |
+| R5-F1   | H1      | Accepted | H1-A1: actual host missing-report control                              | Accepted                                                 |
+| R5-F2   | H1      | Accepted | H1-A1: actual host build-failure control                               | Accepted                                                 |
+| R5-F3   | H1      | Accepted | H1-A2: installed crash, host accounting, later case, and PID cleanup   | Accepted within focused Linux qualification              |
+| R5-F4   | H1      | Accepted | H1-A4: actual CLI variants, identities, and archive parity             | Accepted. H4 retains backend-specific reason assertions. |
+| R5-F5   | H1      | Accepted | H1-A6: actual clean candidate and crafted archive controls             | Accepted                                                 |
+| R5-F6   | H1      | Accepted | H1-A5: actual CLI/LSP parity, reload revocation, installed observation | Accepted. H4 retains real-backend parity qualification.  |
+| R5-F9   | H1      | Accepted | H1-A3: actual host cleanup/interruption/unfinished controls            | Accepted                                                 |
 
 ## Planning validation
 
@@ -119,10 +119,10 @@ The four approved documents form the planning commit before the H1 assignment.
 No application source changed and no product test run belongs to this documentation gate.
 Validation remains in `.artifacts/test-intent-assessment/approved-remediation-plan-validation.json`.
 
-## H1 implementation for parent review
+## H1 accepted implementation
 
 Assigned agent: `harness_h1_release_evidence`. User approval and package scope remain as recorded above.
-Parent acceptance remains pending. The agent does not close the eight findings or admit H2.
+The parent accepted H1 after the agent handoff and independent controls recorded below.
 Implementation starts from planning commit `17f4fab` on `feature/test-harness-remediation`.
 The exact tested implementation is `f7d54158aa0024bd331952c6f8d572d8402dd059`.
 The final record is a documentation-only update after that qualification.
@@ -160,7 +160,7 @@ Budget values and the existing additional quarter-sample exclusion remain unchan
 
 ### Acceptance mapping and executed controls
 
-Every row records agent evidence for parent review. It does not mark parent acceptance.
+Every row records agent evidence. The separate parent decision below defines accepted scope.
 
 | Criterion | Boundary and selector                                                                                                                             | Observed outcome                                                                                                                                                                                                                                                                                                                              |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -238,4 +238,39 @@ H4 owns the required actual-backend acceptance. H5 owns later performance policy
 No hosted run, full installed inventory, endurance run, transport release matrix, publication, push, PR, or merge belongs to this H1 qualification.
 The original review SHA-256 still matches `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
 
-Parent inspection, independently repeated controls, decision, and next-package admission remain pending.
+### Parent acceptance
+
+Parent decision: accepted on 2026-11-10. All eight H1 criteria pass within the stated scope.
+The agent handoff is documentation commit `bcd13d62aacc3ab251665a593fed0197cee2c7bc`.
+Only the implementation record differs from the tested source revision `f7d54158aa0024bd331952c6f8d572d8402dd059` at that handoff.
+The parent inspected the production host path, request admission, metric verdict, payload policy, and complete qualification reports.
+The parent retained the narrow signed-release normalization and the distinct CLI/editor source identities described above.
+
+| Criterion | Parent inspection and independent evidence                                                                                                                               | Decision                       |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| H1-A1     | Repeated actual positive, missing-report, and build-failure subprocesses. Verified exit, aggregate, cleanup, and case rows.                                              | Accepted                       |
+| H1-A2     | Matched native crash and subsequent successful editor reports to the exact VSIX. Inspected entered run phase, scratch host rows, and observed owned-server death.        | Accepted                       |
+| H1-A3     | Repeated actual cleanup failure, interrupted child, failed child, and unfinished-report controls. All fail their aggregate verdict.                                      | Accepted                       |
+| H1-A4     | Repeated the packaged actual CLI/LSP pair. Inspected scenario-selected variants, bound identities, archive CLI controls, and legitimate error envelopes.                 | Accepted                       |
+| H1-A5     | Repeated packaged coverage and entered reload tests. Inspected both installed observations and default-denied client forwarding.                                         | Accepted                       |
+| H1-A6     | Repeated inspection of the final real VSIX and seven injected payload faults. The clean candidate passes. Every fault fails admission.                                   | Accepted                       |
+| H1-A7     | Independently authored 16 metric controls pass. These cover the exact p95 edge, forged reports, retained leaks, slope windows, malformed samples, and short-load limits. | Accepted under retained policy |
+| H1-A8     | Inspected final source/client/packaged inventories and no-Docker controls. Preserved H4 backend, H5 policy, and H7 release limitations.                                  | Accepted within declared scope |
+
+The parent repeated three packaged protocol tests with the candidate's bundled Node, CLI entrypoint, and stdio entrypoint.
+All three passed with zero failure, cancellation, or skip. No compilation changed those candidate inputs.
+The seven host subprocess states and eight archive controls passed their independently selected expectations.
+The parent recomputed the final VSIX checksum and matched all four installed reports to that same artifact and source revision.
+The parent preserved the first packaged failure as unclassified and inspected its unchanged focused and complete reruns.
+No budget, assertion, timeout, or catalog-refresh implementation changed to obtain those reruns.
+
+Independent evidence remains under `.artifacts/harness-remediation/H1/parent-baseline/`.
+`final-packaged-protocol.log` records the three actual protocol tests.
+`final-host-review.json`, `final-archive-review.json`, and `final-artifact-review.json` record the final candidate controls and identities.
+`metric-review.json` records the 16 independent metric controls at the tested source revision.
+The earlier baseline and draft archive probes remain separate from final evidence.
+The original review retains its recorded SHA-256. The tracked diff has no targeted private workstation path.
+
+H2 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
+The frozen finding register remains unchanged. Only these eight implementation dispositions are accepted.
+No remote write, new PR, publication, merge, actual-backend qualification, or deferred H7 work belongs to this decision.
