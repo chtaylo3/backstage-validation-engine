@@ -64,7 +64,7 @@ try {
   const watchdog = {
     initialize: () => {},
     shutdownReceived: false,
-    exit: (code: number) => stop(code),
+    exit: () => stop(server.shutdownReceived ? 0 : 1),
   };
   const connection = createConnection(
     (logger) =>
@@ -111,7 +111,7 @@ try {
   connection.listen();
   process.stdin.pipe(input);
   process.stdin.once('end', () => {
-    stop(watchdog.shutdownReceived ? 0 : 1);
+    stop(server.shutdownReceived ? 0 : 1);
   });
 } catch {
   if (startupCleanup) await startupCleanup().catch(() => undefined);

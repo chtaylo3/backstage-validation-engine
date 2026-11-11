@@ -8,6 +8,7 @@ import {
   BACKSTAGE_ADAPTER_IDS,
   closeSharedCelRuntime,
   validatePolicySources,
+  overlaySourceSnapshot,
 } from '../src/index.js';
 import { policyRun, componentText, localTeam } from './harness/policy-fixture.js';
 import { schemaArtifact } from './harness/custom-kind-fixture.js';
@@ -69,6 +70,13 @@ void test('value completion reads examples from native schemas and preserves CRL
   assert(item);
   assert.equal(item.detail, 'Example');
   assert.equal(f.apply(item), text.replace("'pr'", "'production'"));
+  const fixed = overlaySourceSnapshot(f.run.request.source, [
+    { uri: URI, version: 2, origin: 'buffer', text: f.apply(item) },
+  ]);
+  assert.deepEqual(
+    (await validatePolicySources({ ...f.run.request, source: fixed }, f.run.context)).findings,
+    [],
+  );
   const hover = f.service.hover(
     URI,
     f.document.positionAt(text.indexOf('lifecycle') + 2),
@@ -80,13 +88,37 @@ void test('value completion reads examples from native schemas and preserves CRL
 });
 
 void test('JSON field completion produces valid JSON including insertion between existing members', async () => {
-  const text =
-    '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"service"},"spec":{ }}';
-  const f = await fixture(text);
-  const item = f.complete(text.indexOf('{ }') + 1).items.find((item) => item.label === 'lifecycle');
-  assert(item);
-  const parsed: unknown = JSON.parse(f.apply(item));
-  assert(parsed);
+  for (const [body, expected] of [
+    [' ', ' "lifecycle": ""'],
+    ['"type":"service",  "owner":"team"', '"type":"service", "lifecycle": "", "owner":"team"'],
+  ]) {
+    const text =
+      '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"service"},"spec":{' +
+      body +
+      '}}';
+    const f = await fixture(text);
+    const offset = text.indexOf(body!) + (body === ' ' ? 1 : body!.indexOf('  ') + 1);
+    const item = f.complete(offset).items.find((item) => item.label === 'lifecycle');
+    assert(item);
+    const updated = f.apply(item);
+    assert.equal(updated, text.replace(body!, expected!));
+    const parsed = JSON.parse(updated) as { spec: Record<string, unknown> };
+    assert.deepEqual(
+      parsed.spec,
+      body === ' ' ? { lifecycle: '' } : { type: 'service', lifecycle: '', owner: 'team' },
+    );
+    if (body !== ' ') {
+      // Field insertion supplies a placeholder. Filling it is a separate user edit.
+      const filled = updated.replace('"lifecycle": ""', '"lifecycle": "production"');
+      const source = overlaySourceSnapshot(f.run.request.source, [
+        { uri: URI, version: 2, origin: 'buffer', text: filled },
+      ]);
+      assert.deepEqual(
+        (await validatePolicySources({ ...f.run.request, source }, f.run.context)).findings,
+        [],
+      );
+    }
+  }
 });
 
 void test('policy enums intersect native examples and show defaults without treating them as mandatory', async () => {
@@ -176,6 +208,18 @@ void test('hover and definition resolve an unqualified reference to its unique l
   );
   assert.equal(result[0]?.uri, localTeam.uri);
   assert.equal(result.length, 1);
+  const ambiguous = await fixture(text, {
+    files: [localTeam, { ...localTeam, uri: 'file:///workspace/competing-team.yaml' }],
+  });
+  assert.deepEqual(
+    ambiguous.service.definition(
+      URI,
+      ambiguous.document.positionAt(text.indexOf('owner: team') + 9),
+      1,
+      ambiguous.documents,
+    ),
+    [],
+  );
   f.service.invalidate();
   assert.deepEqual(
     f.service.definition(
@@ -310,10 +354,35 @@ void test('required-field repairs preserve comments and neighboring root fields 
   assert.match(repairs[0]!.title, /placeholder/u);
   const edit = repairs[0]!.finding.edits[0]!;
   const updated = TextDocument.applyEdits(f.document, [{ range: edit.range, newText: edit.text }]);
-  assert(updated.includes('owner: team # keep this comment'));
+  assert.equal(
+    updated,
+    text.replace('metadata: {name: service}\n', '  "tier": ""\nmetadata: {name: service}\n'),
+  );
   const entity = parse(updated) as { spec: { tier: string }; metadata: { name: string } };
   assert.equal(entity.spec.tier, '');
   assert.deepEqual(entity.metadata, { name: 'service' });
+  const placeholder = overlaySourceSnapshot(f.run.request.source, [
+    { uri: URI, version: 2, origin: 'buffer', text: updated },
+  ]);
+  assert.equal(
+    (await validatePolicySources({ ...f.run.request, source: placeholder }, f.run.context))
+      .ruleStates[0]?.status,
+    'failed',
+    'An empty placeholder does not satisfy minLength.',
+  );
+  const filled = overlaySourceSnapshot(placeholder, [
+    {
+      uri: URI,
+      version: 3,
+      origin: 'buffer',
+      text: updated.replace('"tier": ""', '"tier": "gold"'),
+    },
+  ]);
+  assert.equal(
+    (await validatePolicySources({ ...f.run.request, source: filled }, f.run.context)).ruleStates[0]
+      ?.status,
+    'passed',
+  );
 });
 
 void test('validated rule prerequisites refine suggestions after shared policy execution', async () => {

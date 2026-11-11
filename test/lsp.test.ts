@@ -325,17 +325,23 @@ void test('rapid editor changes cancel old HTTP and never publish superseded dia
     textDocument: { uri: URI, languageId: 'yaml', version: 1, text: componentText('missing') },
   });
   await gate.entered;
-  for (const version of [2, 3, 4])
+  let previous = gate;
+  for (const version of [2, 3, 4]) {
+    const next = fixture.holdNext({ operation: 'byName' });
     await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
       textDocument: { uri: URI, version },
       contentChanges: [{ text: componentText(version === 4 ? 'team' : 'missing') }],
     });
-  await gate.cancelled;
-  gate.release();
+    await previous.cancelled;
+    previous.release();
+    await next.entered;
+    previous = next;
+  }
+  previous.release();
   assert.deepEqual((await host.waitFor((item) => item.version === 4)).diagnostics, []);
   await host.shutdown();
-  assert(!host.diagnostics.some((item) => item.version === 1));
-  assert.equal(host.diagnostics.at(-1)?.version, 4);
+  assert(host.diagnostics.length > 0);
+  assert(host.diagnostics.every((item) => item.uri === URI && item.version === 4));
 });
 
 void test('close cancels an in-flight request, clears findings, and reopening the same version starts a new lifetime', async (t) => {
@@ -368,7 +374,10 @@ void test('close cancels an in-flight request, clears findings, and reopening th
 void test('UTF-16 incremental edits preserve same-line emoji offsets and reject stale document versions', async (t) => {
   const matrix = await policyMatrix(t);
   const fixture = matrix.fixtures[0]!.fixture;
-  const host = await startLspClient(t, config(fixture.baseUrl));
+  const host = await startLspClient(
+    t,
+    parseLspConfig({ ...config(fixture.baseUrl), coverageObservation: true }),
+  );
   const line = 'spec: {description: "😀", type: service, lifecycle: production, owner: missing}';
   const text = componentText().split('\n').slice(0, 3).join('\n') + '\n' + line + '\n';
   await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
@@ -376,7 +385,7 @@ void test('UTF-16 incremental edits preserve same-line emoji offsets and reject 
   });
   const original = await host.waitFor((item) => item.version === 7);
   assert.equal(original.diagnostics[0]?.range.start.character, line.indexOf('missing'));
-  const inline = text.replace('missing', 'team');
+  const inline = text.replace('😀', 'ab').replace('missing', 'team');
   await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
     textDocument: { uri: URI, version: 8 },
     contentChanges: [
@@ -402,9 +411,24 @@ void test('UTF-16 incremental edits preserve same-line emoji offsets and reject 
       textDocument: { uri: URI, version },
       contentChanges: [{ text: componentText('missing') }],
     });
+  // This request follows both disputed notifications before any edit can mask them.
+  const retained = await host.client.sendRequest<{ documents: unknown } | null>(
+    'bve/validationCoverage',
+    { uri: URI, version: 8, digest: digestText(inline) },
+  );
+  assert(retained, 'Equal and older notifications must retain the authoritative source.');
+  assert.deepEqual(retained.documents, [{ uri: URI, version: 8, digest: digestText(inline) }]);
   await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
     textDocument: { uri: URI, version: 9 },
-    contentChanges: [{ text: inline }],
+    contentChanges: [
+      {
+        range: {
+          start: { line: 3, character: line.indexOf('😀') },
+          end: { line: 3, character: line.indexOf('😀') + 2 },
+        },
+        text: 'cd',
+      },
+    ],
   });
   assert.deepEqual((await host.waitFor((item) => item.version === 9)).diagnostics, []);
   await host.shutdown();
@@ -790,6 +814,23 @@ void test('EOF and exit without shutdown cancel active validation and terminate 
 });
 
 void test('LSP framing preflight bounds headers/bodies, handles split/multiple frames, and rejects truncated input', async (t) => {
+  assert.equal(LSP_FRAME_BYTES, 8_388_608);
+  const maximumBody = new BoundedLspInput();
+  let received = 0;
+  maximumBody.on('data', (chunk: Buffer) => {
+    received += chunk.length;
+  });
+  const maximumHeader = Buffer.from('Content-Length: 8388608\r\n\r\n');
+  maximumBody.end(Buffer.concat([maximumHeader, Buffer.alloc(8_388_608, 65)]));
+  await once(maximumBody, 'end');
+  assert.equal(received, maximumHeader.length + 8_388_608);
+  const exactHeader = new BoundedLspInput();
+  exactHeader.resume();
+  const prefix = 'Content-Length: 1\r\nX-Padding: ';
+  const header = Buffer.from(prefix + 'a'.repeat(8192 - prefix.length - 4) + '\r\n\r\n');
+  assert.equal(header.length, 8192);
+  exactHeader.end(Buffer.concat([header, Buffer.from('x')]));
+  await once(exactHeader, 'end');
   const message = Buffer.from(
     JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} }),
   );

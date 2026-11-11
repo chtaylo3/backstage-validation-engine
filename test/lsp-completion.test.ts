@@ -14,9 +14,10 @@ import {
   createProtocolConnection,
   InitializeRequest,
   PublishDiagnosticsNotification,
+  HoverRequest,
 } from 'vscode-languageserver/node';
 import type { CompletionList } from 'vscode-languageserver/node';
-import { BACKSTAGE_ADAPTER_IDS } from '../src/index.js';
+import { BACKSTAGE_ADAPTER_IDS, createSourceSnapshot, digestText } from '../src/index.js';
 import { parseLspConfig } from '../src/lsp/config.js';
 import {
   componentText,
@@ -31,6 +32,8 @@ import { filesystemFixture } from './harness/filesystem-fixture.js';
 import { URI } from './helpers.js';
 import { attachLspServer } from '../src/lsp/server.js';
 import type { CatalogProvider } from '../src/index.js';
+import { unlink } from 'node:fs/promises';
+import path from 'node:path';
 
 function config(options: Parameters<typeof policyRun>[0] = {}, baseUrl?: string) {
   const run = policyRun({ text: componentText('te'), rules: [], files: [localTeam], ...options });
@@ -206,6 +209,7 @@ void test('late client cancellation preserves a completed local reply and shutdo
   await gate.entered;
   const result = await pending;
   assert(result && 'items' in result);
+  assert.equal(result.isIncomplete, true);
   assert.equal(result.items[0]?.label, 'group:default/team');
   token.cancel();
   await gate.cancelled;
@@ -313,7 +317,7 @@ void test('LSP cancellation of an entered provider aborts its signal before publ
     token.token,
   );
   assert(result && 'items' in result);
-  assert.deepEqual(result.items, []);
+  assert.deepEqual(result, { isIncomplete: true, items: [] });
   assert.equal(entered, 1);
   assert.equal(cancelled, 1);
 });
@@ -327,7 +331,11 @@ void test('included YAML completion edits the open payload scalar and watch refr
     files: { 'catalog.yaml': root, 'spec.yaml': spec, 'team.yaml': localTeam.text },
     entrypoints: ['catalog.yaml', 'team.yaml'],
   });
-  const host = await startLspClient(t, disk.config, { watchFiles: true });
+  const host = await startLspClient(
+    t,
+    parseLspConfig({ ...disk.config, coverageObservation: true }),
+    { watchFiles: true },
+  );
   await open(host, disk.uri('catalog.yaml'), 1, root);
   await open(host, disk.uri('spec.yaml'), 9, spec);
   const result = await eventually(
@@ -339,9 +347,45 @@ void test('included YAML completion edits the open payload scalar and watch refr
     newText: 'group:default/team',
   });
   const after = host.diagnostics.length;
+  await unlink(path.join(disk.root, 'team.yaml'));
   await host.client.sendNotification(DidChangeWatchedFilesNotification.type, {
-    changes: [{ uri: disk.uri('team.yaml'), type: FileChangeType.Changed }],
+    changes: [{ uri: disk.uri('team.yaml'), type: FileChangeType.Deleted }],
   });
   await host.waitFor((row) => row.uri === disk.uri('spec.yaml') && row.version === 9, after);
-  await eventually(() => complete(host, disk.uri('spec.yaml'), 2, 9), 'group:default/team');
+  const expected = createSourceSnapshot({
+    repository: disk.source.repository,
+    revision: disk.source.revision,
+    rootUri: disk.source.rootUri!,
+    entrypoints: [disk.uri('catalog.yaml')],
+    files: [
+      { uri: disk.uri('catalog.yaml'), text: root, origin: 'buffer', version: 1 },
+      { uri: disk.uri('spec.yaml'), text: spec, origin: 'buffer', version: 9 },
+    ],
+    changes: [{ uri: disk.uri('team.yaml'), kind: 'deleted' }],
+  });
+  const deadline = performance.now() + 10_000;
+  let observation: { sourceDigest: string } | null;
+  do {
+    observation = await host.client.sendRequest('bve/validationCoverage', {
+      uri: disk.uri('spec.yaml'),
+      version: 9,
+      digest: digestText(spec),
+    });
+    if (observation?.sourceDigest === expected.digest) break;
+    assert(
+      performance.now() < deadline,
+      'Watch processing must capture the exact deleted-file snapshot.',
+    );
+    await pause(10);
+  } while (observation?.sourceDigest !== expected.digest);
+  assert.equal(observation.sourceDigest, expected.digest);
+  const removed = await complete(host, disk.uri('spec.yaml'), 2, 9);
+  assert(!removed.items.some((row) => row.label === 'group:default/team'));
+  assert(removed.items.length === 0);
+  assert(
+    await host.client.sendRequest(HoverRequest.type, {
+      textDocument: { uri: disk.uri('spec.yaml') },
+      position: { line: 0, character: 2 },
+    }),
+  );
 });

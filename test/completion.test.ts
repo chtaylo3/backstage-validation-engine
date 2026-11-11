@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
-import { stringify } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { BACKSTAGE_ADAPTER_IDS, overlaySourceSnapshot } from '../src/index.js';
 import type { CatalogProvider, CatalogSuggestionReport } from '../src/index.js';
@@ -157,8 +157,18 @@ void test('empty YAML values, quotes, JSON and CRLF preserve punctuation/comment
       const edit = result.items[0].textEdit!;
       assert('range' in edit);
       const updated = TextDocument.applyEdits(document, [edit]);
-      assert(updated.includes('group:default/team'));
-      if (text.includes('# keep')) assert(updated.includes('# keep 😀'));
+      const expected = text.includes('"owner"')
+        ? text.replace('"owner":"te"', '"owner":"group:default/team"')
+        : text.replace(/owner: (?:te|'te'|"te")?/u, (value) =>
+            value.includes("'")
+              ? "owner: 'group:default/team'"
+              : value.includes('"')
+                ? 'owner: "group:default/team"'
+                : 'owner: group:default/team',
+          );
+      assert.equal(updated, expected);
+      const parsed = parse(updated) as { spec: { owner: string } };
+      assert.equal(parsed.spec.owner, 'group:default/team');
     });
 });
 
@@ -481,4 +491,278 @@ void test('only the latest source generation can publish an index, unsupported p
   }));
   const many = await setup(t, { files });
   assert.equal((await many.complete()).items.length, COMPLETION_LIMITS.items);
+});
+
+void test('an entered local-index gate produces an exact incomplete reply before the ready candidate', async (t) => {
+  const f = await setup(t);
+  const { validateBackstageSources } = await import('../src/index.js');
+  const compatibility = await validateBackstageSources(f.run.request, f.run.context);
+  type Local = { compatibility: typeof compatibility } | undefined;
+  let entered!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  class EnteredPromise<T> extends Promise<T> {
+    override then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ): Promise<TResult1 | TResult2> {
+      entered();
+      return super.then(onfulfilled, onrejected);
+    }
+  }
+  let release!: (value: Local) => void;
+  const gate = new EnteredPromise<Local>((resolve) => {
+    release = resolve;
+  });
+  f.service.invalidate();
+  const updating = f.service.update(f.run.request, 2, gate);
+  await waiting;
+  const complete = () =>
+    f.service.complete(
+      { textDocument: { uri: URI }, position: { line: 6, character: 11 } },
+      2,
+      f.documents,
+      new AbortController().signal,
+    );
+  assert.deepEqual(await complete(), { isIncomplete: true, items: [] });
+  release({ compatibility });
+  await updating;
+  assert.deepEqual(
+    (await complete()).items.map((row) => row.label),
+    ['group:default/team'],
+  );
+});
+
+void test(
+  'completion fallback is 50 ms and the entered remote search is cancelled at 500 ms',
+  { timeout: 5000 },
+  async (t) => {
+    let enter!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      enter = resolve;
+    });
+    let remoteSignal!: AbortSignal;
+    const f = await setup(
+      t,
+      {},
+      {
+        suggest: (_query, _access, execution) =>
+          new Promise((resolve) => {
+            remoteSignal = execution.signal!;
+            remoteSignal.addEventListener(
+              'abort',
+              () =>
+                resolve({
+                  status: 'unavailable',
+                  failure: 'cancelled',
+                  refs: [],
+                  truncated: false,
+                  fetchedAt: Date.now(),
+                  expiresAt: Date.now(),
+                }),
+              { once: true },
+            );
+            enter();
+          }),
+      },
+    );
+    assert.equal(COMPLETION_LIMITS.waitMs, 50);
+    assert.equal(COMPLETION_LIMITS.remoteMs, 500);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+    t.mock.method(AbortSignal, 'timeout', (milliseconds: number) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), milliseconds);
+      return controller.signal;
+    });
+    const pending = f.complete();
+    await entered;
+    t.mock.timers.tick(49);
+    assert.equal(
+      await Promise.race([
+        pending.then(() => 'early'),
+        new Promise<string>((resolve) => setImmediate(() => resolve('waiting'))),
+      ]),
+      'waiting',
+    );
+    t.mock.timers.tick(1);
+    assert.deepEqual(
+      (await pending).items.map((row) => row.label),
+      ['group:default/team'],
+    );
+    assert.equal(remoteSignal.aborted, false);
+    t.mock.timers.tick(449);
+    assert.equal(remoteSignal.aborted, false);
+    t.mock.timers.tick(1);
+    assert.equal(remoteSignal.aborted, true);
+    await f.service.close();
+  },
+);
+
+void test(
+  'picker search retains its entered work for 499 ms and returns local fallback at 500 ms',
+  { timeout: 5000 },
+  async (t) => {
+    let enter!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      enter = resolve;
+    });
+    let remoteSignal!: AbortSignal;
+    const f = await setup(
+      t,
+      {},
+      {
+        suggest: (_query, _access, execution) =>
+          new Promise((resolve) => {
+            remoteSignal = execution.signal!;
+            remoteSignal.addEventListener(
+              'abort',
+              () =>
+                resolve({
+                  status: 'unavailable',
+                  failure: 'cancelled',
+                  refs: [],
+                  truncated: false,
+                  fetchedAt: Date.now(),
+                  expiresAt: Date.now(),
+                }),
+              { once: true },
+            );
+            enter();
+          }),
+      },
+    );
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+    t.mock.method(AbortSignal, 'timeout', (milliseconds: number) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), milliseconds);
+      return controller.signal;
+    });
+    const pending = f.service.searchReferences(
+      { kind: 'group', namespace: 'default', prefix: 'te' },
+      1,
+      new AbortController().signal,
+    );
+    await entered;
+    t.mock.timers.tick(499);
+    assert.equal(remoteSignal.aborted, false);
+    assert.equal(
+      await Promise.race([
+        pending.then(() => 'early'),
+        new Promise<string>((resolve) => setImmediate(() => resolve('waiting'))),
+      ]),
+      'waiting',
+    );
+    t.mock.timers.tick(1);
+    assert.deepEqual(await pending, [
+      { reference: 'group:default/team', source: 'Workspace source' },
+    ]);
+    assert.equal(remoteSignal.aborted, true);
+    await f.service.close();
+  },
+);
+
+void test('remote suggestion minimum prefix is two characters while local suggestions remain available', async (t) => {
+  let calls = 0;
+  const f = await setup(
+    t,
+    {},
+    {
+      suggest: () => {
+        calls++;
+        return Promise.resolve(fresh());
+      },
+    },
+  );
+  assert.equal((await f.complete(6, 10)).items[0]?.label, 'group:default/team');
+  assert.equal(calls, 0);
+  await f.service.searchReferences(
+    { kind: 'group', namespace: 'default', prefix: 't' },
+    1,
+    new AbortController().signal,
+  );
+  assert.equal(calls, 0);
+  await f.complete(6, 11);
+  assert.equal(calls, 1);
+});
+
+void test('completion cache admits 32 scopes and evicts only the oldest at scope 33', async (t) => {
+  assert.equal(COMPLETION_LIMITS.cacheEntries, 32);
+  let calls = 0;
+  const f = await setup(
+    t,
+    {},
+    {
+      suggest: (query) => {
+        calls++;
+        return Promise.resolve(fresh([`group:default/${query.prefix}-remote`]));
+      },
+    },
+  );
+  const query = (index: number) =>
+    f.service.searchReferences(
+      { kind: 'group', namespace: 'default', prefix: 'te' + String(index).padStart(2, '0') },
+      1,
+      new AbortController().signal,
+    );
+  for (let i = 0; i < 32; i++) assert.equal((await query(i)).length, 1);
+  await query(0);
+  assert.equal(calls, 32);
+  await query(32);
+  assert.equal(calls, 33);
+  await query(1);
+  assert.equal(calls, 33, 'The next-oldest scope survives the first eviction.');
+  await query(0);
+  assert.equal(calls, 34);
+});
+
+void test('completion cache admits exactly 256 KiB of reports and evicts when the total exceeds it by one byte', async (t) => {
+  assert.equal(COMPLETION_LIMITS.cacheBytes, 262144);
+  const kind = 'k'.repeat(63);
+  const namespace = (index: number) => 'n'.repeat(60) + String(index).padStart(3, '0');
+  for (const total of [262144, 262145]) {
+    let calls = 0;
+    const sizes: number[] = [];
+    const f = await setup(
+      t,
+      {},
+      {
+        suggest: (query) => {
+          calls++;
+          const index = Number(query.namespace.slice(-3));
+          const size = index < 6 ? 37449 : total - 6 * 37449;
+          const refs = Array.from(
+            { length: 200 },
+            (_, i) => `${kind}:${query.namespace}/te${String(i).padStart(3, '0')}`,
+          );
+          const report = fresh(refs);
+          let remaining = size - Buffer.byteLength(JSON.stringify(report));
+          for (let i = 0; remaining > 0 && i < refs.length; i++) {
+            const add = Math.min(remaining, 63 - refs[i]!.slice(refs[i]!.indexOf('/') + 1).length);
+            refs[i] += 'x'.repeat(add);
+            remaining -= add;
+          }
+          assert.equal(remaining, 0);
+          sizes[index] = Buffer.byteLength(JSON.stringify(report));
+          assert.equal(sizes[index], size);
+          return Promise.resolve(report);
+        },
+      },
+    );
+    const query = (index: number) =>
+      f.service.searchReferences(
+        { kind, namespace: namespace(index), prefix: 'te' },
+        1,
+        new AbortController().signal,
+      );
+    for (let i = 0; i < 7; i++) assert.equal((await query(i)).length, 100);
+    assert.equal(
+      sizes.slice(0, 7).reduce((a, b) => a + b, 0),
+      total,
+    );
+    await query(1);
+    assert.equal(calls, 7, 'The next-oldest scope survives byte-pressure eviction.');
+    await query(0);
+    assert.equal(calls, total === 262144 ? 7 : 8);
+  }
 });

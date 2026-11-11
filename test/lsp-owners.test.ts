@@ -95,7 +95,10 @@ void test('diagnostic delivery rejects stale findings and an old lifetime clear 
   assert.deepEqual(sends.at(-1)?.diagnostics, []);
   publisher.close();
   await publisher.publish(context, [diagnostic]);
-  assert.equal(sends.length, 2);
+  assert.deepEqual(sends, [
+    { uri: context.uri, version: 1, diagnostics: [diagnostic] },
+    { uri: context.uri, version: 1, diagnostics: [] },
+  ]);
 });
 
 void test('a current clean result clears diagnostics retained from an older document lifetime', async () => {
@@ -124,4 +127,17 @@ void test('a current clean result clears diagnostics retained from an older docu
   assert.equal(sends.length, 2);
   assert.deepEqual(sends.at(-1), { uri: previous.uri, version: 1, diagnostics: [] });
   publisher.close();
+  assert.deepEqual(sends, [
+    {
+      uri: previous.uri,
+      version: 1,
+      diagnostics: [
+        {
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+          message: 'Old document error',
+        },
+      ],
+    },
+    { uri: previous.uri, version: 1, diagnostics: [] },
+  ]);
 });

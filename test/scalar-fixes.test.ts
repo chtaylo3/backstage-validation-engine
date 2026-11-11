@@ -3,9 +3,10 @@ import { after, test } from 'node:test';
 import {
   BACKSTAGE_ADAPTER_IDS,
   closeSharedCelRuntime,
+  overlaySourceSnapshot,
   validatePolicySources,
 } from '../src/index.js';
-import { SourceLineIndex } from '../src/parsing/locations.js';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import { SCALAR_FIX_LIMITS } from '../src/core/scalar-fixes.js';
 import { fixPolicy } from './harness/fix-fixture.js';
 import { schemaArtifact } from './harness/custom-kind-fixture.js';
@@ -14,6 +15,25 @@ import { componentText, policyRun } from './harness/policy-fixture.js';
 import { URI } from './helpers.js';
 
 after(closeSharedCelRuntime);
+void test('scalar repair source and serialized replacement obey the inclusive 4096 UTF-8 byte ceiling', async (t) => {
+  assert.deepEqual(SCALAR_FIX_LIMITS, { generated: 64, scalarBytes: 4096 });
+  for (const kind of ['source', 'replacement'] as const)
+    for (const bytes of [4096, 4097])
+      await t.test(kind + ':' + bytes, async () => {
+        const value =
+          kind === 'source'
+            ? 'é'.repeat(2048) + (bytes === 4097 ? 'a' : '')
+            : 'é'.repeat(2047) + (bytes === 4097 ? 'a' : '');
+        assert.equal(Buffer.byteLength(kind === 'source' ? value : JSON.stringify(value)), bytes);
+        const run = policyRun({
+          ...fixPolicy(kind === 'replacement' ? value : 'production'),
+          text: componentText().replace('production', kind === 'source' ? value : 'experimental'),
+        });
+        const report = await validatePolicySources(run.request, run.context);
+        assert.equal(report.ruleStates[0]?.status, 'failed');
+        assert.equal(report.findings.flatMap((row) => row.edits).length, bytes === 4096 ? 1 : 0);
+      });
+});
 void test('scalar const repairs preserve source formatting and validate on both model pins', async (t) => {
   for (const adapterId of BACKSTAGE_ADAPTER_IDS) {
     for (const scalar of ['experimental', "'experimental'", '"experimental"']) {
@@ -32,11 +52,9 @@ void test('scalar const repairs preserve source formatting and validate on both 
         assert.equal(edit.sourceDigest, run.request.source.files[0]?.digest);
         assert.equal(edit.version, 1);
         assert.equal(edit.text, '"production"');
-        const index = new SourceLineIndex(text);
-        const fixed =
-          text.slice(0, index.offset(edit.range.start)) +
-          edit.text +
-          text.slice(index.offset(edit.range.end));
+        const fixed = TextDocument.applyEdits(TextDocument.create(URI, 'yaml', 1, text), [
+          { range: edit.range, newText: edit.text },
+        ]);
         assert.equal(fixed, text.replace(scalar, '"production"'));
         const next = policyRun({ ...options, text: fixed });
         const verified = await validatePolicySources(next.request, next.context);
@@ -62,6 +80,16 @@ void test('JSON and primitive const values have exact bounded replacements', asy
       assert(edit);
       assert.equal(text.slice(edit.range.start.character, edit.range.end.character), '"old😀"');
       assert.equal(edit.text, JSON.stringify(expected));
+      const fixed = TextDocument.applyEdits(TextDocument.create(URI, 'json', 1, text), [
+        { range: edit.range, newText: edit.text },
+      ]);
+      assert.equal(fixed, text.replace('"old😀"', JSON.stringify(expected)));
+      assert.equal((JSON.parse(fixed) as { spec: { extra: unknown } }).spec.extra, expected);
+      const verified = policyRun({ ...fixPolicy(expected, 'extra'), text: fixed });
+      assert.equal(
+        (await validatePolicySources(verified.request, verified.context)).ruleStates[0]?.status,
+        'passed',
+      );
     });
   }
 });
@@ -88,10 +116,25 @@ void test('structured inclusions target their actual file, digest and buffer ver
       assert.equal(edit.uri, included);
       assert.equal(edit.version, 7);
       assert.equal(edit.sourceDigest, run.request.source.files[1]?.digest);
-      const index = new SourceLineIndex(includedText);
+      const document = TextDocument.create(included, 'yaml', 7, includedText);
       assert.equal(
-        includedText.slice(index.offset(edit.range.start), index.offset(edit.range.end)),
+        document.getText(edit.range),
         kind === '$yaml' ? 'experimental' : '"experimental"',
+      );
+      const fixed = TextDocument.applyEdits(document, [{ range: edit.range, newText: edit.text }]);
+      assert.equal(
+        fixed,
+        includedText.replace(kind === '$yaml' ? 'experimental' : '"experimental"', '"production"'),
+      );
+      const verified = policyRun({
+        ...fixPolicy(),
+        source: overlaySourceSnapshot(run.request.source, [
+          { uri: included, text: fixed, version: 8, origin: 'buffer' },
+        ]),
+      });
+      assert.equal(
+        (await validatePolicySources(verified.request, verified.context)).ruleStates[0]?.status,
+        'passed',
       );
     });
   }
@@ -155,15 +198,17 @@ void test('ambiguous, indirect, oversized and non-scalar repairs are omitted', a
 });
 
 void test('fix generation is capped per validation run', async () => {
-  const text = Array.from({ length: 70 }, (_, i) =>
-    componentText()
-      .replace('name: service', 'name: service-' + i)
-      .replace('production', 'experimental'),
-  ).join('---\n');
-  const run = policyRun({ ...fixPolicy(), text });
-  const report = await validatePolicySources(run.request, run.context);
-  assert.equal(report.findings.filter((row) => row.ruleId === 'required-value').length, 70);
-  assert.equal(report.findings.flatMap((row) => row.edits).length, SCALAR_FIX_LIMITS.generated);
+  for (const count of [64, 65]) {
+    const text = Array.from({ length: count }, (_, i) =>
+      componentText()
+        .replace('name: service', 'name: service-' + i)
+        .replace('production', 'experimental'),
+    ).join('---\n');
+    const run = policyRun({ ...fixPolicy(), text });
+    const report = await validatePolicySources(run.request, run.context);
+    assert.equal(report.findings.filter((row) => row.ruleId === 'required-value').length, count);
+    assert.equal(report.findings.flatMap((row) => row.edits).length, 64);
+  }
 });
 
 void test('const values in alternative branches, conditions and references are not prescribed repairs', async (t) => {

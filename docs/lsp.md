@@ -529,3 +529,51 @@ The response contains current coverage and its source, authority, workspace, and
 A stale or foreign document, unavailable session, or revoked launcher permission returns `null`.
 Initialization options and workspace settings cannot grant access. The request performs no edits or general debug operations.
 The [evidence contract](release-evidence-contract.md#cli-variants-and-coverage-parity) defines the projection and its compatibility requirements.
+
+## Protocol lifecycle admission
+
+The wire adapter must reject feature requests before successful initialization with JSON-RPC error `-32002`.
+After shutdown starts, it must reject later requests with `InvalidRequest` (`-32600`).
+It drops source and selection notifications before initialization and after shutdown.
+The `exit` notification remains available in both states.
+A rejected shutdown request does not authorize a successful EOF or exit.
+The existing inner request admission still denies unavailable, stale, or cancelled feature work.
+These changes correct a demonstrated wire defect that returned empty feature results outside the protocol lifetime.
+They follow the [LSP initialize rules](https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/general/initialize.md)
+and [shutdown rules](https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/shutdown.md).
+
+The server supports UTF-16 positions. An absent encoding offer retains UTF-16.
+An offer that includes UTF-16 selects it. An offer that excludes it fails initialization with the existing UTF-16 requirement.
+Client `rootUri` and `workspaceFolders` cannot widen or replace the trusted launcher source roots or file selection.
+Watcher registration rejection produces a sanitized warning. Save notifications still refresh approved files.
+
+## Editor limits and recovery
+
+All ceilings below are inclusive. A byte means one UTF-8 byte unless the row states another unit.
+The launcher can impose a smaller source/profile ceiling. The first binding limit controls admission.
+
+| Boundary                       | Admitted ceiling                                                                           | Rejection and recovery                                                                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Message payload and header     | 8,388,608 payload bytes and 8,192 header bytes, including header delimiters                | Invalid framing closes the transport. Reconnect with valid frames.                                                                            |
+| Open documents                 | 1,000 open documents and at most 1,000 unique pinned/buffer files                          | The next open makes the session incomplete. Closing a buffer does not clear this latch. Start a fresh trusted server.                         |
+| Changes in one notification    | 1,000 ordered changes                                                                      | The next change invalidates that buffer. Incremental changes cannot repair lost synchronization. Send a full replacement or close and reopen. |
+| Scalar repair generation       | 64 repairs per validation and 4,096 bytes per authored scalar or serialized replacement    | Larger scalars remain findings without speculative edits. Replacement quotes count toward the byte ceiling.                                   |
+| Guarded edit                   | 16 nonoverlapping edits in one document and 16,384 replacement bytes in total              | An over-limit edit never reaches the client. A fresh eligible action remains available after valid revalidation.                              |
+| Action and candidate inventory | 32 actions per response, first 64 eligible candidates                                      | A query can select candidate 64. Candidate 65 is outside that inventory. The 16-candidate evaluation limit remains separate.                  |
+| Opaque fix tokens              | 128 live tokens in FIFO order                                                              | Inserting token 129 evicts the oldest token. The next-oldest remains usable. Successful application consumes the generation.                  |
+| Remote query cache             | 32 scopes and 262,144 serialized report bytes                                              | The next demand evicts oldest scopes until both ceilings hold. Cache hits do not change insertion order.                                      |
+| Discovery                      | 10,000 examined entries, root depth 0 through directory depth 32, and 1,000 selected files | Exceeding any ceiling fails discovery. Removing the excess permits a fresh capture. Unmatched entries still count.                            |
+| Credential capture             | 16,384 raw file bytes before whitespace trimming                                           | Oversized, symbolic, replaced, or unstable file entries fail capture. A valid atomic replacement between requests restores access.            |
+
+A two-character prefix admits remote suggestions. A shorter prefix still permits eligible local suggestions.
+Completion returns local fallback after 50 ms. Advisory picker search and its remote operation have a 500 ms ceiling.
+These budgets differ from the larger test observation timeout.
+The source discovery entry test uses unmatched files to isolate 10,000 entries from the lower 1,000-selected-file ceiling.
+The unique source-file ceiling can also bind before the open-document ceiling when other pinned files exist.
+The 1,000-document wire test uses the launcher's supported 250 ms debounce to isolate count admission from repeated validation preemption.
+It does not claim zero-debounce load or performance qualification.
+
+A field insertion can supply an explicit blank placeholder. That placeholder does not satisfy a schema that requires a nonempty value.
+The user must fill it before the intended validation can pass.
+Repair tests keep client rejection after dispatch separate from server rejection after an earlier `didChange`.
+Fixed UTF-16 coordinate vectors remain independent expected values for fixed fixtures.

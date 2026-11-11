@@ -1,4 +1,4 @@
-import { open } from 'node:fs/promises';
+import { lstat, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { Type } from '@sinclair/typebox';
@@ -62,23 +62,43 @@ export async function createHostCatalog(
       if (!token) throw new Error('Configured catalog credential is unavailable.');
       return token;
     }
+    const before = await lstat(settings.tokenFile!);
+    if (!before.isFile()) throw new Error('Configured catalog credential is unavailable.');
     const handle = await open(
       settings.tokenFile!,
       constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
     );
     try {
       const stat = await handle.stat();
-      if (!stat.isFile() || stat.size < 1 || stat.size > 16 * 1024 || stat.nlink !== 1)
+      if (
+        !stat.isFile() ||
+        stat.size < 1 ||
+        stat.size > 16 * 1024 ||
+        stat.nlink !== 1 ||
+        before.ino !== stat.ino ||
+        before.dev !== stat.dev ||
+        before.size !== stat.size ||
+        before.mtimeMs !== stat.mtimeMs ||
+        before.ctimeMs !== stat.ctimeMs
+      )
         throw new Error('Configured catalog credential is unavailable.');
       const buffer = Buffer.alloc(16 * 1024 + 1);
       const { bytesRead } = await handle.read(buffer);
       const after = await handle.stat();
+      const entry = await lstat(settings.tokenFile!);
       if (
         bytesRead !== stat.size ||
         after.nlink !== 1 ||
         after.size !== stat.size ||
         after.mtimeMs !== stat.mtimeMs ||
-        after.ctimeMs !== stat.ctimeMs
+        after.ctimeMs !== stat.ctimeMs ||
+        !entry.isFile() ||
+        entry.ino !== stat.ino ||
+        entry.dev !== stat.dev ||
+        entry.nlink !== 1 ||
+        entry.size !== stat.size ||
+        entry.mtimeMs !== stat.mtimeMs ||
+        entry.ctimeMs !== stat.ctimeMs
       )
         throw new Error('Configured catalog credential changed during capture.');
       const token = new TextDecoder('utf-8', { fatal: true })

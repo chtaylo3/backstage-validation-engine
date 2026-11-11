@@ -148,3 +148,9 @@ Its tested head passed 989 source tests, 989 packaged tests, and 88 installed ca
 Quick qualification also passed 36 desktop cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
 The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
 These results do not complete the deferred release work above.
+
+The credential reader checks the path entry and opened handle before it admits token bytes.
+It rejects a symbolic link and a replacement during capture. Atomic replacement between requests remains supported.
+The path-entry check also applies on systems without `O_NOFOLLOW`.
+Node documents that flag as unavailable on Windows in its [file open constants](https://nodejs.org/docs/latest-v24.x/api/fs.html#file-open-constants).
+Platform qualification records whether the actual symbolic-link control ran or the operating system denied link creation.

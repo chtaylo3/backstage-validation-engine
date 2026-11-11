@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 is accepted. H2 is admitted for implementation. H3 through H6 wait for their preceding acceptance gates.
+Status: H1 is accepted. H2 is in progress. H3 through H6 wait for their preceding acceptance gates.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -39,7 +39,7 @@ No complete H1 finding closes through these baseline corrections.
 | Package | Agent state  | Parent decision | Required next evidence                                   |
 | ------- | ------------ | --------------- | -------------------------------------------------------- |
 | H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
-| H2      | Admitted     | Pending         | LSP behavior and isolated stale-version fault controls   |
+| H2      | In progress  | Pending         | LSP behavior and isolated stale-version fault controls   |
 | H3      | Not assigned | Pending         | Accepted H2 and independent core/CLI controls            |
 | H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
 | H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
@@ -274,3 +274,30 @@ The original review retains its recorded SHA-256. The tracked diff has no target
 H2 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
 The frozen finding register remains unchanged. Only these eight implementation dispositions are accepted.
 No remote write, new PR, publication, merge, actual-backend qualification, or deferred H7 work belongs to this decision.
+
+## H2 implementation in progress
+
+Assigned agent: `harness_h2_lsp_behavior`. Parent acceptance remains pending.
+The user approved H1 through H6 with sequential parent gates. H7 remains deferred.
+The H2 implementation starts from H1 acceptance commit `be94423ebd96a50f0ac32143f4760968e3240f2b` on `feature/test-harness-remediation`.
+H2 owns all 29 R3 findings in the frozen register. H1 acceptance remains unchanged.
+
+The draft replaces masking stale-version assertions, partial publication checks, and fixed lifetime await counts with observable source and owner barriers.
+It adds child protocol offers, lifecycle errors, exact cancellation frames, rejected registration and save recovery, and duplicate-open controls.
+It checks independent complete edit results and guarded enum/include repair round trips.
+Exact limits cover scalar/frame/edit/token/action/candidate, document/change, discovery, credential, remote timing, prefix, and cache admission.
+The 1,000-document wire fixture uses the documented 250 ms debounce to isolate count admission from zero-debounce stress.
+
+The stronger tests justify these host corrections.
+The wire adapter now rejects requests outside the initialized lifetime with the documented protocol codes.
+The stdio process distinguishes an admitted shutdown from the SDK's receipt of a rejected shutdown request.
+The credential reader checks the path entry against its opened handle where `O_NOFOLLOW` alone is unavailable.
+These changes preserve the shared engine, trusted source selection, UTF-16 policy, and inner feature admission.
+
+Development failures remain under `.artifacts/harness-remediation/H2/development/`.
+The first focused run reports 205 passed and two failed checks. The failures identify incorrect new fixture assumptions.
+The second reports 89 passed and four failed checks. Three expected the wrong existing scanner error. The document batch needed count isolation.
+The corrected protocol/boundary run passes all 22 checks with no cancellation or skips.
+A later edit run catches a quoted-key formatting assumption. The independent expected key spelling now matches the declared safe quoted repair format.
+Type/lint development corrections remain separate from product qualification.
+Committed-input source/client, packaged, and isolated faulty-variant qualification remain pending at this checkpoint.

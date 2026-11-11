@@ -95,7 +95,13 @@ void test('stdio completion and hover work on unfinished YAML while authoritativ
   await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
     textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
   });
-  await host.waitFor((row) => row.uri === URI && row.version === 1);
+  const syntax = await host.waitFor((row) => row.uri === URI && row.version === 1);
+  assert(
+    syntax.diagnostics.some(
+      (row) =>
+        row.code === 'yaml/syntax' && typeof row.message === 'string' && row.message.length > 0,
+    ),
+  );
   const result = await host.client.sendRequest(CompletionRequest.type, {
     textDocument: { uri: URI },
     position: { line: 5, character: 4 },
@@ -105,7 +111,10 @@ void test('stdio completion and hover work on unfinished YAML while authoritativ
     textDocument: { uri: URI },
     position: { line: 4, character: 3 },
   });
-  assert(hover);
+  assert(hover && typeof hover.contents === 'object' && 'value' in hover.contents);
+  assert('kind' in hover.contents);
+  assert.equal(hover.contents.kind, 'plaintext');
+  assert.match(hover.contents.value, /The type of component\./u);
 });
 
 void test('trusted configuration reload changes policy without replacing the server and fails closed until repaired', async (t) => {

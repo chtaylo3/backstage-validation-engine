@@ -15,7 +15,6 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
 function fixture() {
   const run = policyRun({ rules: [] });
   const config = parseLspConfig({
@@ -48,18 +47,24 @@ function fixture() {
   };
   return { config, closes, events, resources, ports };
 }
-void test('replacement drains all tracked users before disposal and activates one complete generation', async () => {
+void test('replacement drains all tracked users before disposal and activates one complete generation', async (t) => {
   const f = fixture();
   const prepared = deferred<LspServerResources>();
   const work = deferred<void>();
   const manager = new SessionResources(f.resources('initial'), f.ports, () => prepared.promise);
   const old = manager.current;
+  const retiring = deferred<void>();
+  const closeCompletion = old.completion.close.bind(old.completion);
+  t.mock.method(old.completion, 'close', () => {
+    retiring.resolve();
+    return closeCompletion();
+  });
   const running = old.operations.run(() => work.promise);
   const reload = manager.reload();
   assert.equal(manager.available, false);
   assert(old.operations.signal.aborted);
   prepared.resolve(f.resources('next'));
-  await turn();
+  await retiring.promise;
   assert.deepEqual(f.closes, []);
   assert(!f.events.some((event) => event.startsWith('commit:')));
   work.resolve();
@@ -111,13 +116,25 @@ void test('repeated reloads resolve only after queued preparation and disposal f
 void test('shutdown during preparation is terminal and disposes a replacement that arrives late', async () => {
   const f = fixture();
   const prepared = deferred<LspServerResources>();
-  const manager = new SessionResources(f.resources('initial'), f.ports, () => prepared.promise);
+  const entered = deferred<void>();
+  const disposed = deferred<void>();
+  const manager = new SessionResources(f.resources('initial'), f.ports, () => {
+    entered.resolve();
+    return prepared.promise;
+  });
   const reload = manager.reload();
-  await turn();
+  await entered.promise;
   await manager.close();
   assert.deepEqual(await reload, { reloaded: false });
-  prepared.resolve(f.resources('late'));
-  await turn();
+  prepared.resolve({
+    ...f.resources('late'),
+    dispose: () => {
+      f.closes.push('late');
+      disposed.resolve();
+      return Promise.resolve();
+    },
+  });
+  await disposed.promise;
   assert.deepEqual(f.closes, ['initial', 'late']);
   assert.equal(manager.available, false);
   assert.equal(manager.stopped, true);
@@ -209,7 +226,6 @@ void test('cleanup failure attempts registrations and other owners, stays unavai
       f.closes.push('registration');
     },
   });
-  await turn();
   assert.deepEqual(await manager.reload(), { reloaded: false });
   assert.equal(manager.available, false);
   assert(manager.cleanupFailed);
@@ -222,14 +238,16 @@ void test('a watcher registration that resolves after retirement is disposed onc
   const registration = deferred<SessionRegistration>();
   const session = new SessionGeneration(1, f.resources('initial'));
   let disposed = 0;
+  const disposal = deferred<void>();
   session.own(registration.promise);
   await session.close();
   registration.resolve({
     dispose: () => {
       disposed++;
+      disposal.resolve();
     },
   });
-  await turn();
+  await disposal.promise;
   await session.close();
   assert.equal(disposed, 1);
   assert.equal(session.status.registrations, 0);
@@ -237,7 +255,12 @@ void test('a watcher registration that resolves after retirement is disposed onc
 void test('uncooperative internal work cannot prevent a bounded close or suppress finalizer attempts', async () => {
   const f = fixture();
   const session = new SessionGeneration(1, f.resources('initial'), 5);
-  void session.operations.run(() => new Promise(() => {}));
+  const entered = deferred<void>();
+  void session.operations.run(() => {
+    entered.resolve();
+    return new Promise(() => {});
+  });
+  await entered.promise;
   await assert.rejects(session.close(), /Session cleanup failed/u);
   assert.deepEqual(f.closes, ['initial']);
 });
@@ -245,14 +268,22 @@ void test('uncooperative internal work cannot prevent a bounded close or suppres
 void test('shutdown disposes a prepared generation even when the old coordinator never acknowledges pause', async () => {
   const f = fixture();
   const pause = deferred<void>();
+  const prepared = deferred<void>();
   const manager = new SessionResources(
     f.resources('initial'),
     { ...f.ports, pause: () => pause.promise },
-    () => Promise.resolve(f.resources('prepared')),
+    () =>
+      Promise.resolve({
+        ...f.resources('prepared'),
+        get config() {
+          prepared.resolve();
+          return f.config;
+        },
+      }),
     5,
   );
   const reload = manager.reload();
-  await turn();
+  await prepared.promise;
   await assert.rejects(manager.close(), /Session cleanup failed/u);
   assert.deepEqual(await reload, { reloaded: false });
   assert.deepEqual(new Set(f.closes), new Set(['initial', 'prepared']));
@@ -290,19 +321,33 @@ void test('a failed late registration disposer invalidates activation and retain
     const f = fixture();
     const registration = deferred<SessionRegistration>();
     const activation = deferred<void>();
+    const activationEntered = deferred<void>();
+    const registrationFailed = deferred<void>();
+    let injectingFailure = false;
     const manager = new SessionResources(
       f.resources('initial'),
-      { ...f.ports, activated: () => (duringActivation ? activation.promise : undefined) },
+      {
+        ...f.ports,
+        activated: () => {
+          activationEntered.resolve();
+          return duringActivation ? activation.promise : undefined;
+        },
+        invalidate: () => {
+          f.ports.invalidate();
+          if (injectingFailure) registrationFailed.resolve();
+        },
+      },
       () => Promise.resolve(f.resources('candidate')),
     );
     manager.current.own(registration.promise);
     const reload = manager.reload();
-    await turn();
+    await activationEntered.promise;
     if (!duringActivation) assert.deepEqual(await reload, { reloaded: true });
+    injectingFailure = true;
     registration.resolve({
       dispose: () => Promise.reject(new Error('private registration detail')),
     });
-    await turn();
+    await registrationFailed.promise;
     activation.resolve();
     if (duringActivation) {
       assert.deepEqual(await reload, { reloaded: false });

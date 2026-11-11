@@ -15,6 +15,7 @@ import {
   PositionEncodingKind,
   TextDocumentSyncKind,
   DidChangeWatchedFilesNotification,
+  ResponseError,
 } from 'vscode-languageserver/node';
 import type {
   Disposable,
@@ -75,6 +76,12 @@ export function attachLspServer(
   let stopped = false;
   let requestedShutdown = false;
   let disposal: Promise<void> | undefined;
+  // The wire lifetime is stricter than feature-level empty-result admission.
+  function admitted<T>(work: () => T): T {
+    if (stopped) throw new ResponseError(-32600, 'Language server is shut down.');
+    if (!initialized) throw new ResponseError(-32002, 'Language server is not initialized.');
+    return work();
+  }
 
   const publisher = new DiagnosticPublisher((params) => connection.sendDiagnostics(params));
   const clearDiagnostics = (uri: string, version: number, lifetime: number) => {
@@ -205,7 +212,8 @@ export function attachLspServer(
     return disposal;
   };
   connection.onInitialize((params) => {
-    if (initialized || stopped) throw new Error('Language server already initialized.');
+    if (initialized || stopped)
+      throw new ResponseError(-32600, 'Language server cannot initialize in its current state.');
     fixesEnabled =
       params.capabilities.workspace?.applyEdit === true &&
       params.capabilities.workspace.workspaceEdit?.documentChanges === true &&
@@ -264,6 +272,7 @@ export function attachLspServer(
     };
   });
   connection.onRequest('bve/validationCoverage', (params: unknown) => {
+    admitted(() => undefined);
     if (initialized && !stopped && sessions.available) sessions.current.refresh?.ensureFresh();
     if (
       !initialized ||
@@ -305,60 +314,71 @@ export function attachLspServer(
     return observation;
   });
   connection.onCompletion((params, token) =>
-    requests.execute<CompletionList>(
-      token,
-      params?.textDocument?.uri,
-      () => ({ isIncomplete: true, items: [] }),
-      async (context) => {
-        const generation = coordinator.generation;
-        const { completion, editor } = context.session;
-        const documents = context.snapshot.allDocuments;
-        const references = await completion.complete(params, generation, documents, context.signal);
-        if (!context.current()) return { isIncomplete: true, items: [] };
-        references.items = references.items.filter((item) =>
-          editor.acceptsReference(params, item.label, generation, documents),
-        );
-        if (context.signal.aborted) return references;
-        if (references.items.length) {
-          const declared = editor.complete(params, generation, documents, true);
-          references.items = [...declared.items, ...references.items]
-            .filter(
-              (item, index, items) =>
-                items.findIndex((other) => other.label === item.label) === index,
-            )
-            .slice(0, 100);
-          return references;
-        }
-        return editor.complete(params, generation, documents);
-      },
+    admitted(() =>
+      requests.execute<CompletionList>(
+        token,
+        params?.textDocument?.uri,
+        () => ({ isIncomplete: true, items: [] }),
+        async (context) => {
+          const generation = coordinator.generation;
+          const { completion, editor } = context.session;
+          const documents = context.snapshot.allDocuments;
+          const references = await completion.complete(
+            params,
+            generation,
+            documents,
+            context.signal,
+          );
+          if (!context.current()) return { isIncomplete: true, items: [] };
+          references.items = references.items.filter((item) =>
+            editor.acceptsReference(params, item.label, generation, documents),
+          );
+          if (context.signal.aborted) return references;
+          if (references.items.length) {
+            const declared = editor.complete(params, generation, documents, true);
+            references.items = [...declared.items, ...references.items]
+              .filter(
+                (item, index, items) =>
+                  items.findIndex((other) => other.label === item.label) === index,
+              )
+              .slice(0, 100);
+            return references;
+          }
+          return editor.complete(params, generation, documents);
+        },
+      ),
     ),
   );
   connection.onHover((params, token) =>
-    requests.execute<Hover | null>(
-      token,
-      params?.textDocument?.uri,
-      () => null,
-      (context) =>
-        context.session.editor.hover(
-          params.textDocument.uri,
-          params.position,
-          coordinator.generation,
-          context.snapshot.allDocuments,
-        ),
+    admitted(() =>
+      requests.execute<Hover | null>(
+        token,
+        params?.textDocument?.uri,
+        () => null,
+        (context) =>
+          context.session.editor.hover(
+            params.textDocument.uri,
+            params.position,
+            coordinator.generation,
+            context.snapshot.allDocuments,
+          ),
+      ),
     ),
   );
   connection.onDefinition((params, token) =>
-    requests.execute<Location[]>(
-      token,
-      params?.textDocument?.uri,
-      () => [],
-      (context) =>
-        context.session.editor.definition(
-          params.textDocument.uri,
-          params.position,
-          coordinator.generation,
-          context.snapshot.allDocuments,
-        ),
+    admitted(() =>
+      requests.execute<Location[]>(
+        token,
+        params?.textDocument?.uri,
+        () => [],
+        (context) =>
+          context.session.editor.definition(
+            params.textDocument.uri,
+            params.position,
+            coordinator.generation,
+            context.snapshot.allDocuments,
+          ),
+      ),
     ),
   );
   connection.onNotification('bve/recordSelection', (input: unknown) => {
@@ -368,64 +388,69 @@ export function attachLspServer(
     sessions.current.editor.record(input);
   });
   connection.onRequest('bve/searchReferences', (input: unknown, token: CancellationToken) =>
-    requests.execute<readonly { reference: string; source: string }[]>(
-      token,
-      undefined,
-      () => [],
-      async (context) => {
-        const { config, completion, filesystem } = context.session;
-        const generation = coordinator.generation;
-        if (!context.snapshot.allDocuments.size) {
-          const created = createLspRequest(config, workspace.source);
-          const original = parseContract('validation-request', {
-            ...created,
-            execution: { ...created.execution, deadlineAt: context.deadlineAt },
-          });
-          if (filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
-            const disk = workspace.diskGeneration;
-            const sourceGeneration = workspace.generation;
-            const source = await filesystem.capture(workspace.source, {
-              deadlineAt: context.deadlineAt,
-              signal: context.signal,
+    admitted(() =>
+      requests.execute<readonly { reference: string; source: string }[]>(
+        token,
+        undefined,
+        () => [],
+        async (context) => {
+          const { config, completion, filesystem } = context.session;
+          const generation = coordinator.generation;
+          if (!context.snapshot.allDocuments.size) {
+            const created = createLspRequest(config, workspace.source);
+            const original = parseContract('validation-request', {
+              ...created,
+              execution: { ...created.execution, deadlineAt: context.deadlineAt },
             });
-            if (!context.current()) return [];
-            verifyRequestBindings(
-              parseContract('validation-request', { ...original, source }),
-              config,
+            if (filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
+              const disk = workspace.diskGeneration;
+              const sourceGeneration = workspace.generation;
+              const source = await filesystem.capture(workspace.source, {
+                deadlineAt: context.deadlineAt,
+                signal: context.signal,
+              });
+              if (!context.current()) return [];
+              verifyRequestBindings(
+                parseContract('validation-request', { ...original, source }),
+                config,
+              );
+              if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
+            }
+            await completion.update(
+              parseContract('validation-request', { ...original, source: workspace.source }),
+              generation,
             );
-            if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
+            await completion.ready(generation, context.signal);
+            if (!context.current()) return [];
           }
-          await completion.update(
-            parseContract('validation-request', { ...original, source: workspace.source }),
-            generation,
-          );
-          await completion.ready(generation, context.signal);
-          if (!context.current()) return [];
-        }
-        return completion.searchReferences(input, generation, context.signal);
-      },
+          return completion.searchReferences(input, generation, context.signal);
+        },
+      ),
     ),
   );
   const reloadConfiguration = () =>
     initialized && !stopped ? sessions.reload() : Promise.resolve({ reloaded: false });
-  connection.onRequest('bve/reloadConfiguration', reloadConfiguration);
+  connection.onRequest('bve/reloadConfiguration', () => admitted(reloadConfiguration));
   connection.onCodeAction((params, token) =>
-    requests.execute<CodeAction[]>(
-      token,
-      params?.textDocument?.uri,
-      () => [],
-      (context) => {
-        if (!fixesEnabled || clientEdits.busy) return [];
-        return fixes.actions(
-          params,
-          coordinator.generation,
-          context.snapshot.allDocuments,
-          fixLimits(),
-        );
-      },
+    admitted(() =>
+      requests.execute<CodeAction[]>(
+        token,
+        params?.textDocument?.uri,
+        () => [],
+        (context) => {
+          if (!fixesEnabled || clientEdits.busy) return [];
+          return fixes.actions(
+            params,
+            coordinator.generation,
+            context.snapshot.allDocuments,
+            fixLimits(),
+          );
+        },
+      ),
     ),
   );
   connection.onExecuteCommand((params, token) => {
+    admitted(() => undefined);
     if (
       !fixesEnabled ||
       params?.command !== APPLY_FIX_COMMAND ||
@@ -476,6 +501,7 @@ export function attachLspServer(
     }
   }
   connection.onInitialized(() => {
+    if (!initialized || stopped) return;
     clientInitialized = true;
     watchFiles();
   });
@@ -522,7 +548,7 @@ export function attachLspServer(
     if (initialized && !stopped && workspace.change(item, contentChanges)) schedule();
   });
   connection.onDidCloseTextDocument(async ({ textDocument: item }) => {
-    if (stopped || !item) return;
+    if (!initialized || stopped || !item) return;
     const previous = workspace.closeDocument(item.uri);
     if (!previous) return;
     if (sessions.current.filesystem && approved.has(item.uri)) refresh();
@@ -544,9 +570,15 @@ export function attachLspServer(
   );
   connection.workspace.onDidRenameFiles((params) => fileOperations(params?.files ?? []));
   connection.onShutdown(async () => {
+    admitted(() => undefined);
     requestedShutdown = true;
     await close();
   });
+  connection.onRequest(() =>
+    admitted(() => {
+      throw new ResponseError(-32601, 'Language server method is not supported.');
+    }),
+  );
   connection.onExit(() => {
     void close().then(
       () => options.exit?.(requestedShutdown ? 0 : 1),
@@ -555,6 +587,9 @@ export function attachLspServer(
   });
   return {
     close,
+    get shutdownReceived() {
+      return requestedShutdown;
+    },
     reload: reloadConfiguration,
     own: (registration: Disposable | void) => sessions.current.own(registration),
   };

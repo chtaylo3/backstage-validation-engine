@@ -9,7 +9,6 @@ function deferred() {
   });
   return { promise, resolve };
 }
-const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
 function clock() {
   const callbacks = new Set<() => void>();
   return {
@@ -30,12 +29,14 @@ function clock() {
 void test('coordinator serializes active work, keeps only the latest pending update and waits for validation quiescence', async () => {
   const time = clock();
   const releases = [deferred(), deferred()];
+  const entered = [deferred(), deferred()];
   const runs: ValidationRun[] = [];
   let active = 0;
   const coordinator = new ValidationCoordinator(
     async (context) => {
       assert.equal(++active, 1);
       runs.push(context);
+      entered[runs.length - 1]!.resolve();
       await releases[runs.length - 1]!.promise;
       active--;
     },
@@ -48,17 +49,18 @@ void test('coordinator serializes active work, keeps only the latest pending upd
   const waiting = coordinator.whenIdle().then(() => {
     idle = true;
   });
-  await turn();
-  assert.equal(idle, false);
+  assert.equal(coordinator.status.pending, true);
+  assert.equal(coordinator.status.timer, true);
   time.tick();
-  await turn();
+  await entered[0]!.promise;
+  assert.equal(idle, false);
   coordinator.invalidate('disk');
   coordinator.invalidate('dependencies');
   time.tick();
   assert(runs[0]!.signal.aborted);
   assert.equal(runs.length, 1);
   releases[0]!.resolve();
-  await turn();
+  await entered[1]!.promise;
   assert.equal(runs.length, 2);
   assert.equal(runs[1]!.generation, 3);
   assert(runs[1]!.current());
@@ -100,8 +102,12 @@ void test('paused invalidations coalesce and terminal close cancels timers witho
 
 void test('terminal coordinator close reports a bounded failure if an internal callback ignores cancellation', async () => {
   const time = clock();
+  const entered = deferred();
   const coordinator = new ValidationCoordinator(
-    () => new Promise(() => {}),
+    () => {
+      entered.resolve();
+      return new Promise(() => {});
+    },
     () => 0,
     () => {},
     time,
@@ -109,7 +115,7 @@ void test('terminal coordinator close reports a bounded failure if an internal c
   );
   coordinator.invalidate('buffer');
   time.tick();
-  await turn();
+  await entered.promise;
   await assert.rejects(coordinator.close(), /shutdown deadline exceeded/u);
   assert(coordinator.status.stopped);
   coordinator.invalidate('buffer');

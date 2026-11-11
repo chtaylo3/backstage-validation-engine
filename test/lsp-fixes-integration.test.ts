@@ -15,7 +15,8 @@ import type {
   TextDocumentEdit,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { BACKSTAGE_ADAPTER_IDS } from '../src/index.js';
+import { BACKSTAGE_ADAPTER_IDS, validatePolicySources } from '../src/index.js';
+import { parse } from 'yaml';
 import { parseLspConfig } from '../src/lsp/config.js';
 import { APPLY_FIX_COMMAND } from '../src/lsp/fixes.js';
 import { fixPolicy } from './harness/fix-fixture.js';
@@ -23,6 +24,7 @@ import { componentText, policyRun } from './harness/policy-fixture.js';
 import { startLspClient } from './harness/lsp-client.js';
 import { filesystemFixture } from './harness/filesystem-fixture.js';
 import { URI } from './helpers.js';
+import { schemaArtifact } from './harness/custom-kind-fixture.js';
 
 function config(options: Parameters<typeof policyRun>[0] = {}) {
   const run = policyRun({ ...fixPolicy(), ...options });
@@ -137,6 +139,7 @@ void test('included fixes require an open target and preserve actual URI/version
   const root =
     'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: service}\nspec: {$yaml: ./spec.yaml}\n';
   const spec = 'type: service\nlifecycle: experimental\nowner: team\n';
+  let updated = '';
   const host = await startLspClient(
     t,
     config({
@@ -145,7 +148,26 @@ void test('included fixes require an open target and preserve actual URI/version
       entrypoints: [URI],
       files: [{ uri: specUri, text: spec }],
     }),
-    { fixes: true },
+    {
+      fixes: true,
+      applyEdit: ({ edit }) => {
+        const change = edit.documentChanges![0] as TextDocumentEdit;
+        updated = TextDocument.applyEdits(
+          TextDocument.create(specUri, 'yaml', 7, spec),
+          change.edits.map((row) => {
+            assert('newText' in row);
+            return { range: row.range, newText: row.newText };
+          }),
+        );
+        assert.equal(updated, 'type: service\nlifecycle: "production"\nowner: team\n');
+        assert.deepEqual(parse(updated), {
+          type: 'service',
+          lifecycle: 'production',
+          owner: 'team',
+        });
+        return { applied: true };
+      },
+    },
   );
   const closed = await open(host, URI, 1, root);
   assert.deepEqual(await actions(host, closed), []);
@@ -156,7 +178,7 @@ void test('included fixes require an open target and preserve actual URI/version
   const offered = await actions(host, projected);
   assert.equal(offered.length, 1);
   assert.equal((await actions(host, included)).length, 1);
-  assert.deepEqual(await execute(host, offered[0]!), { applied: false, reason: 'client_rejected' });
+  assert.deepEqual(await execute(host, offered[0]!), { applied: true });
   const change = host.applyRequests[0]?.edit.documentChanges?.[0] as TextDocumentEdit;
   assert.deepEqual(change.textDocument, { uri: specUri, version: 7 });
   assert.deepEqual(change.edits, [
@@ -165,6 +187,125 @@ void test('included fixes require an open target and preserve actual URI/version
       newText: '"production"',
     },
   ]);
+  const appliedAfter = host.diagnostics.length;
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: specUri, version: 8 },
+    contentChanges: [{ text: updated }],
+  });
+  assert.deepEqual(
+    (await host.waitFor((row) => row.uri === specUri && row.version === 8, appliedAfter))
+      .diagnostics,
+    [],
+  );
+  assert.deepEqual(
+    (await host.waitFor((row) => row.uri === URI && row.version === 1, appliedAfter)).diagnostics,
+    [],
+  );
+});
+
+void test('schema enum repair applies the selected guarded edit and revalidates only its intended rule', async (t) => {
+  const artifact = schemaArtifact({
+    type: 'object',
+    properties: { spec: { properties: { lifecycle: { enum: ['production', 'internal'] } } } },
+  });
+  const unrelated = {
+    ...schemaArtifact({
+      type: 'object',
+      properties: { spec: { properties: { type: { const: 'library' } } } },
+    }),
+    id: 'example/type',
+  };
+  const options = {
+    schemaArtifacts: [artifact, unrelated],
+    rules: [artifact, unrelated].map((row, i) => ({
+      id: i === 0 ? 'lifecycles' : 'unrelated-type',
+      version: '1',
+      kind: 'schema' as const,
+      mandatory: true,
+      severity: 'error' as const,
+      requires: [],
+      schema: { id: row.id, version: row.version, digest: row.digest },
+    })),
+  };
+  const text = componentText().replace('production', 'invalid');
+  let updated = '';
+  const host = await startLspClient(t, config({ ...options, text }), {
+    fixes: true,
+    applyEdit: ({ edit }) => {
+      const change = edit.documentChanges![0] as TextDocumentEdit;
+      assert.deepEqual(change.textDocument, { uri: URI, version: 1 });
+      updated = TextDocument.applyEdits(
+        TextDocument.create(URI, 'yaml', 1, text),
+        change.edits.map((row) => {
+          assert('newText' in row);
+          return { range: row.range, newText: row.newText };
+        }),
+      );
+      assert.equal(updated, text.replace('invalid', '"internal"'));
+      assert.equal((parse(updated) as { spec: { lifecycle: string } }).spec.lifecycle, 'internal');
+      return { applied: true };
+    },
+  });
+  const before = await open(host, URI, 1, text);
+  assert(before.diagnostics.some((row) => row.code === 'lifecycles'));
+  assert(before.diagnostics.some((row) => row.code === 'unrelated-type'));
+  const offered = await actions(host, before);
+  const selected = offered.find(
+    (row) =>
+      row.diagnostics?.some((diagnostic) => diagnostic.code === 'lifecycles') &&
+      row.title.includes('internal'),
+  );
+  assert(selected);
+  assert.deepEqual(await execute(host, selected), { applied: true });
+  const after = host.diagnostics.length;
+  await host.client.sendNotification(DidChangeTextDocumentNotification.type, {
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ text: updated }],
+  });
+  const fixed = await host.waitFor((row) => row.uri === URI && row.version === 2, after);
+  assert(!fixed.diagnostics.some((row) => row.code === 'lifecycles'));
+  assert(fixed.diagnostics.some((row) => row.code === 'unrelated-type'));
+  const run = policyRun({ ...options, text: updated });
+  const result = await validatePolicySources(run.request, run.context);
+  assert.equal(result.ruleStates.find((row) => row.ruleId === 'lifecycles')?.status, 'passed');
+  assert.equal(result.ruleStates.find((row) => row.ruleId === 'unrelated-type')?.status, 'failed');
+});
+
+void test('each missing required client capability independently denies fix dispatch', async (t) => {
+  for (const missing of ['applyEdit', 'documentChanges', 'literalActions', 'diagnosticData'])
+    await t.test(missing, async (t) => {
+      const host = await startLspClient(t, config(), {
+        capabilities: {
+          workspace: {
+            ...(missing === 'applyEdit' ? {} : { applyEdit: true }),
+            workspaceEdit: {
+              ...(missing === 'documentChanges' ? {} : { documentChanges: true }),
+              failureHandling: 'textOnlyTransactional',
+            },
+          },
+          textDocument: {
+            publishDiagnostics: missing === 'diagnosticData' ? {} : { dataSupport: true },
+            codeAction:
+              missing === 'literalActions'
+                ? {}
+                : { codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } } },
+          },
+        },
+      });
+      assert.equal(host.initialized.capabilities.codeActionProvider, undefined);
+      assert.equal(host.initialized.capabilities.executeCommandProvider, undefined);
+      const report = await open(host);
+      assert(report.diagnostics.some((row) => row.code === 'required-value'));
+      assert.deepEqual(await actions(host, report), []);
+      assert.deepEqual(
+        await host.client.sendRequest(ExecuteCommandRequest.type, {
+          command: APPLY_FIX_COMMAND,
+          arguments: ['forged'],
+        }),
+        { applied: false, reason: 'invalid_request' },
+      );
+      assert.equal(host.applyRequests.length, 0);
+    });
 });
 
 void test('watch notifications revoke actions even when the target buffer version stays unchanged', async (t) => {
@@ -204,6 +345,8 @@ void test('the client version check rejects an edit if typing races its delivery
   });
   const report = await open(host),
     action = (await actions(host, report))[0]!;
+  // This models typing after server dispatch but before client delivery. The separate stale
+  // request test sends didChange first and proves rejection before workspace/applyEdit.
   clientVersion = 2;
   assert.deepEqual(await execute(host, action), { applied: false, reason: 'client_rejected' });
   assert.equal(host.applyRequests.length, 1);

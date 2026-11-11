@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, rename, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createLspCatalog, parseLspConfig } from '../src/lsp/config.js';
@@ -46,4 +46,54 @@ void test('catalog credential files rotate between authenticated requests withou
   );
   await writeFile(tokenFile, 'x'.repeat(16 * 1024 + 1));
   await assert.rejects(createLspCatalog(config, {}));
+  const exact = 'policy-test-secret' + ' '.repeat(16384 - 'policy-test-secret'.length);
+  assert.equal(Buffer.byteLength(exact), 16384);
+  await writeFile(tokenFile, exact);
+  const atLimit = (await createLspCatalog(config, {}))!;
+  t.after(() => atLimit.provider.close());
+  assert.equal((await lookup()).data.entries[0]?.status, 'present');
+  assert.equal(
+    (
+      await atLimit.provider.lookup(['group:default/team'], atLimit.access, {
+        deadlineAt: Date.now() + 5000,
+      })
+    ).data.entries[0]?.status,
+    'present',
+  );
+  const replacement = path.join(directory, 'replacement');
+  await writeFile(replacement, 'revoked-token');
+  await rename(replacement, tokenFile);
+  assert((await lookup()).failures.some((failure) => failure.code === 'permission_denied'));
+  await writeFile(replacement, 'policy-test-secret');
+  await rename(replacement, tokenFile);
+  assert.equal((await lookup()).data.entries[0]?.status, 'present');
+  await t.test(
+    'symbolic credentials are rejected before capture and after replacement',
+    async (t) => {
+      await writeFile(replacement, 'policy-test-secret');
+      await unlink(tokenFile);
+      try {
+        await symlink(replacement, tokenFile);
+      } catch (error) {
+        if (
+          process.platform === 'win32' &&
+          ['EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')
+        ) {
+          await rename(replacement, tokenFile);
+          t.skip('The operating system denied symbolic-link creation.');
+          return;
+        }
+        throw error;
+      }
+      await assert.rejects(
+        createLspCatalog(config, {}),
+        /^Error: Configured catalog credential is unavailable\.$/u,
+      );
+      const denied = await lookup();
+      assert.equal(denied.data.entries[0]?.status, 'unavailable');
+      await unlink(tokenFile);
+      await rename(replacement, tokenFile);
+      assert.equal((await lookup()).data.entries[0]?.status, 'present');
+    },
+  );
 });

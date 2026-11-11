@@ -288,10 +288,84 @@ void test('client rejection, unknown outcome and concurrent requests remain boun
 });
 
 void test('token storage uses bounded FIFO eviction', async () => {
+  assert.equal(FIX_LIMITS.tokens, 128);
   const f = fixture(),
     first = f.command();
-  for (let i = 0; i < FIX_LIMITS.tokens; i++) f.command();
+  const second = f.command();
+  for (let i = 0; i < 127; i++) f.command();
   assert.deepEqual(await f.apply(first), { applied: false, reason: 'stale' });
-  const newest = f.command();
-  assert.deepEqual(await f.apply(newest), { applied: true });
+  assert.deepEqual(await f.apply(second), { applied: true });
+});
+
+void test('fix edit count and UTF-8 replacement bytes admit the exact documented limits', () => {
+  assert.deepEqual(FIX_LIMITS, {
+    candidates: 64,
+    tokens: 128,
+    actions: 32,
+    edits: 16,
+    textBytes: 16384,
+    ttlMs: 60000,
+    applyMs: 5000,
+  });
+  const content = 'x '.repeat(17);
+  const document = TextDocument.create(URI, 'yaml', 1, content);
+  const documents = new Map([[URI, document]]);
+  const edits = Array.from({ length: 17 }, (_, i) => ({
+    ...edit,
+    sourceDigest: digestText(content),
+    range: { start: { line: 0, character: i * 2 }, end: { line: 0, character: i * 2 + 1 } },
+  }));
+  assert(checkedFixEdit(edits.slice(0, 16), documents, limits));
+  assert.equal(checkedFixEdit(edits, documents, limits), undefined);
+  const bytes = { ...edit, sourceDigest: digestText(content), text: 'é'.repeat(8192) };
+  assert.equal(Buffer.byteLength(bytes.text), 16384);
+  assert(checkedFixEdit([bytes], documents, limits));
+  assert.equal(
+    checkedFixEdit([{ ...bytes, text: bytes.text + 'a' }], documents, limits),
+    undefined,
+  );
+});
+
+void test('fix registry caps actions at 32 and retains precisely the first 64 eligible candidates', async () => {
+  assert.equal(FIX_LIMITS.actions, 32);
+  assert.equal(FIX_LIMITS.candidates, 64);
+  const findings = Array.from({ length: 65 }, (_, i) => ({
+    ...finding,
+    id: 'candidate-' + i,
+    ruleId: 'rule-' + i,
+  }));
+  const f = fixture({ findings });
+  assert.equal(f.actions().length, 32);
+  assert.deepEqual(
+    f.actions().map((action) => action.diagnostics![0]!.code),
+    Array.from({ length: 32 }, (_, i) => 'rule-' + i),
+  );
+  for (const [index, admitted] of [
+    [0, true],
+    [31, true],
+    [32, true],
+    [63, true],
+    [64, false],
+  ] as const) {
+    const current = fixture({ findings });
+    const selected = findings[index]!;
+    current.params.context.diagnostics = [
+      {
+        range,
+        message: selected.message,
+        data: {
+          findingId: selected.id,
+          version: 1,
+          sourceDigest: digestText(text),
+          fixGeneration: 1,
+        },
+      },
+    ];
+    const actions = current.actions();
+    assert.equal(actions.length, admitted ? 1 : 0);
+    if (admitted) {
+      assert.equal(actions[0]!.diagnostics![0]!.code, 'rule-' + index);
+      assert.deepEqual(await current.apply(actions[0]!.command!.arguments), { applied: true });
+    }
+  }
 });
