@@ -104,6 +104,12 @@ void test('soak qualification rejects short, interrupted and empty resource repo
       m.budgets = { ...METRIC_BUDGETS, editP95Ms: 1_000_000 } as unknown as typeof METRIC_BUDGETS;
     },
     (m: ResourceMetrics) => {
+      m.samples[0]!.pid = 42.5;
+    },
+    (m: ResourceMetrics) => {
+      Object.assign(m.samples[0]!, { pid: '42' });
+    },
+    (m: ResourceMetrics) => {
       m.complete = false;
     },
     (m: ResourceMetrics) => {

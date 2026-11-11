@@ -150,6 +150,14 @@ void test('actual CLI and child stdio coverage agree with pinned policy and reje
   assert(report.findings.some((row) => row.ruleId === 'unrelated-lifecycle'));
   verifyCoverageParity(report.coverage, observation.coverage);
   assert.throws(() => verifyCoverageParity(report.coverage, []));
+  assert.throws(
+    () =>
+      verifyCoverageParity(
+        report.coverage,
+        observation.coverage.map((row) => ({ ...row, undeclared: true })),
+      ),
+    /undeclared coverage/,
+  );
   const authority = report.coverage.find(
     (row) => row.stage === 'policy' && row.subject === 'signed-release',
   )!;

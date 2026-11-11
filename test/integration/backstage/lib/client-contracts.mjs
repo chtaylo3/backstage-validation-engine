@@ -61,6 +61,12 @@ export function normalizeCoverage(rows) {
   assert(Array.isArray(rows) && rows.length > 0, 'Observe actual coverage records.');
   return rows
     .map((row) => {
+      assert(
+        Object.keys(row).every((key) =>
+          ['stage', 'subject', 'required', 'status', 'reason'].includes(key),
+        ),
+        'Reject undeclared coverage fields.',
+      );
       assert.equal(typeof row.stage, 'string');
       assert.equal(typeof row.subject, 'string');
       assert.equal(typeof row.required, 'boolean');

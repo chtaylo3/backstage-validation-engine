@@ -115,7 +115,7 @@ export function verifyMetrics(metrics: ResourceMetrics, duration: number, size =
     );
     previousOperation = sample.operation;
     previousElapsed = sample.elapsedMs;
-    assert(sample.pid > 1);
+    assert(Number.isSafeInteger(sample.pid) && sample.pid > 1);
     for (const side of [sample.client, sample.server])
       assert(
         Number.isFinite(side.rssMiB) &&
