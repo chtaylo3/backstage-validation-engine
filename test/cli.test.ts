@@ -350,8 +350,35 @@ void test('CLI --help, --baseline and --data preserve exact requested contract i
   assert.match(help.stdout, /^Usage: bve validate/);
   for (const flag of ['--baseline', '--data', '--output']) assert(help.stdout.includes(flag));
   const f = await fixture(t);
-  const baseline = f.source;
-  const data = createDataSnapshot([]);
+  const baseline = createSourceSnapshot({
+    repository: f.source.repository,
+    revision: 'prior-distinct-revision',
+    files: f.source.files,
+  });
+  const entry = {
+    key: 'flag-control',
+    status: 'present' as const,
+    value: { supplied: true },
+    provenance: {
+      providerId: 'synthetic-control',
+      connectionId: 'flag-control',
+      installationId: f.release.trust.identity.installationId,
+      principalId: 'synthetic-reader',
+      permissionRevision: f.release.trust.identity.permissionRevision,
+      scope: ['test:read'],
+      revision: 'data-1',
+      fetchedAt: f.release.now - 1000,
+      expiresAt: f.release.now + 30000,
+    },
+  };
+  const data = createDataSnapshot([entry]);
+  assert.notEqual(baseline.digest, f.source.digest);
+  assert.notEqual(data.digest, createDataSnapshot([]).digest);
+  const defaults = await cli(f.args);
+  assert.equal(defaults.code, 0, defaults.stdout + defaults.stderr);
+  const defaultResult = parseContract('validation-result', JSON.parse(defaults.stdout) as unknown);
+  assert.equal(defaultResult.provenance.baselineDigest, undefined);
+  assert.equal(defaultResult.provenance.dataDigest, createDataSnapshot([]).digest);
   await writeFile(resolve(f.directory, 'baseline.json'), JSON.stringify(baseline));
   await writeFile(resolve(f.directory, 'data.json'), JSON.stringify(data));
   const args = [
@@ -364,8 +391,11 @@ void test('CLI --help, --baseline and --data preserve exact requested contract i
   const output = await cli(args);
   assert.equal(output.code, 0, output.stdout + output.stderr);
   const result = parseContract('validation-result', JSON.parse(output.stdout) as unknown);
+  assert.equal(result.provenance.sourceDigest, f.source.digest);
   assert.equal(result.provenance.baselineDigest, baseline.digest);
   assert.equal(result.provenance.dataDigest, data.digest);
+  assert.equal(result.freshness.publishBefore, entry.provenance.expiresAt);
+  assert(defaultResult.freshness.publishBefore > result.freshness.publishBefore);
   await writeFile(
     resolve(f.directory, 'data.json'),
     JSON.stringify({ ...data, digest: digestJson('wrong') }),
@@ -373,6 +403,28 @@ void test('CLI --help, --baseline and --data preserve exact requested contract i
   const badData = await cli(args);
   assert.equal(badData.code, 2);
   assert.equal((JSON.parse(badData.stdout) as { error: { code: string } }).error.code, 'integrity');
+  for (const [fetchedAt, expiresAt] of [
+    [f.release.now - 10000, f.release.now - 1],
+    [f.release.now + 120000, f.release.now + 180000],
+  ]) {
+    await writeFile(
+      resolve(f.directory, 'data.json'),
+      JSON.stringify(
+        createDataSnapshot([
+          {
+            ...entry,
+            provenance: { ...entry.provenance, fetchedAt: fetchedAt!, expiresAt: expiresAt! },
+          },
+        ]),
+      ),
+    );
+    const stale = await cli(args);
+    assert.equal(stale.code, 2);
+    assert.equal(
+      (JSON.parse(stale.stdout) as { error: { code: string } }).error.code,
+      'invalid_contract',
+    );
+  }
   await writeFile(resolve(f.directory, 'data.json'), JSON.stringify(data));
   await writeFile(
     resolve(f.directory, 'baseline.json'),
