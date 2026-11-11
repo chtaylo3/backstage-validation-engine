@@ -828,13 +828,54 @@ async function runGroup(name, specs, fault) {
       try {
         await hostEvidence.run(spec.id, 'editor', async () => {
           outcome = await execute(spec, directory, spec.id === 'startup' ? fault : undefined);
-          assert(
-            outcome.exitCode === 0 && !outcome.error && outcome.progress?.status === 'passed',
-            'Entered editor process failed.',
-          );
+          if (spec.id === 'startup') {
+            assert(outcome.error?.includes('Injected editor crash'));
+            assert.equal(outcome.progress?.phase, 'run');
+            assert(outcome.progress.serverPids.length > 0);
+            for (const pid of outcome.progress.serverPids) {
+              const end = Date.now() + 20_000;
+              while (true) {
+                let alive = true;
+                try {
+                  process.kill(pid, 0);
+                  if (process.platform === 'linux') {
+                    const status = await readFile(`/proc/${pid}/status`, 'utf8').catch(() => '');
+                    alive = !!status && !/^State:\s+Z/mu.test(status);
+                  }
+                } catch (error) {
+                  if (error.code !== 'ESRCH') throw error;
+                  alive = false;
+                }
+                if (!alive) break;
+                assert(
+                  Date.now() < end,
+                  'The crashed editor must release each owned packaged server.',
+                );
+                await pause(30);
+              }
+            }
+            await atomic(
+              path.join(directory, 'owned-crash-cleanup.json'),
+              JSON.stringify(
+                {
+                  fixtureOnly: true,
+                  enteredPhase: outcome.progress.phase,
+                  serverPids: outcome.progress.serverPids,
+                  observedDead: true,
+                },
+                null,
+                2,
+              ) + '\n',
+            );
+          }
+          if (outcome.exitCode !== 0 || outcome.error || outcome.progress?.status !== 'passed') {
+            const error = new Error('Entered editor process failed.');
+            error.name = 'EnteredEditorFailure';
+            throw error;
+          }
         });
       } catch (error) {
-        if (!outcome) throw error;
+        if (!outcome || error.name !== 'EnteredEditorFailure') throw error;
       }
       return outcome;
     },

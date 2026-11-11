@@ -719,6 +719,10 @@ void test('coverage bridge requires a trusted running client and forwards only t
   assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
   assert.equal(current.requestCalls.length, 1);
   editorState.trusted = true;
+  const handler: NonNullable<LanguageClientOptions['errorHandler']> = current.options.errorHandler!;
+  await handler.error(new Error('disconnected'), undefined, 10);
+  assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
+  assert.equal(current.requestCalls.length, 1);
   await command('stop');
   assert.equal(await api.coverage(binding.uri, binding.version, binding.digest), null);
   assert.equal(current.requestCalls.length, 1);
