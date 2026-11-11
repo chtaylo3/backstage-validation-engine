@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 is admitted for implementation. No remediation package is accepted yet.
+Status: H1 implementation is ready for parent review. No remediation package is accepted yet.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -36,15 +36,15 @@ No complete H1 finding closes through these baseline corrections.
 
 ## Package state
 
-| Package | Agent state  | Parent decision | Required next evidence                                   |
-| ------- | ------------ | --------------- | -------------------------------------------------------- |
-| H1      | Admitted     | Pending         | Actual release-runner and independent verifier controls  |
-| H2      | Not assigned | Pending         | Accepted H1 and LSP behavior controls                    |
-| H3      | Not assigned | Pending         | Accepted H2 and independent core/CLI controls            |
-| H4      | Not assigned | Pending         | Accepted H3 and focused backend evidence                 |
-| H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
-| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
-| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
+| Package | Agent state      | Parent decision | Required next evidence                                   |
+| ------- | ---------------- | --------------- | -------------------------------------------------------- |
+| H1      | Ready for review | Pending         | Independent parent inspection and repeated controls      |
+| H2      | Not assigned     | Pending         | Accepted H1 and LSP behavior controls                    |
+| H3      | Not assigned     | Pending         | Accepted H2 and independent core/CLI controls            |
+| H4      | Not assigned     | Pending         | Accepted H3 and focused backend evidence                 |
+| H5      | Not assigned     | Pending         | Accepted H4 and installed editor evidence                |
+| H6      | Not assigned     | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
+| H7      | Deferred         | Not admitted    | Separate authorization and final-candidate qualification |
 
 ## Required record for each package
 
@@ -81,9 +81,16 @@ Add one row per finding as the parent reviews implementation evidence.
 Use `Accepted`, `Partial`, `Open`, or `Deferred` for implementation state.
 Use `Clarified` only for a parent-reviewed correction to the original recommendation.
 
-| Finding  | Package | State    | Criterion and evidence | Parent decision |
-| -------- | ------- | -------- | ---------------------- | --------------- |
-| None yet | None    | Planning | No execution claimed   | Pending         |
+| Finding | Package | State   | Criterion and evidence                                                     | Parent decision |
+| ------- | ------- | ------- | -------------------------------------------------------------------------- | --------------- |
+| R4-F13  | H1      | Partial | H1-A7: raw metric and faulty-verifier controls below                       | Pending         |
+| R5-F1   | H1      | Partial | H1-A1: actual host missing-report control below                            | Pending         |
+| R5-F2   | H1      | Partial | H1-A1: actual host build-failure control below                             | Pending         |
+| R5-F3   | H1      | Partial | H1-A2: installed crash, host accounting, later case, and PID cleanup below | Pending         |
+| R5-F4   | H1      | Partial | H1-A4: actual CLI variants, identities, and archive parity below           | Pending         |
+| R5-F5   | H1      | Partial | H1-A6: actual clean candidate and crafted archive controls below           | Pending         |
+| R5-F6   | H1      | Partial | H1-A5: observed CLI/LSP parity and installed projection below              | Pending         |
+| R5-F9   | H1      | Partial | H1-A3: actual host cleanup/interruption/unfinished controls below          | Pending         |
 
 ## Planning validation
 
@@ -112,13 +119,123 @@ The four approved documents form the planning commit before the H1 assignment.
 No application source changed and no product test run belongs to this documentation gate.
 Validation remains in `.artifacts/test-intent-assessment/approved-remediation-plan-validation.json`.
 
-## H1 implementation in progress
+## H1 implementation for parent review
 
-Assigned agent: `harness_h1_release_evidence`. Parent acceptance remains pending.
-The approved scope contains R4-F13, R5-F1, R5-F2, R5-F3, R5-F4, R5-F5, R5-F6, and R5-F9.
+Assigned agent: `harness_h1_release_evidence`. User approval and package scope remain as recorded above.
+Parent acceptance remains pending. The agent does not close the eight findings or admit H2.
 Implementation starts from planning commit `17f4fab` on `feature/test-harness-remediation`.
-The [evidence contract](release-evidence-contract.md) records the new interfaces and retained compatibility decisions.
-The first focused run passed 17 of 18 checks. Its paired CLI/LSP test exposed the legitimate CLI-only signed-release coverage record.
-The parent approved the narrow authority-record normalization. A later focused run passed all 19 checks before final boundary additions.
-Initial type and lint checks exposed development errors. Those errors remain in the tool history and qualification notes.
-No failed application requirement was weakened. Full committed-input qualification and native crash controls remain pending at this checkpoint.
+The exact tested implementation is `f7d54158aa0024bd331952c6f8d572d8402dd059`.
+The final record is a documentation-only update after that qualification.
+
+### Behavior and compatibility
+
+The [evidence contract](release-evidence-contract.md) defines the revised admission rules and interfaces.
+The production host and no-Docker subprocess controls now share target orchestration and aggregate status logic.
+Missing reports cannot become fresh successful inventories. Failed builds, children, cleanup, and unfinished rows retain failure evidence.
+The entered native crash reaches `evidence.run`, retains a failed row, confirms owned server death, and permits a later independent editor case.
+Scratch reports stay separate from the positive release inventory.
+
+CLI scenarios select normal JSON, error JSON, or SARIF before reading process output.
+Normal results require CI mode, CI enforcement, expected outcome/exit, and independently bound source/policy/profile/activation/installation/repository identities.
+Missing credentials and invalid source snapshots retain their legitimate outer error envelope without validation provenance.
+Build identity remains artifact metadata.
+
+The additive `coverageObservation` launcher permission defaults to disabled.
+The read-only request and installed API bind observations to current document URI/version/digest and validation/dependency generations.
+Unavailable, unsynchronized, stale, foreign, untrusted, stopped, or disconnected states do not expose current coverage.
+The paired CLI/LSP test retains an unrelated failing rule and compares complete coverage records.
+The only normalization requires and removes the exact verified CLI `policy/signed-release` authority record.
+The LSP consumes an approved launcher policy instead of authenticating that signed release.
+Each client separately binds its own aggregate source snapshot. Buffer origin and version can legitimately change that digest.
+
+The VSIX policy uses the host-approved production dependency closure and immutable lock.
+Required Backstage dependencies and declared production lock metadata remain permitted.
+Nested forbidden payloads, unrelated dependencies, undeclared locks, duplicate paths, traversal, and malformed compiled suffixes fail admission.
+The final real candidate passes the same inspector.
+
+The final metric verdict reads both load sizes and required soaks.
+It recomputes latency percentiles and retained resource growth against host-approved current budgets.
+Required soak slopes need a retained 100-operation span. Short load runs do not claim that qualification.
+Budget values and the existing additional quarter-sample exclusion remain unchanged. H5 owns their later policy review.
+
+### Acceptance mapping and executed controls
+
+Every row records agent evidence for parent review. It does not mark parent acceptance.
+
+| Criterion | Boundary and selector                                                                                                                             | Observed outcome                                                                                                                                                                                                                                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1-A1     | `backstage-host-runner.test.ts`: actual host subprocess `missing-report` and `build-failure`                                                      | Positive exits 0. Both injected targets exit 1 with failed aggregates, durable host classification, and unexecuted remaining rows.                                                                                                                                                                                                            |
+| H1-A2     | `test-extension.mjs --verify-failures`, native `crash` control                                                                                    | Entered VS Code 1.145.2 dies. Scratch host rows are one failed and one passed. The recorded owned server PID is dead. The following diagnostics case passes.                                                                                                                                                                                  |
+| H1-A3     | Actual host subprocess `cleanup-failure`, `interrupted-child`, `failed-child`, and `unfinished-report`                                            | Every target exits 1 and retains failed or unexecuted rows. Cleanup runs. Empty/duplicate declarations and missing targets also fail admission.                                                                                                                                                                                               |
+| H1-A4     | `lsp-coverage-observation.test.ts`, installed CLI archive parity, and archive credential control                                                  | Actual normal results bind all required identities. Missing provenance, changed identities, IDE mode, or an inconsistent exit fails. Actual invalid-snapshot and missing-credential errors use the explicit error envelope and exit 2.                                                                                                        |
+| H1-A5     | Actual CLI/child-stdio paired test, entered reload gates in `lsp-reload-fixes.test.ts`, client bridge test, installed `coverage-observation` case | Full shared records agree. Missing/mismatched/undeclared records fail. Both entered reloads return null at unchanged document version. Fresh coverage has a higher generation. Installed default-off, opt-in observation, bindings, and revocation pass on both pinned editors.                                                               |
+| H1-A6     | `backstage-vsix.test.ts` and final real VSIX inspection                                                                                           | The normal 5,079-file candidate passes. Twenty forbidden/malformed path variants fail in both archive orders. Archive-local lock tampering also fails.                                                                                                                                                                                        |
+| H1-A7     | `extension-qualification.test.ts`, `extension-resources.test.ts`, final verifier integration                                                      | Excessive latency, retained RSS/handles, growth slope, forged summaries/budgets, malformed PID/timing, missing data, and insufficient required slope windows fail. The independently authored 475-low/25-high p95 vector passes. The 474-low/26-high vector fails. Load checks enforce their applicable limits without claiming a soak slope. |
+| H1-A8     | Full source/client gate, full packaged gate, retained host controls, and focused installed Linux checks                                           | All final gates pass with no cancellation or skips. No Docker, actual-backend, performance-compliance, JetBrains, or release-wide qualification is claimed. H4 and deferred H7 retain their required work.                                                                                                                                    |
+
+Four isolated faulty variants remove the latency limit, resource verdict, missing-report admission, or VSIX path policy.
+Each variant makes its new control fail with an assertion. None fails from a missing module or unrelated launch error.
+The corrected candidate passes those controls. Mutations remain outside the source checkout.
+
+### Exact commands, counts, and artifacts
+
+All final commands use committed inputs at `f7d54158aa0024bd331952c6f8d572d8402dd059` on Linux x64 with Node 24.22.1.
+The source/client and packaged gates use separate temporary worktrees and separate `.test-dist` directories.
+Native launches use `env -u ELECTRON_RUN_AS_NODE` under `xvfb-run -a`.
+The original review is absent from those clean worktrees and remains unchanged in the user checkout.
+
+| Command or control                                                                                                   | Final executed result                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`                                                                                                      | Architecture, types, lint, formatting, schemas, 1,098 source tests, and 43 client tests pass. No failures, cancellation, or skips. Client coverage is 100% lines and 96% branches. |
+| `GITHUB_SHA=<tested revision> npm run extension:package`                                                             | Correctly stamped final VSIX passes identity and payload inspection.                                                                                                               |
+| `GITHUB_SHA=<tested revision> npm run cli:package`                                                                   | CLI archive has the tested revision, unchanged lock, and `sourceDirty: false`.                                                                                                     |
+| `npm run test:packaged`                                                                                              | Final unchanged repeat passes 1,098 tests with zero failure, cancellation, or skip. The earlier failure remains below.                                                             |
+| `scripts/backstage-runner-controls.mjs <fault> <scratch-directory>`                                                  | Seven actual host subprocess scenarios. The positive exits 0. Each of six faults exits 1 with retained failed aggregate evidence.                                                  |
+| `scripts/test-extension.mjs --case=coverage-observation`                                                             | Two installed cases pass, one each on VS Code 1.106.3 and 1.145.2.                                                                                                                 |
+| `scripts/test-extension.mjs --verify-failures`                                                                       | Three expected-fault controls pass across six real editor sessions on VS Code 1.145.2. Each failed session is followed by a successful session.                                    |
+| Packaged-runtime `lsp-coverage-observation.test.js` with the offline-installed CLI archive and packaged stdio server | Two tests pass. The archive's normal-result/missing-credential control also observes exact exits 0 and 2.                                                                          |
+| Retained `faulty-controls.mjs`                                                                                       | All four faulty variants are detected by assertion failures. These expected failures do not enter release inventory.                                                               |
+
+Final VSIX SHA-256: `3581c49a27c3bed6fa96ccd95bc23b59743b355b91d63aaf2d79719aaed7b67e`.
+Its size is 52,085,040 bytes. The build stamp records `linux-x64`, Node `24.22.1`, and the exact tested revision.
+Bundled Node SHA-256: `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb`.
+Final CLI archive SHA-256: `ca98f4617476329a871fbf806767276c9a678141aae3cf4ad08756a407015c4c`.
+The CLI archive installs successfully into an isolated offline prefix.
+Installed reports bind the same tested revision and VSIX checksum.
+
+Retained evidence is under `.artifacts/harness-remediation/H1/agent-final/` in the user checkout.
+`qualification-summary.json` records identities and final counts.
+`source-gate/check.log`, `packaged.log`, and `inventories/` retain complete final gate evidence.
+`native/` retains installed reports, logs, current coverage records, crash scratch accounting, and owned-PID cleanup proof.
+`host-controls/` retains the seven final target reports and their separate scratch aggregates.
+`faulty-variants/` retains the isolated mutations and failing test output.
+`candidates/` retains the final VSIX, CLI archive, and CLI metadata/checksums.
+
+### Failed attempts and limitations
+
+The first focused development run passed 17 of 18 checks.
+Its actual paired test exposed the legitimate CLI-only signed-release coverage record.
+The parent approved the narrow normalization above. Later focused and complete gates pass with that requirement.
+Initial type/lint runs found development errors. Corrections preserve the existing checks and limits.
+
+Successful earlier complete gates at `79ae47e` and `0036190` remain preliminary evidence.
+They do not qualify the final candidate. Their logs retain the recorded revisions.
+The first final-worktree package command supplied an incorrect `GITHUB_SHA`.
+The inspector rejects that archive. It remains under `rejected-stamp/` and receives no qualification claim.
+The later correctly stamped final candidate has the identity recorded above.
+
+The first full packaged run at the final revision reports 1,096 passed and two failed test nodes out of 1,098.
+One nested `conflict` assertion in `lsp-catalog-refresh.test.ts` did not observe its initial `te-remote` suggestion.
+The failed child and containing test account for both failed nodes.
+The unchanged isolated selector passes four tests. The unchanged complete packaged repeat passes all 1,098.
+The cause remains unclassified. Concurrent activity coincided with the first run but does not establish causation.
+No assertion, timeout, budget, or catalog-refresh implementation changed for either rerun.
+`packaged-attempt-1.log` and `packaged-conflict-isolated.log` retain both observations.
+
+H1 proves evidence rejection and focused Linux installed behavior.
+The production Docker adapter and modified real-backend parity/crash drivers do not receive backend qualification through these no-Docker controls.
+H4 owns the required actual-backend acceptance. H5 owns later performance policy work. H7 remains deferred.
+No hosted run, full installed inventory, endurance run, transport release matrix, publication, push, PR, or merge belongs to this H1 qualification.
+The original review SHA-256 still matches `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
+
+Parent inspection, independently repeated controls, decision, and next-package admission remain pending.
