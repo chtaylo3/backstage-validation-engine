@@ -377,14 +377,20 @@ export function attachLspServer(
       },
     ),
   );
-  connection.onExecuteCommand((params, token) =>
-    requests.execute<FixApplicationResult>(
+  connection.onExecuteCommand((params, token) => {
+    if (
+      !fixesEnabled ||
+      params?.command !== APPLY_FIX_COMMAND ||
+      !Array.isArray(params.arguments) ||
+      params.arguments.length !== 1 ||
+      typeof params.arguments[0] !== 'string'
+    )
+      return { applied: false, reason: 'invalid_request' };
+    return requests.execute<FixApplicationResult>(
       token,
       undefined,
-      () => ({ applied: false, reason: 'invalid_request' }),
+      () => ({ applied: false, reason: 'stale' }),
       (context) => {
-        if (!fixesEnabled || params.command !== APPLY_FIX_COMMAND)
-          return { applied: false, reason: 'invalid_request' };
         if (clientEdits.busy) return { applied: false, reason: 'busy' };
         return fixes.apply(
           params.arguments,
@@ -395,8 +401,8 @@ export function attachLspServer(
         );
       },
       false,
-    ),
-  );
+    );
+  });
   function watchFiles() {
     const session = sessions.current;
     if (

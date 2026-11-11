@@ -72,30 +72,41 @@ void test('replacement drains all tracked users before disposal and activates on
   await manager.close();
   assert.deepEqual(f.closes, ['initial', 'next']);
 });
-void test('repeated reloads coalesce without overlapping preparation or disposal', async () => {
+void test('repeated reloads resolve only after queued preparation and disposal finish', async (t) => {
   const f = fixture();
   const gates = [deferred<LspServerResources>(), deferred<LspServerResources>()];
+  const entered = [deferred<void>(), deferred<void>()];
   let calls = 0;
-  const manager = new SessionResources(
-    f.resources('initial'),
-    f.ports,
-    () => gates[calls++]!.promise,
-  );
+  const manager = new SessionResources(f.resources('initial'), f.ports, () => {
+    const index = calls++;
+    entered[index]!.resolve();
+    return gates[index]!.promise;
+  });
+  t.after(() => manager.close());
   const first = manager.reload();
   const repeated = manager.reload();
   assert.equal(first, repeated);
-  await turn();
+  let settled = false;
+  void first.then(() => {
+    settled = true;
+  });
+  await entered[0]!.promise;
   assert.equal(calls, 1);
   gates[0]!.resolve(f.resources('one'));
-  await first;
-  await turn();
+  await entered[1]!.promise;
   assert.equal(calls, 2);
+  assert.equal(settled, false, 'The caller must not observe success while its queued reload runs.');
+  assert.equal(manager.available, false);
+  assert(!f.events.includes('ready'), 'Intermediate generations must not announce readiness.');
   gates[1]!.resolve(f.resources('two'));
-  await turn();
+  assert.deepEqual(await first, { reloaded: true });
+  assert.deepEqual(await repeated, { reloaded: true });
   assert.equal(manager.available, true);
   assert.equal(manager.current.generation, 2);
+  assert.equal(f.events.filter((event) => event === 'ready').length, 1);
   assert.deepEqual(f.closes, ['initial', 'one']);
   await manager.close();
+  assert.deepEqual(f.closes, ['initial', 'one', 'two']);
 });
 void test('shutdown during preparation is terminal and disposes a replacement that arrives late', async () => {
   const f = fixture();
@@ -111,6 +122,55 @@ void test('shutdown during preparation is terminal and disposes a replacement th
   assert.equal(manager.available, false);
   assert.equal(manager.stopped, true);
   assert(!f.events.includes('ready'));
+});
+void test('queued reload callers observe final failure or shutdown without intermediate readiness', async (t) => {
+  for (const outcome of ['failure', 'shutdown'])
+    await t.test(outcome, async (t) => {
+      const f = fixture();
+      const gates = [deferred<void>(), deferred<void>()];
+      const entered = [deferred<void>(), deferred<void>()];
+      const lateDisposed = deferred<void>();
+      let calls = 0;
+      const manager = new SessionResources(f.resources('initial'), f.ports, async () => {
+        const index = calls++;
+        entered[index]!.resolve();
+        await gates[index]!.promise;
+        if (index === 1 && outcome === 'failure') throw new Error('Invalid replacement.');
+        return index === 0
+          ? f.resources('one')
+          : {
+              config: f.config,
+              dispose: () => {
+                f.closes.push('late');
+                lateDisposed.resolve();
+                return Promise.resolve();
+              },
+            };
+      });
+      t.after(() => manager.close());
+      const first = manager.reload();
+      const repeated = manager.reload();
+      await entered[0]!.promise;
+      gates[0]!.resolve();
+      await entered[1]!.promise;
+      assert.equal(manager.available, false);
+      assert(!f.events.includes('ready'));
+      if (outcome === 'shutdown') await manager.close();
+      else gates[1]!.resolve();
+      assert.deepEqual(await first, { reloaded: false });
+      assert.deepEqual(await repeated, { reloaded: false });
+      assert.equal(manager.available, false);
+      assert(!f.events.includes('ready'));
+      if (outcome === 'shutdown') {
+        gates[1]!.resolve();
+        await lateDisposed.promise;
+        assert.deepEqual(f.closes, ['initial', 'one', 'late']);
+      } else {
+        await manager.close();
+        assert.deepEqual(f.closes, ['initial', 'one']);
+      }
+      assert.equal(calls, 2);
+    });
 });
 void test('activation failure closes the committed candidate and cannot restore retired resources', async () => {
   const f = fixture();

@@ -348,6 +348,11 @@ The server advertises quick fixes only when the client supplies `workspace.apply
 cannot submit replacement text or URIs through that command. At execution, the server rechecks the
 validated workspace generation and every open buffer's version and digest.
 
+Overlapping configuration reloads share one completion response that waits for queued replacements.
+Intermediate generations do not announce readiness or resume validation.
+While configuration is unavailable, a well-formed repair command returns `stale` without dispatching an edit.
+Unknown commands and malformed arguments still return `invalid_request`.
+
 It also rechecks target edit ranges, source fingerprints, profile byte limits, and observation
 freshness. Save/watch, edit, close/reopen, rename/delete and other validation-triggering events
 invalidate previous tokens, including when a buffer version is reused. Tokens expire within 60

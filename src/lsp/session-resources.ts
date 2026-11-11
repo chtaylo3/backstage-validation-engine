@@ -224,85 +224,92 @@ export class SessionResources {
       this.again = true;
       return this.reloading;
     }
+    this.reloading = (async () => {
+      let result: { reloaded: boolean };
+      do {
+        this.again = false;
+        result = await this.replace();
+      } while (this.again && !this.terminal && !this.failed);
+      return result;
+    })().finally(() => {
+      this.reloading = undefined;
+    });
+    return this.reloading;
+  }
+  private async replace(): Promise<{ reloaded: boolean }> {
     this.usable = false;
     this.active.refresh?.suspend();
     this.ports.invalidate();
     this.active.operations.cancel();
     const pausing = this.ports.pause();
-    this.reloading = (async () => {
-      let replacement: LspServerResources | undefined;
-      let candidate: SessionGeneration | undefined;
-      let activated = false;
-      try {
-        replacement = await abortable<LspServerResources>(
-          Promise.resolve().then(() => this.load!()),
-          this.shutdown.signal,
-          (late) => {
-            void this.disposeAbandoned(late);
-          },
-        );
-        const previous = this.active;
-        const config = replacement.config;
-        if (
-          config.source.rootUri !== previous.config.source.rootUri ||
-          !!config.filesystem !== !!previous.config.filesystem ||
-          (!config.filesystem &&
-            JSON.stringify(config.source.files.map((file) => file.uri).sort()) !==
-              JSON.stringify(previous.config.source.files.map((file) => file.uri).sort()))
-        )
-          throw new Error('The client must reconnect after a source scope change.');
-        this.sequence++;
-        candidate = this.createGeneration(replacement);
-        this.prepared = candidate;
-        replacement = undefined;
-        await bounded(pausing, this.closeMs);
-        await previous.close().catch(() => {
-          this.failed = true;
-          throw new Error('Retired resource cleanup failed.');
-        });
-        if (this.terminal || this.failed) return { reloaded: false };
-        // No asynchronous work can observe half of this activation while requests are unavailable.
-        this.active = candidate;
-        this.prepared = undefined;
-        this.ports.commit(candidate);
-        await this.ports.activated(candidate);
-        if (this.terminal || this.failed) return { reloaded: false };
+    let replacement: LspServerResources | undefined;
+    let candidate: SessionGeneration | undefined;
+    let activated = false;
+    try {
+      replacement = await abortable<LspServerResources>(
+        Promise.resolve().then(() => this.load!()),
+        this.shutdown.signal,
+        (late) => {
+          void this.disposeAbandoned(late);
+        },
+      );
+      const previous = this.active;
+      const config = replacement.config;
+      if (
+        config.source.rootUri !== previous.config.source.rootUri ||
+        !!config.filesystem !== !!previous.config.filesystem ||
+        (!config.filesystem &&
+          JSON.stringify(config.source.files.map((file) => file.uri).sort()) !==
+            JSON.stringify(previous.config.source.files.map((file) => file.uri).sort()))
+      )
+        throw new Error('The client must reconnect after a source scope change.');
+      this.sequence++;
+      candidate = this.createGeneration(replacement);
+      this.prepared = candidate;
+      replacement = undefined;
+      await bounded(pausing, this.closeMs);
+      await previous.close().catch(() => {
+        this.failed = true;
+        throw new Error('Retired resource cleanup failed.');
+      });
+      if (this.terminal || this.failed) return { reloaded: false };
+      // No asynchronous work can observe half of this activation while requests are unavailable.
+      this.active = candidate;
+      this.prepared = undefined;
+      this.ports.commit(candidate);
+      await this.ports.activated(candidate);
+      if (this.terminal || this.failed) return { reloaded: false };
+      // A watcher can queue another pass while the explicit reload prepares.
+      // Only the final generation is ready for requests and validation.
+      if (!this.again) {
         this.usable = true;
         this.ports.resume();
         this.ports.ready();
-        candidate = undefined;
-        activated = true;
-        return { reloaded: true };
-      } catch {
-        this.usable = false;
-        return { reloaded: false };
-      } finally {
-        if (this.prepared === candidate) this.prepared = undefined;
-        if (candidate)
-          await candidate.close().catch(() => {
+      }
+      candidate = undefined;
+      activated = true;
+      return { reloaded: true };
+    } catch {
+      this.usable = false;
+      return { reloaded: false };
+    } finally {
+      if (this.prepared === candidate) this.prepared = undefined;
+      if (candidate)
+        await candidate.close().catch(() => {
+          this.failed = true;
+        });
+      if (replacement) await this.disposeAbandoned(replacement);
+      if (!this.terminal) {
+        if (!activated) {
+          try {
+            this.ports.invalidate();
+            this.ports.resume();
+          } catch {
             this.failed = true;
-          });
-        if (replacement) await this.disposeAbandoned(replacement);
-        this.reloading = undefined;
-        if (!this.terminal) {
-          if (!activated) {
-            try {
-              this.ports.invalidate();
-              this.ports.resume();
-            } catch {
-              this.failed = true;
-            }
-          }
-          if (this.again) {
-            this.again = false;
-            queueMicrotask(() => {
-              void this.reload();
-            });
           }
         }
       }
-    })();
-    return this.reloading;
+    }
   }
   private async disposeAbandoned(resources: LspServerResources): Promise<void> {
     await bounded(
