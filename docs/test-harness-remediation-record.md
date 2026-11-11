@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 through H3 are accepted. H4 awaits parent review. H5 and H6 wait for their preceding gates. Additional N1 remains open.
+Status: H1 through H4 are accepted. H5 awaits parent review. H6 remains unassigned. Additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -36,15 +36,15 @@ No complete H1 finding closes through these baseline corrections.
 
 ## Package state
 
-| Package | Agent state  | Parent decision | Required next evidence                                   |
-| ------- | ------------ | --------------- | -------------------------------------------------------- |
-| H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
-| H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
-| H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.         |
-| H4      | Implemented  | Pending         | Focused actual-backend and catalog evidence              |
-| H5      | Admitted     | Pending         | Focused installed editor evidence and measurement policy |
-| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
-| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
+| Package | Agent state  | Parent decision | Required next evidence                                                                |
+| ------- | ------------ | --------------- | ------------------------------------------------------------------------------------- |
+| H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below                                        |
+| H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below                                        |
+| H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.                                      |
+| H4      | Complete     | Accepted        | Scoped backend evidence and limitations recorded below                                |
+| H5      | Complete     | Pending         | Parent review of desktop evidence. R4-F10 retains a Partial native Trust disposition. |
+| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation                               |
+| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification                              |
 
 ## Required record for each package
 
@@ -1027,3 +1027,112 @@ The package harness uses the packaged runtime and packaged CLI/LSP entry points.
 H5 is admitted next from the local parent acceptance commit on `feature/test-harness-remediation`.
 H6 waits for H5 acceptance. H7 remains deferred, and additional N1 remains open beyond the original 86 findings.
 This decision authorizes no push, PR, publication, merge, hosted run, or release-wide client qualification.
+
+## H5: installed editor outcomes and measurement policy
+
+Agent disposition: complete for the admitted desktop scope. Parent decision: pending.
+Qualified source/test revision: `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
+H6 remains unassigned. H7 remains deferred. This handoff does not grant parent acceptance.
+R4-F10 remains Partial because its strengthened native Trust assertions are UNEXECUTED and parent-unaccepted.
+That qualification remains within the existing H7 Trust deferral. It does not expand H7.
+
+The client now completes search commands after picker dismissal and accepted asynchronous work.
+Startup failures expose fixed sanitized reasons. Stop exposes a fixed output message.
+The bounded, opt-in filesystem observation proves admitted notification receipt without provider or filesystem reads.
+The [LSP guide](lsp.md#host-observation-of-admitted-filesystem-events) defines its approval, lifecycle, reset, and payload limits.
+Public validation 0.2 fields, capability ownership, credentials, engine limits, and numeric performance caps remain unchanged.
+
+### Exact qualification and scope
+
+The clean source/client gate passes 1,341 source tests and 45 client coverage tests.
+The exact-stamped VSIX then passes all 1,341 packaged tests. These gates run serially.
+All have zero failures, cancellations, skips, or todos. Coverage thresholds remain unchanged.
+Client coverage is 99.79% lines, 95.87% branches, and 98.25% functions.
+
+VSIX SHA-256: `5d06602358da7d507cbae6df26606f6090fd14c49d0efbcfb3c90f3d2c912945`.
+The artifact contains 5,079 entries and 52,088,729 bytes. It targets Linux x64.
+Its packaged Node 24.22.1 SHA-256 is `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb`.
+Build command: `GITHUB_SHA=5ca82fbf4457553ab4c8e0b7b2bb915485e9083a npm run extension:package`.
+The final package build uses an entirely clean qualification checkout.
+
+The focused inventory selects 30 of 58 installed modules on each VS Code version, 1.106.3 and 1.145.2.
+All 60 selected combinations receive passing observations across 62 executions.
+The initial run passes 58 and fails two with native X connection errors.
+Only those two cases repeat on an owned Xvfb display. Both pass with unchanged source, artifact, assertions, and budgets.
+The original failed rows remain failed. The scoped verdict records every attempt and its attribution.
+The 28 unselected modules per version receive no installed qualification claim.
+`qualification/installed-selection.json` lists every selected and unexecuted ID.
+
+The final fault run rejects all 23 isolated faulty VSIX variants at intended assertions across 33 negative case executions.
+It uses VS Code 1.145.2 on Linux x64. No accepted fault result depends on a launch failure or timeout.
+The normal cases also exercise valid and invalid inputs on both editor versions.
+The parent separately repeats five cases on 1.106.3, all passing, and confirms owned process cleanup.
+These focused observations do not establish another platform, whole-inventory release, remote, JetBrains, Trust reliability, or long-workload qualification.
+
+### Finding dispositions
+
+Ready means implemented and verified in the stated scope, awaiting parent review.
+The finding register remains the frozen assessment baseline.
+
+| Finding | Agent disposition | Observable result and independent control                                                                                                                                                                                                                               |
+| ------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R4-F1   | Ready             | `performance-budget` completes a deliberately delayed real request above 20 seconds, below 60 seconds, then rejects its budget. Controlled-time pending and cancelled attempts share one deadline.                                                                      |
+| R4-F2   | Ready             | Exactly ten warmup operations precede each resource window. Four retained RSS/handle leaks inside the old discarded quarter now fail. Short native runs claim no slope.                                                                                                 |
+| R4-F3   | Ready             | Ten configuration modes show their exact sanitized reason, then recover through installed Restart. Collapsed-reason variants fail all ten assertions.                                                                                                                   |
+| R4-F4   | Ready             | Unapproved open precedes an approved current-version publication and same-PID control. Complete wire history rejects persistent and transient admission leaks.                                                                                                          |
+| R4-F5   | Ready             | Exact native watcher receipt precedes completed coverage with unchanged dirty version/digest. Dropped-event and transient wrong-publication variants fail.                                                                                                              |
+| R4-F6   | Ready             | Native cancellation and stale selection await command completion. Early completion and stale insertion variants fail.                                                                                                                                                   |
+| R4-F8   | Ready             | Actual stop/crash exposes expected output, clears diagnostics, and produces no later-edit findings. Message-loss variants fail.                                                                                                                                         |
+| R4-F9   | Ready             | Actual trusted policy changes suggestions with the same PID. Correlated explicit reload request/reply is required. No-op and false-reply/later-true variants fail.                                                                                                      |
+| R4-F10  | Partial           | Desktop watcher/fix/close/two-window/coexistence controls retain same-server positive observations. Native Trust assertions are strengthened but UNEXECUTED and parent-unaccepted until existing H7 work.                                                               |
+| R4-F11  | Ready             | A buffer one byte above the unchanged file cap must publish incomplete. Whole-document Quick Fix requests find no guarded actions. Action-offer and missing-bound variants fail before valid recovery.                                                                  |
+| R4-U1   | Ready             | No-editor selection writes the real clipboard. Fresh normal-workbench activation restores eligible completion ranking. Missing history replay fails. Native QuickPick display ordering is not claimed.                                                                  |
+| R4-U2   | Ready             | Actual hover includes the required value. Unique definition succeeds and duplicate targets return empty. Missing constraint and arbitrary-definition variants fail.                                                                                                     |
+| R4-U3   | Ready             | Unique valid fixtures prove include/exclude, depth bound, failed reload, and recovery. Exclusion/depth bypass variants fail. Whole-document absence requests cover the repair surface.                                                                                  |
+| R4-U4   | Ready             | Actual token-file rotation gives authenticated denial/recovery with unchanged text/version and same PID. Old repair fails. Fresh repair changes exactly one scalar. Generation bypass performs an actual forbidden edit and fails. Permanent repair refusal also fails. |
+| R4-U5   | Ready             | Installed `owner-exists` dependency Warning and `production-only` policy Error have exact rule/category controls. Wrong severity fails.                                                                                                                                 |
+
+### Acceptance mapping
+
+Every criterion below awaits the parent's decision. Each pass refers only to the admitted desktop scope.
+
+| Criterion | Agent evidence                                                                                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H5-A1     | Both-pin configuration cases and ten collapsed-reason negative controls.                                                                                                                 |
+| H5-A2     | Approved publication barriers, bounded full wire histories, exact watcher receipt, completed coverage, and same-PID/live positives.                                                      |
+| H5-A3     | Installed changed-policy reload with correlated successful reply, manual crash recovery, and stopped-edit/output/diagnostic controls.                                                    |
+| H5-A4     | Deterministic byte admission, current-version incomplete, full-document guarded-action absence, old-token rejection, and valid repair recovery.                                          |
+| H5-A5     | All five supplemental gaps have installed positive and negative observations. Targeted faulty variants reject each gap.                                                                  |
+| H5-A6     | Parent-approved provisional policy precedes window changes. Actual delayed completion exceeds the unchanged budget before observation expiry.                                            |
+| H5-A7     | Generated host verdict accepts four actual short-load reports and rejects retained-leak/insufficient-slope controls. Parent independently repeats 19 metric and three deadline controls. |
+| H5-A8     | Both pinned editors provide passing observations for all 60 selected combinations on Linux x64, with exact artifact and attempt attribution.                                             |
+
+### Measurement and evidence
+
+The [qualification guide](vscode-qualification.md#h5-provisional-measurement-policy) defines inclusive budgets, nearest-rank p95, sample counts, and included windows.
+No numeric cap increases. The extra discarded quarter is removed.
+Each of four short loads records 60 edits, 60 completions, two restarts, and 22 resource samples.
+The independent host verdict accepts all four. No native process window spans 100 measured operations.
+The current observations do not qualify a slope, long endurance, or a responsiveness service-level agreement.
+
+All retained evidence is under `.artifacts/harness-remediation/H5`.
+`qualification/manifest.json` binds exact inputs, complete inventories, 64 passing client runtime records, server PIDs, controls, raw traces, and parsed windows.
+`qualification/scoped-installed-verdict.json` preserves the 62-execution attribution.
+`qualification/fault-controls` retains every final faulty archive, mutation count, child report, and intended assertion.
+`qualification/metric-verdict.json` binds the four raw measurements to the generated host verifier.
+`qualification/commands.json` names the sequence and selectors. The clean qualification checkout and final candidate remain retained.
+Primary standard VS Code artifacts remain development inputs. Use the final candidate and qualified checkout named by the manifest.
+
+Earlier development failures remain retained and receive no qualification claim.
+They include hover escaping, test-mode in-memory history, a normal-workbench save prompt, duplicate fixture identities, and pre-watch publication ordering.
+An ineffective one-layer admission mutant remained blocked by independent guards. It is not counted as detection.
+The preliminary 4ac matrix passes 59/60. Its older editor already publishes incomplete while the unsupported exact-leaf notification barrier waits.
+Directory notifications and automatic reload overlap there, so no exclusive causality or missed-capture claim follows.
+The final depth control uses an exact approved-file rescan hint after full subtree creation.
+A preliminary cache alias appears untracked. The final candidate rebuild follows its correction and has clean inputs.
+
+The private Xvfb wrapper, socket, lock, and descriptor are removed. The shared display is unchanged.
+The original review retains SHA-256 `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
+The root lock retains SHA-256 `dbd025198eb555e06edf78f0c8f420eef786c445a9eaf01b488ea34ec4669b8b`.
+Additional N1 remains OPEN beyond the original 86 findings. Duplicate CEL map literals still retain the last value in both pinned engines.
+H6 must carry N1 and the Partial native Trust disposition. Neither is fixed, waived, or added as a new H7 scope item.

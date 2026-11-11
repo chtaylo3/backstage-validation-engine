@@ -109,3 +109,16 @@ The account links the package record and identifies all unresolved requirements.
 Every closed finding must have a criterion, an independent expected result, a negative control where applicable, and executed evidence.
 Clarifications require a reviewed disposition rather than invented implementation work.
 H7 remains deferred until separately authorized by the user.
+
+## H5 handoff for parent review
+
+Qualified source/test revision: `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
+The [H5 record](test-harness-remediation-record.md#h5-installed-editor-outcomes-and-measurement-policy) maps all 15 findings and eight criteria.
+Evidence manifest: `.artifacts/harness-remediation/H5/qualification/manifest.json`.
+The final VSIX SHA-256 is `5d06602358da7d507cbae6df26606f6090fd14c49d0efbcfb3c90f3d2c912945`.
+The primary standard VS Code artifacts remain development inputs. The manifest identifies the retained exact candidate and clean checkout.
+
+H5 awaits parent acceptance. H6 remains unassigned.
+R4-F10 is Partial for strengthened but UNEXECUTED, parent-unaccepted native Trust assertions under the existing H7 deferral.
+Additional N1 remains OPEN beyond the original 86 findings. H6 must preserve both dispositions.
+H7 remains deferred and is not expanded. No push, PR, publication, or merge occurs through this handoff.

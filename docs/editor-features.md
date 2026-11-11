@@ -48,7 +48,8 @@ The server rechecks the workspace generation, source contents, versions, expiry,
 Repairs affect one open document. Standard client-edit limitations after dispatch still apply.
 
 In VS Code, run `Backstage Validation: Search Entity References` and enter a prefix such as `group:default/te`.
-Workspace results appear first. Fresh catalog results follow. Remote search requires two name characters.
+The server returns workspace results before fresh catalog results. VS Code can reorder filtered picker rows.
+Remote search requires two name characters.
 Search retains the existing trusted connection, authorization, freshness, cancellation, limits, and local identity masks.
 Selection replaces the captured editor selection if the document still matches.
 With no editor, selection copies the reference. A changed document receives no insertion.

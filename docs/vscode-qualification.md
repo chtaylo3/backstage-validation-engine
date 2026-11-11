@@ -15,6 +15,7 @@ Every measured latency operation is included. The harness does not discard laten
 Each focused load requires at least 60 paired edit and completion observations and two restart observations.
 Cold readiness has one observation per editor launch. It has no percentile claim.
 
+Resident set size (RSS) measures memory held in RAM.
 Resource samples exclude exactly the first ten operations from each process generation's observed origin.
 The client remains one generation across server restarts. Server measurements use separate PID generations.
 At least three samples after warmup are required for a measured generation.
@@ -24,6 +25,22 @@ The least-squares RSS slope uses every included sample and permits at most 0.15 
 A slope requires at least three included samples spanning at least 100 operations within one process generation.
 Short focused workloads measure endpoint growth only. They do not qualify that slope or the deferred long workloads.
 The independent release verdict recomputes these decisions from raw observations and rejects insufficient required windows.
+
+The exact H5 candidate records these short-load observations on Linux x64:
+
+| VS Code | Configured files | Cold ms | Edit p95 ms | Completion p95 ms | Restart p95 ms |
+| ------- | ---------------- | ------- | ----------- | ----------------- | -------------- |
+| 1.106.3 | 100              | 2212    | 187         | 176               | 683            |
+| 1.106.3 | 1000             | 3542    | 1706        | 43                | 2068           |
+| 1.145.2 | 100              | 2225    | 187         | 26                | 676            |
+| 1.145.2 | 1000             | 3909    | 1697        | 43                | 2182           |
+
+Each row contains 60 paired edits/completions, two restarts, and 22 resource samples.
+Included client windows span 45 operations. Server windows span six or nine operations.
+Their largest positive endpoint RSS growth is 4.473 MiB for the client and 52.219 MiB for a server.
+The largest handle growth is two. These observations pass existing provisional caps without changing them.
+They do not justify new caps or qualify a 100-operation slope.
+The [H5 record](test-harness-remediation-record.md#h5-installed-editor-outcomes-and-measurement-policy) binds the exact artifact, raw reports, display rerun attribution, and limits.
 
 Implementation records which features exist. Qualification records which required tests passed for a
 specific candidate. A workflow file, a successful short test of the harness, or a build from another
