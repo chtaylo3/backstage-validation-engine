@@ -457,8 +457,8 @@ before calendar commitments.
 
 ## Test harness remediation through H6
 
-The user approved H1 through H6 on 2026-11-10. The parent accepted H1 through H5 within their recorded scopes.
-H6 implements independent evidence controls, exact-revision workflow guards, versioned inventories, and corrected scope documentation. Parent review remains pending.
+The user approved H1 through H6 on 2026-11-10. The parent accepted all six packages within their recorded scopes.
+H6 implements accepted independent evidence controls, exact-revision workflow guards, versioned inventories, and corrected scope documentation.
 The [remediation record](test-harness-remediation-record.md#h6-evidence-inventories-and-documentation) binds each finding, criterion, candidate, and gate.
 Its current disposition table accounts for all 86 original findings without changing the frozen register.
 
@@ -478,4 +478,4 @@ Screenshots are OPTIONAL DIAGNOSTICS. Required native Trust state and UI asserti
 The final H6 source/test candidate is `34680c887e13abe8c45453e6753f2c5212040225`.
 Its clean serial gates pass 1,377 source tests, 45 client tests, and 1,377 packaged tests without failures or skips.
 The exact Linux package and independent fault evidence are bound in the [H6 qualification record](test-harness-remediation-record.md#final-committed-qualification).
-H6 parent acceptance remains pending. These gates do not extend installed-client, backend, or endurance qualification.
+The parent accepted H6 on 2026-11-11. These gates do not extend installed-client, backend, or endurance qualification.

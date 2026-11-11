@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 through H5 are accepted within their recorded scope. H6 is implemented and awaits parent review. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
+Status: H1 through H6 are accepted within their recorded scope. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -43,7 +43,7 @@ No complete H1 finding closes through these baseline corrections.
 | H3      | Complete    | Accepted        | Scoped evidence recorded below. N1 remains open.                           |
 | H4      | Complete    | Accepted        | Scoped backend evidence and limitations recorded below                     |
 | H5      | Complete    | Accepted        | Desktop scope accepted. R4-F10 retains a Partial native Trust disposition. |
-| H6      | Complete    | Pending         | Evidence, inventory, and scope reconciliation recorded below               |
+| H6      | Complete    | Accepted        | Evidence, inventory, and scope reconciliation accepted below               |
 | H7      | Deferred    | Not admitted    | Separate authorization and final-candidate qualification                   |
 
 ## Required record for each package
@@ -1195,7 +1195,7 @@ This decision authorizes no push, PR, publication, merge, hosted workflow dispat
 
 ## H6 evidence inventories and documentation
 
-Agent disposition: implemented. Parent acceptance remains pending. H7 remains deferred.
+Agent disposition: complete. Parent acceptance: accepted on 2026-11-11 within the recorded scope. H7 remains deferred.
 Baseline: `17cf56a27ed860baef1126caa86820bdfbf93420` on `feature/test-harness-remediation`.
 The 2026-11-10 approval admits H6 after parent acceptance of H5 on 2026-11-11.
 This phase changes harness controls and evidence documentation. It preserves public validation 0.2 and production request budgets.
@@ -1204,7 +1204,7 @@ Final documentation changes only record the completed gates and correct one date
 
 ### Finding and criterion mapping
 
-These are H6 agent results. Parent acceptance remains pending for each row.
+These H6 results receive parent acceptance in the decision below.
 The seven findings retain their frozen register ownership and amendments.
 Each criterion maps to the actual control and its evidence boundary.
 
@@ -1276,98 +1276,98 @@ H6 source/client/package gates establish no new cross-platform, installed, actua
 ### Current disposition of the original 86 findings
 
 This table reconciles evidence without changing the frozen register.
-Accepted and Clarified states refer to the parent's earlier phase decisions and their recorded limits.
-H6 findings remain ready for parent review. H7 findings remain deferred and open.
+Accepted and Clarified states refer to the recorded parent decisions and their scope limits.
+H6 findings receive parent acceptance below. H7 findings remain deferred and open.
 R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
 
-| Finding | Owner | Current disposition   | Evidence or unresolved boundary                                                                                                                |
-| ------- | ----- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| R4-F13  | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F1   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F2   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F3   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F4   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F5   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F6   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R5-F9   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
-| R3-F1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F5   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F6   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F7   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F8   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F9   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F10  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F11  | H2    | Clarified             | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
-| R3-F12  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F13  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F14  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F15  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-F16  | H2    | Clarified             | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
-| R3-H1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-H2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-H3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-H4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U5   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U6   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U7   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U8   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R3-U9   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
-| R1-F1   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F2   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F3   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F4   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F5   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F6   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F7   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F8   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F9   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F10  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F11  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F12  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R1-F13  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
-| R2-F1   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F2   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F3   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F4   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F5   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F7   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F8   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F9   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R2-F10  | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R5-F7   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R5-F8   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R5-F10  | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
-| R4-F1   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F2   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F3   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F4   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F5   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F6   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F8   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F9   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-F10  | H5    | Partial               | [H5 desktop scope accepted](#h5-installed-editor-outcomes-and-measurement-policy). Native Trust follow-up is UNEXECUTED and parent-unaccepted. |
-| R4-F11  | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-U1   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-U2   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-U3   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-U4   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R4-U5   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
-| R2-F6   | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R2-F11  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R4-F14  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R4-F15  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R5-F11  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R5-F12  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R5-F13  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
-| R4-F7   | H7    | Deferred, Open        | H7 not admitted. Abrupt remote transport loss remains open.                                                                                    |
-| R4-F12  | H7    | Deferred, Open        | H7 not admitted. Late restricted/virtual activation controls remain open.                                                                      |
+| Finding | Owner | Current disposition | Evidence or unresolved boundary                                                                                                                |
+| ------- | ----- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| R4-F13  | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F1   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F2   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F3   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F4   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F5   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F6   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F9   | H1    | Accepted            | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R3-F1   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F2   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F3   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F4   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F5   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F6   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F7   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F8   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F9   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F10  | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F11  | H2    | Clarified           | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
+| R3-F12  | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F13  | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F14  | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F15  | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F16  | H2    | Clarified           | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
+| R3-H1   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H2   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H3   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H4   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U1   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U2   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U3   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U4   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U5   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U6   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U7   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U8   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U9   | H2    | Accepted            | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R1-F1   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F2   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F3   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F4   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F5   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F6   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F7   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F8   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F9   | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F10  | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F11  | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F12  | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F13  | H3    | Accepted            | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R2-F1   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F2   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F3   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F4   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F5   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F7   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F8   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F9   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F10  | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F7   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F8   | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F10  | H4    | Accepted            | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R4-F1   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F2   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F3   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F4   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F5   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F6   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F8   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F9   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F10  | H5    | Partial             | [H5 desktop scope accepted](#h5-installed-editor-outcomes-and-measurement-policy). Native Trust follow-up is UNEXECUTED and parent-unaccepted. |
+| R4-F11  | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U1   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U2   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U3   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U4   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U5   | H5    | Accepted            | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R2-F6   | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R2-F11  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R4-F14  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R4-F15  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R5-F11  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R5-F12  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R5-F13  | H6    | Accepted            | [H6 parent acceptance](#h6-parent-acceptance) within recorded scope                                                                            |
+| R4-F7   | H7    | Deferred, Open      | H7 not admitted. Abrupt remote transport loss remains open.                                                                                    |
+| R4-F12  | H7    | Deferred, Open      | H7 not admitted. Late restricted/virtual activation controls remain open.                                                                      |
 
 Additional N1 remains OPEN beyond these 86 findings. Both pinned CEL implementations retain the last duplicate map key despite the language-defined error.
 N1 is not fixed, waived, or added to supported conformance vectors. It does not expand H7.
@@ -1414,7 +1414,7 @@ The earlier compile attempt rejected an optional-regexp assertion overload. The 
 The first targeted inventory attempt used `dirty-watch` instead of actual `race-dirty-watch`. Both failed and corrected attempts remain identified above.
 No final gate needs a rerun, assertion weakening, budget increase, or skipped case.
 
-### Independent parent inspection awaiting acceptance
+### Independent parent inspection before acceptance
 
 The parent independently repeats 26 positive controls, applies ten faults, and restores all 26 positives.
 Every fault fails its intended assertion. Fresh independent compilation matches all three executed control files byte for byte.
@@ -1431,6 +1431,42 @@ It inspects local links across the affected guides. These inspections do not acc
 All 5,079 archive entries are compared with qualified H5. Production code, runtime, and dependency inventories are identical.
 Only the build revision and server SBOM UUID/timestamp differ. This comparison does not promote older native/backend evidence to H6 qualification.
 
-Parent H6 acceptance remains pending. R4-F10 remains Partial, R4-F7/R4-F12 remain deferred, and N1 remains OPEN.
+The following parent decision accepts H6. R4-F10 remains Partial, R4-F7/R4-F12 remain deferred, and N1 remains OPEN.
 No hosted workflow, native Trust/H7 test, actual-backend rerun, publication, push, PR, or merge occurs.
 The agent stops after this documentation handoff and waits for the parent decision.
+
+### H6 parent acceptance
+
+Parent decision: accepted on 2026-11-11 for all seven assigned findings and all six H6 criteria.
+Qualified source/test revision: `34680c887e13abe8c45453e6753f2c5212040225`.
+Documentation-only handoff: `894aa38614865c5a612cf4ae6a790713bf2e6113`.
+The parent inspects the actual constructor, selector, verifier, workflow, and screenshot boundaries before accepting this phase.
+
+| Criterion | Independent parent evidence                                                                                                                                                                                                                                          | Decision |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| H6-A1     | Recomputed golden input hashes without the application loader. Actual compiled controls reject a loader omission and disabled editor/driver guards. Twelve independent report mutations fail, and two weakened guards admit the same invalid inputs.                 | Accepted |
+| H6-A2     | Actual static controls reject changed upload conditions, workflow revision binding, immutable pins, upload paths, and default approval. Reviewed the manual caller, CLI dependency, and unchanged runtime HEAD checks. No hosted workflow runs.                      | Accepted |
+| H6-A3     | Ran the inventory command at the frozen source. Independently checked 58/50 installed counts and 47/59/118 Backstage counts. Nine fixed-literal controls cover compiled filenames and bare IDs. Historical execution scopes remain distinct.                         | Accepted |
+| H6-A4     | Repeated actual signed fixture construction and inspected phase/session report wiring. Shortened trust age binds expiry. A faulty authority projection fails. Earlier reports survive later construction, and retained evidence excludes private authority material. | Accepted |
+| H6-A5     | Repeated optional screenshot failure and independent required action failure. A faulty workbench that hides action errors fails the control. No PNG integrity, complete screenshot inventory, or native Trust execution claim follows.                               | Accepted |
+| H6-A6     | Matched all 86 original findings to their unchanged exclusive owners and explicit current dispositions. Resolved the affected local links and retained the original review hash. N1 and every deferred boundary remain explicit.                                     | Accepted |
+
+The independent run passes 26 controls, detects ten deliberately faulty variants, and passes all 26 after restoration.
+Fresh independent compilation reproduces the three executed control files byte for byte.
+The agent's eleven fault controls remain separately attributed because the sets overlap.
+`parent/isolated-controls/report.json`, `parent/compiled-controls-review.json`, and the separate selector/verdict reviews retain this evidence.
+
+The parent inspects all final inventories: 1,377 source, 45 client, and 1,377 packaged tests pass.
+All report zero failures, cancellations, skips, and todos. LCOV data independently reproduces the stated client coverage.
+`parent/final-gates-review.json` binds those inventories, the manifest, and the packaged runtime hash.
+The exact VSIX SHA-256 is `78c9d84d3eeb04d643cb10b83519c3b439665908e53c9967b79e295f7f3155cb`.
+All 5,079 entries match qualified H5 production bytes except the revision stamp and server SBOM UUID/timestamp.
+An initial parent comparison expected only the stamp change. The corrected inspection proves those two SBOM metadata fields are its only differences.
+This artifact comparison does not transfer older native or backend qualification to H6.
+
+The current original-finding totals are 81 Accepted, two Clarified, one Partial, and two Deferred/Open.
+R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
+R4-F7 and R4-F12 remain deferred. Additional N1 remains OPEN outside the original 86 findings.
+H1 through H6 are complete within their recorded scope. No approved implementation phase remains unassigned.
+H7 does not start automatically and still requires separate authorization.
+No push, PR, publication, merge, hosted workflow dispatch, or final release qualification occurs through this decision.

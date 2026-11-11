@@ -1,6 +1,6 @@
 # Test harness remediation agent handoff
 
-Status: approved for H1 through H6, one package at a time. H7 remains deferred.
+Status: H1 through H6 are implemented and parent-accepted within their recorded scope. H7 remains deferred.
 The user approved proceeding on 2026-11-10 under the [remediation plan](test-harness-remediation-plan.md).
 The [finding register](test-harness-remediation-findings.md) defines the amended acceptance work.
 The [implementation record](test-harness-remediation-record.md) records execution and parent decisions.
@@ -125,7 +125,7 @@ H7 remains deferred and is not expanded. No push, PR, publication, or merge occu
 
 ## H6 handoff for parent review
 
-H6 implements the seven assigned evidence and documentation findings. Parent acceptance remains pending.
+The parent accepts all seven H6 evidence and documentation findings within the recorded scope.
 The [H6 record](test-harness-remediation-record.md#h6-evidence-inventories-and-documentation) maps all seven findings and all six criteria.
 It reconciles the original 86 findings with parent decisions and explicit unresolved dispositions.
 Independent inventory expectations detect an isolated loader omission. Synthetic verifier controls do not count as release execution.
@@ -146,4 +146,4 @@ It contains 5,079 entries and 52,088,726 bytes. Node 24.22.1 and existing covera
 Evidence manifest: `.artifacts/harness-remediation/H6/qualification/manifest.json`.
 Agent faults: `mutations/summary.json`. Independent parent outcomes: `parent/isolated-controls/report.json` and the separate selector/verdict/artifact reviews.
 The [H6 record](test-harness-remediation-record.md#final-committed-qualification) supplies commands, counts, failed development attempts, per-finding mappings, and limits.
-Parent acceptance remains pending. Stop here before H7.
+The parent accepts H6. H1 through H6 are complete within their recorded scope. Stop here before H7.

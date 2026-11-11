@@ -1,6 +1,6 @@
 # Test harness remediation plan
 
-Status: approved for sequential implementation of H1 through H6. H7 remains deferred.
+Status: H1 through H6 are implemented and parent-accepted within their recorded scope. H7 remains deferred.
 Plan and approval date: 2026-11-10.
 Original assessment revision: `865a68e7fe2aa9c55f991f345ab4c6dea293907e`.
 Implementation baseline: `38085eed9e2a77ebe50b414a23aaf21c6004c199`, merged [PR #3](https://github.com/chtaylo3/backstage-validation-engine/pull/3) on `master`.
@@ -57,7 +57,7 @@ This finding does not expand H7 or authorize an additional language-semantics ch
 | H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Accepted |
 | H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Accepted |
 | H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Accepted |
-| H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Admitted |
+| H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Accepted |
 | H7      | Final client, transport, and endurance qualification               | Separate authorization and accepted H1 through H6 | Deferred |
 
 Package ownership is exhaustive and exclusive in the register.
