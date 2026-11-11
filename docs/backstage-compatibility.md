@@ -29,9 +29,9 @@ not match, the loader does not select another version. Backstage modules are not
 unrelated root-library initialization.
 
 The [catalog HTTP harness](testing-harness.md) independently pins wire-contract fixtures for
-Backstage umbrella releases 1.55.3 and 1.56.2. Their recorded backend and model package versions are
-provenance, not additional native-validation adapter support. Real deployed-backend smoke
-qualification remains open.
+Backstage umbrella releases 1.55.3 and 1.56.3. Their recorded backend and model package versions are
+provenance, not additional native-validation adapter support. H4 adds focused actual-backend controls for both releases.
+The [H4 record](test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) states their exact scope and identities.
 
 `adapter.checkEntity(json, execution)` runs the public native `entitySchemaValidator` and the
 selected stock kind validator. The eight-kind fixture corpus compares native acceptance with the
@@ -146,5 +146,16 @@ empty executable inventory.
 The production provider now uses `adapter.resolveReference` and `adapter.entityReference` for pinned
 native parsing/stringification and envelope identity checks. Both package pins and field-specific
 source contexts are tested. [Explicit existence-rule bindings](lsp.md) are implemented alongside the
-thin LSP transport. Positive overlays now use admitted, validated source subjects. Real deployment
-qualification remains open.
+thin LSP transport. Positive overlays now use admitted, validated source subjects. The H4 backend controls cover normal ingestion and the declared graph.
+Broader deployment and deferred client qualification remain open.
+
+## Reviewed backend behavior scope
+
+The [behavior tables](../test/fixtures/backstage-behavior/README.md) retain independent expected results and exact upstream sources.
+They compare substitutions and kind-scoped relation emission on both pinned backend implementations.
+The local snapshot profile keeps its documented restrictions and recursive substitution behavior.
+
+The local reference profile selects owner, system, and provided/consumed API paths across entity kinds.
+This over-approximation concerns kind applicability for those paths. It does not include every backend relation field.
+Group/User membership, dependencies, subcomponent, System-domain, and Domain-parent contexts remain outside the default reference profile.
+Actual seed graph expectations separately include the declared inverse relations and existing System-to-Domain relation.

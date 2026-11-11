@@ -1,7 +1,7 @@
 # Production catalog provider
 
 Implemented 2026-10-29. `createCatalogProvider` is the production HTTP adapter that collects catalog
-observations with resource and time limits. Tests use the pinned Backstage 1.55.3 and 1.56.2
+observations with resource and time limits. Tests use the pinned Backstage 1.55.3 and 1.56.3
 [catalog fixtures](testing-harness.md). The provider supplies data for later reference and rule
 processing. Organization rules decide which references must exist.
 
@@ -119,7 +119,7 @@ npm run test:harness
 ```
 
 The example uses the development fixture token and prints scoped observations, including a missing
-entity, without an enforcement verdict. `npm run check` runs the full checks. Tests cover both real
+entity, without an enforcement verdict. `npm run check` runs the full checks. Tests cover both pinned
 fixture targets and both native helper pins. They exercise binding and cache isolation, expiry,
 stale arrival, retries, cooldowns, redirects, invalid responses, aggregate budgets, deadlines,
 queued cancellation, and shutdown.
@@ -127,8 +127,8 @@ queued cancellation, and shutdown.
 The [reference preparer](source-references.md) now collects data from source contexts, verifies
 provenance and pins an evaluation request under the original deadline.
 [Explicit catalog rules and the stdio LSP](lsp.md) consume those pins without changing the frozen
-CEL environment. Qualified overlays and real-backend authentication/smoke qualification remain
-integration work. The adapter does not negotiate a backend API version. Wire fixtures and native
+CEL environment. H4 adds focused actual-backend authentication and ingestion controls.
+The package record states their exact scope. The adapter does not negotiate a backend API version. Wire fixtures and native
 validation package support remain separate. Full pipeline performance qualification is open.
 
 Local qualification on 2026-10-29: all 31 provider checks passed within the full 356-test
@@ -198,11 +198,36 @@ The provider does not cache search results. The LSP host owns a bounded completi
 its authority. See [freshness and client behavior](lsp.md#responsive-reference-completion).
 
 Both pinned OpenAPI fixtures cover this exact search subset. Arbitrary predicates, general
-projection APIs, backend indexing semantics/performance and actual Backstage authentication/search
-smoke qualification remain outside this evidence.
+projection APIs and backend indexing semantics/performance remain outside this fixture evidence.
+H4 separately proves actual authentication and permission-filtered query absence.
 
 Local qualification on 2026-11-07: the full 813-test check passed with all required
 static/schema/build checks. New search cases cover both pinned contracts, projected pagination,
 scoped visibility, result, page, and byte limits, and cursor cycles. They also cover fixed failure
 codes, shared queue admission, credential bindings, deadlines, cancellation, and shutdown. Existing
 lookup/provider regressions also passed.
+
+## H4 catalog boundary controls
+
+Raw backend by-refs requests preserve the supplied strings. Canonical references find stored entities.
+Shorthand, malformed, whitespace, and case variants return `null` when their strings do not match stored canonical keys.
+The production client canonicalizes references before transport. That client normalization differs from raw endpoint parsing.
+
+A permission-service DENY can hide an existing entity through by-name 404, batch `null`, or an empty query result.
+These results describe the authorized view. They cannot prove global deletion.
+An explicit plugin restriction produces HTTP 403 and remains `permission_denied`, as does HTTP 401.
+The test policy delegates native token restrictions before it denies reads for its separate filtered identity.
+
+Single-entity 404 admission requires JSON content type, valid JSON, error name/message strings, and matching `response.statusCode: 404`.
+Empty, HTML, and mismatched envelopes remain unavailable. They never create authoritative missing entries.
+Controlled retry cases cover GET, POST, date and delta Retry-After, 503, disconnects, exhausted attempts, and cancellation during backoff.
+A retry begins at its admitted delay. Cancellation prevents another attempt.
+
+Search projects identities even when a response contains full metadata and spec.
+An independently unprojected response proves that stripping behavior. A wrong-kind identity remains unavailable.
+These fixture controls are separate from the [actual H4 backend controls](test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence).
+
+CLI contract 0.2 projects unavailable catalog observations into `owner-exists` dependency findings and `dependency_unavailable` rule states.
+Its required rules coverage becomes unavailable with the declared coverage reason.
+CLI JSON does not expose the provider's `permission_denied` or `offline` transport causes.
+H4 observes those causes separately through the actual provider against the same credential and outage inputs.

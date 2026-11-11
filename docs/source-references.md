@@ -10,8 +10,16 @@ Explicit organization rules decide whether those references must exist.
 `validateBackstageSources` runs parsing, native checks and reference extraction. The default profile
 declares owner → Group, provides/consumes API → API and system → System. Their namespace fallback is
 the source entity's namespace, matching the qualified backend's
-[built-in processor](https://github.com/backstage/backstage/blob/1e85ac7e08f276f49604202fd7245e0ad0aa63af/plugins/catalog-backend/src/processors/BuiltinKindsEntityProcessor.ts).
+[built-in processor](https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/processors/BuiltinKindsEntityProcessor.ts).
 Explicit kind/namespace components override defaults.
+
+The default contexts select paths across kinds. This deliberately over-approximates kind applicability for those selected paths.
+For example, a valid User with an extra `spec.owner` field produces an owner reference.
+The pinned backend processor emits ownership relations only for its declared owner-bearing kinds.
+
+This profile does not extract the complete backend graph. It omits membership, dependency, subcomponent, System-domain, and Domain-parent fields.
+The [fixed tables](../test/fixtures/backstage-behavior/references.json) separate local references from complete expected processor tuples for each case.
+Both pinned upstream processors run against those tables during focused backend qualification.
 
 A profile namespace value of `entity` selects the source entity namespace. Other strings select
 fixed namespaces. See
@@ -94,7 +102,8 @@ Tests cover both native pins against both fixtures, namespaces, case, escaped pa
 aliases, defaults, and resource limits. They also cover invalid, unknown, deleted, or competing
 claims, authorization bindings, unavailable data, cancellation, stale retained data, and overlapping
 buffer versions. [Catalog rules and the LSP](lsp.md) now consume these pins and suppress superseded
-editor generations. Complete processor and real backend/IDE qualification remain open.
+editor generations. H4 separately qualifies the declared actual-backend controls on both supported targets.
+Complete processor and broader client qualification remain open.
 
 Local qualification on 2026-10-29: 31 new reference/preparation checks passed. `npm run check`
 passed all 387 tests. The source-reference example passed against the standalone 1.56 fixture with

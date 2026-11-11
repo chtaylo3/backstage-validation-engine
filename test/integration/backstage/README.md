@@ -173,3 +173,28 @@ It rejects evidence from different inputs.
 Upload only the root result, JUnit output, and target `reports/` directories.
 Keep raw SQLite files, environment files, signed launcher material, and credentials outside that upload set.
 Local evidence and hosted evidence are separate requirements. The existing native OS, remote, and endurance release requirements still apply.
+
+## Focused H4 backend controls
+
+Create a clean CLI candidate with `npm run cli:package`.
+Run `node scripts/test-h4-backends.mjs --cli <candidate.tgz>` from the repository root.
+The command exercises both supported backends without an installed editor or a release-wide workload.
+
+The focused command derives each test image from its cached pinned application image.
+It installs the changed app manifest with immutable Yarn admission and records package, lock, source, configuration, and image identities.
+Its deterministic permission service delegates the native `ServerPermissionClient` before it denies `catalog.entity.read` for `bve-filtered`.
+Administrator, reader, filtered, and plugin-denied identities remain separate. This does not qualify a remote permission backend or conditional resource policies.
+
+Normal file ingestion must produce all declared baseline and mutation graph tuples.
+The graph includes component/resource System relations, their inverse relations, and the existing System-Domain relation.
+Mutation convergence also rejects declared obsolete ownership and API relations. Generated location edges need no removal unless a seed declares it.
+Catalog convergence and client cache convergence remain separate observations. The focused CLI/provider calls use fresh processes or fresh providers.
+
+The write control sends the same valid `POST /api/catalog/refresh` body with administrator and reader credentials.
+The administrator succeeds, the reader receives HTTP 403, and the reader still reads the entity.
+The backend decision report attributes that rejection to native token permission restrictions.
+
+Reports remain under `.artifacts/harness-remediation/H4/backends`. Credentials remain in each run's private directory.
+The default command removes only its owned container and SQLite volume. It never writes database rows directly.
+For independent inspection, add `--target 1.56.3 --keep`. Use that run's private `connection.json` and `backend.env` locally.
+Remove the recorded container and volume after inspection. Preserve the existing host-network CI and published-port Docker Desktop/WSL SSH paths.

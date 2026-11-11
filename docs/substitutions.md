@@ -108,3 +108,18 @@ the pinned fake APIs. Actual editor/backend and filesystem-capture qualification
 Local qualification on 2026-10-29: all 56 substitution checks and five added LSP checks passed. The
 complete `npm run check` passed all 485 tests and required static, build, and schema checks. These
 runs used loopback access for the fake APIs.
+
+## Deliberate upstream differences
+
+The [fixed behavior table](../test/fixtures/backstage-behavior/substitutions.json) separates local and upstream expected results.
+Its [source manifest](../test/fixtures/backstage-behavior/sources.json) binds both pinned processor versions and published notices.
+Both upstream versions reject non-string resolver targets. Both reject empty or multiple YAML documents.
+
+Upstream leaves mixed mappings and mappings with multiple markers unchanged. The local profile rejects them as `invalid_substitution`.
+Upstream does not recursively process placeholders returned by a resolver. The local profile resolves them within the original snapshot budgets.
+Upstream JSON parsing keeps the last duplicate key. Upstream YAML parsing permits rounded unsafe numbers.
+The local parser rejects duplicate keys and unsafe numbers as `invalid_inclusion`. These are deliberate safe-profile choices.
+
+The focused backend command executes each upstream table case on both locked processor implementations.
+Source tests execute the separate local expectations with both native model adapters.
+These controls cover the declared table. They do not qualify unrestricted readers or arbitrary deployment processors.

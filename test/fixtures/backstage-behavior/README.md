@@ -13,7 +13,9 @@ It recursively resolves returned placeholders. Upstream leaves mixed mappings an
 `references.json` defines complete expected processor relation tuples and separate expected local reference lists.
 The upstream processor scopes relations by entity kind and emits inverse edges. The default local profile selects paths across kinds.
 For example, a User with `spec.owner` produces a local owner reference but no upstream ownership relation.
-This over-approximation remains deliberate. Local references do not promise backend graph parity.
+This over-approximation concerns kind applicability for the selected paths.
+The default profile omits membership, dependencies, subcomponent, System-domain, and Domain-parent fields.
+Local references do not promise backend graph parity.
 
 `seed-graphs.json` contains independently authored graph expectations for the baseline and mutation seeds.
 It includes ownership, membership, API, component/resource System, and System-Domain edges in both directions.

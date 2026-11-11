@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 through H3 are accepted. H4 is admitted. H5 and H6 wait for their preceding gates. Additional N1 remains open.
+Status: H1 through H3 are accepted. H4 awaits parent review. H5 and H6 wait for their preceding gates. Additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -41,7 +41,7 @@ No complete H1 finding closes through these baseline corrections.
 | H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
 | H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
 | H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.         |
-| H4      | Admitted     | Pending         | Focused actual-backend and catalog evidence              |
+| H4      | Implemented  | Pending         | Focused actual-backend and catalog evidence              |
 | H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
 | H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
 | H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
@@ -798,3 +798,177 @@ The original review retains its recorded digest. History and link validation acc
 H4 is admitted next on `feature/test-harness-remediation`, starting from the parent acceptance commit.
 All thirteen original H3 dispositions are accepted. Additional N1 remains open and must survive H6 reconciliation.
 No hosted run, push, PR, publication, merge, actual-backend qualification, installed-editor qualification, or deferred H7 work belongs to this decision.
+
+## H4 catalog compatibility and convergence
+
+Status: implementation complete. Parent acceptance is pending.
+Scope: H4 only, all 12 assigned findings and H4-A1 through H4-A8.
+Source/test qualification revision: `60e9ac4031908127400cd6a8b9debadb5a286e90`.
+The later documentation commit records this evidence. It does not change the qualified runtime or tests.
+
+### Implementation and reviewed contract decisions
+
+The fake separates plugin access rejection from permission-service filtering. Raw by-refs requests retain the caller's strings.
+The production client still canonicalizes references before transport. HTTP 401 and 403 still produce `permission_denied`.
+A filtered 404, `null`, or empty list describes only the authorized view. It cannot prove global deletion.
+
+The parent approved a deterministic test-app permission service on both pinned backends.
+It delegates the actual `ServerPermissionClient` before it overrides an admitted read decision for authenticated `bve-filtered` credentials.
+The reader's native restrictions remain intact. Both actual runs observe the native reader refresh DENY and administrator refresh ALLOW.
+This covers actual catalog permission-service DENY filtering. It does not qualify a remote permission backend or conditional resource policy.
+
+The parent approved preserving contract 0.2's CLI projection.
+Actual CLI results expose `owner-exists`, `dependency_unavailable`, and the declared unavailable coverage reason.
+They do not expose provider transport codes. Separate actual provider calls establish `permission_denied` for HTTP 401/403 and `offline` for outage.
+The record does not infer those distinct transport causes from CLI JSON alone.
+
+The default reference profile still selects paths across entity kinds. This over-approximates kind applicability for selected owner/system/API paths.
+It does not extract every backend relation field. Membership, dependencies, subcomponent, System-domain, and Domain-parent contexts remain omitted.
+The independent processor tables cover those backend relations separately. No public profile or result field changed.
+
+### Finding dispositions for parent review
+
+| Finding | Criteria            | Independent expectation and executed control                                                                                                                                                                                                                     | Candidate disposition                                                  | Parent decision |
+| ------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------- |
+| R2-F1   | H4-A1, H4-A8        | Fake/provider tests separate plugin 403 from filtered missing. Both actual catalogs return admin/reader 200, filtered by-name 404, by-refs `null`, and query omission. Authenticated decision logs bind the read permission and native decision.                 | Implemented and executed within the reviewed permission-service scope  | Pending         |
+| R2-F2   | H4-A2, H4-A8        | Raw fake and actual backend requests preserve canonical keys, order, duplicates, shorthand, malformed, empty, whitespace, and case variants. Actual non-string requests return 400. Client normalization remains separate.                                       | Implemented and executed                                               | Pending         |
+| R2-F3   | H4-A3               | Single-entity empty, HTML, missing-message, and mismatched-status 404 responses remain unavailable with `invalid_response`. Valid present and valid missing responses recover. Bypassing admission fails the new assertion.                                      | Implemented and executed                                               | Pending         |
+| R2-F4   | H4-A4               | Six controlled-clock cases assert GET/POST, exact delta/date delays, 503, disconnect retry, two-attempt exhaustion, and cancellation. A zero-backoff variant fails the scheduled-delay assertion without a timeout.                                              | Implemented and executed                                               | Pending         |
+| R2-F5   | H4-A5, H4-A8        | Thirteen fixed substitution cases run against both actual pinned processors. Separate local expectations run with both native adapters. Source hashes, Apache license, and published NOTICE remain pinned.                                                       | Explicit safe-profile differences preserved and executed               | Pending         |
+| R2-F7   | H4-A5, H4-A8        | Eight fixed kind cases compare complete processor tuples, inverse/defaulted edges, and separate local selected-path references. Actual processors on both targets match the tables.                                                                              | Deliberate selected-path kind over-approximation documented and tested | Pending         |
+| R2-F8   | H4-A5               | A deliberately unprojected response includes private metadata/spec fields. The client returns canonical identities only. A wrong-kind response fails admission.                                                                                                  | Implemented and executed                                               | Pending         |
+| R2-F9   | H4-A5               | Lightweight, two-link, and four-link tags resolve to the fixed commit. A fifth annotated link fails before artifact fetch.                                                                                                                                       | Implemented and executed                                               | Pending         |
+| R2-F10  | H4-A5, H4-A6, H4-A8 | Independent golden tuples define 22 baseline and 18 mutation edges. Both actual ingestions contain all tuples, including component/resource System inverses and the existing System-Domain pair. A same-count wrong tuple fails.                                 | Implemented and executed                                               | Pending         |
+| R5-F7   | H4-A6, H4-A8        | Seed schema and admission require `absentRelations`. Convergence rejects old ownership and API edges. Actual mutation converges with three absent tuples. Removing the guard fails the isolated test.                                                            | Implemented and executed                                               | Pending         |
+| R5-F8   | H4-A7, H4-A8        | Actual packaged CLI cases assert exact exits, native/YAML finding identities, required-processor coverage, unavailable rule state, and coverage reason. Seven altered-result controls fail. Separate actual providers establish the underlying transport causes. | Implemented with parent-reviewed contract 0.2 projection limit         | Pending         |
+| R5-F10  | H4-A7, H4-A8        | The same valid refresh body returns administrator 200 and reader 403. Reader by-name read remains 200. Native decision logs establish the authorization difference on both targets.                                                                              | Implemented and executed                                               | Pending         |
+
+### Acceptance criteria and actual selectors
+
+| Criterion | Executed evidence                                                                                                                                                                                                               | Candidate result                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| H4-A1     | `permission-policy DENY filters existing entities while explicit plugin denial remains unavailable`; actual `permission-service-filtered-absence-and-explicit-plugin-rejection` and `authenticated-native-permission-decisions` | Pass on both fixture and actual pins. Parent review pending.                                                 |
+| H4-A2     | `catalog fake uses case-insensitive by-name triplets and raw by-refs database keys`; actual `raw-byrefs-parser-and-database-contract`                                                                                           | Pass. Each actual target covers ten raw strings and a non-string rejection.                                  |
+| H4-A3     | `single-entity malformed 404 responses remain unavailable and valid absence recovers`; isolated `malformed404-admission-bypassed`                                                                                               | Corrected case passes. Faulty variant fails an assertion.                                                    |
+| H4-A4     | `controlled HTTP retries preserve GET/POST, exact delays, bounded attempts and cancellation`; isolated `retry-zero-backoff`                                                                                                     | Six cases pass. Zero-delay fault fails the intended scheduled-delay assertion.                               |
+| H4-A5     | `backstage-behavior.test.ts`, independently unprojected search, tag-chain cases, and actual `pinned-upstream-substitution-and-reference-tables`                                                                                 | Both native adapters and both actual upstream processors match their separate fixed tables.                  |
+| H4-A6     | `actual HTTP convergence rejects stale ownership/API edges and same-count wrong graph tuples`; actual baseline/mutation/recovery graph cases                                                                                    | Required graph and three absent mutation tuples pass actual ingestion. Stale and wrong-target controls fail. |
+| H4-A7     | Actual CLI cases, seven result mutations, actual provider credential/outage causes, and native reader refresh restriction                                                                                                       | All declared focused cases pass on both actual targets.                                                      |
+| H4-A8     | Exact clean source/artifact plus per-target app, lock, installed package, SQLite, Node, base-image, and derived-image identities                                                                                                | Both supported actual targets pass 22/22 focused cases. No installed editor or release-wide claim.           |
+
+The focused no-Docker selector includes these seven files:
+`backstage-behavior.test.ts`, `backstage-convergence.test.ts`, `backstage-environment.test.ts`, `catalog-api.test.ts`,
+`catalog-provider.test.ts`, `catalog-suggestions.test.ts`, and `release-refresh.test.ts`.
+The development run passes 132/132 tests, with zero failures, cancellations, or skips.
+The full gate discovers those files independently through the normal source inventory.
+Existing LSP and installed-fixture principals that require explicit 403 now select plugin denial explicitly. Their assertions remain unchanged.
+
+### Actual backend identities and evidence
+
+The final CLI archive SHA-256 is `0feeb3eb31506c617c72985ccf97f024ab2138b529eaa6461745b04a05fed076`.
+Its clean sidecar binds revision `60e9ac4031908127400cd6a8b9debadb5a286e90` and root lock SHA-256 `dbd025198eb555e06edf78f0c8f420eef786c445a9eaf01b488ea34ec4669b8b`.
+Its bytes match the preceding runtime candidate because H4 changes tests and test applications, not production code.
+The new sidecar and app identities qualify this revision. Historical H3 evidence does not qualify H4.
+
+Both runs use Node `v24.22.1`, Docker `29.9.2`, `better-sqlite3` `12.4.1`, and SQLite `3.50.4`.
+All eight vendored source texts match their same-target official GitHub commit bytes.
+`upstream-official/comparison.json` retains those comparisons and the fetched official texts.
+An initial audit mistakenly compared a 1.56.3 map with a 1.55.3 source. The same-target comparison resolves that false alarm.
+The parent reviewed this correction and removed the triggered whole-package audit requirement.
+The permission wrapper uses the already locked `@backstage/plugin-permission-node` `0.11.5`.
+Each derived image admits the changed direct dependency with `yarn install --immutable --mode=skip-build`.
+The app configuration SHA-256 is `e666156b048f82b9d928153fabee4507caf63467c545b3e590e2ccbdd049bf54`.
+The permission-wrapper source SHA-256 is `4a31e8cf35b602dccf0a77185a01f1be5cdac7f7532765d274591dd53e548e08` for both applications.
+
+| Target | Source commit                              | App lock SHA-256                                                   | Base image identity                                                       | Qualified derived image identity                                          |
+| ------ | ------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1.55.3 | `6c66969256572989ed10ee862b26065a0980c0bd` | `2bec49ad0113e7dc53a80cfaa441d274144e562e7a6a81bfcaa0e84fa9bdc89a` | `sha256:d02d3fe16e133d6000938b32e386c4bca55014b30ffc6690a911f58aa5d11bb0` | `sha256:0f3cc3b9726765fcc8c2a190fbd21c36f5a1210209f35df778b8421d200059f7` |
+| 1.56.3 | `7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0` | `303646c248f1f0f3e65dae0274e104ea0836cdbae5cba6afcefb25f829a63b38` | `sha256:ae705e12948e3f9d5db0a096785c4f761d2df427b82a5889a6f96319ac528d8a` | `sha256:cb4c1f9241c670f3e887d069f94da74435c4b13e2613a179a54f1ed2fb276c88` |
+
+Final reports remain in ignored evidence:
+`.artifacts/harness-remediation/H4/backends/bve-h4-1-55-3-73e8992e26/report.json` and
+`.artifacts/harness-remediation/H4/backends/bve-h4-1-56-3-0dc558089d/report.json`.
+They retain every case, the complete selected graph, exact installed package versions, CLI result projections, and sanitized permission decisions.
+Both runs remove their owned containers and SQLite volumes. Credentials remain in private evidence directories.
+The command never changes manual-demo resources or performs a global Docker prune.
+
+The repeatable command is `node scripts/test-h4-backends.mjs --cli .artifacts/cli/chtaylo3-backstage-validation-engine-0.1.0-dev.0.tgz`.
+Run it from a clean qualification checkout after `npm run cli:package`.
+Use `--target 1.56.3 --keep` for independent inspection. The private connection file identifies the owned container, volume, endpoint, and environment file.
+The actual commands and final qualification summaries remain under `.artifacts/harness-remediation/H4`.
+The focused published-port runner preserves the existing host-network CI and Docker Desktop/WSL SSH designs.
+
+### Retained failed attempts and fault demonstrations
+
+The first focused development run records 102 passes and 29 failures out of 131 tests.
+The failures exposed new-test setup errors: the wrong finding prefix, an unresolved Location target, and a raised retry delay.
+The corrected behavior/provider subset passes 87/87. The complete focused set then passes 132/132.
+The first compile also treated vendored `.ts` source as local code. The retained source files now use `.ts.txt` and stay outside compilation.
+Initial lint findings concerned fixture typing and missing runtime imports. The final full gates pass after those corrections.
+No product budget, threshold, or existing assertion changed.
+
+The first image preflight used unsupported Yarn `skip-builds`. The corrected supported option is `skip-build`.
+Both logs remain in `development/image-preflight*.log`. Immutable installation passes after that command correction.
+
+The first actual backend attempt failed the preliminary empty-YAML table expectation.
+Actual pinned parsing returns zero documents and rejects empty YAML. The reviewed table now records rejection for both profiles.
+Both actual processor runs pass the corrected table. The earlier failed report remains at `backends/bve-h4-1-55-3-b21e4231fa/report.json`.
+
+The second actual attempt failed the exact native finding assertion.
+The original scenario removed only `type: service\n` and left indentation that produced a YAML syntax error.
+Removing the complete indented field line reaches `backstage/kind/invalid_kind`.
+The failed wrong-layer report remains at `backends/bve-h4-1-55-3-877181fc70/report.json`.
+The final actual result-mutation control also rejects substituting a YAML finding for native rejection.
+
+The third actual attempt passed baseline, permissions, CLI reasons, mutation, and outage, then failed recovery observation.
+Docker reassigned the automatically published host port after stop/start. The observer retained the earlier endpoint.
+The focused runner now publishes one concrete OS-selected port across restart. It retains the same convergence deadline.
+The failed report remains at `backends/bve-h4-1-55-3-f34550f77b/report.json`.
+Both final actual targets pass recovery with that lifecycle correction.
+
+`fault-controls/report.json` records five corrected/faulty pairs at the final source revision.
+Corrected cases pass. Old raw normalization, old filtered-403 behavior, removed absent-edge guard, bypassed 404 admission, and zero backoff each fail assertions.
+The zero-delay fault fails its scheduled-delay assertion, not an observation timeout.
+Earlier 8695078 fault evidence remains in its separate subdirectory.
+Parent-owned baseline false-success and current convergence observations remain untouched under `H4/parent`.
+The parent also repeated the final 1.56.3 22-case run and twelve direct API/graph observations, then removed its owned resources.
+Its corrected raw-reference probe uses deep equality and records baseline 4/10 and current 10/10 matches on each pin.
+The earlier key-order-sensitive probe remains retained. Those preliminary counts do not describe semantic raw-reference behavior.
+
+### Full qualification and limits
+
+The exact final source/client gate passes `npm run check`: 1,330 source tests and 43 client tests.
+There are zero failures, cancellations, skips, or todos. Architecture, type, lint, format, schema, and build gates pass.
+The client coverage remains 100% lines/functions and 96% branches. Existing thresholds remain unchanged.
+`development/check-qualified.log` and the source/client inventories retain the actual selector and counts.
+
+A preliminary VSIX used the `local` build stamp and passed 1,330 packaged tests. It receives no exact-revision qualification claim.
+Its candidate and log remain separate from the exact-stamped final artifact.
+The follow-on archive setup mistakenly invoked the CI candidate downloader without its required CI identity.
+Its admission assertion failed before any download. The local archive qualification uses an offline installation instead.
+The exact-stamped final VSIX passes all 1,330 packaged tests with zero failures, cancellations, skips, or todos.
+Build command: `GITHUB_SHA=60e9ac4031908127400cd6a8b9debadb5a286e90 npm run extension:package`.
+The following `npm run test:packaged` runs serially after the source/client gate.
+The final build stamp records the exact source revision, Linux x64, and Node 24.22.1.
+
+Final VSIX SHA-256: `2d9f20eb8603f65fdb9f13e0a96c3a7c8d2a3852c57e8b03731d087a7591e7ff`.
+Its size is 52,086,897 bytes, with 5,079 files.
+Packaged Node SHA-256: `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb`.
+
+The final CLI archive installs 24 packages into a fresh offline prefix.
+The task cache lacks a required registry metadata response, so its first install fails with `ENOTCACHED`.
+The existing verified registry cache admits the same archive. Both setup logs remain retained.
+All 22 CLI tests pass through the installed archive with the final packaged Node runtime.
+There are zero failures, cancellations, skips, or todos.
+
+`qualification/source`, `qualification/client`, and `qualification/packaged` retain their complete inventories and reports.
+`qualification/manifest.json` binds the counts, exact stamps, candidate hashes, backend reports, and fault controls.
+`qualification/commands.json` retains the actual commands. `candidates/final-60e9ac4` retains both final artifacts and their identity files.
+A preliminary inventory copy overlapped the stamped run's writer. It remains explicitly unqualified under `development/incomplete-preliminary-inventory-copy`.
+Only the completed final inventories support this record.
+
+Changed documentation passes scoped Prettier admission and all 31 relative file links resolve.
+The original user-owned review retains SHA-256 `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
+Parent acceptance remains pending for every H4 criterion and finding.
+H5 and H6 do not start through this handoff. H7 remains deferred.
+Additional finding N1 remains OPEN beyond the original 86 findings. H4 does not change or accept its duplicate CEL map-key behavior.
