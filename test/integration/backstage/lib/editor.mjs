@@ -15,6 +15,8 @@ import {
 import { debugPort, screenshot } from '../editor/cdp.mjs';
 import { EDITORS, writeJson } from './evidence.mjs';
 import { createClientFixture, installClient, runCli } from './clients.mjs';
+import { verifyCoverageParity } from './client-contracts.mjs';
+import { runEditorCrashControl } from './host-runner.mjs';
 
 const integrationRoot = fileURLToPath(new URL('../', import.meta.url));
 const productId = 'chtaylo3.backstage-validation-engine';
@@ -346,17 +348,10 @@ async function singleSession(options, id, provisioned, visual, fault) {
       assert(progress.serverPids.length > 0);
       for (const pid of progress.serverPids)
         await until(async () => !(await alive(pid)), 'crashed editor server cleanup');
-      progress = {
-        ...progress,
-        status: 'failed',
-        failure: {
-          name: 'InjectedEditorCrash',
-          message: 'The owned editor process was deliberately terminated.',
-        },
-        parentObservedCleanup: 'passed',
-      };
-      await writeJson(progressFile, progress);
-      return { progress, launched };
+      const error = new Error('The owned entered editor was deliberately terminated.');
+      error.name = 'InjectedEditorCrash';
+      error.observation = { progress, launched, parentObservedCleanup: 'passed' };
+      throw error;
     }
     assert.equal(launched.exitCode, 0, 'The native editor must exit successfully.');
     assert(!launched.error, launched.error);
@@ -370,8 +365,20 @@ async function singleSession(options, id, provisioned, visual, fault) {
       assert.equal(cli.report.outcome, 'completed');
       assert(cli.report.coverage.filter((row) => row.required).length > 0);
       assert(cli.report.coverage.every((row) => !row.required || row.status === 'verified'));
-      assert.equal(progress.result.requiredCoverageVerified, true);
-      assert.equal(progress.result.coverageEvidence, 'guarded-fix-eligibility');
+      const observation = progress.result.coverageObservation;
+      assert(observation, 'Require observed current editor coverage.');
+      assert(
+        observation.documents.some(
+          (row) =>
+            row.uri === progress.result.sourceUri &&
+            row.version === progress.result.version &&
+            row.digest === 'sha256:' + hash(progress.result.text),
+        ),
+      );
+      assert.equal(observation.policyDigest, cli.report.provenance.policyDigest);
+      assert.equal(observation.profileDigest, cli.report.provenance.profileDigest);
+      assert.equal(observation.activationDigest, cli.report.provenance.activationDigest);
+      verifyCoverageParity(cli.report.coverage, observation.coverage);
       const cliFindings = cli.report.findings.map((row) => ({
         ruleId: row.ruleId,
         category: row.category,
@@ -388,7 +395,7 @@ async function singleSession(options, id, provisioned, visual, fault) {
       parity = {
         findings: cliFindings,
         cliCoverage: cli.report.coverage,
-        editorCoverageEvidence: progress.result.coverageEvidence,
+        editorCoverageObservation: observation,
         sourceUri: progress.result.sourceUri,
         sourceTextSha256: hash(progress.result.text),
         cliEnforcement: cli.report.enforcement,
@@ -442,23 +449,27 @@ export async function verifyEditorCrash(options) {
   const provisioned = await provision(version, vsix);
   const visual = await display();
   try {
-    const crash = await singleSession(
-      normalized,
-      'editor.installation',
-      provisioned,
-      visual,
-      'crash',
+    let next;
+    const control = await runEditorCrashControl(
+      path.join(options.reportDirectory, 'scratch-host-accounting.json'),
+      () => singleSession(normalized, 'editor.installation', provisioned, visual, 'crash'),
+      async () => {
+        next = await singleSession(normalized, 'editor.installation', provisioned, visual);
+      },
     );
-    assert.equal(crash.progress.status, 'failed');
-    const next = await singleSession(normalized, 'editor.installation', provisioned, visual);
+    assert.equal(control.failure.name, 'InjectedEditorCrash');
+    assert.equal(control.failure.observation.progress.phase, 'run');
+    assert.equal(control.failure.observation.parentObservedCleanup, 'passed');
     assert.equal(next.progress.status, 'passed');
     const result = {
+      fixtureOnly: true,
       crash: {
-        status: crash.progress.status,
-        phase: crash.progress.phase,
-        parentObservedCleanup: crash.progress.parentObservedCleanup,
+        status: control.report.cases[0].status,
+        phase: control.failure.observation.progress.phase,
+        parentObservedCleanup: control.failure.observation.parentObservedCleanup,
       },
       next: { status: next.progress.status, phase: next.progress.phase },
+      counts: control.report.counts,
     };
     await writeJson(path.join(options.reportDirectory, 'failure-accounting.json'), result);
     return result;

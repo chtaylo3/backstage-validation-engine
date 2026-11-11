@@ -13,6 +13,7 @@ import { debugPort, controlTrust, controlSearch } from './extension-test-ui.mjs'
 import { previousFixture } from './extension-test-upgrade.mjs';
 import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import { setTimeout as pause } from 'node:timers/promises';
+import { openEvidence } from '../test/integration/backstage/lib/evidence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const artifactRoot = path.join(root, '.artifacts/vscode');
@@ -810,10 +811,33 @@ async function runGroup(name, specs, fault) {
   const directory = path.join(artifactRoot, name);
   await rm(directory, { recursive: true, force: true });
   await mkdir(directory, { recursive: true });
+  const hostEvidence =
+    fault === 'crash'
+      ? await openEvidence(
+          path.join(directory, 'scratch-host-accounting.json'),
+          specs.map((spec) => ({ id: spec.id, scope: 'runner' })),
+          { fixtureOnly: true },
+        )
+      : undefined;
   return runCases(
     specs,
     { ...metadata, fault: fault ?? null },
-    (spec) => execute(spec, directory, spec.id === 'startup' ? fault : undefined),
+    async (spec) => {
+      if (!hostEvidence) return execute(spec, directory, spec.id === 'startup' ? fault : undefined);
+      let outcome;
+      try {
+        await hostEvidence.run(spec.id, 'editor', async () => {
+          outcome = await execute(spec, directory, spec.id === 'startup' ? fault : undefined);
+          assert(
+            outcome.exitCode === 0 && !outcome.error && outcome.progress?.status === 'passed',
+            'Entered editor process failed.',
+          );
+        });
+      } catch (error) {
+        if (!outcome) throw error;
+      }
+      return outcome;
+    },
     async (report) => {
       await atomic(path.join(directory, 'results.json'), JSON.stringify(report, null, 2) + '\n');
       await atomic(path.join(directory, 'junit.xml'), junit(report));
@@ -834,6 +858,23 @@ try {
         fault,
       );
       const [failed, later] = report.cases;
+      if (fault === 'crash') {
+        const scratch = JSON.parse(
+          await readFile(
+            path.join(artifactRoot, 'verification-crash/scratch-host-accounting.json'),
+            'utf8',
+          ),
+        );
+        assert.deepEqual(scratch.counts, {
+          discovered: 2,
+          executed: 2,
+          passed: 1,
+          failed: 1,
+          unexecuted: 0,
+        });
+        assert.equal(scratch.cases[0].phase, 'editor');
+        assert.equal(scratch.cases[1].phase, 'complete');
+      }
       checks.push({
         fault,
         passed:

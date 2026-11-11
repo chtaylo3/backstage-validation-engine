@@ -4,6 +4,7 @@ import { digestText } from '../core/json.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { BuiltinValidationService } from '../host/builtin-validation.js';
+import type { CoverageObservation } from './coverage-observation.js';
 import { CapabilityError } from '../capabilities/admission.js';
 import type { LocalCatalogSources } from '../core/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
@@ -52,6 +53,7 @@ interface ValidationInputs {
   readonly fixes: FixRegistry;
   readonly fixesEnabled: boolean;
   readonly configurationUnavailable: boolean;
+  readonly observeCoverage?: (value: CoverageObservation) => void;
   readonly publish: (uri: string, version: number, diagnostics: Diagnostic[]) => Promise<void>;
 }
 /** Run the existing authoritative pipeline against one captured context and service generation. */
@@ -175,6 +177,20 @@ export async function runValidation(
     await editor.refine(report, generation);
     if (!current()) return;
     evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
+    input.observeCoverage?.({
+      sourceDigest: report.request.source.digest,
+      policyDigest: report.request.policy.digest,
+      profileDigest: report.request.profile.digest,
+      activationDigest: report.request.activation.digest,
+      generation,
+      dependencyGeneration: input.dependencyGeneration ?? 0,
+      documents: frame.map((document) => ({
+        uri: document.uri,
+        version: document.version,
+        digest: digestText(document.getText()),
+      })),
+      coverage: report.coverage,
+    });
     const repairEligible =
       report.interrupted === 'none' &&
       report.rules.failures.length === 0 &&

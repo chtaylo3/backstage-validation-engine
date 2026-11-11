@@ -111,3 +111,14 @@ The original review's digest still matches its recorded baseline.
 The four approved documents form the planning commit before the H1 assignment.
 No application source changed and no product test run belongs to this documentation gate.
 Validation remains in `.artifacts/test-intent-assessment/approved-remediation-plan-validation.json`.
+
+## H1 implementation in progress
+
+Assigned agent: `harness_h1_release_evidence`. Parent acceptance remains pending.
+The approved scope contains R4-F13, R5-F1, R5-F2, R5-F3, R5-F4, R5-F5, R5-F6, and R5-F9.
+Implementation starts from planning commit `17f4fab` on `feature/test-harness-remediation`.
+The [evidence contract](release-evidence-contract.md) records the new interfaces and retained compatibility decisions.
+The first focused run passed 17 of 18 checks. Its paired CLI/LSP test exposed the legitimate CLI-only signed-release coverage record.
+The parent approved the narrow authority-record normalization. A later focused run passed all 19 checks before final boundary additions.
+Initial type and lint checks exposed development errors. Those errors remain in the tool history and qualification notes.
+No failed application requirement was weakened. Full committed-input qualification and native crash controls remain pending at this checkpoint.

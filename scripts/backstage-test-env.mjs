@@ -10,7 +10,6 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { digest, validateSeed, loadSeed } from '../test/integration/backstage/lib/seed.mjs';
 import {
-  openEvidence,
   writeJson,
   counts,
   junit,
@@ -20,6 +19,11 @@ import {
 import { runCommand } from '../test/integration/backstage/lib/process.mjs';
 import { inspectVsix } from '../test/integration/backstage/lib/vsix.mjs';
 import { verifyCliArchive } from './cli-candidate.mjs';
+import {
+  runHostTarget,
+  concludeHostReport,
+} from '../test/integration/backstage/lib/host-runner.mjs';
+import { verifyHostControl } from '../test/integration/backstage/lib/host-controls.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const integration = path.join(root, 'test/integration/backstage');
@@ -777,85 +781,71 @@ for (const target of targetIds) {
     policyDigest,
     cleanup: { status: 'failed' },
   };
-  let evidence = await openEvidence(file, inventory.cases, initial);
-  await evidence.save();
-  try {
-    await evidence.run('environment.build', 'build', () => build(target, state.reportDirectory));
-    Object.assign(evidence.report, await pinImages(state));
-    const installed = JSON.parse(
-      (
-        await docker([
-          'run',
-          '--rm',
-          '--network=none',
-          imageTags(target).application,
-          'node',
-          'app-metadata.mjs',
-          target,
-        ])
-      ).stdout,
-    );
-    assert.deepEqual(installed.packages, targetsFile.targets[target].packages);
-    Object.assign(evidence.report, installed);
-    await evidence.save();
-    await initialize(state);
-    await driver(state, 'render');
-    await startApplication(state);
-    await driver(state, 'connected');
-    await driver(state, 'runner');
-    evidence = await openEvidence(file, inventory.cases);
-    await evidence.run('runner.build-failure', 'runner', async () => {
-      const directory = path.join(state.privateDirectory, 'failed-build');
-      await mkdir(directory);
-      await writeFile(
-        path.join(directory, 'Dockerfile'),
-        'FROM ' + targetsFile.baseImage + '\nRUN exit 23\n',
+  let evidence;
+  const result = await runHostTarget({
+    file,
+    inventory: inventory.cases,
+    initial,
+    build: () => build(target, state.reportDirectory),
+    execute: async (host) => {
+      evidence = host.evidence;
+      Object.assign(evidence.report, await pinImages(state));
+      const installed = JSON.parse(
+        (
+          await docker([
+            'run',
+            '--rm',
+            '--network=none',
+            imageTags(target).application,
+            'node',
+            'app-metadata.mjs',
+            target,
+          ])
+        ).stdout,
       );
-      const result = await docker(
-        ['build', '--file', path.join(directory, 'Dockerfile'), directory],
-        {
-          allowFailure: true,
-          log: path.join(state.reportDirectory, 'reports/expected-build-failure.log'),
-        },
-      );
-      assert.notEqual(result.code, 0);
-    });
-    await evidence.run('runner.cleanup-accounting', 'runner', async () => {
-      const proof = await openEvidence(
-        path.join(state.reportDirectory, 'reports/expected-cleanup-failure.json'),
-        [{ id: 'expected-cleanup-failure', scope: 'runner' }],
-      );
-      await assert.rejects(
-        proof.run('expected-cleanup-failure', 'cleanup', () =>
-          cleanup(state, false, { operation: () => compose(state, ['down', '--timeout=invalid']) }),
+      assert.deepEqual(installed.packages, targetsFile.targets[target].packages);
+      Object.assign(evidence.report, installed);
+      await evidence.save();
+      await initialize(state);
+      await driver(state, 'render');
+      await startApplication(state);
+      await driver(state, 'connected');
+      await driver(state, 'runner');
+      await host.reload();
+      evidence = host.evidence;
+      await evidence.run('runner.build-failure', 'runner', () =>
+        verifyHostControl(
+          path.join(state.reportDirectory, 'reports/controls/host-build-failure'),
+          'build-failure',
         ),
       );
-      assert.equal(proof.report.cases[0].status, 'failed');
-    });
-    await driver(state, 'mutation');
-    await compose(state, ['stop', 'backstage']);
-    await driver(state, 'outage');
-    await compose(state, ['start', 'backstage']);
-    await driver(state, 'recovery');
-    // Recreate only this run's persistent state before the reset assertion.
-    await cleanup(state, false);
-    const volume = state.project + '_sqlite';
-    const labels = JSON.parse(
-      (await docker(['volume', 'inspect', '--format', '{{json .Labels}}', volume])).stdout,
-    );
-    assert.equal(labels['io.bve.integration.owner'], owner);
-    assert.equal(labels['io.bve.integration.run'], runId);
-    await docker(['volume', 'rm', volume]);
-    await driver(state, 'render');
-    await startApplication(state);
-    await driver(state, 'reset');
-    for (const version of EDITORS) await editor(state, version);
-    await driver(state, 'editor-crash');
-  } catch (error) {
-    failure ??= error;
-  } finally {
-    evidence = await openEvidence(file, inventory.cases);
-    try {
+      await evidence.run('runner.cleanup-accounting', 'runner', () =>
+        verifyHostControl(
+          path.join(state.reportDirectory, 'reports/controls/host-cleanup-failure'),
+          'cleanup-failure',
+        ),
+      );
+      await driver(state, 'mutation');
+      await compose(state, ['stop', 'backstage']);
+      await driver(state, 'outage');
+      await compose(state, ['start', 'backstage']);
+      await driver(state, 'recovery');
+      // Recreate only this run's persistent state before the reset assertion.
+      await cleanup(state, false);
+      const volume = state.project + '_sqlite';
+      const labels = JSON.parse(
+        (await docker(['volume', 'inspect', '--format', '{{json .Labels}}', volume])).stdout,
+      );
+      assert.equal(labels['io.bve.integration.owner'], owner);
+      assert.equal(labels['io.bve.integration.run'], runId);
+      await docker(['volume', 'rm', volume]);
+      await driver(state, 'render');
+      await startApplication(state);
+      await driver(state, 'reset');
+      for (const version of EDITORS) await editor(state, version);
+      await driver(state, 'editor-crash');
+    },
+    cleanupPreparation: async () => {
       const logs = await compose(state, ['logs', '--no-color', 'backstage'], {
         allowFailure: true,
         signal: null,
@@ -864,19 +854,17 @@ for (const target of targetIds) {
         path.join(state.reportDirectory, 'reports/backstage.log'),
         sanitize(logs.stdout + logs.stderr),
       );
-      await evidence.run('environment.cleanup', 'cleanup', () => cleanup(state, true));
-      evidence.report.cleanup = { status: 'passed' };
-    } catch (error) {
-      failure ??= error;
-      evidence.report.cleanup = { status: 'failed' };
-    }
-    state.cleanupStatus = evidence.report.cleanup.status;
-    await saveRegistration(suite);
-    await evidence.save();
-    report.targets.push(evidence.report);
-    report.counts = counts(report.targets.flatMap((t) => t.cases));
-    await writeJson(path.join(runDirectory, 'results.json'), report);
-  }
+    },
+    cleanup: () => cleanup(state, true),
+    saveState: async (status) => {
+      state.cleanupStatus = status;
+      await saveRegistration(suite);
+    },
+  });
+  failure ??= result.failure;
+  report.targets.push(result.report);
+  report.counts = counts(report.targets.flatMap((target) => target.cases));
+  await writeJson(path.join(runDirectory, 'results.json'), report);
 }
 if (isRelease && !failure) {
   try {
@@ -888,11 +876,7 @@ if (isRelease && !failure) {
   }
 }
 report.completedAt = new Date().toISOString();
-report.cleanup.status = report.targets.every((t) => t.cleanup.status === 'passed')
-  ? 'passed'
-  : 'failed';
-report.status =
-  !failure && report.counts.unexecuted === 0 && report.counts.failed === 0 ? 'passed' : 'failed';
+concludeHostReport(report, failure, targetIds);
 if (isRelease && report.status === 'passed')
   verifyReleaseReport(report, {
     revision: candidate.revision,

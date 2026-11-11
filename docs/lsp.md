@@ -520,3 +520,12 @@ Local overlays, invalid replacements, conflicts, and deletion masks retain prece
 Reload, cleanup failure, and shutdown suspend refresh immediately, including the asynchronous configuration preparation interval.
 Cached requests reject, entered reads receive cancellation, and disposal drains owned reads before the underlying connection closes.
 Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.
+
+## Read-only coverage observation
+
+A trusted launcher can set `coverageObservation: true` to enable `bve/validationCoverage`.
+The default is disabled. Requests supply the current document URI, version, and text digest.
+The response contains current coverage and its source, authority, workspace, and dependency bindings.
+A stale or foreign document, unavailable session, or revoked launcher permission returns `null`.
+Initialization options and workspace settings cannot grant access. The request performs no edits or general debug operations.
+The [evidence contract](release-evidence-contract.md#cli-variants-and-coverage-parity) defines the projection and its compatibility requirements.

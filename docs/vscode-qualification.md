@@ -270,3 +270,13 @@ deadline. This prepares the compiler before the first repository expression. Fre
 exercise both first selectors without replacing a worker. Rule-stage evidence also distinguishes the
 CEL attempt deadline from the overall request deadline. No execution, readiness or resource ceiling
 was raised, and the changed candidate requires its own complete qualification.
+
+## H1 evidence admission
+
+The [release evidence contract](release-evidence-contract.md) defines the current raw metric and payload requirements.
+The final verifier reads raw latencies and resource samples from both load sizes and required soaks.
+It recomputes the current budgets and rejects reports that inflate budgets or misstate percentile summaries.
+Long runs require an observed slope spanning at least 100 operations. Short load runs cannot establish that measurement.
+Budget values and the additional quarter-sample exclusion remain unchanged until H5 reviews their policy.
+Native failure verification also retains separate scratch host accounting for the actual entered editor crash and later successful editor case.
+These scratch rows do not enter the normal positive release inventory.

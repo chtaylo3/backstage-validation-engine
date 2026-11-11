@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import path from 'node:path';
@@ -456,12 +456,17 @@ export async function run() {
         await fix();
         const diagnostics = snapshot();
         assert(diagnostics.every((row) => row.data?.version === document.version));
+        let observation;
+        const digest = 'sha256:' + createHash('sha256').update(document.getText()).digest('hex');
+        await until(async () => {
+          observation = await api.coverage(uri.toString(), document.version, digest);
+          return observation !== null;
+        }, 'current host coverage observation');
         progress.result = {
+          coverageObservation: observation,
           text: document.getText(),
           sourceUri: uri.toString(),
           version: document.version,
-          requiredCoverageVerified: true,
-          coverageEvidence: 'guarded-fix-eligibility',
           findings: diagnostics.map((row) => ({
             ruleId: codeOf(row),
             category: row.data.category,

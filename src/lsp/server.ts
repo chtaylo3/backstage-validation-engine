@@ -31,6 +31,7 @@ import { APPLY_FIX_COMMAND, FIX_TITLE, FixRegistry } from './fixes.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 import { filesystemEvent } from './discovery.js';
+import type { CoverageObservation } from './coverage-observation.js';
 
 /** One active request and one latest workspace snapshot; host owns resources and immutable authority. */
 export function attachLspServer(
@@ -54,6 +55,7 @@ export function attachLspServer(
   if (!!config.filesystem !== !!options.filesystem)
     throw new Error('Trusted filesystem reader configuration mismatch.');
   const fixes = new FixRegistry();
+  let coverageObservation: CoverageObservation | undefined;
   let fixesEnabled = false;
   let atomicTextEdits = false;
   const clientEdits = new ClientEdits((edit, token) =>
@@ -136,6 +138,10 @@ export function attachLspServer(
       const dependencyGeneration = session.refresh?.generation ?? 0;
       const input = {
         dependencyGeneration,
+        observeCoverage: (value: CoverageObservation) => {
+          if (context.current() && sessions.current === session && sessions.available)
+            coverageObservation = value;
+        },
         refreshQueries: (deadlineAt: number, signal: AbortSignal) =>
           session.refresh?.refreshQueries({ deadlineAt, signal }) ?? Promise.resolve(),
         config: session.config,
@@ -170,6 +176,7 @@ export function attachLspServer(
     },
     () => sessions.current.config.debounceMs,
     (reason) => {
+      coverageObservation = undefined;
       if (reason === 'dependencies') sessions.current.completion.invalidateRemote();
       fixes.invalidate();
       sessions.current.completion.invalidate();
@@ -255,6 +262,47 @@ export function attachLspServer(
       available: sessions.available,
       session: sessions.current,
     };
+  });
+  connection.onRequest('bve/validationCoverage', (params: unknown) => {
+    if (initialized && !stopped && sessions.available) sessions.current.refresh?.ensureFresh();
+    if (
+      !initialized ||
+      stopped ||
+      !sessions.available ||
+      workspace.unavailableSources ||
+      workspace.capacityExceeded ||
+      !sessions.current.config.coverageObservation ||
+      !params ||
+      typeof params !== 'object' ||
+      Array.isArray(params)
+    )
+      return null;
+    const requested = params as { uri?: unknown; version?: unknown; digest?: unknown };
+    if (
+      typeof requested.uri !== 'string' ||
+      typeof requested.version !== 'number' ||
+      typeof requested.digest !== 'string'
+    )
+      return null;
+    const current = workspace.document(requested.uri);
+    const observation = coverageObservation;
+    if (
+      !current ||
+      !workspace.selected(requested.uri) ||
+      current.version !== requested.version ||
+      current.digest !== requested.digest ||
+      !observation ||
+      observation.generation !== coordinator.generation ||
+      observation.dependencyGeneration !== (sessions.current.refresh?.generation ?? 0) ||
+      !observation.documents.some(
+        (row) =>
+          row.uri === requested.uri &&
+          row.version === requested.version &&
+          row.digest === requested.digest,
+      )
+    )
+      return null;
+    return observation;
   });
   connection.onCompletion((params, token) =>
     requests.execute<CompletionList>(

@@ -443,3 +443,14 @@ and
 [reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
 These sources support the architecture choices. Exact configuration still needs execution against
 the pinned application versions during step 6.1.
+
+## H1 release evidence corrections
+
+The [evidence contract](release-evidence-contract.md) defines the revised failure controls and report admission.
+Production target orchestration now also runs the isolated no-Docker subprocess controls.
+The host retains failed build, missing report, child interruption, unfinished row, and cleanup outcomes in scratch inventories.
+Native editor crash verification routes actual process failure through durable host case accounting and executes a later independent editor case.
+CLI scenarios choose explicit result or error variants and bind normal provenance to fixture inputs.
+Editor parity observes complete current host coverage through an opt-in read-only projection.
+The revised VSIX policy uses the host-approved runtime dependency closure and rejects forbidden content at nested paths.
+These controls qualify evidence rejection behavior. H4 retains the required focused real-backend acceptance work.

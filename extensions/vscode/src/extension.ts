@@ -404,6 +404,10 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   }
   return {
+    coverage: async (uri: string, version: number, digest: string): Promise<unknown> => {
+      if (!vscode.workspace.isTrusted || !client?.isRunning()) return null;
+      return client.sendRequest('bve/validationCoverage', { uri, version, digest });
+    },
     status: () => ({
       running: !disconnected && client?.isRunning() === true,
       pid: client?.serverProcess?.pid,

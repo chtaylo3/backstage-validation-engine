@@ -49,6 +49,7 @@ const schema = Type.Object(
         { additionalProperties: false },
       ),
     ),
+    coverageObservation: Type.Optional(Type.Boolean()),
     debounceMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 250 })),
     catalog: Type.Optional(CatalogSettingsSchema),
   },

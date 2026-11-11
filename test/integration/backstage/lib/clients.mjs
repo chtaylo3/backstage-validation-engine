@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { digest } from './seed.mjs';
+import { verifyCliReport } from './client-contracts.mjs';
 
 const exec = promisify(execFile);
 const candidate = '/run/work/candidate/node_modules/@chtaylo3/backstage-validation-engine';
@@ -155,6 +156,7 @@ export async function createClientFixture({
     },
     catalog,
     debounceMs: 25,
+    coverageObservation: true,
   };
   for (const [filename, value] of [
     [fixture.releasePath, release],
@@ -169,7 +171,14 @@ export async function createClientFixture({
 export async function runCli(
   fixture,
   text,
-  { format = 'json', token = process.env.BVE_BACKSTAGE_READER_TOKEN, output, sourceOverride } = {},
+  {
+    format = 'json',
+    token = process.env.BVE_BACKSTAGE_READER_TOKEN,
+    output,
+    sourceOverride,
+    expectedVariant = 'validation',
+    expectedOutcome = 'completed',
+  } = {},
 ) {
   const engine = await installClient();
   const source = sourceOverride ?? (await sourceFor(fixture, text));
@@ -205,7 +214,19 @@ export async function runCli(
     result = { code: error.code, stdout: error.stdout, stderr: error.stderr };
   }
   const report = JSON.parse(result.stdout);
-  if (format === 'json' && report.provenance) engine.parseContract('validation-result', report);
+  verifyCliReport(engine, report, {
+    variant: format === 'sarif' ? 'sarif' : expectedVariant,
+    exitCode: result.code,
+    outcome: expectedOutcome,
+    provenance: {
+      sourceDigest: source.digest,
+      policyDigest: engine.digestJson(fixture.policy),
+      profileDigest: engine.digestJson(fixture.profile),
+      activationDigest: engine.digestJson(fixture.activation),
+      installationId: fixture.identity.installationId,
+      repositoryId: fixture.identity.repositoryId,
+    },
+  });
   if (output) await writeFile(output, result.stdout, { mode: 0o644 });
   for (const secret of [
     process.env.BVE_BACKSTAGE_READER_TOKEN,

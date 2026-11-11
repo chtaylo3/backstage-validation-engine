@@ -125,6 +125,13 @@ try {
       'endurance-1000',
       'endurance-saturation',
     ]);
+    for (const version of ['1.106.3', '1.145.2'])
+      for (const size of [100, 1000])
+        verifyMetrics(
+          await json(compatibility, `/${version}/endurance-${size}/resource-metrics.json`),
+          0,
+          size,
+        );
     const soak = await download(result.compatibilityRun, 'vscode-soak-' + os);
     verifyReport(await json(soak, '/soak-results/results.json'), revision, checksum, [
       'endurance-soak',
