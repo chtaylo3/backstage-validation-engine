@@ -468,6 +468,28 @@ if (!selected) {
       }
     };
     await cli('cli.valid-json', fixture.validText, 0);
+    await record('cli.required-processor', async () => {
+      const processor = await createClientFixture({
+        directory: path.join(privateDirectory, 'required-processor'),
+        workspace: path.join(privateDirectory, 'processor-proposals'),
+        profile: {
+          ...engine.DEFAULT_DEPLOYMENT_PROFILE,
+          requiredProcessors: [{ id: 'unavailable-release-processor', stage: 'before-native' }],
+        },
+      });
+      const result = await runCli(processor, processor.validText, {
+        expectedOutcome: 'incomplete',
+        output: path.join(directory, 'cli.required-processor.json'),
+      });
+      assertH4CliCase('cli.required-processor', result);
+      cliResults.set('cli.required-processor', result);
+      return {
+        exit: result.code,
+        coverage: result.report.coverage,
+        ruleStates: result.report.ruleStates,
+      };
+    });
+
     await cli('cli.native-rejection', fixture.validText.replace('  type: service\n', ''), 1);
     await cli('cli.malformed-yaml', 'apiVersion: [\n', 1);
     await cli('cli.missing-credentials', fixture.validText, 2, {
@@ -478,6 +500,12 @@ if (!selected) {
     await cli('cli.permission-denied', fixture.validText, 2, { token: tokens.denied });
     await record('cli-specific-reason-negative-controls', async () => {
       const mutations = [
+        [
+          'cli.required-processor',
+          (value) => {
+            value.report.coverage = [];
+          },
+        ],
         [
           'cli.permission-denied',
           (value) => {
