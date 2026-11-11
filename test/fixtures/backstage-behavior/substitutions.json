@@ -131,7 +131,7 @@
     },
     "payload": "",
     "upstream": {
-      "value": null
+      "error": "expected to find exactly one document"
     },
     "local": {
       "error": "invalid_inclusion"

@@ -5,7 +5,8 @@ These tables define independent expected values for H4. The two supported backen
 The `.ts.txt` suffix keeps upstream source out of the repository TypeScript build. `LICENSE.upstream` retains the upstream Apache 2.0 license.
 
 `substitutions.json` defines input bytes and separate upstream and local expected results. Both upstream processors reject non-string targets.
-The local snapshot profile deliberately rejects mixed mappings, duplicate JSON keys, empty YAML, and unsafe numbers.
+The local snapshot profile deliberately rejects mixed mappings, duplicate JSON keys and unsafe numbers.
+Both profiles reject empty YAML.
 It recursively resolves returned placeholders. Upstream leaves mixed mappings and returned placeholders alone.
 
 `references.json` defines complete expected processor relation tuples and separate expected local reference lists.
