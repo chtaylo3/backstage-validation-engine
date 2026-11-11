@@ -98,8 +98,7 @@ void test('stdio completion and hover work on unfinished YAML while authoritativ
   const syntax = await host.waitFor((row) => row.uri === URI && row.version === 1);
   assert(
     syntax.diagnostics.some(
-      (row) =>
-        row.code === 'yaml/syntax' && typeof row.message === 'string' && row.message.length > 0,
+      (row) => row.code === 'yaml/syntax' && row.message === 'Invalid YAML syntax.',
     ),
   );
   const result = await host.client.sendRequest(CompletionRequest.type, {

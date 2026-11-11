@@ -301,3 +301,10 @@ The corrected protocol/boundary run passes all 22 checks with no cancellation or
 A later edit run catches a quoted-key formatting assumption. The independent expected key spelling now matches the declared safe quoted repair format.
 Type/lint development corrections remain separate from product qualification.
 Committed-input source/client, packaged, and isolated faulty-variant qualification remain pending at this checkpoint.
+
+The complete source/client and packaged gates first pass at `9d6326c6790322260ec149a78137cad07908a786`.
+Those runs contain 1,143 source tests, 43 client tests, and 1,143 packaged tests with no failures or skips.
+Eight isolated controls also pass at that revision, including the Linux simulation without `O_NOFOLLOW`.
+A final intent audit identifies a masking risk in the framing negatives: incomplete oversized fixtures can fail as truncated frames.
+The revised fixtures supply complete oversized payloads and headers. Stream completion must reject them for the framing failure.
+The earlier full gates remain preliminary. The stronger test revision requires fresh committed-input qualification.

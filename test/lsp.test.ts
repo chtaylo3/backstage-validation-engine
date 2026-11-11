@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { finished } from 'node:stream/promises';
 import { test } from 'node:test';
 import {
   DidOpenTextDocumentNotification,
@@ -842,19 +843,30 @@ void test('LSP framing preflight bounds headers/bodies, handles split/multiple f
   input.end();
   await once(input, 'end');
   assert.deepEqual(Buffer.concat(chunks), Buffer.concat([frame, frame]));
-  for (const invalid of [
-    Buffer.from(`Content-Length: ${LSP_FRAME_BYTES + 1}\r\n\r\n`),
-    Buffer.alloc(8193, 65),
-    Buffer.from('Content-Length: 2\r\nContent-Length: 2\r\n\r\n{}'),
-    Buffer.from('Content-Length: -2\r\n\r\n'),
-    frame.subarray(0, frame.length - 1),
-  ])
-    await t.test('reject invalid frame', async () => {
+  for (const [name, invalid] of [
+    [
+      'complete oversized payload',
+      Buffer.concat([Buffer.from('Content-Length: 8388609\r\n\r\n'), Buffer.alloc(8388609, 65)]),
+    ],
+    [
+      'complete oversized header',
+      Buffer.from(prefix + 'a'.repeat(8193 - prefix.length - 4) + '\r\n\r\nx'),
+    ],
+    ['duplicate length', Buffer.from('Content-Length: 2\r\nContent-Length: 2\r\n\r\n{}')],
+    ['negative length', Buffer.from('Content-Length: -2\r\n\r\n')],
+    ['truncated body', frame.subarray(0, frame.length - 1)],
+  ] as const)
+    await t.test('reject ' + name, async () => {
       const stream = new BoundedLspInput();
       stream.resume();
-      const error = once(stream, 'error');
+      const completion = finished(stream, { cleanup: true });
       stream.end(invalid);
-      await error;
+      await assert.rejects(
+        completion,
+        name === 'truncated body'
+          ? /^Error: Truncated LSP frame\.$/u
+          : /^Error: Invalid or oversized LSP frame\.$/u,
+      );
     });
 });
 
