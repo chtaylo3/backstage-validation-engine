@@ -56,8 +56,8 @@ This finding does not expand H7 or authorize an additional language-semantics ch
 | H2      | LSP tests prove observable behavior and reject stale work          | Accepted H1                                       | Accepted |
 | H3      | Core and CLI tests use independent contracts and boundary controls | Accepted H2                                       | Accepted |
 | H4      | Catalog fixtures and convergence match declared backend behavior   | Accepted H3                                       | Accepted |
-| H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Admitted |
-| H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Waiting  |
+| H5      | Installed tests prove the intended editor outcomes                 | Accepted H4                                       | Accepted |
+| H6      | Evidence inventories and documentation state the actual scope      | Accepted H5                                       | Admitted |
 | H7      | Final client, transport, and endurance qualification               | Separate authorization and accepted H1 through H6 | Deferred |
 
 Package ownership is exhaustive and exclusive in the register.

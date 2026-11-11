@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 through H4 are accepted. H5 awaits parent review. H6 remains unassigned. Additional N1 remains open.
+Status: H1 through H5 are accepted within their recorded scope. H6 is admitted. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -36,15 +36,15 @@ No complete H1 finding closes through these baseline corrections.
 
 ## Package state
 
-| Package | Agent state  | Parent decision | Required next evidence                                                                |
-| ------- | ------------ | --------------- | ------------------------------------------------------------------------------------- |
-| H1      | Complete     | Accepted        | Scoped evidence and limitations recorded below                                        |
-| H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below                                        |
-| H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.                                      |
-| H4      | Complete     | Accepted        | Scoped backend evidence and limitations recorded below                                |
-| H5      | Complete     | Pending         | Parent review of desktop evidence. R4-F10 retains a Partial native Trust disposition. |
-| H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation                               |
-| H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification                              |
+| Package | Agent state | Parent decision | Required next evidence                                                     |
+| ------- | ----------- | --------------- | -------------------------------------------------------------------------- |
+| H1      | Complete    | Accepted        | Scoped evidence and limitations recorded below                             |
+| H2      | Complete    | Accepted        | Scoped evidence and limitations recorded below                             |
+| H3      | Complete    | Accepted        | Scoped evidence recorded below. N1 remains open.                           |
+| H4      | Complete    | Accepted        | Scoped backend evidence and limitations recorded below                     |
+| H5      | Complete    | Accepted        | Desktop scope accepted. R4-F10 retains a Partial native Trust disposition. |
+| H6      | Admitted    | Pending         | Complete scope, inventory, and evidence reconciliation                     |
+| H7      | Deferred    | Not admitted    | Separate authorization and final-candidate qualification                   |
 
 ## Required record for each package
 
@@ -1030,9 +1030,9 @@ This decision authorizes no push, PR, publication, merge, hosted run, or release
 
 ## H5: installed editor outcomes and measurement policy
 
-Agent disposition: complete for the admitted desktop scope. Parent decision: pending.
+Agent disposition: complete for the admitted desktop scope. Parent decision: accepted for that scope.
 Qualified source/test revision: `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
-H6 remains unassigned. H7 remains deferred. This handoff does not grant parent acceptance.
+H6 was unassigned at the agent handoff. The parent decision below admits H6. H7 remains deferred.
 R4-F10 remains Partial because its strengthened native Trust assertions are UNEXECUTED and parent-unaccepted.
 That qualification remains within the existing H7 Trust deferral. It does not expand H7.
 
@@ -1136,3 +1136,57 @@ The original review retains SHA-256 `3814987bbc5b962b5638cecde322054d33db400d52a
 The root lock retains SHA-256 `dbd025198eb555e06edf78f0c8f420eef786c445a9eaf01b488ea34ec4669b8b`.
 Additional N1 remains OPEN beyond the original 86 findings. Duplicate CEL map literals still retain the last value in both pinned engines.
 H6 must carry N1 and the Partial native Trust disposition. Neither is fixed, waived, or added as a new H7 scope item.
+
+### Parent acceptance
+
+Parent decision: accepted on 2026-11-11 for the executed H5 desktop scope and all eight scoped criteria.
+The qualified source/test revision is `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
+Fourteen assigned findings are accepted. R4-F10 remains Partial solely for its unexecuted native Workspace Trust follow-up.
+Those native assertions receive no acceptance through this decision. H7 retains their execution and reliability qualification.
+
+| Criterion | Independent parent evidence                                                                                                                                                                                                                                     | Decision                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| H5-A1     | Inspected all ten configuration fault/recovery cases and their targeted installed negative controls. Repeated config-missing against the stamped VSIX.                                                                                                          | Accepted                                         |
+| H5-A2     | Inspected ordered watcher receipts, unchanged dirty-source digest/version, current-generation publications, and live policy findings. Repeated dirty-watch and independently decoded positive and transient-fault raw publication histories.                    | Accepted within executed desktop scope           |
+| H5-A3     | Inspected actual old/new results, same-PID reload, correlated successful explicit reload response, and stop/crash reason faults. Later responses cannot satisfy an earlier failed reload.                                                                       | Accepted                                         |
+| H5-A4     | Inspected exact overflow/incomplete evidence, whole-document guarded action queries, stale repair rejection, and applied recovery. Both incomplete-state and unsafe guarded-action faults fail their direct assertions.                                         | Accepted                                         |
+| H5-A5     | Repeated actual search history across fresh editor activations and credentials without document changes. Inspected discovery/hover/navigation outcomes and all targeted faults. The credential-generation fault actually applies a stale edit before rejection. | Accepted within executed desktop scope           |
+| H5-A6     | Independently replayed inclusive budget boundaries and bounded pending checks. Repeated actual suspended-server latency negative control. Caps and production deadlines remain unchanged.                                                                       | Accepted under the documented provisional policy |
+| H5-A7     | Replayed the actual generated host verdict with nineteen fixed metric controls, including four retained leaks admitted by the old window. Insufficient-slope controls remain rejected. Replayed all four actual short workloads without a long-duration claim.  | Accepted                                         |
+| H5-A8     | Independently recomputed the final artifact identity and reconstructed all sixty selected passing case/version combinations from their exact reports. Repeated five cases on VS Code 1.106.3.                                                                   | Accepted for Linux x64 only                      |
+
+The final VSIX SHA-256 is `5d06602358da7d507cbae6df26606f6090fd14c49d0efbcfb3c90f3d2c912945`.
+It contains 5,079 entries and 52,088,729 bytes. Its stamp identifies the qualified source and Node 24.22.1.
+The parent independently matched the packaged runtime and unchanged generated verdict helpers to their recorded hashes.
+All 1,341 source, 45 client, and 1,341 packaged tests pass with zero failures, cancellations, skips, or todo.
+
+The initial installed matrix has 58 passes and two failures with actual X connection errors.
+Only those two cases rerun on an owned private Xvfb display, with unchanged source, artifact, assertions, and budgets.
+Both pass. The accepted matrix therefore has sixty unique passing combinations across sixty-two executions.
+The original two failed rows remain failed. This decision does not call the initial matrix a clean run.
+`parent/native-attribution-review.json` independently reconstructs that attribution.
+
+All twenty-three deliberately faulty VSIX variants fail their intended assertions across thirty-three child executions.
+`parent/fault-attribution-review.json` retains the independent artifact and failure inspection.
+The stronger credential-generation fault changes version 2 to 3 and actually edits the unchanged document after denial.
+The corrected candidate rejects that repair and applies a fresh repair after recovery.
+
+`parent/raw-publication-review.json` matches the positive windows to complete retained editor logs with an independent JSON decoder.
+`parent/transient-publication-review.json` observes each injected wrong publication followed by its later clear.
+Both tests reject the transient result directly. No final-state-only assertion substitutes for these histories.
+
+The parent repeats config-missing, editor-search, editor-credentials, race-dirty-watch, and performance-budget on the exact stamped candidate.
+All five pass. `parent/native-repeat/installed/results.json` and `parent/native-repeat/run.log` retain the execution.
+All thirteen recorded repeat process IDs are absent after cleanup.
+A separate read-only inspection of ninety-seven final qualification progress files finds all 208 recorded editor/server process IDs absent.
+The private display controller exits, and shared display resources remain untouched.
+
+`parent/accepted-source-host-metric-window.json` and `parent/accepted-source-host-metric-boundaries.json` retain the fixed verdict controls.
+`parent/final-readiness-deadline.json` proves pending checks and repeated cancellations share one 60-second observation deadline.
+`parent/actual-load-verdict-review.json` retains four actual short workload replays.
+Each workload has sixty edits, sixty completions, two measured restarts, and twenty-two resource samples.
+These workloads do not span the required hundred operations for slope qualification. No endurance qualification follows.
+
+H6 is admitted next from the local parent acceptance commit.
+H7 remains deferred. Additional finding N1 remains Open beyond the original 86 findings.
+This decision authorizes no push, PR, publication, merge, hosted workflow dispatch, or final release qualification.

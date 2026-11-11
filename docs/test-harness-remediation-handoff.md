@@ -118,7 +118,7 @@ Evidence manifest: `.artifacts/harness-remediation/H5/qualification/manifest.jso
 The final VSIX SHA-256 is `5d06602358da7d507cbae6df26606f6090fd14c49d0efbcfb3c90f3d2c912945`.
 The primary standard VS Code artifacts remain development inputs. The manifest identifies the retained exact candidate and clean checkout.
 
-H5 awaits parent acceptance. H6 remains unassigned.
+The parent accepts the executed H5 desktop scope and admits H6. The H5 record contains the independent decision and limits.
 R4-F10 is Partial for strengthened but UNEXECUTED, parent-unaccepted native Trust assertions under the existing H7 deferral.
 Additional N1 remains OPEN beyond the original 86 findings. H6 must preserve both dispositions.
 H7 remains deferred and is not expanded. No push, PR, publication, or merge occurs through this handoff.
