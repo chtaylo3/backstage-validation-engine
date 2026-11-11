@@ -1,9 +1,13 @@
 # LSP separation implementation record
 
-The implementation starts from `fdac6f6`, with the reviewed plan committed and a clean working tree.
-The production baseline remains `cb67908`. No remote branch or pull request is part of this work.
-Phases 0 through 9 are implemented locally. The qualified Linux checks and the remaining environment limits appear below.
-This record separates executed evidence from planned checks.
+Status: phases 0 through 9 are implemented and merged in [PR #2](https://github.com/chtaylo3/backstage-validation-engine/pull/2).
+The tested head is `6938b8b85c1b5889af3fbe1119684de6577e5b45`. The merge commit is `d2e54748dbd34e9f1e881c2abf77689cf197b40f`.
+The [hosted qualification summary](#hosted-qualification-and-merge) records native VS Code and real remote results for that head.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) governs subsequent work. Its phase 5 is deferred.
+
+Implementation started from `fdac6f6`, with the reviewed plan committed and a clean working tree.
+The production baseline was `cb67908`. Earlier sections retain evidence from each implementation checkpoint.
+Their local-only statements describe those checkpoints, not the final merged qualification.
 
 ## Phase 0 Baseline and contracts
 
@@ -290,7 +294,7 @@ Evidence is retained under ignored `.artifacts/ssh-network/677f835/`, including 
 The ordinary CI workflow now runs real authenticated preflights for both host and published transports on Ubuntu.
 The remote qualification workflow also runs both preflights, then the complete SSH lane with explicit host networking.
 Preflight reports declare zero product sessions. They cannot substitute for installed-editor qualification.
-Native Linux hosted execution was not run from this checkout. It remains pending the next pushed CI run.
+At this checkpoint, native Linux hosted execution remained pending the next pushed CI run.
 The local development result does not qualify native Windows/macOS, the Windows desktop WSL lane, or a hosted release.
 No branch was pushed and no pull request was changed.
 
@@ -305,10 +309,57 @@ The compatibility workflow now also accepts a reusable call. An explicit `qualif
 the registered CI workflow invokes its existing quick jobs after all three VSIX candidate jobs pass.
 The same exact-revision package selection and product assertions remain in force.
 Ordinary pushes and pull requests do not enable this optional lane.
-Hosted compatibility results will be recorded after that explicit dispatch finishes.
+The completed dispatch results appear in the hosted qualification summary below.
 
 Candidate selection also excludes PR-triggered runs. GitHub reports their branch head in the runs API,
 but their package stamp contains the temporary merge revision. Shared selection for the CLI and VSIX
 accepts only push or explicit-dispatch runs at the requested revision and skips cancelled runs.
 The extracted former predicate failed three new regression scenarios before the correction.
 All four candidate-selection cases pass with the correction, including an active explicit dispatch.
+
+## Hosted qualification and merge
+
+[PR #2](https://github.com/chtaylo3/backstage-validation-engine/pull/2) merged the completed separation into `master` on 2026-11-09, America/New_York time.
+The tested head was `6938b8b85c1b5889af3fbe1119684de6577e5b45`.
+The merge commit was `d2e54748dbd34e9f1e881c2abf77689cf197b40f`.
+
+[PR CI](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42749139911) passed on Ubuntu 24.04, Windows 2025, and macOS 15.
+[Exact-candidate CI and quick qualification](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42749137380) also passed.
+Each operating system passed 989 source tests, 989 packaged tests, and 88 installed-editor cases.
+Source and packaged reports record zero failures, cancellations, or skipped tests.
+The separate client gate retained 42 tests and its unchanged 90% line and 85% branch thresholds.
+
+Quick qualification passed six compatibility cases and six load cases on each operating system, for 36 desktop cases.
+SSH, dev-container, and actual Windows WSL2 workspaces each passed four disconnect/reconnect sessions, for 12 real remote sessions.
+Both pinned VS Code versions, 1.106.3 and 1.145.2, executed in the installed and remote cases.
+Both authenticated SSH network preflights passed on native Linux.
+The native CI SSH lane and the earlier Docker Desktop/WSL2 published-port lane retain the same product assertions.
+
+The installed-editor and quick reports use these exact candidate VSIX digests:
+
+| Target                      | SHA-256                                                            |
+| --------------------------- | ------------------------------------------------------------------ |
+| Linux x64                   | `420135461bfea87197fd05ff039c081d0107c2de3258d2cb7ed87d6bc5e78a5b` |
+| Windows x64                 | `223c7526cbf72521c48ddb25bd8b67e4b0e29ba4aa5c599cb84017aab43ea72c` |
+| macOS arm64, isolated rerun | `226c7295dca9a1cda8ff98b28f3e8044d42e431baa55dbeeb86cc57904e679bd` |
+
+All three remote reports use the Linux digest above.
+The quick desktop reports match their operating system's installed-editor digest.
+The retained local summary is `.artifacts/lsp-separation/hosted-6938b8b/verification-summary.json`.
+Raw reports and job inventories remain in that ignored directory and the linked hosted runs.
+
+The first macOS qualification attempt passed 87 of 88 installed cases.
+VS Code 1.145.2 `trust-persisted` timed out after the driver recorded a native Trust click, while the workbench remained restricted.
+The separate PR run passed the macOS suite. The isolated macOS rerun then passed all 88 cases.
+The rerun retained the same assertions and time bounds. The original logs, screenshots, and 87/88 report remain retained evidence.
+This rerun does not establish a fix for native Trust UI reliability.
+
+The separate [post-merge CI run](https://github.com/chtaylo3/backstage-validation-engine/actions/runs/42755077373) targets the merge commit.
+It passed at merge commit `d2e54748dbd34e9f1e881c2abf77689cf197b40f` before the parent accepted phase 1 documentation.
+The earlier phase 1 agent checkpoint observed its Windows installed-editor job still running.
+Its status is separate from the successful exact-head qualification above.
+
+These runs qualify the stated native VS Code and remote-workspace checks for the tested head.
+They do not establish installed JetBrains support, historical-release upgrades, longer final-candidate endurance, or release publication readiness.
+The user deferred those activities to phase 5 of the [editor improvements plan](lsp-editor-improvements-plan.md).
+Capability interfaces, live catalog refresh, and CEL/RE2 editor contributions remain planned phases 2 through 4.

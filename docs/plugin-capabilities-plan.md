@@ -1,8 +1,13 @@
 # Rule and editor capability plan
 
-Status: design requirements for the next implementation increments. The proposed interfaces below are not implemented plugin APIs.
+Status: phase 2 implements versioned interfaces and host admission for the existing built-in providers.
+The [implemented interface guide](capability-interfaces.md) defines the current records, boundaries, and limitations.
+Phase 3 implements bounded host polling for live refresh. Phase 4 implements [declarative CEL/RE2 editor contributions](rule-editor-contributions.md).
+External executable plugin loading remains separate work.
 The current wire contract remains version 0.2. A capability is a function that the host permits a provider to supply.
 This plan covers rule execution and the editor functions that rules can support.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.
+This document supplies capability behavior and conformance requirements. The phase 1 checkpoint recorded these interfaces as unimplemented.
 
 ## Current implementation and required direction
 
@@ -10,7 +15,9 @@ CEL validation already runs through the managed `bve-cel/1` runtime.
 RE2 already handles CEL `matches` operations and supported schema patterns.
 The current rule union contains `cel`, `schema`, and `catalog`. It has no standalone `re2` or executable-plugin rule kind.
 The editor currently derives field and value hints from trusted schemas and uses the existing catalog provider for references.
-Generic plugin capability negotiation, CEL repair providers, and standalone RE2 rule adapters remain future work.
+Built-in negotiation and lifecycle admission now use `bve-plugin/1`.
+Approved CEL and schema RE2 declarations now supply finite checked candidates and guarded repairs.
+Standalone RE2 rule adapters and arbitrary executable loading remain future work.
 
 Future CEL, RE2, schema, catalog, and approved executable providers must use one set of host contracts.
 CLI, editors, and hosted execution must share validation semantics.
@@ -50,8 +57,8 @@ Every invocation must bind its result to the exact execution context.
 The host must supply immutable input projections and retain source locations and processing history.
 Raw source, network access, filesystem access, and credentials are not implicit provider inputs.
 
-The following TypeScript sketch defines the proposed shape. Named input and output records are specified by the capability table below.
-Production work must add generated JSON Schemas, semantic validation, and protocol tests before exposing these names as APIs.
+The following sketch retains the original design baseline. The implemented [version 1 records](capability-interfaces.md) use independently versioned schemas and semantic admission.
+Their activation, workspace, session, and dependency generations remain distinct. Named function records preserve the requirements in the table below.
 
 ```ts
 type CapabilityId =
@@ -374,17 +381,26 @@ Executable plugins remain disabled until their approved isolation profile passes
 Worker threads and a capability manifest alone do not provide operating-system isolation.
 Optional editor-provider failure must not suppress required validation findings or weaken mandatory policies.
 
-## Delivery increments
+## Delivery through the five-phase editor plan
 
-| Increment                                  | Required implementation                                                                                                                                                            | Exit condition                                                                                                                                       |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Freeze capability contracts             | Define lifecycle, manifests, bindings, typed artifacts, capability schemas, negotiation, and any wire-version migration.                                                           | PC-01 and protocol rejection tests pass. No arbitrary plugin loading is enabled.                                                                     |
-| 2. Adapt current providers                 | Put existing schema, native field metadata, catalog references/search, and source discovery behind the interfaces. Keep host history, rendering, guards, and credentials separate. | Existing source, packaged, and installed-editor behavior remains covered. PC-03, PC-05, PC-07, and PC-08 pass for those adapters.                    |
-| 3. Add live dependency refresh             | Implement bounded background refresh, optional change hints, query/absence dependencies, dependency generations, cache/edit invalidation, and same-version diagnostics.            | PC-11 passes against a mutable catalog with no source-edit trigger. Qualify the refresh target and fallback behavior before claiming live freshness. |
-| 4. Add CEL editor contributions            | Connect declared metadata, candidates, applicability, candidate validation, and repair proposals to the shared managed runtime.                                                    | PC-02, PC-04, and PC-06 pass with actual selectors, prerequisites, provider facts, and production workers.                                           |
-| 5. Add RE2 editor contributions            | Supply explicit pattern metadata and bounded examples/generators. Design a standalone rule contract only if needed.                                                                | Qualified matching semantics and limits remain unchanged. PC-03, PC-04, and PC-06 pass without an alternate regex engine.                            |
-| 6. Enable approved executable providers    | Implement process transport, supervision, permission brokers, and supported isolation profiles.                                                                                    | PC-01 through PC-09 and profile-specific denial tests pass. External-data providers must also pass PC-11.                                            |
-| 7. Qualify supported clients and workloads | Run installed editors, real catalog integration, combined CEL/RE2 loads, restart/endurance, and exact-candidate release suites.                                                    | PC-10 passes for the declared support matrix. Missing environment evidence remains open.                                                             |
+The [editor plan](lsp-editor-improvements-plan.md) replaces the earlier seven-increment delivery order.
+The table below maps these technical requirements to its five phases. Full phase gates remain in that plan.
+The [phase record](lsp-editor-improvements-implementation-record.md) distinguishes implementation from parent acceptance.
+
+| Phase       | Capability work                                                                                                                                              | Required conformance                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| 1           | Reconcile completed separation and qualification documentation.                                                                                              | Evidence, scope, formatting, and link review. No runtime changes.               |
+| 2           | Freeze lifecycle, manifests, bindings, capability schemas, and negotiation. Adapt built-in validation, metadata, references, repairs, search, and discovery. | PC-01, PC-02, PC-03, PC-05, PC-06, PC-07, PC-08, and lifecycle rejection tests. |
+| 3           | Add bounded background refresh, dependency generations, query/absence invalidation, and same-version diagnostics.                                            | PC-11 with mutable catalog data and no source-edit trigger.                     |
+| 4           | Add CEL and RE2 metadata, finite candidates, applicability, candidate evidence, and guarded repair proposals through qualified runtime paths.                | PC-02, PC-03, PC-04, PC-06, and focused installed-client integration.           |
+| 5, deferred | Improve native Trust automation, qualify installed JetBrains clients, and complete longer final-candidate endurance and release qualification.               | PC-10 and the declared final support/release matrix.                            |
+
+Phase 2 implements the built-in interfaces. Its local qualification passed, and parent acceptance remains pending in the phase record.
+Phases 3 and 4 remain planned. Phase 5 does not start automatically.
+Built-in adapters and approved declarative artifacts do not require an arbitrary executable plugin loader.
+External executable providers need separate approval, process supervision, permission brokers, and qualified isolation.
+Their future gates include PC-01 through PC-09 and PC-11 for external-data providers.
+SQS, Kafka, the durable hosted controller, and authoritative GitHub publication remain outside this sequence.
 
 This plan extends the [current editor implementation](editor-features.md) and [managed CEL runtime](cel-runtime.md).
 The [architecture](architecture.md) retains one validation engine and trusted host authority.

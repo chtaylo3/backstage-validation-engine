@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createServer } from 'node:net';
 import { readFile, writeFile } from 'node:fs/promises';
-import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import path from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { setTimeout, clearTimeout } from 'node:timers';
@@ -22,6 +21,7 @@ export async function debugPort() {
 }
 const read = async (file) => JSON.parse(await readFile(file, 'utf8').catch(() => 'null'));
 async function atomic(file, value) {
+  const { writeEvidence } = await import('../.artifacts/vscode/test/evidence.mjs');
   await writeEvidence(file, JSON.stringify(value, null, 2) + '\n');
 }
 
@@ -167,7 +167,18 @@ export class Workbench {
     for (let clickCount = 1; clickCount <= count; clickCount++) {
       const point = { x: rectangle.x, y: rectangle.y, button: 'left', clickCount };
       await this.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point });
-      await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
+      try {
+        // Pointer focus can scroll the Trust pane after mousePressed. Release
+        // over the same named, painted control rather than its old position.
+        await this.wait(async () => {
+          rectangle = await this.rectangle(pattern);
+          return !!rectangle;
+        }, 'focused UI button ' + pattern);
+        point.x = rectangle.x;
+        point.y = rectangle.y;
+      } finally {
+        await this.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point });
+      }
     }
   }
   async trustPane(allowPalette = false) {

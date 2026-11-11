@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "sources",
+    "complete"
+  ],
+  "properties": {
+    "sources": {
+      "maxItems": 1000,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "uri"
+        ],
+        "properties": {
+          "uri": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "revision": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "complete": {
+      "type": "boolean"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:source-discovery-output:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

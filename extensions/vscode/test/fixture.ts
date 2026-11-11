@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import * as vscode from 'vscode';
+import { readProvider, until } from './readiness.js';
+export { until } from './readiness.js';
 
 export interface Api {
   status(): { running: boolean; pid?: number; disconnected?: boolean };
@@ -10,16 +12,6 @@ export const team =
   'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {type: team, children: []}\n';
 export const invalidTeam =
   'apiVersion: backstage.io/v1alpha1\nkind: Group\nmetadata: {name: team}\nspec: {}\n';
-export async function until(
-  check: () => boolean | Promise<boolean>,
-  description: string,
-): Promise<void> {
-  const end = Date.now() + 20_000;
-  while (!(await check())) {
-    if (Date.now() >= end) throw new Error('Timed out: ' + description);
-    await new Promise<void>((resolve) => setTimeout(resolve, 30));
-  }
-}
 export async function bounded<T>(
   work: PromiseLike<T>,
   description: string,
@@ -58,6 +50,22 @@ export class Fixture {
   readinessCancellations = 0;
   readonly observations: { event: string; at: number }[] = [];
   checkpoint: () => Promise<void> = () => Promise.resolve();
+  provider<T>(
+    command:
+      | 'vscode.executeCompletionItemProvider'
+      | 'vscode.executeHoverProvider'
+      | 'vscode.executeCodeActionProvider',
+    ...args: unknown[]
+  ): Promise<T> {
+    return readProvider(
+      () => vscode.commands.executeCommand<T>(command, ...args),
+      'readiness of ' + command,
+      () => {
+        this.readinessCancellations++;
+        this.note(command + ' readiness cancelled by editor');
+      },
+    );
+  }
   note(event: string): void {
     if (this.observations.length < 128) this.observations.push({ event, at: Date.now() });
   }

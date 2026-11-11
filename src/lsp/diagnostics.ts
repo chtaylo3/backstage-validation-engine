@@ -63,3 +63,16 @@ export function incomplete(
     },
   };
 }
+
+/** Preserve the public source timeout when admission denies an already expired budget before parsing starts. */
+export function admissionTimeout(
+  digest: string,
+  version: number,
+  evidence: readonly FailureEvidence[],
+): Diagnostic {
+  return {
+    ...incomplete(digest, version, evidence),
+    code: 'yaml/timeout',
+    message: 'Validation request deadline expired before source parsing could start.',
+  };
+}

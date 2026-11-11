@@ -1,11 +1,15 @@
 # Editor features
 
-The language server supplies field and value completion, hover, local definitions, and guarded schema repairs.
+The language server supplies field and value completion, hover, local definitions, and guarded schema and declared rule repairs.
 VS Code also supplies catalog search and persistent selection history.
 Trusted launcher configuration selects schemas, policy authority, sources, and credentials.
 
-The [rule and editor capability plan](plugin-capabilities-plan.md) specifies future CEL, RE2, and plugin extensions.
-It defines the interfaces and conformance requirements for each function. Generic plugin negotiation remains future implementation work.
+The [rule and editor capability plan](plugin-capabilities-plan.md) specifies CEL, RE2, and plugin requirements.
+It defines the interfaces and conformance requirements for each function.
+Built-in providers now use the versioned [capability interfaces](capability-interfaces.md). Arbitrary executable plugin loading remains unavailable.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
+Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](lsp-editor-improvements-implementation-record.md).
+Phase 3 adds live catalog refresh. Phase 4 implements [declared CEL/RE2 contributions](rule-editor-contributions.md), with qualification and acceptance recorded separately.
 
 ## Completion and documentation
 
@@ -53,10 +57,25 @@ Accepted selections rank future eligible values. History cannot add an ineligibl
 VS Code stores at most 128 selections locally, scoped to the workspace, trusted configuration, and authority context.
 Other clients use the server's bounded session history.
 
-Catalog cache expiry currently triggers fresh reads on later requests. It does not schedule idle-buffer revalidation after a remote catalog change.
-The [live dependency refresh plan](plugin-capabilities-plan.md#live-changes-to-catalog-data) specifies background refresh,
-optional change notifications, same-version diagnostics, and invalidation of affected suggestions and repairs.
-These continuous remote-refresh mechanisms remain implementation work.
+Catalog dependencies now refresh while an approved document remains unchanged.
+Adding, removing, renaming, or modifying a team triggers fresh evaluation at the existing document version.
+Polling targets 30 seconds. Earlier observation expiry or `catalog.maxAgeMs` shortens this interval.
+A 250 ms scheduling floor bounds short intervals. `maxAgeMs: 0` bypasses caches and retains the default observation cadence.
+Each tick invalidates remote choices and repair tokens before a new validation request reads the catalog.
+That request retains one original budget for body reads, recent identity queries, and evaluation.
+
+Completion and search receive refreshed choices on the next matching client request.
+The server does not replace a standard completion popup or an already open VS Code search picker automatically.
+It tracks up to 1000 actual body or missing-reference dependencies and 32 recent query scopes.
+Query interest expires after two minutes without user requests. Background reads do not extend that interest.
+Identity searches never substitute for full entity observations.
+Local sources, conflicts, invalid replacements, and deletion masks retain precedence.
+
+Explicit denied reads and remote failures retain unavailable or incomplete findings.
+An authorized-view missing result cannot distinguish global deletion from permission-filtered absence when the backend returns the same response.
+Permission or credential revision changes replace the entire approved session and its caches.
+Polling uses bounded failure backoff. No Backstage event stream is assumed or implemented.
+The [phase record](lsp-editor-improvements-implementation-record.md) separates local qualification from parent acceptance.
 
 ## File discovery
 
@@ -120,3 +139,12 @@ Shared features depend on the client's declared capabilities. The search picker 
 Template generation and shared LSP behavior have automated tests.
 Installed JetBrains products, plugin versions, and operating systems still need interactive qualification.
 Marketplace publication and exact-candidate release qualification remain separate release actions.
+The user deferred JetBrains qualification, native Trust automation improvements, and longer release workloads to phase 5.
+
+## Completed native VS Code qualification
+
+The ownership refactor completed phases 0 through 9 and merged in PR #2.
+Its tested head passed 989 source tests, 989 packaged tests, and 88 installed cases on each native operating system.
+Quick qualification also passed 36 desktop cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
+The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
+These results do not complete the deferred release work above.

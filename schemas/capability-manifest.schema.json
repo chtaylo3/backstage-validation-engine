@@ -1,0 +1,241 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "pluginId",
+    "version",
+    "artifactDigest",
+    "executionProfile",
+    "capabilities",
+    "dependencies",
+    "subjectStages",
+    "permissions",
+    "languageProfiles"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "bve-plugin/1",
+      "type": "string"
+    },
+    "pluginId": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string"
+    },
+    "artifactDigest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "executionProfile": {
+      "anyOf": [
+        {
+          "const": "builtin/1",
+          "type": "string"
+        },
+        {
+          "const": "declarative/1",
+          "type": "string"
+        }
+      ]
+    },
+    "capabilities": {
+      "minItems": 1,
+      "maxItems": 9,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "required",
+          "inputSchemaDigest",
+          "outputSchemaDigest",
+          "mode"
+        ],
+        "properties": {
+          "id": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "maximum": 1000,
+            "type": "integer"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "inputSchemaDigest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "outputSchemaDigest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "const": "prepared",
+                "type": "string"
+              },
+              {
+                "const": "async",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "maxItems": 64,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 4096,
+        "type": "string"
+      }
+    },
+    "subjectStages": {
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "const": "authored",
+            "type": "string"
+          },
+          {
+            "const": "resolved",
+            "type": "string"
+          },
+          {
+            "const": "normalized",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "permissions": {
+      "maxItems": 2,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "const": "catalog-read",
+            "type": "string"
+          },
+          {
+            "const": "source-discovery",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "languageProfiles": {
+      "maxItems": 16,
+      "uniqueItems": true,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 4096,
+        "type": "string"
+      }
+    },
+    "changeObservation": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "mechanism",
+        "coverage",
+        "cursor",
+        "ordered",
+        "replay",
+        "heartbeatMs",
+        "gapHandling"
+      ],
+      "properties": {
+        "mechanism": {
+          "anyOf": [
+            {
+              "const": "polling",
+              "type": "string"
+            },
+            {
+              "const": "event-hints",
+              "type": "string"
+            }
+          ]
+        },
+        "coverage": {
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "const": "entity",
+                "type": "string"
+              },
+              {
+                "const": "query",
+                "type": "string"
+              },
+              {
+                "const": "collection",
+                "type": "string"
+              },
+              {
+                "const": "authority",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "const": "none",
+              "type": "string"
+            },
+            {
+              "const": "opaque",
+              "type": "string"
+            }
+          ]
+        },
+        "ordered": {
+          "type": "boolean"
+        },
+        "replay": {
+          "type": "boolean"
+        },
+        "heartbeatMs": {
+          "minimum": 1,
+          "maximum": 300000,
+          "type": "integer"
+        },
+        "gapHandling": {
+          "const": "reset-and-read",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$id": "urn:backstage-validation:capability:manifest:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

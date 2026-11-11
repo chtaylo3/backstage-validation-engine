@@ -2,8 +2,11 @@ import type { CatalogAccessContext, CatalogProvider } from '../providers/types.j
 import { abortable } from '../providers/async.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
+import { BuiltinValidationService } from '../host/builtin-validation.js';
+import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import type { LspConfig } from './config.js';
 import type { FilesystemSource } from './filesystem.js';
+import { CatalogRefresh } from './catalog-refresh.js';
 import { SessionOperations } from './request-context.js';
 
 export interface SessionRegistration {
@@ -38,6 +41,8 @@ export class SessionGeneration {
   readonly operations = new SessionOperations();
   readonly completion: CompletionService;
   readonly editor: EditorService;
+  readonly validation: BuiltinValidationService;
+  readonly refresh: CatalogRefresh | undefined;
   private readonly registrations = new Set<SessionRegistration>();
   private disposal: Promise<void> | undefined;
   private retired = false;
@@ -47,17 +52,36 @@ export class SessionGeneration {
     private readonly resources: LspServerResources,
     private readonly closeMs = 5000,
     private readonly cleanupFailed: () => void = () => {},
+    dependencyChanged: () => void = () => {},
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
-    this.completion = new CompletionService(resources.config, resources.catalog);
-    this.editor = new EditorService(resources.config);
+    this.refresh = resources.catalog
+      ? new CatalogRefresh(resources.catalog, dependencyChanged)
+      : undefined;
+    this.completion = new CompletionService(resources.config, this.catalog, undefined, {
+      dependencyGeneration: () => this.refresh?.generation ?? 0,
+      sessionGeneration: generation,
+    });
+    const authorityContextDigest = capabilityAuthorityDigest(
+      resources.config.identity,
+      this.catalog,
+    );
+    this.editor = new EditorService(resources.config, undefined, {
+      sessionGeneration: generation,
+      authorityContextDigest,
+      dependencyGeneration: () => this.refresh?.generation ?? 0,
+    });
+    this.validation = new BuiltinValidationService(resources.config, generation);
   }
   get config() {
     return this.resources.config;
   }
   get catalog() {
-    return this.resources.catalog;
+    return this.refresh?.catalog ?? this.resources.catalog;
+  }
+  get candidateCatalog() {
+    return this.refresh?.candidates() ?? this.resources.catalog;
   }
   get filesystem() {
     return this.resources.filesystem;
@@ -94,13 +118,20 @@ export class SessionGeneration {
   close(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.retired = true;
+    this.refresh?.suspend();
     this.operations.cancel();
     this.editor.invalidate();
     this.completion.invalidate();
     this.disposal = (async () => {
       const deadline = performance.now() + this.closeMs;
       const draining = await bounded(
-        Promise.allSettled([this.operations.drain(), this.completion.close()]),
+        Promise.allSettled([
+          this.operations.drain(),
+          this.refresh?.close(),
+          this.completion.close(),
+          this.editor.close(),
+          this.validation.close(),
+        ]),
         deadline - performance.now(),
       ).then(
         (outcomes) => outcomes.every((outcome) => outcome.status === 'fulfilled'),
@@ -127,6 +158,7 @@ export class SessionGeneration {
 }
 export interface SessionPorts {
   readonly invalidate: () => void;
+  readonly dependencyChanged?: () => void;
   readonly pause: () => Promise<void>;
   readonly commit: (session: SessionGeneration) => void;
   readonly activated: (session: SessionGeneration) => Promise<void> | void;
@@ -154,18 +186,25 @@ export class SessionResources {
     this.active = this.createGeneration(initial);
   }
   private createGeneration(resources: LspServerResources): SessionGeneration {
-    return new SessionGeneration(this.sequence, resources, this.closeMs, () => {
-      this.failed = true;
-      this.usable = false;
-      this.active.operations.cancel();
-      if (!this.terminal) {
-        try {
-          this.ports.invalidate();
-        } catch {
-          // The session already requires reconnection; no adapter error escapes cleanup.
+    return new SessionGeneration(
+      this.sequence,
+      resources,
+      this.closeMs,
+      () => {
+        this.failed = true;
+        this.usable = false;
+        this.active.refresh?.suspend();
+        this.active.operations.cancel();
+        if (!this.terminal) {
+          try {
+            this.ports.invalidate();
+          } catch {
+            // The session already requires reconnection; no adapter error escapes cleanup.
+          }
         }
-      }
-    });
+      },
+      () => this.ports.dependencyChanged?.(),
+    );
   }
   get current() {
     return this.active;
@@ -185,84 +224,92 @@ export class SessionResources {
       this.again = true;
       return this.reloading;
     }
+    this.reloading = (async () => {
+      let result: { reloaded: boolean };
+      do {
+        this.again = false;
+        result = await this.replace();
+      } while (this.again && !this.terminal && !this.failed);
+      return result;
+    })().finally(() => {
+      this.reloading = undefined;
+    });
+    return this.reloading;
+  }
+  private async replace(): Promise<{ reloaded: boolean }> {
     this.usable = false;
+    this.active.refresh?.suspend();
     this.ports.invalidate();
     this.active.operations.cancel();
     const pausing = this.ports.pause();
-    this.reloading = (async () => {
-      let replacement: LspServerResources | undefined;
-      let candidate: SessionGeneration | undefined;
-      let activated = false;
-      try {
-        replacement = await abortable<LspServerResources>(
-          Promise.resolve().then(() => this.load!()),
-          this.shutdown.signal,
-          (late) => {
-            void this.disposeAbandoned(late);
-          },
-        );
-        const previous = this.active;
-        const config = replacement.config;
-        if (
-          config.source.rootUri !== previous.config.source.rootUri ||
-          !!config.filesystem !== !!previous.config.filesystem ||
-          (!config.filesystem &&
-            JSON.stringify(config.source.files.map((file) => file.uri).sort()) !==
-              JSON.stringify(previous.config.source.files.map((file) => file.uri).sort()))
-        )
-          throw new Error('The client must reconnect after a source scope change.');
-        this.sequence++;
-        candidate = this.createGeneration(replacement);
-        this.prepared = candidate;
-        replacement = undefined;
-        await bounded(pausing, this.closeMs);
-        await previous.close().catch(() => {
-          this.failed = true;
-          throw new Error('Retired resource cleanup failed.');
-        });
-        if (this.terminal || this.failed) return { reloaded: false };
-        // No asynchronous work can observe half of this activation while requests are unavailable.
-        this.active = candidate;
-        this.prepared = undefined;
-        this.ports.commit(candidate);
-        await this.ports.activated(candidate);
-        if (this.terminal || this.failed) return { reloaded: false };
+    let replacement: LspServerResources | undefined;
+    let candidate: SessionGeneration | undefined;
+    let activated = false;
+    try {
+      replacement = await abortable<LspServerResources>(
+        Promise.resolve().then(() => this.load!()),
+        this.shutdown.signal,
+        (late) => {
+          void this.disposeAbandoned(late);
+        },
+      );
+      const previous = this.active;
+      const config = replacement.config;
+      if (
+        config.source.rootUri !== previous.config.source.rootUri ||
+        !!config.filesystem !== !!previous.config.filesystem ||
+        (!config.filesystem &&
+          JSON.stringify(config.source.files.map((file) => file.uri).sort()) !==
+            JSON.stringify(previous.config.source.files.map((file) => file.uri).sort()))
+      )
+        throw new Error('The client must reconnect after a source scope change.');
+      this.sequence++;
+      candidate = this.createGeneration(replacement);
+      this.prepared = candidate;
+      replacement = undefined;
+      await bounded(pausing, this.closeMs);
+      await previous.close().catch(() => {
+        this.failed = true;
+        throw new Error('Retired resource cleanup failed.');
+      });
+      if (this.terminal || this.failed) return { reloaded: false };
+      // No asynchronous work can observe half of this activation while requests are unavailable.
+      this.active = candidate;
+      this.prepared = undefined;
+      this.ports.commit(candidate);
+      await this.ports.activated(candidate);
+      if (this.terminal || this.failed) return { reloaded: false };
+      // A watcher can queue another pass while the explicit reload prepares.
+      // Only the final generation is ready for requests and validation.
+      if (!this.again) {
         this.usable = true;
         this.ports.resume();
         this.ports.ready();
-        candidate = undefined;
-        activated = true;
-        return { reloaded: true };
-      } catch {
-        this.usable = false;
-        return { reloaded: false };
-      } finally {
-        if (this.prepared === candidate) this.prepared = undefined;
-        if (candidate)
-          await candidate.close().catch(() => {
+      }
+      candidate = undefined;
+      activated = true;
+      return { reloaded: true };
+    } catch {
+      this.usable = false;
+      return { reloaded: false };
+    } finally {
+      if (this.prepared === candidate) this.prepared = undefined;
+      if (candidate)
+        await candidate.close().catch(() => {
+          this.failed = true;
+        });
+      if (replacement) await this.disposeAbandoned(replacement);
+      if (!this.terminal) {
+        if (!activated) {
+          try {
+            this.ports.invalidate();
+            this.ports.resume();
+          } catch {
             this.failed = true;
-          });
-        if (replacement) await this.disposeAbandoned(replacement);
-        this.reloading = undefined;
-        if (!this.terminal) {
-          if (!activated) {
-            try {
-              this.ports.invalidate();
-              this.ports.resume();
-            } catch {
-              this.failed = true;
-            }
-          }
-          if (this.again) {
-            this.again = false;
-            queueMicrotask(() => {
-              void this.reload();
-            });
           }
         }
       }
-    })();
-    return this.reloading;
+    }
   }
   private async disposeAbandoned(resources: LspServerResources): Promise<void> {
     await bounded(
@@ -277,6 +324,7 @@ export class SessionResources {
     this.terminal = true;
     this.usable = false;
     this.shutdown.abort();
+    this.active.refresh?.suspend();
     this.active.operations.cancel();
     this.active.editor.invalidate();
     this.active.completion.invalidate();

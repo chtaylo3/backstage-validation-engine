@@ -98,6 +98,10 @@ export function attachLspServer(
       ...(options.dispose ? { dispose: options.dispose } : {}),
     },
     {
+      dependencyChanged: () => {
+        clientEdits.cancel();
+        coordinator.invalidate('dependencies');
+      },
       invalidate: () => {
         clientEdits.cancel();
         coordinator.invalidate('configuration');
@@ -128,14 +132,21 @@ export function attachLspServer(
     (context) => {
       const session = sessions.current;
       const available = sessions.available;
+      const refresh = available ? session.refresh?.begin() : undefined;
+      const dependencyGeneration = session.refresh?.generation ?? 0;
       const input = {
+        dependencyGeneration,
+        refreshQueries: (deadlineAt: number, signal: AbortSignal) =>
+          session.refresh?.refreshQueries({ deadlineAt, signal }) ?? Promise.resolve(),
         config: session.config,
         snapshot: workspace.snapshot(),
         workspace,
         filesystem: available ? session.filesystem : undefined,
-        catalog: available ? session.catalog : undefined,
+        catalog: available ? (refresh?.catalog ?? session.catalog) : undefined,
+        candidateCatalog: available ? session.candidateCatalog : undefined,
         completion: session.completion,
         editor: session.editor,
+        validation: session.validation,
         fixes,
         fixesEnabled,
         configurationUnavailable: !available,
@@ -153,13 +164,17 @@ export function attachLspServer(
           ),
       };
       const work = () => (context.current() ? runValidation(context, input) : Promise.resolve());
-      return available ? session.operations.run(work) : work();
+      return (available ? session.operations.run(work) : work()).finally(() =>
+        refresh?.finish(context.current()),
+      );
     },
     () => sessions.current.config.debounceMs,
-    () => {
+    (reason) => {
+      if (reason === 'dependencies') sessions.current.completion.invalidateRemote();
       fixes.invalidate();
       sessions.current.completion.invalidate();
-      sessions.current.editor.invalidate();
+      if (reason === 'metadata') sessions.current.editor.expireRules(coordinator.generation);
+      else sessions.current.editor.invalidate();
       workspace.invalidate();
     },
   );
@@ -230,12 +245,17 @@ export function attachLspServer(
       serverInfo: { name: 'backstage-validation-engine', version: '0.1.0-dev.0' },
     };
   });
-  const requests = new RequestContexts(workspace, () => ({
-    initialized,
-    stopped,
-    available: sessions.available,
-    session: sessions.current,
-  }));
+  const requests = new RequestContexts(workspace, () => {
+    sessions.current.refresh?.ensureFresh();
+    if (sessions.available && sessions.current.editor.rulePreparationExpired)
+      coordinator.invalidate('metadata');
+    return {
+      initialized,
+      stopped,
+      available: sessions.available,
+      session: sessions.current,
+    };
+  });
   connection.onCompletion((params, token) =>
     requests.execute<CompletionList>(
       token,
@@ -250,7 +270,17 @@ export function attachLspServer(
         references.items = references.items.filter((item) =>
           editor.acceptsReference(params, item.label, generation, documents),
         );
-        if (references.items.length || context.signal.aborted) return references;
+        if (context.signal.aborted) return references;
+        if (references.items.length) {
+          const declared = editor.complete(params, generation, documents, true);
+          references.items = [...declared.items, ...references.items]
+            .filter(
+              (item, index, items) =>
+                items.findIndex((other) => other.label === item.label) === index,
+            )
+            .slice(0, 100);
+          return references;
+        }
         return editor.complete(params, generation, documents);
       },
     ),
@@ -347,14 +377,20 @@ export function attachLspServer(
       },
     ),
   );
-  connection.onExecuteCommand((params, token) =>
-    requests.execute<FixApplicationResult>(
+  connection.onExecuteCommand((params, token) => {
+    if (
+      !fixesEnabled ||
+      params?.command !== APPLY_FIX_COMMAND ||
+      !Array.isArray(params.arguments) ||
+      params.arguments.length !== 1 ||
+      typeof params.arguments[0] !== 'string'
+    )
+      return { applied: false, reason: 'invalid_request' };
+    return requests.execute<FixApplicationResult>(
       token,
       undefined,
-      () => ({ applied: false, reason: 'invalid_request' }),
+      () => ({ applied: false, reason: 'stale' }),
       (context) => {
-        if (!fixesEnabled || params.command !== APPLY_FIX_COMMAND)
-          return { applied: false, reason: 'invalid_request' };
         if (clientEdits.busy) return { applied: false, reason: 'busy' };
         return fixes.apply(
           params.arguments,
@@ -365,8 +401,8 @@ export function attachLspServer(
         );
       },
       false,
-    ),
-  );
+    );
+  });
   function watchFiles() {
     const session = sessions.current;
     if (

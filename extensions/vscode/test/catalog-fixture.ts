@@ -121,6 +121,16 @@ export async function createEditorCatalog(root: string, token: string = randomUU
           at: Date.now(),
         });
         result = { id: String(selected.fixture.requests().at(-1)?.id ?? 0) };
+      } else if (value.op === 'add-refresh' || value.op === 'remove-refresh') {
+        if (value.op === 'add-refresh')
+          selected.fixture.upsert({
+            apiVersion: 'backstage.io/v1alpha1',
+            kind: 'Group',
+            metadata: { name: 'remote-refresh' },
+            spec: { type: 'team', children: [] },
+          });
+        else selected.fixture.remove('group:default/remote-refresh');
+        events.push({ event: value.op, version: selected.target.backstageVersion, at: Date.now() });
       } else if (value.op === 'cursor')
         result = { id: String(selected.fixture.requests().at(-1)?.id ?? 0) };
       else if (value.op === 'assert-read') {

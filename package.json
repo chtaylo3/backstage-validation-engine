@@ -26,6 +26,10 @@
     "./lsp": {
       "types": "./dist/lsp/index.d.ts",
       "import": "./dist/lsp/index.js"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities/index.d.ts",
+      "import": "./dist/capabilities/index.js"
     }
   },
   "files": [

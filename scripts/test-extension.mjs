@@ -234,6 +234,8 @@ async function execute(spec, output, fault, peer) {
     }
     if (
       [
+        'catalog-refresh',
+        'rule-contributions',
         'race-delayed-validation',
         'race-delayed-completion',
         'race-shutdown-validation',
@@ -253,9 +255,82 @@ async function execute(spec, output, fault, peer) {
         principalId: 'editor-reader',
         credentialRevision: '1',
         scope: ['catalog:read'],
-        maxAgeMs: 5000,
+        maxAgeMs: ['catalog-refresh', 'rule-contributions'].includes(spec.id) ? 500 : 5000,
         tokenEnv: 'BVE_EDITOR_CATALOG_TOKEN',
       };
+      if (spec.id === 'catalog-refresh') {
+        const file = path.join(workspace, 'catalog.yaml');
+        const text = (await readFile(file, 'utf8')).replace('owner: team', 'owner: remote-refresh');
+        await writeFile(file, text);
+        const { createSourceSnapshot } = await import('../dist/index.js');
+        value.source = createSourceSnapshot({
+          ...value.source,
+          files: value.source.files.map((row) => ({
+            ...row,
+            text: row.uri.endsWith('/catalog.yaml') ? text : row.text,
+          })),
+        });
+      }
+      if (spec.id === 'rule-contributions') {
+        const { digestJson } = await import('../dist/index.js');
+        const schema = {
+          type: 'object',
+          properties: { spec: { properties: { owner: { type: 'string', pattern: '^remote-' } } } },
+        };
+        const schemaArtifact = {
+          contractVersion: '0.2',
+          id: 'editor/remote-owner',
+          version: '1',
+          schema,
+          digest: digestJson(schema),
+        };
+        value.schemaArtifacts.push(schemaArtifact);
+        value.policy.rules.push({
+          id: 'owner-pattern',
+          version: '1',
+          kind: 'cel',
+          mandatory: true,
+          severity: 'error',
+          requires: [],
+          selector: 'entity.kind == "Component"',
+          expression: 'entity.spec.owner.matches("^remote-")',
+        });
+        value.policy.rules.push({
+          id: 'owner-re2',
+          version: '1',
+          kind: 'schema',
+          mandatory: true,
+          severity: 'error',
+          requires: [],
+          selector: 'entity.kind == "Component"',
+          schema: {
+            id: schemaArtifact.id,
+            version: schemaArtifact.version,
+            digest: schemaArtifact.digest,
+          },
+        });
+        value.activation.policyDigest = digestJson(value.policy);
+        const artifact = {
+          artifactVersion: 'bve-editor/1',
+          id: 'editor/owner-hints',
+          policyDigest: digestJson(value.policy),
+          profileDigest: digestJson(value.profile),
+          contributions: ['owner-pattern', 'owner-re2'].map((id) => ({
+            ruleId: id,
+            ruleDigest: digestJson(value.policy.rules.find((rule) => rule.id === id)),
+            languageProfile:
+              id === 'owner-pattern' ? 'bve-cel/1' : 'draft-07/re2js@2.9.0/schema-v1',
+            subjectStage: 'normalized',
+            kind: 'Component',
+            apiVersion: 'backstage.io/v1alpha1',
+            path: '/spec/owner',
+            description: 'Remote ownership rule. Declared values require their own catalog facts.',
+            choices: ['remote-team', 'remote-refresh', 'remote-missing'],
+            repairs: true,
+          })),
+        };
+        value.editorArtifacts = [{ ...artifact, digest: digestJson(artifact) }];
+      }
       await writeFile(config, JSON.stringify(value));
     }
     let launchConfig = config;

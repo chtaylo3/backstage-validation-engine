@@ -5,6 +5,9 @@ import type { ValidationRequest, JsonValue } from '../contracts/schemas.js';
 import type { Immutable } from '../core/json.js';
 import type { LocalCatalogSources } from '../core/reference-data.js';
 import { digestText } from '../core/json.js';
+import { builtinCapabilitySession } from '../capabilities/session.js';
+import type { CapabilitySession } from '../capabilities/session.js';
+import { capabilityBinding, capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
 import { buildProposedCatalog } from '../core/proposed-catalog.js';
@@ -45,6 +48,7 @@ interface Slot {
 }
 interface Index {
   readonly generation: number;
+  readonly request: Immutable<ValidationRequest>;
   readonly source: Immutable<ValidationRequest['source']>;
   readonly slots: readonly Slot[];
   readonly refs: readonly string[];
@@ -133,11 +137,46 @@ export class CompletionService {
   private readonly history = new Map<string, number>();
   private selections = 0;
   private readonly catalog: { provider: CatalogProvider; access: CatalogAccessContext } | undefined;
+  readonly capabilities: CapabilitySession;
+  private querySerial = 0;
   constructor(
     private readonly config: LspConfig,
     catalog?: { provider: CatalogProvider; access: CatalogAccessContext },
     private readonly clock = { wall: () => Date.now(), mono: () => performance.now() },
+    private readonly capabilityOptions: {
+      readonly sessionGeneration?: number;
+      readonly dependencyGeneration?: () => number;
+      readonly provider?: CapabilitySession;
+    } = {},
   ) {
+    this.capabilities =
+      capabilityOptions.provider ??
+      builtinCapabilitySession(
+        'bve.builtin.catalog-search',
+        {
+          search: async (query, request, execution) => {
+            const catalog = this.catalog;
+            if (!catalog?.provider.suggest)
+              return {
+                status: 'unavailable',
+                failure: 'provider_unavailable',
+                refs: [],
+                truncated: false,
+                fetchedAt: 0,
+                expiresAt: 0,
+              };
+            return catalog.provider.suggest(query, catalog.access, {
+              deadlineAt: request.deadlineAt,
+              signal: execution.signal,
+            });
+          },
+        },
+        {
+          async: ['search'],
+          permissions: ['catalog-read'],
+          dependencies: [config.profile.adapterId],
+        },
+      );
     if (catalog) {
       const access = normalizeCatalogAccess(catalog.access);
       if (
@@ -150,6 +189,11 @@ export class CompletionService {
         throw new Error('Invalid trusted completion catalog context.');
       this.catalog = { provider: catalog.provider, access };
     }
+  }
+  invalidateRemote(): void {
+    this.cache.clear();
+    this.cacheBytes = 0;
+    this.remote?.controller.abort();
   }
   invalidate(): void {
     this.generation++;
@@ -289,6 +333,7 @@ export class CompletionService {
       if (!this.stopped && lifetime === this.generation)
         this.index = {
           generation: input.generation,
+          request,
           source: request.source,
           slots,
           refs: compatibility.entities
@@ -339,16 +384,28 @@ export class CompletionService {
         lifetime = this.generation;
       const timeout = AbortSignal.timeout(COMPLETION_LIMITS.remoteMs);
       const combined = AbortSignal.any([controller.signal, timeout]);
+      const index = this.index;
+      if (!index) return undefined;
       const work = abortable(
-        catalog.provider.suggest(query, catalog.access, {
-          deadlineAt: Date.now() + COMPLETION_LIMITS.remoteMs,
-          signal: combined,
-        }),
+        this.capabilities
+          .provide('search', query, {
+            requestId: `catalog-search:${++this.querySerial}`,
+            binding: capabilityBinding(index.request, {
+              workspaceGeneration: index.generation,
+              sessionGeneration: this.capabilityOptions.sessionGeneration ?? 0,
+              dependencyGeneration: this.capabilityOptions.dependencyGeneration?.() ?? 0,
+              authorityContextDigest: capabilityAuthorityDigest(this.config.identity, catalog),
+            }),
+            deadlineAt: Date.now() + COMPLETION_LIMITS.remoteMs,
+            signal: combined,
+            current: () => !this.stopped && lifetime === this.generation && this.index === index,
+          })
+          .then((result) => (result.status === 'ready' ? result.value : undefined)),
         combined,
       )
         .then((report) => {
           if (this.stopped || lifetime !== this.generation || combined.aborted) return undefined;
-          if (report.status !== 'ready') {
+          if (!report || report.status !== 'ready') {
             this.cache.clear();
             this.cacheBytes = 0;
             return undefined;
@@ -533,6 +590,8 @@ export class CompletionService {
     this.invalidate();
     this.cache.clear();
     this.cacheBytes = 0;
-    await Promise.allSettled([...this.work]);
+    const results = await Promise.allSettled([...this.work, this.capabilities.close()]);
+    if (results.some((result) => result.status === 'rejected'))
+      throw new Error('Catalog capability cleanup failed.');
   }
 }

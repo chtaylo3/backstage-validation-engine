@@ -3,7 +3,8 @@ import type { Diagnostic } from 'vscode-languageserver/node';
 import { digestText } from '../core/json.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { validatePolicySources } from '../core/policy-sources.js';
+import type { BuiltinValidationService } from '../host/builtin-validation.js';
+import { CapabilityError } from '../capabilities/admission.js';
 import type { LocalCatalogSources } from '../core/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
@@ -17,11 +18,14 @@ import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';
 import type { CompletionService } from './completion.js';
 import type { EditorService } from './editor.js';
-import { diagnostic, incomplete } from './diagnostics.js';
+import { diagnostic, incomplete, admissionTimeout } from './diagnostics.js';
 import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 import type { ValidationRun } from './validation-coordinator.js';
+import { prepareRuleContributions } from '../host/rule-contributions.js';
 
 interface ValidationInputs {
+  readonly dependencyGeneration?: number;
+  readonly refreshQueries?: (deadlineAt: number, signal: AbortSignal) => Promise<void>;
   readonly operations: SessionOperations | undefined;
   readonly config: LspConfig;
   readonly snapshot: WorkspaceSnapshot;
@@ -40,8 +44,11 @@ interface ValidationInputs {
   readonly filesystem: FilesystemSource | undefined;
   readonly catalog:
     { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } | undefined;
+  readonly candidateCatalog?:
+    { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } | undefined;
   readonly completion: CompletionService;
   readonly editor: EditorService;
+  readonly validation: BuiltinValidationService;
   readonly fixes: FixRegistry;
   readonly fixesEnabled: boolean;
   readonly configurationUnavailable: boolean;
@@ -60,6 +67,7 @@ export async function runValidation(
     catalog,
     completion,
     editor,
+    validation,
     fixes,
     fixesEnabled,
     configurationUnavailable,
@@ -68,7 +76,14 @@ export async function runValidation(
   const { generation, current } = context;
   const frame = snapshot.documents;
 
-  if (!frame.length) return;
+  if (!frame.length) {
+    if (input.refreshQueries)
+      await input.refreshQueries(
+        Date.now() + config.profile.limits.requestTimeoutMs,
+        context.signal,
+      );
+    return;
+  }
   const timing = new FailureTimer();
   const evidence: FailureEvidence[] = [];
   let deadlineAt: number | undefined;
@@ -121,6 +136,11 @@ export async function runValidation(
       ? parseContract('validation-request', { ...original, source })
       : createLspRequest(config, source);
     deadlineAt = request.execution.deadlineAt;
+    const refreshingQueries = input.refreshQueries?.(deadlineAt, context.signal);
+    if (refreshingQueries)
+      void (input.operations ? input.operations.track(refreshingQueries) : refreshingQueries).catch(
+        () => undefined,
+      );
     let deliver: ((sources?: LocalCatalogSources) => void) | undefined;
     const local = config.policy.rules.some((rule) => rule.kind === 'catalog')
       ? new Promise<LocalCatalogSources | undefined>((resolve) => {
@@ -131,29 +151,47 @@ export async function runValidation(
     void (input.operations ? input.operations.track(indexing) : indexing);
     const preparing = editor.update(request, generation);
     const prepared = input.operations ? input.operations.track(preparing) : preparing;
-    const report = await validatePolicySources(request, config, {
-      ...(deliver ? { onLocalSources: deliver } : {}),
-      onFailure: (row) => {
-        if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
-      },
-      signal: context.signal,
-      ...(catalog ? { catalog: catalog } : {}),
-    }).finally(() => deliver?.());
+    const report = await validation
+      .run(
+        request,
+        {
+          ...(deliver ? { onLocalSources: deliver } : {}),
+          onFailure: (row) => {
+            if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
+          },
+          signal: context.signal,
+          ...(catalog ? { catalog: catalog } : {}),
+        },
+        {
+          workspaceGeneration: generation,
+          dependencyGeneration: input.dependencyGeneration ?? 0,
+          current,
+        },
+      )
+      .finally(() => deliver?.());
     if (!current()) return;
     await prepared;
     if (!current()) return;
     await editor.refine(report, generation);
     if (!current()) return;
     evidence.push(...report.failureEvidence.slice(0, FAILURE_EVIDENCE_LIMIT - evidence.length));
-    if (
-      fixesEnabled &&
+    const repairEligible =
       report.interrupted === 'none' &&
       report.rules.failures.length === 0 &&
       report.coverage.every((row) => !row.required || row.status === 'verified') &&
       !report.findings.some((row) =>
         ['configuration', 'dependency', 'execution', 'resource'].includes(row.category),
-      )
-    ) {
+      );
+    const dataExpiresAt = Math.min(
+      Infinity,
+      ...report.request.data.entries.map((row) =>
+        Math.min(
+          row.provenance.expiresAt,
+          row.provenance.fetchedAt + (catalog?.access.maxAgeMs || FIX_LIMITS.ttlMs / 2),
+        ),
+      ),
+    );
+    if (fixesEnabled && repairEligible) {
       fixes.replace({
         generation,
         findings: report.findings,
@@ -161,10 +199,7 @@ export async function runValidation(
         source: report.request.source,
         ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
         documents: snapshot.allDocuments,
-        expiresAt: Math.min(
-          Date.now() + FIX_LIMITS.ttlMs,
-          ...report.request.data.entries.map((row) => row.provenance.expiresAt),
-        ),
+        expiresAt: Math.min(Date.now() + FIX_LIMITS.ttlMs, dataExpiresAt),
       });
     }
     for (const document of frame) {
@@ -194,6 +229,53 @@ export async function runValidation(
         diagnostics.push(incomplete(digest, document.version, evidence));
       await publish(document.uri, document.version, diagnostics);
     }
+    // Required diagnostics publish first. Optional work cannot replace them on failure.
+    if (config.editorArtifacts.length && current()) {
+      try {
+        const contributions = await prepareRuleContributions({
+          report,
+          context: config,
+          artifacts: config.editorArtifacts,
+          generation: input.dependencyGeneration ?? 0,
+          signal: context.signal,
+          current,
+          ...(input.candidateCatalog ? { catalog: input.candidateCatalog } : {}),
+          render: (subjectId, path, value, ruleId) =>
+            editor.renderRuleCandidate(
+              subjectId,
+              path,
+              value,
+              ruleId,
+              generation,
+              snapshot.allDocuments,
+              report.findings,
+            ),
+        });
+        if (current()) {
+          editor.installRuleContributions(contributions, generation);
+          if (fixesEnabled && repairEligible)
+            fixes.replace({
+              generation,
+              findings: report.findings,
+              suggestions: [
+                ...editor.repairs(report.findings, generation, snapshot.allDocuments),
+                ...editor.ruleRepairs(generation, snapshot.allDocuments),
+              ],
+              source: report.request.source,
+              ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
+              documents: snapshot.allDocuments,
+              expiresAt: Math.min(
+                Date.now() + FIX_LIMITS.ttlMs,
+                editor.ruleExpiresAt,
+                dataExpiresAt,
+              ),
+            });
+        }
+      } catch {
+        // Admission pressure, cancellation and worker failure affect hints only.
+      }
+    }
+    await refreshingQueries;
   } catch (error) {
     fixes.invalidate();
     if (!evidence.length)
@@ -206,15 +288,23 @@ export async function runValidation(
               : error.reason === 'changed'
                 ? 'source_changed'
                 : 'snapshot_unavailable'
-            : failureCause(error),
+            : error instanceof CapabilityError && error.code === 'deadline'
+              ? 'request_timeout'
+              : failureCause(error),
           deadlineAt,
         ),
       );
     if (current())
       for (const document of frame) {
         if (!current()) return;
+        const digest = digestText(document.getText());
         await publish(document.uri, document.version, [
-          incomplete(digestText(document.getText()), document.version, evidence),
+          incomplete(digest, document.version, evidence),
+          ...(error instanceof CapabilityError &&
+          error.code === 'deadline' &&
+          error.phase === 'admission'
+            ? [admissionTimeout(digest, document.version, evidence)]
+            : []),
         ]);
       }
   }

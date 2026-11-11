@@ -17,6 +17,7 @@ import type { Immutable } from '../core/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../core/source-uris.js';
 import { approvedFilesystemUri } from './discovery.js';
+import { parseEditorArtifacts } from '../capabilities/editor-artifacts.js';
 
 const text = Type.String({ minLength: 1, maxLength: 4096 });
 const schema = Type.Object(
@@ -27,6 +28,7 @@ const schema = Type.Object(
     source: Type.Unknown(),
     baseline: Type.Optional(Type.Unknown()),
     schemaArtifacts: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 64 })),
+    editorArtifacts: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 16 })),
     identity: ValidationRequestSchema.properties.identity,
     filesystem: Type.Optional(
       Type.Object(
@@ -66,11 +68,13 @@ export function parseLspConfig(input: unknown) {
     safe.schemaArtifacts as SchemaArtifact[] | undefined,
   );
   const { baseline: baselineInput, ...settings } = safe;
+  const policy = parseContract('policy-bundle', safe.policy);
   const config = deepFreeze({
     ...settings,
     profile,
     schemaArtifacts: schemas.artifacts,
-    policy: parseContract('policy-bundle', safe.policy),
+    policy,
+    editorArtifacts: parseEditorArtifacts(safe.editorArtifacts ?? [], policy, profile),
     activation: parseContract('activation-manifest', safe.activation),
     source: parseContract('source-snapshot', safe.source),
     ...(baselineInput === undefined

@@ -1,0 +1,105 @@
+{
+  "anyOf": [
+    {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "invocationId",
+        "capabilityId",
+        "binding",
+        "status",
+        "completeness",
+        "value"
+      ],
+      "properties": {
+        "invocationId": {
+          "minLength": 1,
+          "maxLength": 128,
+          "type": "string"
+        },
+        "capabilityId": {
+          "const": "fields",
+          "type": "string"
+        },
+        "binding": {
+          "$ref": "urn:backstage-validation:capability:binding:1"
+        },
+        "status": {
+          "const": "ready",
+          "type": "string"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "const": "complete",
+              "type": "string"
+            },
+            {
+              "const": "partial",
+              "type": "string"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "urn:backstage-validation:capability:fields-output:1"
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "invocationId",
+        "capabilityId",
+        "binding",
+        "status",
+        "reasonCode"
+      ],
+      "properties": {
+        "invocationId": {
+          "minLength": 1,
+          "maxLength": 128,
+          "type": "string"
+        },
+        "capabilityId": {
+          "const": "fields",
+          "type": "string"
+        },
+        "binding": {
+          "$ref": "urn:backstage-validation:capability:binding:1"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "const": "not_applicable",
+              "type": "string"
+            },
+            {
+              "const": "unavailable",
+              "type": "string"
+            },
+            {
+              "const": "cancelled",
+              "type": "string"
+            },
+            {
+              "const": "resource_limit",
+              "type": "string"
+            },
+            {
+              "const": "error",
+              "type": "string"
+            }
+          ]
+        },
+        "reasonCode": {
+          "minLength": 1,
+          "maxLength": 128,
+          "type": "string"
+        }
+      }
+    }
+  ],
+  "$id": "urn:backstage-validation:capability:fields-result:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

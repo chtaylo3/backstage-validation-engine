@@ -1,15 +1,20 @@
 # LSP separation implementation plan
 
-Status: proposed implementation work. No implementation phase is complete through creation of this plan.
+Status: phases 0 through 9 are implemented and merged in [PR #2](https://github.com/chtaylo3/backstage-validation-engine/pull/2).
+The tested head is `6938b8b85c1b5889af3fbe1119684de6577e5b45`. The merge commit is `d2e54748dbd34e9f1e881c2abf77689cf197b40f`.
+The [implementation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) records completed qualification and remaining release limits.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) governs subsequent work. Its phase 5 is deferred.
+
+The assessment and phase requirements below retain the original design baseline.
 Assessment date: 2026-11-09.
 Assessment baseline: `cb67908b18246047cfcd9b78ca9b31e1e5513e6b`, with a clean working tree before this document was added.
 Review revision: incorporates the ownership, shutdown, dependency, schema, and measurement requirements from the source review.
 
 This plan separates workspace state, validation scheduling, protocol handling, and resource ownership.
 It also addresses shared CLI configuration, editor schema consistency, and enforceable module boundaries.
-Complete the phases in order. Preserve existing behavior during structural changes.
+The implementation completed the phases in order and retained their behavior requirements.
 
-## Reassessment of the current implementation
+## Historical assessment before implementation
 
 The core remains separate from editor protocol handling. CLI and LSP both call `validatePolicySources`.
 The core receives immutable source snapshots and explicit provider access.
@@ -34,7 +39,7 @@ The CLI still imports catalog construction and parsing from `lsp/config.ts`.
 Editor schema loading still reads native package internals independently from the native validation adapter.
 The ESLint configuration does not enforce architectural import boundaries.
 
-These observations describe source structure and test coverage present in the checkout.
+These observations describe source structure and test coverage at the assessment baseline.
 They do not establish a new passing test run or a performance regression.
 
 | Current source                 | Responsibility to reassess                                                          |

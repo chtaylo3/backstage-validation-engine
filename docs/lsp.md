@@ -11,6 +11,12 @@ policy, and the rule dependency graph. The graph is a DAG: a directed graph with
 `executeCelRules` remains a compatible alias. These APIs provide scoped validation. They do not
 establish complete Backstage ingestion or verified policy authority.
 
+The LSP ownership separation completed phases 0 through 9 and merged in PR #2.
+Its native VS Code and real SSH, dev-container, and Windows WSL2 qualification passed for the recorded candidate.
+See the [current qualification record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
+The [five-phase editor plan](lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
+Later dated increment sections retain their historical qualification scope.
+
 ## Explicit catalog rules
 
 An organization can require an existing owner with this policy entry:
@@ -170,9 +176,9 @@ aggregation, and source and data bindings. They also cover rapid edits, close an
 included-buffer edits and repair, restoration, inclusion-site diagnostics, local-source guards,
 resynchronization, and framing limits.
 
-Real Backstage authentication/smoke tests, actual editor clients, hosted OS runs and integrated
-latency/resource qualification remain release gates. The existing measured CEL cold-start
-performance gate remains open.
+Native VS Code and hosted OS checks later passed in the current qualification record above.
+Installed JetBrains, longer final-candidate workloads, and release-specific integration evidence remain separate gates.
+The historical CEL measurements below retain their original scope and performance limits.
 
 Local qualification on 2026-10-29: 37 new policy/LSP checks and all 424 tests in `npm run check`
 passed. Full and production npm audits report zero vulnerabilities. The built development
@@ -342,6 +348,11 @@ The server advertises quick fixes only when the client supplies `workspace.apply
 cannot submit replacement text or URIs through that command. At execution, the server rechecks the
 validated workspace generation and every open buffer's version and digest.
 
+Overlapping configuration reloads share one completion response that waits for queued replacements.
+Intermediate generations do not announce readiness or resume validation.
+While configuration is unavailable, a well-formed repair command returns `stale` without dispatching an edit.
+Unknown commands and malformed arguments still return `invalid_request`.
+
 It also rechecks target edit ranges, source fingerprints, profile byte limits, and observation
 freshness. Save/watch, edit, close/reopen, rename/delete and other validation-triggering events
 invalidate previous tokens, including when a buffer version is reused. Tokens expire within 60
@@ -381,8 +392,8 @@ diagnostics and tokens, and content changes without version changes. They also c
 overlapping edits, byte limits, expiry, backward clock changes, watch invalidation, client version
 races and rejection, and silent-client shutdown. These are protocol-fixture checks.
 
-VS Code and JetBrains installation qualification remain open. Completion support is described below.
-At this increment, extension packaging remains the next IDE work.
+At this historical increment, VS Code and JetBrains installation qualification remained open.
+Later native VS Code qualification appears in the current record above. Installed JetBrains qualification remains deferred.
 
 Local qualification on 2026-11-07: all 774 tests and required type/lint/format/schema/build checks
 passed through `npm run check`, including 80 new scalar, guard and stdio checks. There were no
@@ -459,9 +470,9 @@ The completion, catalog-search and stdio suites are included in `test:lsp`, `tes
 full check. They cover both native pins and pinned API contracts, reference prefixes and defaults,
 arrays, empty and quoted scalars, JSON, CRLF, and UTF-16. They also cover local masks, visibility,
 pagination, queue and byte limits, freshness, typing during held HTTP, cancellation, included
-payloads, and shutdown. Extension packaging and actual VS Code/JetBrains qualification are next.
-Broader property/schema completion, search UI, history ranking, hover/navigation and real-backend
-search qualification remain later IDE/release work.
+payloads, and shutdown. At this historical increment, extension packaging and installed-client qualification were still pending.
+Later increments added property/schema completion, search UI, history ranking, hover, and navigation.
+See [current editor features](editor-features.md) and the qualification record above for completed scope and remaining release work.
 
 Local qualification on 2026-11-07: `npm run check` passed all 813 tests, including 39 new
 completion/search/stdio checks, with no failures or skips. Required type/lint/format/schema/build
@@ -469,3 +480,43 @@ checks passed. Warm local completion over a 1000-entity snapshot measured p95 0.
 samples after three warmups. An 844151-byte buffer with 1000 reference slots took 2.927 ms for one
 warm request. These local measurements exclude cold source-index preparation, validation, network,
 and actual editor integration. They do not establish release latency guarantees.
+
+## Live catalog dependency refresh
+
+The active LSP session owns `CatalogRefresh`. The CLI does not start this service.
+It records up to 1000 actual full-body or missing-reference dependencies and 32 recent identity query scopes.
+The body inventory follows the latest current validation run. Local overlay resolution determines which remote reads occur.
+Query scopes retain the approved kind, namespace, prefix, connection, and authority context.
+They expire after 120 seconds without user interest. Background work never extends this lifetime.
+
+The default target interval is 30 seconds. Earlier qualified expiry and `catalog.maxAgeMs` shorten it.
+Healthy jitter advances the target by up to ten percent. A 250 ms floor bounds timer frequency.
+Zero maximum age bypasses cache reuse. It retains the default observation cadence or earlier actual expiry, without shortening a new observation to the floor.
+Protocol admission also detects elapsed claim expiry, so a delayed timer cannot authorize an expired repair.
+A failed refresh backs off from at least one second to 120 seconds, with up to ten percent additional jitter.
+Any remaining valid observation expiry still takes precedence over that backoff.
+
+Each tick advances the dependency generation and invalidates the existing coordinator once.
+It clears remote completion caches, cancels obsolete reads, invalidates metadata and guarded repairs, and schedules a new validation.
+That validation bypasses provider caches for its selected remote references.
+Body reads, bounded recent query refresh, and evaluation share its original request deadline.
+Up to four query refresh workers share the provider's existing four-request transport limit.
+The provider retains its 100-reference batching, 1000-reference admission limit, and 64-operation queue limit.
+The refresh owner also admits at most 64 outstanding operations and coalesces equal identity queries.
+No full-catalog scan occurs per keystroke. Ordinary buffer edits retain normal cache reuse.
+
+Healthy change-to-result targets include the observation interval, configured validation debounce, and one newly admitted request budget.
+They are targets under available capacity, rather than hard delivery guarantees during outages or scheduling pressure.
+Same-version diagnostic publication replaces or clears the previous findings after fresh evaluation.
+Subsequent completion and search requests receive fresh choices. Standard LSP completion lists remain client-requested.
+An already open search picker has no automatic remote refresh negotiation in this implementation.
+
+Full entity revisions cover body changes even when identity and rule outcomes remain identical.
+Identity queries remain advisory. They cannot establish existence, global absence, or policy compliance.
+When an authorized backend filters an entity into a missing response, the server cannot distinguish that response from global deletion.
+Explicit denial remains unavailable and immediately revokes existing dependency eligibility. Repeated denial cannot continuously cancel the replacement run.
+The wrapper rejects changed authority contexts before cache reuse or in-flight joins. Changed permission and credential revisions require resource replacement.
+Local overlays, invalid replacements, conflicts, and deletion masks retain precedence during refresh and outages.
+Reload, cleanup failure, and shutdown suspend refresh immediately, including the asynchronous configuration preparation interval.
+Cached requests reject, entered reads receive cancellation, and disposal drains owned reads before the underlying connection closes.
+Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.

@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "maxLength": 16384,
+      "type": "string"
+    }
+  },
+  "$id": "urn:backstage-validation:capability:hover-output:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

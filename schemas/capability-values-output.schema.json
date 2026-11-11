@@ -1,0 +1,69 @@
+{
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "candidates"
+  ],
+  "properties": {
+    "candidates": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "classification",
+          "sources"
+        ],
+        "properties": {
+          "value": {
+            "$ref": "urn:backstage-validation:json-value:0.2"
+          },
+          "label": {
+            "minLength": 1,
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "const": "required",
+                "type": "string"
+              },
+              {
+                "const": "allowed",
+                "type": "string"
+              },
+              {
+                "const": "default",
+                "type": "string"
+              },
+              {
+                "const": "example",
+                "type": "string"
+              },
+              {
+                "const": "suggestion",
+                "type": "string"
+              }
+            ]
+          },
+          "sources": {
+            "maxItems": 128,
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "minLength": 1,
+              "maxLength": 4096,
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$id": "urn:backstage-validation:capability:values-output:1",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -184,10 +184,15 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
       const skip = new Set(options.skip ?? []);
       if (skip.size > 1000 || [...skip].some((uri) => !approvedFilesystemUri(config, uri)))
         fail('containment');
-      const discovered = await discoverFiles(config, budget, async (directory) => {
-        if (directory === root) await checkRoot(budget);
-        else await checkPath(directory, budget);
-      });
+      const discovered = await discoverFiles(
+        config,
+        budget,
+        async (directory) => {
+          if (directory === root) await checkRoot(budget);
+          else await checkPath(directory, budget);
+        },
+        base,
+      );
       const capturePaths = new Map(paths);
       for (const uri of [...discovered, ...base.files.map((file) => file.uri)]) {
         if (approvedFilesystemUri(config, uri)) capturePaths.set(uri, fileURLToPath(uri));
