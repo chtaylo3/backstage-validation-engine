@@ -483,7 +483,7 @@ The user-owned untracked review remained unchanged in the primary checkout.
 | Exact `npm run extension:package` | Passed with the qualified revision in build metadata and nine attributed client components              |
 | `npm run test:packaged`           | 1074 tests passed against the packaged runtime and real packaged stdio/CLI entrypoints                  |
 | Focused installed contributions   | Two of two case/version executions passed with the committed, uninstrumented test                       |
-| Ordinary portable installed suite | 92 of 92 declared case/version executions passed, with no unexecuted cases                              |
+| Ordinary portable installed suite | Historical 46-case Linux inventory: 92 of 92 case/version executions passed, with no unexecuted cases   |
 | Bounded finite-candidate control  | Exactly 16 of 33 declared values received full-pipeline checks, with zero pending jobs afterward        |
 
 Source, client, and packaged gates report zero failures, cancellations, and skips.

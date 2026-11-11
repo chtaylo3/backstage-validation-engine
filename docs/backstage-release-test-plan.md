@@ -56,23 +56,23 @@ server becomes a runtime dependency of either client.
 The paths below define the implementation boundaries. The application manifests belong to the test environment, separate from production package manifests.
 Generated state belongs under the existing ignored artifact root.
 
-| Path                                                    | Purpose                                                                  |
-| ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `test/integration/backstage/compose.yaml`               | Shared container, ports, mounts and health configuration                 |
-| `test/integration/backstage/test-runner.Dockerfile`     | Pinned Linux image with Node, CLI tools, editor libraries and Xvfb       |
-| `.devcontainer/devcontainer.json`                       | Optional interactive environment based on the shared test-runner image   |
-| `test/integration/backstage/Dockerfile`                 | Locked application build with the native SQLite driver                   |
-| `test/integration/backstage/apps/<target>/`             | Application source, manifests and lockfile for each supported target     |
-| `test/integration/backstage/targets.json`               | Exact application versions, image inputs and expected installed packages |
-| `test/integration/backstage/app-config.test.yaml`       | Shared catalog, authentication and SQLite configuration                  |
-| `test/integration/backstage/catalog-seed.schema.json`   | Schema for the versioned JSON sample format                              |
-| `test/integration/backstage/data/*.json`                | Baseline catalog and complete replacement states for mutation scenarios  |
-| `test/integration/backstage/cases.json`                 | Required case IDs, client coverage and expected results                  |
-| `test/integration/backstage/proposals/`                 | Valid proposals, invalid YAML and policy violation inputs                |
-| `scripts/backstage-test-env.mjs`                        | Shared build, lifecycle, seed and test entry point                       |
-| `test/integration/backstage/lib/`                       | Runner modules and real-backend client test drivers                      |
-| `.github/workflows/backstage-release-qualification.yml` | Explicit release qualification entry point                               |
-| `.artifacts/backstage/<run-id>/`                        | Generated files, local connection details and sanitized reports          |
+| Path                                                    | Purpose                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `test/integration/backstage/compose.yaml`               | Shared container, ports, mounts and health configuration                       |
+| `test/integration/backstage/test-runner.Dockerfile`     | Pinned Linux image with Node, CLI tools, editor libraries and Xvfb             |
+| `.devcontainer/devcontainer.json`                       | Optional interactive environment based on the shared test-runner image         |
+| `test/integration/backstage/Dockerfile`                 | Locked application build with the native SQLite driver                         |
+| `test/integration/backstage/apps/<target>/`             | Application source, manifests and lockfile for each supported target           |
+| `test/integration/backstage/targets.json`               | Exact application versions, image inputs and expected installed packages       |
+| `test/integration/backstage/app-config.test.yaml`       | Shared catalog, authentication and SQLite configuration                        |
+| `test/integration/backstage/catalog-seed.schema.json`   | Schema for the versioned JSON sample format                                    |
+| `test/integration/backstage/data/*.json`                | Baseline catalog and complete replacement states for mutation scenarios        |
+| `test/integration/backstage/cases.json`                 | Required case IDs, client coverage and expected results                        |
+| `test/integration/backstage/lib/clients.mjs`            | Inline `validText` and `invalidText`, rendered into owned `workRoot/proposals` |
+| `scripts/backstage-test-env.mjs`                        | Shared build, lifecycle, seed and test entry point                             |
+| `test/integration/backstage/lib/`                       | Runner modules and real-backend client test drivers                            |
+| `.github/workflows/backstage-release-qualification.yml` | Explicit release qualification entry point                                     |
+| `.artifacts/backstage/<run-id>/`                        | Generated files, local connection details and sanitized reports                |
 
 Resolve target names from the existing supported Backstage inventory. At design time it selects
 umbrella releases 1.55.3 and 1.56.3. Their catalog backend packages are 4.0.0 and 4.0.2
@@ -330,9 +330,13 @@ Dispatch at a candidate ref and require the workflow run's `head_sha` to match t
 Merely checking out an input SHA does not establish that match. Record the workflow definition
 revision alongside the tested source revision.
 
-When a release orchestrator exists, expose the same job through `workflow_call`. Only the release
-path calls it. A call from ordinary merge CI is prohibited. Static workflow checks cover trigger and
-caller boundaries without building Docker.
+The dedicated workflow supports `workflow_dispatch` and `workflow_call`.
+The `ci.yml` manual dispatch exposes `qualify_backstage`, a boolean that defaults to false, and an exact `revision` input.
+Its `backstage_release` caller requires that explicit approval and `needs: [cli]`.
+The called job requires the requested revision, `GITHUB_SHA`, and checkout HEAD to match exactly.
+Ordinary push and pull-request CI runs do not start the real Backstage workload.
+Static controls guard the caller, exact revision check, immutable Actions pins, and sanitized upload paths without Docker.
+The evidence upload uses `if: always()` so failures retain their reports.
 
 Run on Ubuntu 24.04 x64 with Docker and Compose. Use the same test-runner image as local
 development, including its virtual display. Build and test both declared Backstage targets against
@@ -379,7 +383,7 @@ active case fails and remaining cases remain unexecuted. No empty suite, missing
 required case or failed cleanup can pass.
 
 Retain sanitized build logs, Backstage logs, ingestion observations, CLI reports, editor logs,
-failure screenshots and resource cleanup results. Raw SQLite databases can contain authentication
+optional failure screenshots and resource cleanup results. Raw SQLite databases can contain authentication
 material and are not uploaded. Keep local credentials outside uploaded artifact paths and redact
 tokens before upload.
 
@@ -454,3 +458,26 @@ CLI scenarios choose explicit result or error variants and bind normal provenanc
 Editor parity observes complete current host coverage through an opt-in read-only projection.
 The revised VSIX policy uses the host-approved runtime dependency closure and rejects forbidden content at nested paths.
 These controls qualify evidence rejection behavior. H4 retains the required focused real-backend acceptance work.
+
+## Current proposal and authority evidence
+
+`validText` and `invalidText` are inline constants in `test/integration/backstage/lib/clients.mjs`.
+The constructor renders proposals into its owned `workRoot/proposals` workspace. There is no checked-in proposals directory.
+It keeps signed release, trust, and launcher files outside that proposal workspace and outside upload paths.
+The report retains policy/profile digests, activation time/generation, release `issuedAt`/`expiresAt`, and trust `maxAgeMs`.
+Contract 0.2 policy bundles contain no validity fields. Internal evidence records `bundleValidity.present: false` for that absence.
+The effective expiry is `min(release.expiresAt, release.issuedAt + trust.maxAgeMs)`.
+`constructionVerification` records the constructor's actual verification time and effective expiry.
+Later CLI invocations verify independently. This timestamp does not describe those later invocations or launcher-based LSP admission.
+
+CLI authority filenames identify each phase under target `reports/authority/`. Processor fixtures use a separate suffix.
+Editor reports retain one `authority.json` per session and editor version.
+A later fixture cannot overwrite an earlier phase's evidence. Reports omit keys, signatures, tokens, endpoints, launcher data, and private paths.
+A no-Docker control calls the actual constructor with the source engine, then inspects its signed files and retained evidence.
+It proves narrowed trust age binds expiry and makes sure that later construction preserves the earlier report.
+This source control is harness construction evidence. It is not actual-backend or installed-client qualification.
+
+Screenshots are OPTIONAL DIAGNOSTICS. They have no required inventory, integrity, or step-completeness claim.
+Native Trust API/state and required UI action assertions remain separate gates. Missing screenshots cannot satisfy or suppress those assertions.
+The current full Backstage inventory declares 47 cases, expanded to 59 per backend and 118 across both targets.
+The [inventory guide](testing-harness.md#current-evidence-boundaries) distinguishes these declarations from executed H4 and H5 scopes.

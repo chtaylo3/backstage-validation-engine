@@ -9,7 +9,12 @@ interface Workflow {
   jobs: Record<
     string,
     {
-      steps?: { uses?: string; run?: string; with?: Record<string, string | boolean> }[];
+      steps?: {
+        uses?: string;
+        run?: string;
+        if?: string;
+        with?: Record<string, string | boolean>;
+      }[];
       env?: Record<string, string>;
       uses?: string;
       if?: string;
@@ -67,9 +72,15 @@ void test('release uploads include only declared sanitized report paths', async 
     (step) => step.with?.name === 'backstage-release-qualification',
   );
   assert(upload);
+  assert.equal(upload.if, 'always()', 'Retain evidence after every outcome.');
+  assert.match(upload.uses!, /@[0-9a-f]{40}$/u);
   assert.equal(upload.with?.['if-no-files-found'], 'error');
   const paths = String(upload.with?.path).trim().split('\n');
-  assert.equal(paths.length, 3);
+  assert.deepEqual(paths, [
+    '.artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/results.json',
+    '.artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/junit.xml',
+    '.artifacts/backstage/${{ env.BVE_BACKSTAGE_RUN }}/*/reports/',
+  ]);
   assert(paths.every((entry) => /\/(?:results\.json|junit\.xml|reports\/)$/u.test(entry)));
   assert(paths.every((entry) => !/credential|sqlite|\*\*/iu.test(entry)));
 });
@@ -77,16 +88,22 @@ void test('release uploads include only declared sanitized report paths', async 
 void test('every reusable Backstage caller requires manual release approval and exact candidate input', async () => {
   const ci = await load('ci.yml');
   const manual = ci.on.workflow_dispatch as {
-    inputs: { qualify_backstage: { type: string; default: boolean } };
+    inputs: {
+      revision: { type: string; required: boolean };
+      qualify_backstage: { type: string; default: boolean };
+    };
   };
   assert.deepEqual(manual.inputs.qualify_backstage.type, 'boolean');
   assert.equal(manual.inputs.qualify_backstage.default, false);
+  assert.equal(manual.inputs.revision.type, 'string');
+  assert.notEqual(ci.jobs.backstage_release?.with?.revision, '${{ github.sha }}');
   const callers = [];
   for (const name of (await readdir('.github/workflows')).filter((file) =>
     /\.ya?ml$/u.test(file),
   )) {
     const workflow = await load(name);
     for (const [id, job] of Object.entries(workflow.jobs)) {
+      for (const step of job.steps ?? []) if (step.uses) assert.match(step.uses, /@[0-9a-f]{40}$/u);
       if (job.uses !== './.github/workflows/backstage-release-qualification.yml') continue;
       callers.push(name + '/' + id);
       assert.equal(
@@ -98,4 +115,36 @@ void test('every reusable Backstage caller requires manual release approval and 
     }
   }
   assert.deepEqual(callers, ['ci.yml/backstage_release']);
+});
+
+void test('every qualification evidence upload survives failed prior steps', async () => {
+  const retained: string[] = [];
+  for (const name of [
+    'ci.yml',
+    'backstage-release-qualification.yml',
+    'vscode-races.yml',
+    'vscode-compatibility.yml',
+  ]) {
+    const workflow = await load(name);
+    for (const [id, job] of Object.entries(workflow.jobs))
+      for (const step of job.steps ?? []) {
+        if (!step.uses?.startsWith('actions/upload-artifact@')) continue;
+        const artifact = String(step.with?.name);
+        // Candidate/payload handoffs require a successful build. They are not evidence uploads.
+        if (
+          artifact === 'cli-candidate' ||
+          artifact.startsWith('vscode-candidate-') ||
+          artifact === 'remote-linux-payload'
+        )
+          continue;
+        retained.push(name + '/' + id + '/' + artifact);
+        assert.equal(step.if, 'always()', 'Retain qualification evidence: ' + artifact);
+      }
+  }
+  assert(
+    retained.includes(
+      'backstage-release-qualification.yml/backstage/backstage-release-qualification',
+    ),
+  );
+  assert(retained.includes('ci.yml/check/harness-${{ matrix.os }}'));
 });

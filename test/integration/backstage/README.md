@@ -161,8 +161,14 @@ Deliberate runner failures exercise failed builds, ingestion errors, editor cras
 ## Read the reports
 
 The root report is `.artifacts/backstage/<run-id>/results.json`. JUnit output is beside it.
-Each target has its own `reports/` directory for sanitized logs, client output, editor evidence, and failure screenshots.
+Each target has its own `reports/` directory for sanitized logs, client output, editor evidence, and optional failure screenshots.
 The root report records versions, package and source digests, case counts, and cleanup status.
+Screenshots are OPTIONAL DIAGNOSTICS. They have no integrity or completeness claim.
+Required client and native Trust assertions remain independent from screenshot availability.
+Each CLI phase retains its own sanitized `reports/authority/<phase>.json`. Processor fixtures use a separate suffix.
+Each editor session retains its own `authority.json` with constructor verification and effective expiry.
+These reports omit launcher data, keys, signatures, credentials, endpoints, and private paths.
+Contract 0.2 bundles have no validity fields. See [authority evidence](../../../docs/backstage-release-test-plan.md#current-proposal-and-authority-evidence).
 The most recent suite path is also in `.artifacts/backstage/latest-release.json`.
 
 An active case fails if execution stops before completion. Remaining cases stay unexecuted.
@@ -198,3 +204,9 @@ Reports remain under `.artifacts/harness-remediation/H4/backends`. Credentials r
 The default command removes only its owned container and SQLite volume. It never writes database rows directly.
 For independent inspection, add `--target 1.56.3 --keep`. Use that run's private `connection.json` and `backend.env` locally.
 Remove the recorded container and volume after inspection. Preserve the existing host-network CI and published-port Docker Desktop/WSL SSH paths.
+
+The declared inventory contains 47 cases: nine environment, 16 CLI, 12 editor, and ten runner cases.
+Two pinned editor versions expand it to 59 executions per backend and 118 across both targets.
+Run `node scripts/qualification-inventory.mjs` from the repository root for revision-bound counts without execution.
+The [H4 record](../../../docs/test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) qualifies a separate 22-control scope per backend at an older candidate.
+No new full-matrix qualification follows from this inventory reconciliation.

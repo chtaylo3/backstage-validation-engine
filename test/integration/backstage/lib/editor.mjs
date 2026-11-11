@@ -148,6 +148,7 @@ async function singleSession(options, id, provisioned, visual, fault) {
     const driver = path.join(session, 'driver');
     const workspace = path.join(session, 'workspace');
     const fixture = await createClientFixture({
+      authorityReport: path.join(directory, 'authority.json'),
       directory: path.join(session, 'trusted'),
       workspace,
       baseUrl: options.base,

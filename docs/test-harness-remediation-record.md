@@ -1,6 +1,6 @@
 # Test harness remediation implementation record
 
-Status: H1 through H5 are accepted within their recorded scope. H6 is admitted. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
+Status: H1 through H5 are accepted within their recorded scope. H6 is implemented and awaits parent review. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.
@@ -43,7 +43,7 @@ No complete H1 finding closes through these baseline corrections.
 | H3      | Complete    | Accepted        | Scoped evidence recorded below. N1 remains open.                           |
 | H4      | Complete    | Accepted        | Scoped backend evidence and limitations recorded below                     |
 | H5      | Complete    | Accepted        | Desktop scope accepted. R4-F10 retains a Partial native Trust disposition. |
-| H6      | Admitted    | Pending         | Complete scope, inventory, and evidence reconciliation                     |
+| H6      | Complete    | Pending         | Evidence, inventory, and scope reconciliation recorded below               |
 | H7      | Deferred    | Not admitted    | Separate authorization and final-candidate qualification                   |
 
 ## Required record for each package
@@ -1111,6 +1111,8 @@ Every criterion below awaits the parent's decision. Each pass refers only to the
 
 The [qualification guide](vscode-qualification.md#h5-provisional-measurement-policy) defines inclusive budgets, nearest-rank p95, sample counts, and included windows.
 No numeric cap increases. The extra discarded quarter is removed.
+The inner `until`/`readProvider` deadline is 60,000 ms total, including pending checks and cancellations.
+The fixture `bounded` wrapper permits 65,000 ms for outer grace. Production request deadlines remain unchanged.
 Each of four short loads records 60 edits, 60 completions, two restarts, and 22 resource samples.
 The independent host verdict accepts all four. No native process window spans 100 measured operations.
 The current observations do not qualify a slope, long endurance, or a responsiveness service-level agreement.
@@ -1190,3 +1192,189 @@ These workloads do not span the required hundred operations for slope qualificat
 H6 is admitted next from the local parent acceptance commit.
 H7 remains deferred. Additional finding N1 remains Open beyond the original 86 findings.
 This decision authorizes no push, PR, publication, merge, hosted workflow dispatch, or final release qualification.
+
+## H6 evidence inventories and documentation
+
+Agent disposition: implemented. Parent acceptance remains pending. H7 remains deferred.
+Baseline: `17cf56a27ed860baef1126caa86820bdfbf93420` on `feature/test-harness-remediation`.
+The 2026-11-10 approval admits H6 after parent acceptance of H5 on 2026-11-11.
+This phase changes harness controls and evidence documentation. It preserves public validation 0.2 and production request budgets.
+The committed source and final qualification identities follow below after execution.
+
+### Finding and criterion mapping
+
+These are H6 agent results. Parent acceptance remains pending for each row.
+The seven findings retain their frozen register ownership and amendments.
+Each criterion maps to the actual control and its evidence boundary.
+
+| Finding | Criteria     | Implementation and observable control                                                                                                                                                                                     |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R2-F6   | H6-A3, H6-A6 | Rename the misleading provider label to fake captured API contracts. Eight version-sensitive paths exercise both pins. Separate native 1.7.5/1.10.2 from backend 1.55.3/1.56.3 and their models 1.10.1/1.10.2.            |
+| R2-F11  | H6-A3, H6-A6 | Correct by-query, fixed projection/cursor, authorization filtering, backend patch, and dated qualification claims in the guides.                                                                                          |
+| R4-F14  | H6-A3        | Actual shared selector and independent module inventory establish 58 total and 50 portable modules. Preserve historical cross-OS, Linux, and focused H5 scopes.                                                           |
+| R4-F15  | H6-A5        | Screenshots are OPTIONAL DIAGNOSTICS. Capture/write failures are optional. Required workbench actions and Trust assertions retain their failures.                                                                         |
+| R5-F11  | H6-A2        | Guard manual default-false approval, `needs: [cli]`, exact requested revision, immutable Actions, `always()` evidence uploads, and exact sanitized Backstage paths.                                                       |
+| R5-F12  | H6-A1        | Independent synthetic inventory and identities pass. Named version, driver, matrix, count, and case mutations fail. An isolated loader omission fails the independent fixture but passes the former self-derived fixture. |
+| R5-F13  | H6-A4        | Actual constructor retains phase/session-scoped sanitized authority reports. Narrowed trust age binds expiry. Later construction preserves earlier evidence. Document inline proposals and absent bundle validity fields. |
+
+| Criterion | Actual selector or inspection                                                                                                     | Required and observed boundary                                                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H6-A1     | `backstage-release-evidence.test.ts`                                                                                              | Independent valid evidence, 22 retained report mutations, 14 named negative controls, and isolated loader omission. Synthetic verifier controls only.             |
+| H6-A2     | `backstage-release-workflow.test.ts`                                                                                              | Ordinary automated CI avoids Docker. Manual exact-revision caller and unconditional evidence retention remain required.                                           |
+| H6-A3     | `qualification-inventory.mjs` and `versioned installed inventory uses the actual portable selector without a qualification claim` | Exact source revision, declared client/platform/mode, counts, and both actual caller input forms. No execution claim.                                             |
+| H6-A4     | `actual fixture construction retains sanitized authority inputs and effective expiry`                                             | Actual signed fixture inputs match the retained sanitized report. Narrowed trust age expires at its exact bound. Earlier report bytes survive later construction. |
+| H6-A5     | `optional screenshot failures cannot hide independent workbench action failures`                                                  | Capture can fail while a separate required workbench evaluation still throws. No native Trust execution.                                                          |
+| H6-A6     | Current disposition table below                                                                                                   | All 86 original findings have exclusive ownership and an explicit disposition. N1 remains open outside the register.                                              |
+
+### Independent evidence and authority construction
+
+`test/fixtures/backstage-evidence-controls.json` freezes independently serialized cases, input digests, sources, packages, base image, and locks.
+It names baseline revision `17cf56a27ed860baef1126caa86820bdfbf93420` and labels its synthetic purpose.
+The report uses this record, never the expectation loader under test. It does not represent executed release qualification.
+A data-URL copy of the loader drops its first case. The independent comparison and report reject that omission.
+The former self-derived report accepts that faulty expectation output. This demonstrates the reviewed evidence gap.
+Existing production guards already pin editor versions, SQLite driver 12.4.1, and nonempty target matrices.
+H6 adds missing regression controls rather than inventing a product defect.
+
+The constructor test calls `createClientFixture` with the real source engine through an explicit harness dependency.
+It reads actual generated signed release, trust, activation, launcher, proposal bytes, and retained authority evidence without Docker.
+Default trust age is 3,600,000 ms. A 60,000 ms control proves effective expiry uses the shorter bound.
+The effective expiry is `min(release.expiresAt, release.issuedAt + trust.maxAgeMs)`. Verification at that exact expiry fails.
+Contract 0.2 bundles contain no validity fields. The contract rejects a bundle `expiresAt` field.
+Internal evidence records `bundleValidity.present: false` without adding a public contract field.
+`constructionVerification.verifiedAt` describes only the constructor's actual verification. Later CLI verification happens independently.
+The launcher-based LSP does not authenticate the signed release itself.
+CLI authority filenames identify the phase, with a separate processor suffix. Each editor session/version retains its own `authority.json`.
+The report excludes keys, signatures, tokens, endpoints, launcher data, and private paths.
+A later fixture preserves earlier report bytes. Source construction evidence does not qualify actual backends or installed clients.
+
+### Inventory and historical qualification boundaries
+
+`node scripts/qualification-inventory.mjs` prints exact source revision, tracked-change status, client, platform scope, mode, and counts.
+It reads the actual shared installed selector and versioned Backstage inventories. It executes no qualification.
+The current installed inventory contains 58 modules. Its ordinary portable selector includes 50.
+Independent controls compare recorded filenames with source files, compiled names, and the verifier's bare IDs.
+The Backstage inventory declares 47 cases: nine environment, 16 CLI, 12 editor, and ten runner.
+Two editor versions expand it to 59 per backend and 118 across two backends.
+
+Historical cross-OS source `6938b8b85c1b5889af3fbe1119684de6577e5b45` uses 44 portable cases, or 88 executions per OS.
+The later Linux source `54ce7a932c46b85e70f3fec0a68c15852af7e28b` uses 46 cases, or 92 ordinary executions.
+Pre-merge 92-execution reports retain their own candidate identities above.
+H5 source `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a` selects 30 cases on editors 1.106.3 and 1.145.2 on Linux x64.
+Its 60 passing unique combinations span 62 attempts. Both original X display failures remain failed.
+The 28 unselected modules per editor receive no H5 installed qualification claim.
+H5's short loads do not qualify a 100-operation slope or endurance.
+The current policy retains inclusive 20,000 ms caps, exactly ten resource warmup operations, and all subsequent samples without quarter exclusion.
+Inner observation is 60,000 ms total, including pending checks/cancellations. Outer fixture grace is 65,000 ms. Production deadlines remain unchanged.
+
+H4 executes a separate 22-control scope per actual backend.
+It qualifies source `60e9ac4031908127400cd6a8b9debadb5a286e90` and CLI SHA-256 `0feeb3eb31506c617c72985ccf97f024ab2138b529eaa6461745b04a05fed076`.
+Those older backend and native records do not qualify the final H6 candidate at their application boundaries.
+H6 source/client/package gates establish no new cross-platform, installed, actual-backend, native Trust, remote, JetBrains, or endurance qualification.
+
+### Current disposition of the original 86 findings
+
+This table reconciles evidence without changing the frozen register.
+Accepted and Clarified states refer to the parent's earlier phase decisions and their recorded limits.
+H6 findings remain ready for parent review. H7 findings remain deferred and open.
+R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
+
+| Finding | Owner | Current disposition   | Evidence or unresolved boundary                                                                                                                |
+| ------- | ----- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| R4-F13  | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F1   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F2   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F3   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F4   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F5   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F6   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R5-F9   | H1    | Accepted              | [H1 parent acceptance](#h1-accepted-implementation) within recorded scope                                                                      |
+| R3-F1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F5   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F6   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F7   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F8   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F9   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F10  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F11  | H2    | Clarified             | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
+| R3-F12  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F13  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F14  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F15  | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-F16  | H2    | Clarified             | [H2 parent clarification](#h2-accepted-implementation) preserves independent races/coordinates                                                 |
+| R3-H1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-H4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U1   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U2   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U3   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U4   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U5   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U6   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U7   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U8   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R3-U9   | H2    | Accepted              | [H2 parent acceptance](#h2-accepted-implementation) within recorded scope                                                                      |
+| R1-F1   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F2   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F3   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F4   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F5   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F6   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F7   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F8   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F9   | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F10  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F11  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F12  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R1-F13  | H3    | Accepted              | [H3 parent acceptance](#h3-accepted-implementation) within recorded scope                                                                      |
+| R2-F1   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F2   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F3   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F4   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F5   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F7   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F8   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F9   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R2-F10  | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F7   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F8   | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R5-F10  | H4    | Accepted              | [H4 parent acceptance](#h4-catalog-compatibility-and-convergence) within recorded scope                                                        |
+| R4-F1   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F2   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F3   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F4   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F5   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F6   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F8   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F9   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-F10  | H5    | Partial               | [H5 desktop scope accepted](#h5-installed-editor-outcomes-and-measurement-policy). Native Trust follow-up is UNEXECUTED and parent-unaccepted. |
+| R4-F11  | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U1   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U2   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U3   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U4   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R4-U5   | H5    | Accepted              | [H5 parent acceptance](#h5-installed-editor-outcomes-and-measurement-policy) within recorded scope                                             |
+| R2-F6   | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R2-F11  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R4-F14  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R4-F15  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R5-F11  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R5-F12  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R5-F13  | H6    | Ready, pending parent | H6 finding/criterion mapping above. No self-acceptance.                                                                                        |
+| R4-F7   | H7    | Deferred, Open        | H7 not admitted. Abrupt remote transport loss remains open.                                                                                    |
+| R4-F12  | H7    | Deferred, Open        | H7 not admitted. Late restricted/virtual activation controls remain open.                                                                      |
+
+Additional N1 remains OPEN beyond these 86 findings. Both pinned CEL implementations retain the last duplicate map key despite the language-defined error.
+N1 is not fixed, waived, or added to supported conformance vectors. It does not expand H7.
+All final client, native Trust reliability, JetBrains, remote-loss, and endurance work retains the existing H7 boundary.
+
+### Qualification and review handoff
+
+The first targeted attempt passed 82 of 83 controls. It failed a mistyped focused case ID in the new inventory expectation.
+The corrected repeat passed all 83. Both earlier attempts remain retained.
+Final committed source/client, exact-stamped package, and packaged suite results follow after execution.
+No H6 parent decision, hosted workflow dispatch, push, PR, merge, or publication occurs in this handoff.

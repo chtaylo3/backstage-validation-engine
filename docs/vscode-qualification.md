@@ -8,7 +8,8 @@ The existing limits remain unchanged because no independent requirement or basel
 Historical measurements describe their own candidates. H5 records new measurements for its exact candidate without tuning these limits.
 
 Cold readiness, edit p95, completion p95, and restart p95 each permit at most 20,000 milliseconds.
-The harness observation deadline is 60,000 milliseconds. Production request deadlines remain unchanged.
+The inner `until` and `readProvider` helpers share a 60,000-millisecond total observation deadline, including pending checks and cancellations.
+The fixture `bounded` helper adds a 65,000-millisecond outer grace wrapper. Production request deadlines remain unchanged.
 A completed operation over its budget fails the budget assertion before the observation deadline.
 The nearest-rank p95 sorts all observations and selects position `ceil(0.95 * n)`, with positions starting at one.
 Every measured latency operation is included. The harness does not discard latency warmup operations.
@@ -48,9 +49,9 @@ revision does not complete qualification.
 
 | Area                       | Implemented qualification                                                                                                                                             | Evidence required before support is claimed                                                                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Portable desktop           | Installed VSIX, 44 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
+| Portable desktop           | Historical installed VSIX baseline, 44 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                    | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
 | Races and native lifecycle | Entered/cancelled/released catalog gates, suspended-server apply delivery, watchers, multi-root and two real windows, native reload and close                         | 20 independent repetitions per OS and editor, with every earlier failure retained                                                                                                 |
-| Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, screenshots, UI actions and owned server cleanup on all six combinations                                                             |
+| Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, required UI actions and owned server cleanup on all six combinations                                                                 |
 | YAML coexistence           | Red Hat YAML 1.19.1, independent findings, overlapping completions, guarded fix and formatting, continued YAML validation after product Stop                          | Both editor versions on all three OS targets                                                                                                                                      |
 | Package lifecycle          | Fixture predecessor 0.0.1 → candidate 0.1.0, disable/re-enable, uninstall/reinstall, persistent User Settings and one native server                                   | Both versions on all three OS targets. A real historical release remains unqualified until a supported predecessor exists                                                         |
 | Virtual workspace          | Native custom filesystem workspace. Installed product stays inactive without diagnostics, fixes or completions                                                        | Both versions on all three OS targets. This is not a browser test                                                                                                                 |
@@ -231,7 +232,8 @@ The [five-phase editor plan](lsp-editor-improvements-plan.md) defers that reliab
 ## Installed request and input controls
 
 Rule-contribution readiness reads completion, hover, and code-action results through a bounded helper.
-Only an explicit editor `Canceled` error is retried, within the existing 20-second readiness bound.
+Only an explicit editor `Canceled` error is retried within the current total 60-second observation deadline.
+Pending checks and cancellations share that inner deadline. The fixture outer grace wrapper is 65 seconds.
 The report records each cancellation and its provider command. Other errors still fail the case.
 A cancelled read cannot count as an empty result or prove that a candidate disappeared.
 Guarded edit commands are never retried through this helper.
@@ -319,6 +321,27 @@ The [release evidence contract](release-evidence-contract.md) defines the curren
 The final verifier reads raw latencies and resource samples from both load sizes and required soaks.
 It recomputes the current budgets and rejects reports that inflate budgets or misstate percentile summaries.
 Long runs require an observed slope spanning at least 100 operations. Short load runs cannot establish that measurement.
-Budget values and the additional quarter-sample exclusion remain unchanged until H5 reviews their policy.
+H1 retained the original sample policy. The current H5 policy above removes the extra quarter exclusion without changing numeric caps.
 Native failure verification also retains separate scratch host accounting for the actual entered editor crash and later successful editor case.
 These scratch rows do not enter the normal positive release inventory.
+
+## Versioned inventories and execution scope
+
+Run `node scripts/qualification-inventory.mjs` from a clean checkout. The output identifies the exact source revision and client/mode/platform scope.
+The command reads the same selector as the installed runner. It declares counts and performs no editor execution.
+The current source contains 58 installed modules. The ordinary portable selector includes 50 of them.
+The historical cross-OS baseline at `6938b8b85c1b5889af3fbe1119684de6577e5b45` selects 44 portable cases per editor.
+Its 88 executions per OS cover Linux x64, Windows x64, and macOS arm64 on editors 1.106.3 and 1.145.2.
+The later Linux baseline at `54ce7a932c46b85e70f3fec0a68c15852af7e28b` selects 46 cases per editor, or 92 ordinary executions.
+The pre-merge Linux/macOS records retain their own 46-case, 92-execution scope and candidate identities in the remediation record.
+
+H5's exact source is `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
+It selects 30 cases per editor on Linux x64, with 60 passing unique combinations across 62 attempts.
+Two original X display failures remain failed. Two unchanged reruns supply the missing positive observations.
+It does not qualify the full current portable selector, another platform, native Trust reliability, remote clients, JetBrains, or endurance.
+R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
+
+Screenshots are OPTIONAL DIAGNOSTICS. Their presence, PNG integrity, and correspondence to UI steps are not qualification gates.
+Native Trust API/state, required UI actions, and owned-server cleanup remain independent required assertions.
+Only screenshot capture/write failures are optional. UI command, click, transition, and Trust assertion failures continue to fail their cases.
+The H6 screenshot control proves this separation without native Trust execution. H7 remains deferred.

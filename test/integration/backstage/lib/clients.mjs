@@ -7,6 +7,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { digest } from './seed.mjs';
 import { verifyCliReport } from './client-contracts.mjs';
+import { writeJson } from './evidence.mjs';
 
 const exec = promisify(execFile);
 const workRoot = process.env.BVE_BACKSTAGE_WORK_ROOT ?? '/run/work';
@@ -45,8 +46,8 @@ export async function installClient() {
 export const validText =
   'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: proposal, namespace: bve-demo}\nspec:\n  type: service\n  lifecycle: production\n  owner: group:bve-demo/team-demo\n';
 export const invalidText = validText.replace('lifecycle: production', 'lifecycle: experimental');
-export async function sourceFor(fixture, text) {
-  const engine = await installClient();
+export async function sourceFor(fixture, text, suppliedEngine) {
+  const engine = suppliedEngine ?? (await installClient());
   return engine.createSourceSnapshot({
     repository: 'backstage-release-proposal',
     revision: process.env.BVE_REVISION ?? 'development',
@@ -61,8 +62,11 @@ export async function createClientFixture({
   baseUrl = process.env.BVE_BACKSTAGE_URL,
   tokenEnv = 'BVE_BACKSTAGE_READER_TOKEN',
   profile: suppliedProfile,
+  engine: suppliedEngine,
+  trustMaxAgeMs = 3_600_000,
+  authorityReport,
 } = {}) {
-  const engine = await installClient();
+  const engine = suppliedEngine ?? (await installClient());
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await mkdir(workspace, { recursive: true });
   const data = JSON.parse(await readFile(new URL('policy.json', fixtureRoot), 'utf8'));
@@ -117,9 +121,27 @@ export async function createClientFixture({
       },
     ],
     mandatoryDigests: [engine.digestJson(policy)],
-    maxAgeMs: 3_600_000,
+    maxAgeMs: trustMaxAgeMs,
   });
-  engine.verifyPolicyRelease(release, trust);
+  const verified = engine.verifyPolicyRelease(release, trust);
+  // Internal harness evidence only. Contract 0.2 bundles have no validity dates.
+  const authorityEvidence = {
+    schemaVersion: 1,
+    policyDigest: engine.digestJson(policy),
+    profileDigest: engine.digestJson(profile),
+    activation: { activatedAt: activation.activatedAt, generation: activation.generation },
+    release: { issuedAt: release.issuedAt, expiresAt: release.expiresAt },
+    trust: { maxAgeMs: trust.maxAgeMs },
+    bundleValidity: { present: false },
+    constructionVerification: {
+      verifiedAt: verified.verification.verifiedAt,
+      expiresAt: verified.verification.expiresAt,
+    },
+  };
+  await writeJson(
+    authorityReport ?? path.join(directory, 'authority-evidence.json'),
+    authorityEvidence,
+  );
   const sourceFile = path.join(workspace, 'catalog.yaml');
   const fixture = {
     directory,
@@ -130,6 +152,7 @@ export async function createClientFixture({
     trustPath: path.join(directory, 'trust.json'),
     catalogConfigPath: path.join(directory, 'catalog.json'),
     policyDigest: digest(policy),
+    authorityEvidence,
     profile,
     policy,
     activation,
@@ -138,7 +161,7 @@ export async function createClientFixture({
     validText,
     invalidText,
   };
-  fixture.source = await sourceFor(fixture, invalidText);
+  fixture.source = await sourceFor(fixture, invalidText, engine);
   const catalog = {
     connectionId: 'real-backstage',
     allowInsecureHttp: true,

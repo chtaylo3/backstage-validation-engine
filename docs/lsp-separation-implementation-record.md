@@ -122,7 +122,7 @@ A late registration disposer failure now reaches the manager after its original 
 Failures during or after replacement activation remain unavailable, invalidate current work, retain a bounded cleanup-failure flag, and require reconnection.
 The full source gate at `87b9a16` passes 974 source tests plus the unchanged 42 client tests.
 The final source gate at `0b81eac` passes 975 source tests and 42 client tests without failures or skips.
-The clean CLI and VSIX built at that revision pass all 975 packaged tests, 88 portable installed-editor executions, six compatibility executions, and six load/saturation executions.
+The clean CLI and VSIX built at that revision pass all 975 packaged tests, 88 portable installed-editor executions from the historical 44-case inventory, six compatibility executions, and six load/saturation executions.
 The load suite retains the existing 100-file, 1000-file, timing, memory-growth, and handle-growth thresholds.
 It includes the normal post-warmup resource samples and recovery after saturation.
 Backstage 1.55.3 development parity passes all 59 cases, including both installed editors and owned-resource cleanup.

@@ -2,7 +2,8 @@
 
 Implemented 2026-10-29. `createCatalogProvider` is the production HTTP adapter that collects catalog
 observations with resource and time limits. Tests use the pinned Backstage 1.55.3 and 1.56.3
-[catalog fixtures](testing-harness.md). The provider supplies data for later reference and rule
+[fake captured API contracts](testing-harness.md). These tests do not run Backstage applications.
+H4 separately records focused actual-backend controls and their older candidate identity. The provider supplies data for later reference and rule
 processing. Organization rules decide which references must exist.
 
 ## Trusted construction and credentials

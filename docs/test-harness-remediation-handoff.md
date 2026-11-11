@@ -122,3 +122,19 @@ The parent accepts the executed H5 desktop scope and admits H6. The H5 record co
 R4-F10 is Partial for strengthened but UNEXECUTED, parent-unaccepted native Trust assertions under the existing H7 deferral.
 Additional N1 remains OPEN beyond the original 86 findings. H6 must preserve both dispositions.
 H7 remains deferred and is not expanded. No push, PR, publication, or merge occurs through this handoff.
+
+## H6 handoff for parent review
+
+H6 implements the seven assigned evidence and documentation findings. Parent acceptance remains pending.
+The [H6 record](test-harness-remediation-record.md#h6-evidence-inventories-and-documentation) maps all seven findings and all six criteria.
+It reconciles the original 86 findings with parent decisions and explicit unresolved dispositions.
+Independent inventory expectations detect an isolated loader omission. Synthetic verifier controls do not count as release execution.
+Actual fixture evidence records authority inputs, effective expiry, phase/session attribution, and sanitized output.
+Screenshots are OPTIONAL DIAGNOSTICS. Required Trust state and UI assertions remain independent.
+
+The 58-module inventory contains 50 portable cases. H5 executes 30 selected cases per editor on Linux x64.
+Its 60 unique passing combinations span 62 attempts. Two original X display failures remain failed.
+H4's actual-backend evidence retains its older source and CLI identity. Final H6 source/package gates do not extend that qualification.
+R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
+R4-F7 and R4-F12 remain deferred. N1 remains OPEN beyond the original 86 findings.
+No H7 work or native Trust execution is admitted by this handoff.

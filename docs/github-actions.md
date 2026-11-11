@@ -145,7 +145,7 @@ crash and manual restart, overlapping lifecycle scenarios, and client coverage o
 
 Increment 3 adds deterministic document races, simultaneous windows, multi-root workspaces, native
 close and reload, and a weekly or manual repetition workflow. Increment 4 adds five native Workspace
-Trust cases. They use visible controls through Chrome DevTools Protocol input events, screenshots,
+Trust cases. They use visible controls through Chrome DevTools Protocol input events, optional diagnostic screenshots,
 and a driver that can inspect Restricted Mode. Broader compatibility remains in progress.
 Qualification requires hosted results for the candidate revision.
 
@@ -177,7 +177,7 @@ Trust cases omit `--disable-workspace-trust`, assert enforcement and the absence
 override, and never call product activation while restricted. Grant and revoke use native pointer
 input on the visible Trust pane. Revocation must cause a real editor reload and terminate the
 previous server. Persistence and unrelated-folder cases launch a second editor process with the same
-profile. `native-sessions.json`, asserted API state, UI action records and screenshots are retained.
+profile. `native-sessions.json`, asserted API state, UI action records and available optional diagnostic screenshots are retained.
 The product's Restricted Mode declaration remains unchanged.
 
 Increment 2 qualified at `d3884ed`:
@@ -338,7 +338,7 @@ plan.
 Acceptance: Initial trusted/untrusted cases pass on all six combinations. First establish repeatable
 transition automation on Linux with the current pinned editor, then qualify both versions on all
 three OS targets. Record effective arguments, asserted trust state, product activation, process
-evidence and failure screenshots. An unavailable transition lane remains an open requirement.
+evidence and optional failure screenshots. An unavailable transition lane remains an open requirement.
 
 ### Gap 4: environments, coexistence, upgrades and endurance
 
@@ -418,7 +418,7 @@ Acceptance: Deliberately fail an early case, crash an editor and fail cleanup in
 verification. Confirm correct failure/nonexecution accounting, retained logs, later independent
 execution and nonzero CI exit. Missing cases, zero tests, skips, missing reports or coverage below
 the declared client thresholds fail CI. Always retain case reports, client LCOV, editor logs and
-relevant UI screenshots.
+available optional UI screenshots.
 
 Add the new paths to the current upload step. Logs use synthetic credentials and must not expose
 environment secrets. Preserve the existing engine coverage report.
@@ -501,3 +501,17 @@ packaged CLI must exercise actual ingestion, mutations, authentication, recovery
 restart, reset and cleanup. Reports retain exact versions, package digests, sample-data and policy
 digests, actual case counts and sanitized logs. Missing required cases or infrastructure leave this
 increment open. Planning files do not count as executed tests.
+
+## Current remediation and manual release boundary
+
+The dedicated Backstage workflow permits manual dispatch and a reusable call.
+The `ci.yml` manual caller requires `qualify_backstage: true`, which defaults to false, and waits for `cli`.
+It passes the exact requested revision. The called job compares it with `GITHUB_SHA` and checkout HEAD.
+Ordinary automated CI does not start the real Backstage Docker workload.
+The sanitized Backstage evidence upload uses `if: always()`. Static controls guard that condition, immutable Actions pins, and the three allowed report paths.
+
+Screenshots are OPTIONAL DIAGNOSTICS across these guides. They have no required count, PNG integrity, or step-completeness claim.
+Native Trust state and required UI action assertions remain independent from screenshot availability.
+The [qualification guide](vscode-qualification.md#versioned-inventories-and-execution-scope) preserves historical 44-case cross-OS and 46-case Linux scopes.
+Its current 58-module inventory has 50 portable cases. H5 qualifies 30 selected cases per editor on Linux only.
+The final H6 source/package gates do not extend installed, backend, native Trust, JetBrains, remote, or endurance qualification.

@@ -50,8 +50,8 @@ localhost listener. Do not share mutable state or a global "active version" betw
 Client/provider caches must also distinguish target endpoint, connection and authorization scope.
 
 Synthetic lifecycle tests continue to prove concurrent majors and multiple minors without depending
-on upstream publishing a particular major. The catalog HTTP tests also run against these real,
-pinned fixture targets:
+on upstream publishing a particular major. The catalog HTTP tests also run against these fake targets with
+pinned captured API contracts:
 
 | Backstage release | Catalog backend package | Catalog model package | Upstream source commit                     |
 | ----------------- | ----------------------- | --------------------- | ------------------------------------------ |
@@ -69,8 +69,8 @@ qualification on 2026-11-07 discovered 1.56.3. Its OpenAPI and license bytes mat
 1.56.2 capture, and its model/backend package versions are unchanged. The inventory now selects
 1.56.3. Older bytes remain historical evidence and are not additional active fixture targets.
 
-Fixture targets describe wire-contract coverage. Real deployed backend smoke qualification remains
-open. Recorded catalog-model package versions describe the captured deployment. The fake uses the
+Fixture targets describe fake API-contract coverage. They do not execute deployed Backstage backends.
+The [H4 record](test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) records later focused actual-backend controls for both targets. Recorded catalog-model package versions describe the captured deployment. The fake uses the
 installed native reference helper to canonicalize kind, namespace, and name. It does not run each
 deployment's native policies or processors. The production native-validation adapters remain
 separately pinned to 1.10.2 and 1.7.5.
@@ -83,7 +83,7 @@ local socket access. Normal local runs require no fixed port configuration.
 
 The 2026-10-29 production-provider increment adds 31 checks to `test:harness`, for 88
 harness/provider checks. The full project check passed 356 tests. The provider example passed
-against the standalone fixture server. Real-backend runs remain open.
+against the standalone fixture server. Actual-backend execution was open at that dated checkpoint.
 
 The source-reference/preparation increment adds 31 checks to `test:harness`, for 119
 harness/integration checks. The full project check passed 387 tests, and the new source-reference
@@ -133,12 +133,14 @@ include them in `npm run check`.
   absence from the principal's authorized view.
 - `POST /api/catalog/entities/by-refs` accepts `entityRefs`, preserves order and duplicates, and
   returns `null` for absent or hidden entities.
-- Missing or invalid bearer credentials produce 401. A principal denied catalog reads receives 403.
+- Missing or invalid bearer credentials produce 401. Explicit plugin denial (`canAccessCatalog: false`) produces 403.
+  Permission filtering (`canRead: false`) returns authorized-view absence: by-name 404, batch nulls, and empty query items.
   These are controlled fixture identities, not real Backstage token issuance or permission-policy
   verification.
-- Query parameters, projections (`fields`) and predicate queries are outside the implemented subset
-  and explicitly return 501. `/entities/by-query` is not implemented yet. The fake does not silently
-  ignore a requested capability.
+- `GET /api/catalog/entities/by-query` implements the completion path with fixed kind/namespace filters and name-text matching.
+  It requires the fixed identity projection and supports bounded limits with opaque, principal-scoped cursors.
+  Broader predicates, arbitrary projections, and unsupported query parameters return 501.
+  The fake admits only the declared subset of the captured OpenAPI contract.
 - JSON requests have a 64 KiB limit. The fake checks input schemas, references, and content type.
   Each server configures five-second body/header receipt timeouts and permits 64 connections.
 - `upsert`, `remove`, `setPrincipal` and `revokeToken` are in-process controls. There are no HTTP
@@ -153,7 +155,7 @@ include them in `npm run check`.
 - `requests()` returns immutable log snapshots with principal IDs and outcomes, excluding bearer
   tokens. `assertHealthy()` surfaces internal/schema failures.
 
-Tests cover request and response schemas and HTTP behavior for both real targets. They also cover
+Tests cover request and response schemas and HTTP behavior for both fake captured-contract targets. They also cover
 authorized-view absence, credential changes, malformed inputs, state isolation, one-shot fault
 recovery, cancellation, out-of-order delivery, and repeated cleanup. Changing an upstream required
 entity field is exercised as a startup failure.
@@ -213,9 +215,35 @@ separate explicit support-policy change.
 - The [production LSP](lsp.md) now has a subprocess stdio test client covering versioned
   diagnostics, cancellation, close/reopen, UTF-16 edits, buffer limits and shutdown against pinned
   fixtures. Actual editor qualification remains open.
-- Smoke tests against real pinned Backstage backends. Neither fake probes nor the two existing
-  catalog-model adapters establish deployed backend compatibility.
+- H4 executes 22 focused controls per actual backend at source `60e9ac4031908127400cd6a8b9debadb5a286e90`.
+  Its CLI archive SHA-256 is `0feeb3eb31506c617c72985ccf97f024ab2138b529eaa6461745b04a05fed076`.
+  Neither fake probes nor the two native adapters qualify the final remediation candidate against actual backends.
 
 The fake/provider/reference/LSP loop is implemented. Extend it alongside complete BC-07 processing
 qualification. BC-04 substitutions, BC-05 admission/custom schemas, BC-06 overlays and their LSP
 scenarios are implemented. This does not establish full ingestion or real-backend compatibility.
+
+## Current evidence boundaries
+
+The native adapter pins are 1.7.5 and 1.10.2. They are independent from umbrella releases 1.55.3 and 1.56.3.
+The corresponding backend packages are 4.0.0 and 4.0.2. Their catalog-model packages are 1.10.1 and 1.10.2.
+Version-sensitive provider batching, authorization, rotation, response admission, retry, and cooldown controls exercise both fake targets.
+Generic clock, transport, and resource controls retain their declared scope without duplicate version claims.
+
+Run `node scripts/qualification-inventory.mjs` from a clean checkout to print the exact revision and declared counts.
+This command reads the actual installed selector and versioned Backstage inventories. It performs no qualification execution.
+The current inventories contain 58 installed modules, with 50 in the ordinary portable selector.
+The Backstage inventory declares 47 cases: nine environment, 16 CLI, 12 editor, and ten runner cases.
+Two editor versions expand that inventory to 59 cases per backend and 118 across both backends.
+H4's focused 22 controls per backend are a separate inventory and candidate.
+
+H5 selects 30 installed cases per editor on Linux x64. Its 60 unique combinations pass across 62 attempts.
+The two original X display failures remain failed. H5 does not qualify all 50 current portable cases or another platform.
+The historical cross-OS baseline contains 44 portable cases, or 88 case/version executions per OS.
+The later Linux baseline contains 46 portable cases, or 92 executions. Those records retain their own exact candidates.
+See [current VS Code scope](vscode-qualification.md#versioned-inventories-and-execution-scope) for attribution.
+
+`test/fixtures/backstage-evidence-controls.json` records independent inventory and identity expectations.
+Its metadata labels synthetic verifier controls. These controls never count as executed release qualification.
+A loader-omission mutation demonstrates that this independent record detects a dropped case that a self-derived fixture accepts.
+The controls also reject wrong editors, wrong SQLite drivers, empty matrices, missing or duplicate cases, and incorrect counts.

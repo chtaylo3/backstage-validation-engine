@@ -143,7 +143,7 @@ void test('native provider reference helpers honor both exact pins and preserve 
   }
 });
 
-void test('production provider reads both real fixture contracts and produces immutable pinned data', async (t) => {
+void test('production provider reads both fake captured API contracts and produces immutable pinned data', async (t) => {
   const state = await setup(t);
   for (const { target, fixture } of state.fixtures) {
     await t.test(target.backstageVersion, async () => {
@@ -170,42 +170,50 @@ void test('production provider reads both real fixture contracts and produces im
 
 void test('provider deduplicates canonical refs and splits uncached observations into bounded batches', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture, { limits: { batchSize: 2 } });
-  const report = await run(provider, [TEAM, 'GROUP:TEAM', SERVICE, MISSING]);
-  assert.equal(report.data.entries.length, 3);
-  assert.deepEqual(
-    fixture.requests().map((entry) => entry.operation),
-    ['byRefs', 'byName'],
-  );
-  const again = await run(provider);
-  assert.equal(observation(again).status, 'present');
-  assert.equal(fixture.requests().length, 2);
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture, { limits: { batchSize: 2 } });
+      const report = await run(provider, [TEAM, 'GROUP:TEAM', SERVICE, MISSING]);
+      assert.equal(report.data.entries.length, 3);
+      assert.deepEqual(
+        fixture.requests().map((entry) => entry.operation),
+        ['byRefs', 'byName'],
+      );
+      const again = await run(provider);
+      assert.equal(observation(again).status, 'present');
+      assert.equal(fixture.requests().length, 2);
+    });
 });
 
 void test('only authorized-view 404/null is missing; authentication and batch route failures stay unavailable', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const scoped = await state.provider(fixture, {
-    credentials: (context) => Promise.resolve(credentials(context, 'test-scoped')),
-  });
-  assert.equal(
-    observation(await run(scoped, [SERVICE], access({ principalId: 'scoped' })), SERVICE).status,
-    'missing',
-  );
-  const invalid = await state.provider(fixture, {
-    credentials: (context) => Promise.resolve(credentials(context, 'invalid')),
-  });
-  unavailable(await run(invalid), 'permission_denied');
-  const denied = await state.provider(fixture, {
-    credentials: (context) => Promise.resolve(credentials(context, 'test-denied')),
-  });
-  unavailable(await run(denied, [TEAM], access({ principalId: 'denied' })), 'permission_denied');
-  const provider = await state.provider(fixture);
-  fixture.failNext({ operation: 'byRefs' }, { kind: 'status', status: 404 });
-  const report = await run(provider, [TEAM, SERVICE]);
-  unavailable(report, 'provider_error');
-  unavailable(report, 'provider_error', SERVICE);
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const scoped = await state.provider(fixture, {
+        credentials: (context) => Promise.resolve(credentials(context, 'test-scoped')),
+      });
+      assert.equal(
+        observation(await run(scoped, [SERVICE], access({ principalId: 'scoped' })), SERVICE)
+          .status,
+        'missing',
+      );
+      const invalid = await state.provider(fixture, {
+        credentials: (context) => Promise.resolve(credentials(context, 'invalid')),
+      });
+      unavailable(await run(invalid), 'permission_denied');
+      const denied = await state.provider(fixture, {
+        credentials: (context) => Promise.resolve(credentials(context, 'test-denied')),
+      });
+      unavailable(
+        await run(denied, [TEAM], access({ principalId: 'denied' })),
+        'permission_denied',
+      );
+      const provider = await state.provider(fixture);
+      fixture.failNext({ operation: 'byRefs' }, { kind: 'status', status: 404 });
+      const report = await run(provider, [TEAM, SERVICE]);
+      unavailable(report, 'provider_error');
+      unavailable(report, 'provider_error', SERVICE);
+    });
 });
 
 void test('credential binding failures never reach the server or reuse a prior authorized result', async (t) => {
@@ -260,23 +268,30 @@ void test('cache partitions every authority/policy/freshness dimension and keeps
 
 void test('token rotation and permission changes cannot reuse cached visibility', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  let token = 'test-all';
-  const provider = await state.provider(fixture, {
-    credentials: (context) => Promise.resolve(credentials(context, token)),
-  });
-  assert.equal(observation(await run(provider, [SERVICE]), SERVICE).status, 'present');
-  fixture.setPrincipal({ token: 'rotated', principalId: 'all', canRead: true, visibleRefs: [] });
-  token = 'rotated';
-  assert.equal(observation(await run(provider, [SERVICE]), SERVICE).status, 'missing');
-  fixture.setPrincipal({ token, principalId: 'all', canRead: true, visibleRefs: '*' });
-  assert.equal(
-    observation(
-      await run(provider, [SERVICE], access({ permissionRevision: 'permissions-2' })),
-      SERVICE,
-    ).status,
-    'present',
-  );
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      let token = 'test-all';
+      const provider = await state.provider(fixture, {
+        credentials: (context) => Promise.resolve(credentials(context, token)),
+      });
+      assert.equal(observation(await run(provider, [SERVICE]), SERVICE).status, 'present');
+      fixture.setPrincipal({
+        token: 'rotated',
+        principalId: 'all',
+        canRead: true,
+        visibleRefs: [],
+      });
+      token = 'rotated';
+      assert.equal(observation(await run(provider, [SERVICE]), SERVICE).status, 'missing');
+      fixture.setPrincipal({ token, principalId: 'all', canRead: true, visibleRefs: '*' });
+      assert.equal(
+        observation(
+          await run(provider, [SERVICE], access({ permissionRevision: 'permissions-2' })),
+          SERVICE,
+        ).status,
+        'present',
+      );
+    });
 });
 
 void test('positive and negative TTLs expire without extending cached provenance', async (t) => {
@@ -352,64 +367,75 @@ void test('older delayed observations cannot overwrite the cache after a newer l
 
 void test('outages, invalid responses and authentication failures are never cached as absence', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture);
-  for (const fault of [
-    { kind: 'status', status: 503 },
-    { kind: 'status', status: 401 },
-    { kind: 'malformed-json' },
-  ] as const) {
-    fixture.failNext({ operation: 'byName' }, fault);
-    const report = await run(provider);
-    assert.equal(observation(report).status, 'unavailable');
-    assert.equal(provider.stats().cacheEntries, 0);
-  }
-  assert.equal(observation(await run(provider)).status, 'present');
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture);
+      for (const fault of [
+        { kind: 'status', status: 503 },
+        { kind: 'status', status: 401 },
+        { kind: 'malformed-json' },
+      ] as const) {
+        fixture.failNext({ operation: 'byName' }, fault);
+        const report = await run(provider);
+        assert.equal(observation(report).status, 'unavailable');
+        assert.equal(provider.stats().cacheEntries, 0);
+      }
+      assert.equal(observation(await run(provider)).status, 'present');
+    });
 });
 
 void test('a known authorization failure clears cached observations across freshness partitions', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture);
-  await run(provider);
-  assert.equal(provider.stats().cacheEntries, 1);
-  fixture.revokeToken('test-all');
-  unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'permission_denied');
-  assert.equal(provider.stats().cacheEntries, 0);
-  unavailable(await run(provider), 'permission_denied');
-  assert.equal(fixture.requests().length, 3);
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture);
+      await run(provider);
+      assert.equal(provider.stats().cacheEntries, 1);
+      fixture.revokeToken('test-all');
+      unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'permission_denied');
+      assert.equal(provider.stats().cacheEntries, 0);
+      unavailable(await run(provider), 'permission_denied');
+      assert.equal(fixture.requests().length, 3);
+    });
 });
 
 void test('retries are bounded, honor Retry-After limits and stop on authorization failure', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture, { limits: { retries: 1, retryDelayMs: 0 } });
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
-  assert.equal(observation(await run(provider)).status, 'present');
-  assert.equal(fixture.requests().length, 2);
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 429, retryAfter: '0' });
-  assert.equal(observation(await run(provider, [TEAM], access({ maxAgeMs: 0 }))).status, 'present');
-  const before = fixture.requests().length;
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 403 });
-  unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'permission_denied');
-  assert.equal(fixture.requests().length, before + 1);
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
-  unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'provider_error');
-  assert.equal(fixture.requests().length, before + 3);
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture, { limits: { retries: 1, retryDelayMs: 0 } });
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
+      assert.equal(observation(await run(provider)).status, 'present');
+      assert.equal(fixture.requests().length, 2);
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 429, retryAfter: '0' });
+      assert.equal(
+        observation(await run(provider, [TEAM], access({ maxAgeMs: 0 }))).status,
+        'present',
+      );
+      const before = fixture.requests().length;
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 403 });
+      unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'permission_denied');
+      assert.equal(fixture.requests().length, before + 1);
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 503 });
+      unavailable(await run(provider, [TEAM], access({ maxAgeMs: 0 })), 'provider_error');
+      assert.equal(fixture.requests().length, before + 3);
+    });
 });
 
 void test('new lookups cannot bypass a connection-wide Retry-After cooldown', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture, { limits: { retries: 1 } });
-  fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 429, retryAfter: '60' });
-  const first = await run(provider);
-  unavailable(first, 'provider_error');
-  assert.equal(first.failures[0]?.code, 'rate_limited');
-  unavailable(await run(provider), 'provider_error');
-  assert.equal(fixture.requests().length, 1);
-  assert.equal(provider.stats().cacheEntries, 0);
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture, { limits: { retries: 1 } });
+      fixture.failNext({ operation: 'byName' }, { kind: 'status', status: 429, retryAfter: '60' });
+      const first = await run(provider);
+      unavailable(first, 'provider_error');
+      assert.equal(first.failures[0]?.code, 'rate_limited');
+      unavailable(await run(provider), 'provider_error');
+      assert.equal(fixture.requests().length, 1);
+      assert.equal(provider.stats().cacheEntries, 0);
+    });
 });
 
 void test('redirect responses are not followed to another endpoint', async (t) => {
@@ -431,24 +457,26 @@ void test('redirect responses are not followed to another endpoint', async (t) =
 
 void test('wire validation rejects swapped, truncated and malformed entity responses', async (t) => {
   const state = await setup(t);
-  const fixture = state.fixtures[0]!.fixture;
-  const provider = await state.provider(fixture);
-  for (const body of [
-    { items: [service, team] },
-    { items: [team] },
-    { items: [{ kind: 'Group' }, service] },
-    { items: [] },
-  ]) {
-    fixture.failNext({ operation: 'byRefs' }, { kind: 'invalid-body', body });
-    const report = await run(provider, [TEAM, SERVICE]);
-    unavailable(report, 'provider_error');
-    assert.equal(report.failures[0]?.code, 'invalid_response');
-    assert.equal(report.failures[0]?.evidence?.cause, 'invalid_response');
-    assert.equal(report.failures[0]?.evidence?.stage, 'catalog_response');
-    assert.equal(provider.stats().cacheEntries, 0);
-  }
-  fixture.failNext({ operation: 'byName' }, { kind: 'invalid-body', body: null });
-  unavailable(await run(provider), 'provider_error');
+  for (const { target, fixture } of state.fixtures)
+    await t.test(target.backstageVersion, async () => {
+      const provider = await state.provider(fixture);
+      for (const body of [
+        { items: [service, team] },
+        { items: [team] },
+        { items: [{ kind: 'Group' }, service] },
+        { items: [] },
+      ]) {
+        fixture.failNext({ operation: 'byRefs' }, { kind: 'invalid-body', body });
+        const report = await run(provider, [TEAM, SERVICE]);
+        unavailable(report, 'provider_error');
+        assert.equal(report.failures[0]?.code, 'invalid_response');
+        assert.equal(report.failures[0]?.evidence?.cause, 'invalid_response');
+        assert.equal(report.failures[0]?.evidence?.stage, 'catalog_response');
+        assert.equal(provider.stats().cacheEntries, 0);
+      }
+      fixture.failNext({ operation: 'byName' }, { kind: 'invalid-body', body: null });
+      unavailable(await run(provider), 'provider_error');
+    });
 });
 
 void test('response bytes, aggregate bytes and structured-value budgets fail with incomplete resource coverage', async (t) => {

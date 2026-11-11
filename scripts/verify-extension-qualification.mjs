@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
+import { selectInstalledModules } from './extension-test-selection.mjs';
 import { verifyCliArchive } from './cli-candidate.mjs';
 import {
   loadBackstageExpectations,
@@ -43,8 +44,8 @@ const result = {
 const inventory = JSON.parse(
   await readFile(path.join(root, '.artifacts/vscode/test/inventory.json'), 'utf8'),
 ).map((name) => name.replace(/\.case\.cjs$/u, ''));
-const portable = inventory.filter((id) => !/^(compat-|endurance-|remote-)/u.test(id));
-const races = inventory.filter((id) => /^(race-|workspace-)/u.test(id));
+const portable = selectInstalledModules(inventory);
+const races = selectInstalledModules(inventory, { racesOnly: true });
 async function latest(workflow) {
   const runs = await api(`actions/workflows/${workflow}/runs?head_sha=${revision}&per_page=10`);
   const run = runs.workflow_runs.find((value) => value.head_sha === revision);

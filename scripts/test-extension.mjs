@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
 import { runVSCodeCommand } from './extension-test-cli.mjs';
+import { selectInstalledModules } from './extension-test-selection.mjs';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
@@ -56,19 +57,14 @@ assert(
   'Only the race suite can request 1–20 independent repetitions.',
 );
 assert(!focused || !process.env.CI, 'CI must run the complete installed-extension inventory.');
-const selectedModules = focused
-  ? modules.filter((name) => focused.split(',').includes(name.replace(/\.case\.cjs$/u, '')))
-  : racesOnly
-    ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
-    : trustOnly
-      ? modules.filter((name) => name.startsWith('trust-'))
-      : compatibility
-        ? modules.filter((name) => name.startsWith('compat-'))
-        : endurance
-          ? modules.filter((name) => /^endurance-(100|1000|saturation)\./u.test(name))
-          : soak
-            ? modules.filter((name) => name.startsWith('endurance-soak.'))
-            : modules.filter((name) => !/^(compat-|endurance-|remote-)/u.test(name));
+const selectedModules = selectInstalledModules(modules, {
+  focused,
+  racesOnly,
+  trustOnly,
+  compatibility,
+  endurance,
+  soak,
+});
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
 if (focused)
   assert.equal(

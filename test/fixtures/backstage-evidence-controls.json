@@ -1,0 +1,248 @@
+{
+  "purpose": "Synthetic verifier controls. No executed release qualification.",
+  "authoredFromRevision": "17cf56a27ed860baef1126caa86820bdfbf93420",
+  "expected": {
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "cliSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "vsixSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "targets": ["1.55.3", "1.56.3"],
+    "cases": [
+      {
+        "id": "environment.build",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.startup",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.web",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.authentication",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.repeat-seed",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.mutation",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.persistence",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.reset",
+        "scope": "environment"
+      },
+      {
+        "id": "environment.cleanup",
+        "scope": "environment"
+      },
+      {
+        "id": "cli.valid-json",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.valid-sarif",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.native-rejection",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.policy-violation",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.malformed-yaml",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.missing-reference",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.required-processor",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.missing-credentials",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.invalid-credentials",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.permission-denied",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.outage",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.recovery",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.mutation",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.parity",
+        "scope": "cli"
+      },
+      {
+        "id": "editor.installation",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.diagnostics",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.completion",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.guarded-fix",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.unsaved-edits",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.watcher",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.stale-fix",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.restart",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.mutation",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.permission-denied",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.outage-recovery",
+        "scope": "editor"
+      },
+      {
+        "id": "editor.parity",
+        "scope": "editor"
+      },
+      {
+        "id": "runner.invalid-seed",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.duplicate-seed",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.missing-report",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.failure-accounting",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.cleanup-accounting",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.build-failure",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.ingestion-failure",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.editor-crash",
+        "scope": "runner"
+      },
+      {
+        "id": "runner.interrupted-run",
+        "scope": "runner"
+      },
+      {
+        "id": "cli.invalid-snapshot",
+        "scope": "cli"
+      },
+      {
+        "id": "cli.incomplete-sarif",
+        "scope": "cli"
+      },
+      {
+        "id": "runner.malformed-json",
+        "scope": "runner"
+      }
+    ],
+    "inventoryDigest": "sha256:b7d9785902f17f4737a3a2ae8928b5139f2ac2a0d2ea25a72fa90ed9e8abfda0",
+    "seedDigests": {
+      "baseline": "sha256:19536c0b52f3754cd09b43511a6e9d0cf21a25a42a47a5c7b9ec2b2c57e13950",
+      "mutation": "sha256:4cfe1f3e691df6199e2edbadffde7650dd26d7cc4b5ae6093f3bfce53d1bf721"
+    },
+    "policyDigest": "sha256:f3c6fe66258e681aed1b31f3f46143b5b7478a3f6977f4801d3875e215d792df",
+    "details": {
+      "1.55.3": {
+        "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+        "packages": {
+          "@backstage/backend-defaults": "0.18.0",
+          "@backstage/backend-plugin-api": "1.10.1",
+          "@backstage/config": "1.3.9",
+          "@backstage/cli": "0.36.6",
+          "@backstage/frontend-defaults": "0.5.6",
+          "@backstage/ui": "0.18.0",
+          "@backstage/plugin-app-backend": "0.5.18",
+          "@backstage/plugin-catalog-backend": "4.0.0",
+          "@backstage/plugin-catalog": "2.0.9",
+          "@backstage/plugin-auth-backend": "0.30.1",
+          "@backstage/plugin-auth-backend-module-guest-provider": "0.2.23",
+          "@backstage/catalog-model": "1.10.1",
+          "@backstage/plugin-permission-node": "0.11.5"
+        },
+        "lockfileDigest": "sha256:2bec49ad0113e7dc53a80cfaa441d274144e562e7a6a81bfcaa0e84fa9bdc89a",
+        "baseImage": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d"
+      },
+      "1.56.3": {
+        "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
+        "packages": {
+          "@backstage/backend-defaults": "0.18.1",
+          "@backstage/backend-plugin-api": "1.11.0",
+          "@backstage/config": "1.3.10",
+          "@backstage/cli": "0.36.7",
+          "@backstage/frontend-defaults": "0.5.7",
+          "@backstage/ui": "0.19.0",
+          "@backstage/plugin-app-backend": "0.5.19",
+          "@backstage/plugin-catalog-backend": "4.0.2",
+          "@backstage/plugin-catalog": "2.0.10",
+          "@backstage/plugin-auth-backend": "0.30.2",
+          "@backstage/plugin-auth-backend-module-guest-provider": "0.2.24",
+          "@backstage/catalog-model": "1.10.2",
+          "@backstage/plugin-permission-node": "0.11.5"
+        },
+        "lockfileDigest": "sha256:303646c248f1f0f3e65dae0274e104ea0836cdbae5cba6afcefb25f829a63b38",
+        "baseImage": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d"
+      }
+    }
+  }
+}

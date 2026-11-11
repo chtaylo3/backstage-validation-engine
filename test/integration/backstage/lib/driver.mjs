@@ -125,7 +125,9 @@ async function connected() {
       }));
     assert.deepEqual(state(after), state(before));
   });
-  const fixture = await createClientFixture();
+  const fixture = await createClientFixture({
+    authorityReport: '/reports/reports/authority/' + phase + '.json',
+  });
   const good = await cliCase('cli.valid-json', fixture, fixture.validText, 0);
   await cliCase('cli.valid-sarif', fixture, fixture.validText, 0, { format: 'sarif' });
   await cliCase(
@@ -147,6 +149,7 @@ async function connected() {
   const engine = await installClient();
   const processor = await createClientFixture({
     directory: '/run/work/processor',
+    authorityReport: '/reports/reports/authority/' + phase + '-processor.json',
     profile: {
       ...engine.DEFAULT_DEPLOYMENT_PROFILE,
       requiredProcessors: [{ id: 'unavailable-release-processor', stage: 'before-native' }],
@@ -282,10 +285,14 @@ try {
         ),
       );
     });
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.mutation', fixture, fixture.validText.replace('team-demo', 'team-next'), 0);
   } else if (phase === 'outage') {
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.outage', fixture, fixture.validText, 2);
   } else if (phase === 'recovery') {
     await run('environment.persistence', async () => {
@@ -304,7 +311,9 @@ try {
         entityCount: entities.length,
       });
     });
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.recovery', fixture, fixture.validText, 0);
   } else if (phase === 'reset')
     await run('environment.reset', async () => {

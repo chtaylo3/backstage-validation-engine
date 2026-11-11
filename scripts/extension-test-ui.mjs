@@ -218,8 +218,14 @@ export class Workbench {
     }
   }
   async screenshot(file) {
-    const result = await this.call('Page.captureScreenshot', { format: 'png' });
-    await writeFile(file, Buffer.from(result.data, 'base64'));
+    // OPTIONAL DIAGNOSTICS. Native Trust state and UI actions have separate assertions.
+    try {
+      const result = await this.call('Page.captureScreenshot', { format: 'png' });
+      await writeFile(file, Buffer.from(result.data, 'base64'));
+      return { role: 'optional-diagnostic', status: 'captured' };
+    } catch {
+      return { role: 'optional-diagnostic', status: 'unavailable' };
+    }
   }
   close() {
     this.socket.close();
