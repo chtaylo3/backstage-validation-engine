@@ -24,7 +24,7 @@ void test('vendored independent inputs retain pinned bytes and source/license id
   const manifest = JSON.parse(await readFile(`${root}/upstream-manifest.json`, 'utf8')) as {
     files: { path: string; sha256: string; url: string; license: string }[];
   };
-  assert.equal(manifest.files.length, 38);
+  assert.equal(manifest.files.length, 39);
   for (const file of manifest.files) {
     assert.match(
       file.url,

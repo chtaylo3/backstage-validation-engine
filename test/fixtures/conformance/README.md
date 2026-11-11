@@ -24,7 +24,8 @@ Strict Ajv admission also rejects an ignored `if` without `then` or `else`.
 That stricter admission is a configuration rejection, not a changed official expected value.
 
 The OASIS 2.1.0 Errata 01 schema remains unmodified.
-`SARIF-NOTICE.txt` retains publication attribution. `SARIF-LICENSE.upstream` retains OASIS IPR links.
+`SARIF-NOTICE.txt` retains publication attribution.
+`SARIF-PUBLISHED-NOTICES.txt` retains the complete published Notices section, with whitespace normalized only. `SARIF-LICENSE.upstream` retains OASIS IPR links.
 Tests use pinned test-only `ajv-draft-04` and `ajv-formats` with full format validation.
 The schema contains a legacy regex, so the validator uses `unicodeRegExp: false`.
 URI, URI-reference, and date-time failures receive separate negative controls.
