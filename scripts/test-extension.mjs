@@ -472,6 +472,7 @@ async function execute(spec, output, fault, peer) {
         'race-apply-delivery',
         'save',
         'race-dirty-watch',
+        'workspace-multi-root',
         'editor-intelligence',
         'editor-discovery',
         'performance-budget',

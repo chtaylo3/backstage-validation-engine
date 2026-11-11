@@ -82,6 +82,47 @@ const mutations = [
     ],
   },
   {
+    id: 'dirty-watch-transient-wrong-publication',
+    cases: ['race-dirty-watch'],
+    expected: 'No intermediate dirty-watch publication',
+    changes: [
+      {
+        file: server + 'server.js',
+        before: '            observe(uris, truncated);',
+        after: `            observe(uris, truncated);
+            if (uris.some(uri => uri.endsWith('/team.yaml'))) {
+                const main = [...workspace.documents.values()].find(row => row.uri.endsWith('/catalog.yaml'));
+                if (main) {
+                    const params = { uri: main.uri, version: main.version, diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, code: 'owner-exists', source: 'backstage-validation', severity: 1, message: 'Injected transient disk finding.', data: { version: main.version, category: 'policy' } }] };
+                    void connection.sendDiagnostics(params).then(() => connection.sendDiagnostics({ ...params, diagnostics: [] }));
+                }
+            }`,
+      },
+    ],
+  },
+  {
+    id: 'unapproved-transient-then-cleared-publication',
+    cases: ['workspace-multi-root'],
+    expected: 'No intermediate publication can admit an unapproved document',
+    changes: [
+      {
+        file: client,
+        before: '  return {\n    documentSelector,',
+        after:
+          '  documentSelector.push({ scheme: "file", pattern: "**/*" });\n  return {\n    documentSelector,',
+      },
+      {
+        file: server + 'server.js',
+        before: 'connection.onDidOpenTextDocument(({ textDocument: item }) => {',
+        after: `connection.onDidOpenTextDocument(({ textDocument: item }) => {
+        if (item.uri.endsWith('/unapproved/catalog.yaml')) {
+            const params = { uri: item.uri, version: item.version, diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, code: 'production-only', source: 'backstage-validation', severity: 1, message: 'Injected transient unapproved finding.', data: { version: item.version, category: 'policy' } }] };
+            void connection.sendDiagnostics(params).then(() => connection.sendDiagnostics({ ...params, diagnostics: [] }));
+        }`,
+      },
+    ],
+  },
+  {
     id: 'search-completes-before-picker',
     cases: ['editor-search'],
     expected: 'Search command must stay pending',

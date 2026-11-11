@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
+import path from 'node:path';
+import { writeEvidence } from '../evidence.js';
+import { diagnosticPublications, diagnosticGeneration } from '../diagnostic-trace.js';
 import { invalidTeam, team, until } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
@@ -41,6 +44,36 @@ export async function run(fixture: Fixture): Promise<void> {
   );
   assert.equal(document.version, version);
   await fixture.alive(pid, main);
+  await until(
+    async () =>
+      diagnosticPublications((await fixture.trace()).slice(offset)).some(
+        (row) =>
+          row.uri === main.uri.toString() &&
+          row.diagnostics.some(
+            (diagnostic) =>
+              diagnostic.code === 'production-only' &&
+              (diagnosticGeneration(diagnostic) ?? -1) >= receipt.generation,
+          ),
+      ),
+    'current-generation diagnostic publication after the admitted watcher',
+  );
+  await fixture.api!.filesystemObservation();
+  const publications = diagnosticPublications((await fixture.trace()).slice(offset));
+  await writeEvidence(
+    path.join(
+      path.dirname(process.env.BVE_EXTENSION_TEST_PROGRESS!),
+      'dirty-watch-publications.json',
+    ),
+    JSON.stringify(publications, null, 2) + '\n',
+  );
+  assert(
+    !publications.some(
+      (row) =>
+        row.uri === main.uri.toString() &&
+        row.diagnostics.some((diagnostic) => diagnostic.code === 'owner-exists'),
+    ),
+    'No intermediate dirty-watch publication can use invalid disk content.',
+  );
   assert.equal(fixture.has('owner-exists'), false);
   assert.equal(document.getText(), team + '# unsaved buffer owns this file\n');
   assert.equal(
