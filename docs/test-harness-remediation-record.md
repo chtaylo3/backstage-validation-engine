@@ -42,7 +42,7 @@ No complete H1 finding closes through these baseline corrections.
 | H2      | Complete     | Accepted        | Scoped evidence and limitations recorded below           |
 | H3      | Complete     | Accepted        | Scoped evidence recorded below. N1 remains open.         |
 | H4      | Implemented  | Pending         | Focused actual-backend and catalog evidence              |
-| H5      | Not assigned | Pending         | Accepted H4 and installed editor evidence                |
+| H5      | Admitted     | Pending         | Focused installed editor evidence and measurement policy |
 | H6      | Not assigned | Pending         | Accepted H5 and complete scope/inventory reconciliation  |
 | H7      | Deferred     | Not admitted    | Separate authorization and final-candidate qualification |
 
@@ -78,7 +78,7 @@ Next package admitted:
 
 The approval and baseline update alone closed no findings.
 The following dispositions record parent acceptance after implementation and independent controls.
-H2 and H3 dispositions appear in their per-finding traceability tables below.
+H2, H3, and H4 dispositions appear in their per-finding traceability tables below.
 Additional N1 remains open beyond the original frozen register.
 Use `Accepted`, `Partial`, `Open`, or `Deferred` for implementation state.
 Use `Clarified` only for a parent-reviewed correction to the original recommendation.
@@ -801,7 +801,8 @@ No hosted run, push, PR, publication, merge, actual-backend qualification, insta
 
 ## H4 catalog compatibility and convergence
 
-Status: implementation complete. Parent acceptance is pending.
+Status: parent accepted on 2026-11-11. All twelve original H4 findings are accepted within the declared scope.
+Assigned agent: `harness_h4_catalog_backends`.
 Scope: H4 only, all 12 assigned findings and H4-A1 through H4-A8.
 Source/test qualification revision: `60e9ac4031908127400cd6a8b9debadb5a286e90`.
 The later documentation commit records this evidence. It does not change the qualified runtime or tests.
@@ -826,28 +827,28 @@ The default reference profile still selects paths across entity kinds. This over
 It does not extract every backend relation field. Membership, dependencies, subcomponent, System-domain, and Domain-parent contexts remain omitted.
 The independent processor tables cover those backend relations separately. No public profile or result field changed.
 
-### Finding dispositions for parent review
+### Accepted finding dispositions
 
-| Finding | Criteria            | Independent expectation and executed control                                                                                                                                                                                                                     | Candidate disposition                                                  | Parent decision |
-| ------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------- |
-| R2-F1   | H4-A1, H4-A8        | Fake/provider tests separate plugin 403 from filtered missing. Both actual catalogs return admin/reader 200, filtered by-name 404, by-refs `null`, and query omission. Authenticated decision logs bind the read permission and native decision.                 | Implemented and executed within the reviewed permission-service scope  | Pending         |
-| R2-F2   | H4-A2, H4-A8        | Raw fake and actual backend requests preserve canonical keys, order, duplicates, shorthand, malformed, empty, whitespace, and case variants. Actual non-string requests return 400. Client normalization remains separate.                                       | Implemented and executed                                               | Pending         |
-| R2-F3   | H4-A3               | Single-entity empty, HTML, missing-message, and mismatched-status 404 responses remain unavailable with `invalid_response`. Valid present and valid missing responses recover. Bypassing admission fails the new assertion.                                      | Implemented and executed                                               | Pending         |
-| R2-F4   | H4-A4               | Six controlled-clock cases assert GET/POST, exact delta/date delays, 503, disconnect retry, two-attempt exhaustion, and cancellation. A zero-backoff variant fails the scheduled-delay assertion without a timeout.                                              | Implemented and executed                                               | Pending         |
-| R2-F5   | H4-A5, H4-A8        | Thirteen fixed substitution cases run against both actual pinned processors. Separate local expectations run with both native adapters. Source hashes, Apache license, and published NOTICE remain pinned.                                                       | Explicit safe-profile differences preserved and executed               | Pending         |
-| R2-F7   | H4-A5, H4-A8        | Eight fixed kind cases compare complete processor tuples, inverse/defaulted edges, and separate local selected-path references. Actual processors on both targets match the tables.                                                                              | Deliberate selected-path kind over-approximation documented and tested | Pending         |
-| R2-F8   | H4-A5               | A deliberately unprojected response includes private metadata/spec fields. The client returns canonical identities only. A wrong-kind response fails admission.                                                                                                  | Implemented and executed                                               | Pending         |
-| R2-F9   | H4-A5               | Lightweight, two-link, and four-link tags resolve to the fixed commit. A fifth annotated link fails before artifact fetch.                                                                                                                                       | Implemented and executed                                               | Pending         |
-| R2-F10  | H4-A5, H4-A6, H4-A8 | Independent golden tuples define 22 baseline and 18 mutation edges. Both actual ingestions contain all tuples, including component/resource System inverses and the existing System-Domain pair. A same-count wrong tuple fails.                                 | Implemented and executed                                               | Pending         |
-| R5-F7   | H4-A6, H4-A8        | Seed schema and admission require `absentRelations`. Convergence rejects old ownership and API edges. Actual mutation converges with three absent tuples. Removing the guard fails the isolated test.                                                            | Implemented and executed                                               | Pending         |
-| R5-F8   | H4-A7, H4-A8        | Actual packaged CLI cases assert exact exits, native/YAML finding identities, required-processor coverage, unavailable rule state, and coverage reason. Seven altered-result controls fail. Separate actual providers establish the underlying transport causes. | Implemented with parent-reviewed contract 0.2 projection limit         | Pending         |
-| R5-F10  | H4-A7, H4-A8        | The same valid refresh body returns administrator 200 and reader 403. Reader by-name read remains 200. Native decision logs establish the authorization difference on both targets.                                                                              | Implemented and executed                                               | Pending         |
+| Finding | Criteria            | Independent expectation and executed control                                                                                                                                                                                                                     | Candidate disposition                                                  | Implementation state | Parent decision            |
+| ------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------- | -------------------------- |
+| R2-F1   | H4-A1, H4-A8        | Fake/provider tests separate plugin 403 from filtered missing. Both actual catalogs return admin/reader 200, filtered by-name 404, by-refs `null`, and query omission. Authenticated decision logs bind the read permission and native decision.                 | Implemented and executed within the reviewed permission-service scope  | Accepted             | Accepted in declared scope |
+| R2-F2   | H4-A2, H4-A8        | Raw fake and actual backend requests preserve canonical keys, order, duplicates, shorthand, malformed, empty, whitespace, and case variants. Actual non-string requests return 400. Client normalization remains separate.                                       | Implemented and executed                                               | Accepted             | Accepted                   |
+| R2-F3   | H4-A3               | Single-entity empty, HTML, missing-message, and mismatched-status 404 responses remain unavailable with `invalid_response`. Valid present and valid missing responses recover. Bypassing admission fails the new assertion.                                      | Implemented and executed                                               | Accepted             | Accepted                   |
+| R2-F4   | H4-A4               | Six controlled-clock cases assert GET/POST, exact delta/date delays, 503, disconnect retry, two-attempt exhaustion, and cancellation. A zero-backoff variant fails the scheduled-delay assertion without a timeout.                                              | Implemented and executed                                               | Accepted             | Accepted                   |
+| R2-F5   | H4-A5, H4-A8        | Thirteen fixed substitution cases run against both actual pinned processors. Separate local expectations run with both native adapters. Source hashes, Apache license, and published NOTICE remain pinned.                                                       | Explicit safe-profile differences preserved and executed               | Accepted             | Accepted                   |
+| R2-F7   | H4-A5, H4-A8        | Eight fixed kind cases compare complete processor tuples, inverse/defaulted edges, and separate local selected-path references. Actual processors on both targets match the tables.                                                                              | Deliberate selected-path kind over-approximation documented and tested | Accepted             | Accepted in declared scope |
+| R2-F8   | H4-A5               | A deliberately unprojected response includes private metadata/spec fields. The client returns canonical identities only. A wrong-kind response fails admission.                                                                                                  | Implemented and executed                                               | Accepted             | Accepted                   |
+| R2-F9   | H4-A5               | Lightweight, two-link, and four-link tags resolve to the fixed commit. A fifth annotated link fails before artifact fetch.                                                                                                                                       | Implemented and executed                                               | Accepted             | Accepted                   |
+| R2-F10  | H4-A5, H4-A6, H4-A8 | Independent golden tuples define 22 baseline and 18 mutation edges. Both actual ingestions contain all tuples, including component/resource System inverses and the existing System-Domain pair. A same-count wrong tuple fails.                                 | Implemented and executed                                               | Accepted             | Accepted                   |
+| R5-F7   | H4-A6, H4-A8        | Seed schema and admission require `absentRelations`. Convergence rejects old ownership and API edges. Actual mutation converges with three absent tuples. Removing the guard fails the isolated test.                                                            | Implemented and executed                                               | Accepted             | Accepted                   |
+| R5-F8   | H4-A7, H4-A8        | Actual packaged CLI cases assert exact exits, native/YAML finding identities, required-processor coverage, unavailable rule state, and coverage reason. Seven altered-result controls fail. Separate actual providers establish the underlying transport causes. | Implemented with parent-reviewed contract 0.2 projection limit         | Accepted             | Accepted in declared scope |
+| R5-F10  | H4-A7, H4-A8        | The same valid refresh body returns administrator 200 and reader 403. Reader by-name read remains 200. Native decision logs establish the authorization difference on both targets.                                                                              | Implemented and executed                                               | Accepted             | Accepted                   |
 
 ### Acceptance criteria and actual selectors
 
 | Criterion | Executed evidence                                                                                                                                                                                                               | Candidate result                                                                                             |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| H4-A1     | `permission-policy DENY filters existing entities while explicit plugin denial remains unavailable`; actual `permission-service-filtered-absence-and-explicit-plugin-rejection` and `authenticated-native-permission-decisions` | Pass on both fixture and actual pins. Parent review pending.                                                 |
+| H4-A1     | `permission-policy DENY filters existing entities while explicit plugin denial remains unavailable`; actual `permission-service-filtered-absence-and-explicit-plugin-rejection` and `authenticated-native-permission-decisions` | Pass on both fixture and actual pins. Parent accepted.                                                       |
 | H4-A2     | `catalog fake uses case-insensitive by-name triplets and raw by-refs database keys`; actual `raw-byrefs-parser-and-database-contract`                                                                                           | Pass. Each actual target covers ten raw strings and a non-string rejection.                                  |
 | H4-A3     | `single-entity malformed 404 responses remain unavailable and valid absence recovers`; isolated `malformed404-admission-bypassed`                                                                                               | Corrected case passes. Faulty variant fails an assertion.                                                    |
 | H4-A4     | `controlled HTTP retries preserve GET/POST, exact delays, bounded attempts and cancellation`; isolated `retry-zero-backoff`                                                                                                     | Six cases pass. Zero-delay fault fails the intended scheduled-delay assertion.                               |
@@ -969,6 +970,60 @@ Only the completed final inventories support this record.
 
 Changed documentation passes scoped Prettier admission and all 31 relative file links resolve.
 The original user-owned review retains SHA-256 `3814987bbc5b962b5638cecde322054d33db400d52a7ae212adec7e5530cd5d7`.
-Parent acceptance remains pending for every H4 criterion and finding.
-H5 and H6 do not start through this handoff. H7 remains deferred.
+The parent accepted every H4 criterion and finding through the independent review below.
+The agent handoff did not start H5 or H6. The subsequent parent decision admits H5. H7 remains deferred.
 Additional finding N1 remains OPEN beyond the original 86 findings. H4 does not change or accept its duplicate CEL map-key behavior.
+
+### Parent acceptance
+
+Parent decision: accepted on 2026-11-11 for all eight H4 criteria and all twelve assigned original findings.
+Documentation-only handoff: `265ab93`. Qualified source/test revision: `60e9ac4031908127400cd6a8b9debadb5a286e90`.
+The parent inspected all changed boundaries, fixed expectations, five fault pairs, source provenance, and complete inventories.
+The accepted scope retains the permission-service policy, selected-path profile, and CLI projection limits described above.
+No application contract, production limit, or performance threshold changes through this decision.
+
+| Criterion | Independent parent evidence                                                                                                                                                                                                               | Decision                                              |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| H4-A1     | Repeated all 22 actual 1.56.3 cases. Direct requests show administrator/reader reads, filtered 404/null/empty results, and explicit plugin 403. New native decisions follow those requests.                                               | Accepted within the declared permission-service scope |
+| H4-A2     | Ten independent raw-reference cases pass on each corrected fixture pin. Both actual targets and the direct API repeat match exact lookup and non-string rejection.                                                                        | Accepted                                              |
+| H4-A3     | Eight cases and eight recoveries cross the final stamped packaged provider API. Malformed 404 bodies remain unavailable, valid absence stays missing, and 401/403 retain their existing cause.                                            | Accepted                                              |
+| H4-A4     | Inspected six clock-controlled cases and the executed final fault evidence. The zero-delay fault fails its scheduled-delay assertion rather than a timeout.                                                                               | Accepted                                              |
+| H4-A5     | Independently matched all eight source files to official same-target Git blobs. Reviewed separate local/upstream tables, full hand-authored graph tuples, projection, and tag bounds.                                                     | Accepted for the declared tables and profile          |
+| H4-A6     | Old helper admits obsolete edges. Current helper rejects the same two stale edges with all required edges present. Direct actual mutation checks confirm all eighteen required and three absent tuples.                                   | Accepted                                              |
+| H4-A7     | Independent observers admit twenty-four actual CLI results and reject six result mutations plus the retained wrong-layer native case. Actual refresh succeeds for the administrator and fails for the reader through native restrictions. | Accepted within public contract 0.2                   |
+| H4-A8     | Recomputed final VSIX, CLI, runtime, and revision identities. Matched both 22-case backend reports and completed source/client/package inventories to the exact qualified inputs.                                                         | Accepted for executed Linux x64 scope                 |
+
+The independent actual backend repeat is `parent-backend/bve-h4-1-56-3-e6d515d085`.
+All twenty-two focused cases pass. Twelve further direct requests prove exact references, permission decisions, and the declared mutation graph.
+Those direct checks observe ten new native permission decisions after the observation barrier.
+The parent verifies resource ownership labels before removing its container and SQLite volume. No owned resource remains.
+`parent/backend-api-candidate.json` and `parent/backend-cleanup.json` retain those observations.
+
+`parent/cli-verdict-candidate.json` retains twenty-four actual result checks across both agent runs and the independent repeat.
+It rejects six altered-result controls. The old actual YAML failure also fails the native observer.
+The public CLI transport-cause projection remains a documented limit. Separate provider evidence establishes the underlying causes.
+
+`parent/baseline-convergence.json` and `parent/candidate-convergence.json` retain the repaired false-success path.
+The helper bytes used in the independent control remain unchanged through the qualified revision.
+The parent hand-authored twenty-two baseline and eighteen mutation tuples from the pinned processor and matched them to both seeds.
+`parent/expected-graphs.json` retains those expectations separately from the agent's golden file.
+
+The first parent raw-reference probe incorrectly compared JSON object member ordering.
+That probe and its raw observations remain retained. The corrected observer uses deep equality.
+The old fixture matches four of ten cases per pin. The corrected fixture matches all ten per pin.
+`parent/baseline-raw-references-corrected.json` and `parent/candidate-raw-references.json` retain the semantic comparison.
+
+`parent/official-source-blobs.json` independently verifies all eight exact official source blobs.
+`parent/upstream-permission-review.json` records both native restriction implementations and the catalog filtering path.
+A preliminary cross-version comparison caused an apparent source mismatch. Same-target comparisons resolve it without source changes.
+The published license and NOTICE identities remain retained. No whole-package corruption claim follows from that mistaken comparison.
+
+The final stamped provider repeat admits all eight fixed classifications and all eight subsequent recoveries.
+`parent/stamped-provider-responses.json` and `parent/artifact-inventory-candidate.json` bind the observations and final identities.
+The parent inspected complete 1,330 source, 43 client, 1,330 packaged, and 22 installed-archive CLI results.
+All pass with zero failure, cancellation, skip, or todo. These remain distinct inventories and application boundaries.
+The package harness uses the packaged runtime and packaged CLI/LSP entry points. Direct package API probes remain separately identified.
+
+H5 is admitted next from the local parent acceptance commit on `feature/test-harness-remediation`.
+H6 waits for H5 acceptance. H7 remains deferred, and additional N1 remains open beyond the original 86 findings.
+This decision authorizes no push, PR, publication, merge, hosted run, or release-wide client qualification.
