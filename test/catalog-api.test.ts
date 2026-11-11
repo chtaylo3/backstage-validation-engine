@@ -44,7 +44,13 @@ async function matrixFor(t: TestContext) {
           canRead: true,
           visibleRefs: ['group:default/team'],
         },
-        { token: 'test-denied', principalId: 'denied', canRead: false, visibleRefs: '*' },
+        {
+          token: 'test-denied',
+          principalId: 'denied',
+          canAccessCatalog: false,
+          canRead: true,
+          visibleRefs: '*',
+        },
       ],
     }),
   );
@@ -109,7 +115,7 @@ void test('contract changes and unsupported OpenAPI dialects fail before a fake 
   );
 });
 
-void test('catalog fake resolves case-insensitive triplets and preserves batch order, nulls and duplicates', async (t) => {
+void test('catalog fake uses case-insensitive by-name triplets and raw by-refs database keys', async (t) => {
   const matrix = await matrixFor(t);
   assert.equal(
     new Set(matrix.fixtures.map(({ fixture }) => fixture.baseUrl)).size,
@@ -131,7 +137,19 @@ void test('catalog fake resolves case-insensitive triplets and preserves batch o
         ],
       });
       assert.equal(result.status, 200);
-      assert.deepEqual(await result.json(), { items: [team, component, null, team] });
+      assert.deepEqual(await result.json(), { items: [null, component, null, null] });
+      const raw = await batch(fixture, {
+        entityRefs: [
+          'group:default/team',
+          'group:team',
+          'not-a-full-ref',
+          'group:/team',
+          'GROUP:DEFAULT/TEAM',
+          'group:default/team',
+        ],
+      });
+      assert.equal(raw.status, 200);
+      assert.deepEqual(await raw.json(), { items: [team, null, null, null, null, team] });
       assert.deepEqual(await (await batch(fixture, { entityRefs: [] })).json(), { items: [] });
     });
   }
@@ -152,7 +170,7 @@ void test('fixture credentials distinguish authentication, denial and authorized
       );
       const scoped = await batch(
         fixture,
-        { entityRefs: ['group:team', 'component:default/service'] },
+        { entityRefs: ['group:default/team', 'component:default/service'] },
         'test-scoped',
       );
       assert.deepEqual(await scoped.json(), { items: [team, null] });
@@ -163,6 +181,22 @@ void test('fixture credentials distinguish authentication, denial and authorized
           })
         ).status,
         404,
+      );
+      fixture.setPrincipal({
+        token: 'test-filtered',
+        principalId: 'filtered',
+        canRead: false,
+        visibleRefs: '*',
+      });
+      assert.equal(
+        (await getTeam(fixture, { headers: { authorization: 'Bearer test-filtered' } })).status,
+        404,
+      );
+      assert.deepEqual(
+        await (
+          await batch(fixture, { entityRefs: ['group:default/team'] }, 'test-filtered')
+        ).json(),
+        { items: [null] },
       );
       fixture.setPrincipal({
         token: 'test-scoped',
@@ -190,7 +224,7 @@ void test('invalid bodies, references and unsupported fake capabilities return e
   const matrix = await matrixFor(t);
   for (const { target, fixture } of matrix.fixtures) {
     await t.test(target.backstageVersion, async () => {
-      for (const body of [{ entityRefs: [1] }, {}, null, { entityRefs: ['not-a-full-ref'] }]) {
+      for (const body of [{ entityRefs: [1] }, {}, null]) {
         assert.equal((await batch(fixture, body)).status, 400);
       }
       assert.equal(

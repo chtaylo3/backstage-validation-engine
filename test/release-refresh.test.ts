@@ -19,7 +19,7 @@ import {
 const commit = 'c'.repeat(40);
 const spec = 'openapi: 3.1.0\ninfo: { title: synthetic, version: "1" }\npaths: {}\n';
 const entry = (tag_name: string, prerelease = false) => ({ tag_name, prerelease, draft: false });
-function upstream(options: { failSpec?: boolean; badCommit?: boolean } = {}) {
+function upstream(options: { failSpec?: boolean; badCommit?: boolean; tagDepth?: number } = {}) {
   const requested: string[] = [];
   const fetcher = (url: string): Promise<Response> => {
     requested.push(url);
@@ -35,9 +35,20 @@ function upstream(options: { failSpec?: boolean; badCommit?: boolean } = {}) {
     } else if (url === `${RELEASE_INDEX}?per_page=100&page=2`) {
       data = [entry('v1.2.10'), entry('v2.3.0'), entry('v3.0.1')];
     } else if (url.includes('/git/ref/tags/')) {
-      data = { object: { type: 'tag', sha: 'a'.repeat(40) } };
+      data = {
+        object: {
+          type: options.tagDepth === 0 ? 'commit' : 'tag',
+          sha: options.tagDepth === 0 ? commit : 'a'.repeat(40),
+        },
+      };
     } else if (url.includes('/git/tags/')) {
-      data = { object: { type: 'commit', sha: options.badCommit ? '../bad' : commit } };
+      const depth = requested.filter((value) => value.includes('/git/tags/')).length;
+      data = {
+        object:
+          depth < (options.tagDepth ?? 1)
+            ? { type: 'tag', sha: String(depth).repeat(40) }
+            : { type: 'commit', sha: options.badCommit ? '../bad' : commit },
+      };
     } else if (url.endsWith('/package.json')) {
       data = { version: url.includes('catalog-backend') ? '4.0.2' : '1.10.2' };
     } else if (url.endsWith('/openapi.yaml')) {
@@ -185,4 +196,20 @@ void test('pinned inventory cannot hide a newer observed patch, retain older pat
     /refresh time/,
   );
   assert.throws(() => parseSupportConfiguration({ supportedMinors: ['1.2', '1.2'] }), /Invalid/);
+});
+
+void test('release refresh accepts lightweight tags and four annotated links but rejects a fifth link', async () => {
+  for (const depth of [0, 2, 4]) {
+    const remote = upstream({ tagDepth: depth });
+    const result = await refreshReleaseInventory(['1.2'], remote.fetcher);
+    assert.equal(result.inventory.releases[0]?.sourceCommit, commit);
+    assert.equal(remote.requested.filter((url) => url.includes('/git/tags/')).length, depth);
+  }
+  const remote = upstream({ tagDepth: 5 });
+  await assert.rejects(
+    refreshReleaseInventory(['1.2'], remote.fetcher),
+    /Release tag did not resolve to a commit/,
+  );
+  assert.equal(remote.requested.filter((url) => url.includes('/git/tags/')).length, 4);
+  assert(!remote.requested.some((url) => url.endsWith('/openapi.yaml')));
 });

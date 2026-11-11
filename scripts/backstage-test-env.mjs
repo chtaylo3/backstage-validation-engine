@@ -312,6 +312,7 @@ async function stateFor(target, candidates) {
     reader: randomBytes(24).toString('hex'),
     admin: randomBytes(24).toString('hex'),
     denied: randomBytes(24).toString('hex'),
+    filtered: randomBytes(24).toString('hex'),
   };
   secretValues.push(...Object.values(credentials));
   const selectedPort = await port();
@@ -341,6 +342,7 @@ async function stateFor(target, candidates) {
     BVE_BACKSTAGE_READER_TOKEN: credentials.reader,
     BVE_BACKSTAGE_ADMIN_TOKEN: credentials.admin,
     BVE_BACKSTAGE_DENIED_TOKEN: credentials.denied,
+    BVE_BACKSTAGE_FILTERED_TOKEN: credentials.filtered,
     BVE_REPORT_DIRECTORY: reportDirectory,
     BVE_CLI_ARCHIVE: candidates.cliPath ?? '/dev/null',
     BVE_VSIX_ARCHIVE: candidates.vsixPath ?? '/dev/null',

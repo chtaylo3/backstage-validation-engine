@@ -48,6 +48,7 @@ export async function converge(base, seed, token, timeout = 120_000) {
       unexpectedPresent: [],
       bodyMismatch: [],
       missingRelations: [],
+      unexpectedRelations: [],
       processingErrors: [],
     };
     try {
@@ -74,7 +75,18 @@ export async function converge(base, seed, token, timeout = 120_000) {
               (r) => r.type === relation.type && r.targetRef === relation.target,
             )
           )
-            last.missingRelations.push(relation.source + '/' + relation.type);
+            last.missingRelations.push(
+              relation.source + '/' + relation.type + '/' + relation.target,
+            );
+        for (const relation of seed.expected.absentRelations.filter((r) => r.source === refs[i]))
+          if (
+            entity.relations?.some(
+              (r) => r.type === relation.type && r.targetRef === relation.target,
+            )
+          )
+            last.unexpectedRelations.push(
+              relation.source + '/' + relation.type + '/' + relation.target,
+            );
       }
       const locations = await request(base, '/api/catalog/entities?filter=kind=location', {
         token,
@@ -89,6 +101,7 @@ export async function converge(base, seed, token, timeout = 120_000) {
           last.unexpectedPresent,
           last.bodyMismatch,
           last.missingRelations,
+          last.unexpectedRelations,
           last.processingErrors,
         ].every((items) => items.length === 0)
       )
@@ -96,12 +109,14 @@ export async function converge(base, seed, token, timeout = 120_000) {
           entityCount: seed.expected.entityRefs.length,
           relationCount: seed.expected.relations.length,
           absentCount: seed.expected.absentEntityRefs.length,
+          absentRelationCount: seed.expected.absentRelations.length,
         };
       for (const key of [
         'missing',
         'unexpectedPresent',
         'bodyMismatch',
         'missingRelations',
+        'unexpectedRelations',
         'processingErrors',
       ])
         last[key] = last[key].slice(0, 16);

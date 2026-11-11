@@ -140,16 +140,108 @@
         "target": "group:bve-demo/team-next"
       },
       {
-        "source": "user:bve-demo/alice",
-        "type": "memberOf",
+        "source": "component:bve-demo/demo-service",
+        "type": "partOf",
+        "target": "system:bve-demo/demo-system"
+      },
+      {
+        "source": "component:bve-demo/included-service",
+        "type": "ownedBy",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "domain:bve-demo/demo-domain",
+        "type": "hasPart",
+        "target": "system:bve-demo/demo-system"
+      },
+      {
+        "source": "domain:bve-demo/demo-domain",
+        "type": "ownedBy",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "hasMember",
+        "target": "user:bve-demo/alice"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "ownerOf",
+        "target": "component:bve-demo/included-service"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "ownerOf",
+        "target": "domain:bve-demo/demo-domain"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "ownerOf",
+        "target": "resource:bve-demo/demo-database"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "ownerOf",
+        "target": "system:bve-demo/demo-system"
+      },
+      {
+        "source": "group:bve-demo/team-next",
+        "type": "ownerOf",
+        "target": "component:bve-demo/demo-service"
+      },
+      {
+        "source": "resource:bve-demo/demo-database",
+        "type": "ownedBy",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "resource:bve-demo/demo-database",
+        "type": "partOf",
+        "target": "system:bve-demo/demo-system"
+      },
+      {
+        "source": "system:bve-demo/demo-system",
+        "type": "hasPart",
+        "target": "component:bve-demo/demo-service"
+      },
+      {
+        "source": "system:bve-demo/demo-system",
+        "type": "hasPart",
+        "target": "resource:bve-demo/demo-database"
+      },
+      {
+        "source": "system:bve-demo/demo-system",
+        "type": "ownedBy",
         "target": "group:bve-demo/team-demo"
       },
       {
         "source": "system:bve-demo/demo-system",
         "type": "partOf",
         "target": "domain:bve-demo/demo-domain"
+      },
+      {
+        "source": "user:bve-demo/alice",
+        "type": "memberOf",
+        "target": "group:bve-demo/team-demo"
       }
     ],
-    "absentEntityRefs": ["api:bve-demo/demo-api"]
+    "absentEntityRefs": ["api:bve-demo/demo-api"],
+    "absentRelations": [
+      {
+        "source": "component:bve-demo/demo-service",
+        "type": "ownedBy",
+        "target": "group:bve-demo/team-demo"
+      },
+      {
+        "source": "group:bve-demo/team-demo",
+        "type": "ownerOf",
+        "target": "component:bve-demo/demo-service"
+      },
+      {
+        "source": "component:bve-demo/demo-service",
+        "type": "providesApi",
+        "target": "api:bve-demo/demo-api"
+      }
+    ]
   }
 }

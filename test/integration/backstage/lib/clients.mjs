@@ -9,26 +9,32 @@ import { digest } from './seed.mjs';
 import { verifyCliReport } from './client-contracts.mjs';
 
 const exec = promisify(execFile);
-const candidate = '/run/work/candidate/node_modules/@chtaylo3/backstage-validation-engine';
+const workRoot = process.env.BVE_BACKSTAGE_WORK_ROOT ?? '/run/work';
+const candidateDirectory = path.join(workRoot, 'candidate');
+const candidate = path.join(
+  candidateDirectory,
+  'node_modules/@chtaylo3/backstage-validation-engine',
+);
+const archive = process.env.BVE_BACKSTAGE_CLI_ARCHIVE ?? '/candidate/cli.tgz';
 const fixtureRoot = new URL('../', import.meta.url);
 export async function installClient() {
   const checksum = createHash('sha256')
-    .update(await readFile('/candidate/cli.tgz'))
+    .update(await readFile(archive))
     .digest('hex');
-  const marker = '/run/work/candidate.sha256';
+  const marker = path.join(workRoot, 'candidate.sha256');
   if ((await readFile(marker, 'utf8').catch(() => '')) !== checksum) {
-    await rm('/run/work/candidate', { recursive: true, force: true });
+    await rm(candidateDirectory, { recursive: true, force: true });
     await exec(
       'npm',
       [
         'install',
         '--prefix',
-        '/run/work/candidate',
+        candidateDirectory,
         '--omit=dev',
         '--ignore-scripts',
         '--no-audit',
         '--no-fund',
-        '/candidate/cli.tgz',
+        archive,
       ],
       { timeout: 300_000, maxBuffer: 4 * 1024 * 1024 },
     );
@@ -50,8 +56,8 @@ export async function sourceFor(fixture, text) {
   });
 }
 export async function createClientFixture({
-  directory = '/run/work/client-fixture',
-  workspace = '/run/work/proposals',
+  directory = path.join(workRoot, 'client-fixture'),
+  workspace = path.join(workRoot, 'proposals'),
   baseUrl = process.env.BVE_BACKSTAGE_URL,
   tokenEnv = 'BVE_BACKSTAGE_READER_TOKEN',
   profile: suppliedProfile,
@@ -232,6 +238,7 @@ export async function runCli(
     process.env.BVE_BACKSTAGE_READER_TOKEN,
     process.env.BVE_BACKSTAGE_ADMIN_TOKEN,
     process.env.BVE_BACKSTAGE_DENIED_TOKEN,
+    process.env.BVE_BACKSTAGE_FILTERED_TOKEN,
   ].filter(Boolean))
     assert(
       !result.stdout.includes(secret) && !result.stderr.includes(secret),

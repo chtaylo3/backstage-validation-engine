@@ -513,7 +513,8 @@ void test('PC-11 stdio observes add, body modification, deletion, rename and out
       fixture.setPrincipal({
         token: 'policy-test-secret',
         principalId: 'reader',
-        canRead: false,
+        canAccessCatalog: false,
+        canRead: true,
         visibleRefs: '*',
       });
       await host.waitFor(
@@ -812,7 +813,8 @@ void test('live query refresh preserves deletion, invalid replacement and confli
       fixture.setPrincipal({
         token: 'policy-test-secret',
         principalId: 'reader',
-        canRead: false,
+        canAccessCatalog: false,
+        canRead: true,
         visibleRefs: '*',
       });
       while (
@@ -1151,7 +1153,8 @@ void test('a newly observed query denial revokes an existing guarded repair befo
   fixture.setPrincipal({
     token: 'policy-test-secret',
     principalId: 'reader',
-    canRead: false,
+    canAccessCatalog: false,
+    canRead: true,
     visibleRefs: '*',
   });
   const after = fixture.requests().length;

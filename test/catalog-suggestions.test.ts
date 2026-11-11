@@ -241,3 +241,38 @@ void test('search stops at four pages even when backend text matches yield no pr
   assert.equal(report.truncated, true);
   assert.equal(fixture.requests().length, 4);
 });
+
+void test('identity search strips an independently unprojected response and rejects a wrong identity', async (t) => {
+  const matrix = await policyMatrix(t);
+  for (const [index, { fixture }] of matrix.fixtures.entries()) {
+    const catalog = await matrix.catalog(policyRun(), index);
+    const full = {
+      ...team,
+      metadata: { ...team.metadata, annotations: { secret: 'private-metadata' } },
+      spec: { type: 'team', children: [], private: 'private-spec' },
+    };
+    fixture.failNext(
+      { operation: 'byQuery' },
+      { kind: 'invalid-body', body: { items: [full], totalItems: 1, pageInfo: {} } },
+    );
+    const result = await catalog.provider.suggest!(query, catalog.access, {
+      deadlineAt: Date.now() + 5000,
+    });
+    assert.equal(result.status, 'ready');
+    assert.deepEqual(result.refs, ['group:default/team']);
+    assert(!JSON.stringify(result).includes('private-'));
+    fixture.failNext(
+      { operation: 'byQuery' },
+      {
+        kind: 'invalid-body',
+        body: { items: [{ ...full, kind: 'Component' }], totalItems: 1, pageInfo: {} },
+      },
+    );
+    const bad = await catalog.provider.suggest!(query, catalog.access, {
+      deadlineAt: Date.now() + 5000,
+    });
+    assert.equal(bad.status, 'unavailable');
+    if (bad.status === 'unavailable') assert.equal(bad.failure, 'invalid_response');
+    assert.deepEqual(bad.refs, []);
+  }
+});

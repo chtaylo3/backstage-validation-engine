@@ -1,0 +1,192 @@
+[
+  {
+    "id": "text",
+    "marker": {
+      "$text": "./payload"
+    },
+    "payload": "exact\r\ntext\n",
+    "upstream": {
+      "value": "exact\r\ntext\n"
+    },
+    "local": {
+      "value": "exact\r\ntext\n"
+    }
+  },
+  {
+    "id": "json",
+    "marker": {
+      "$json": "./payload"
+    },
+    "payload": "{\"answer\":42}",
+    "upstream": {
+      "value": {
+        "answer": 42
+      }
+    },
+    "local": {
+      "value": {
+        "answer": 42
+      }
+    }
+  },
+  {
+    "id": "yaml",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "answer: 42\n",
+    "upstream": {
+      "value": {
+        "answer": 42
+      }
+    },
+    "local": {
+      "value": {
+        "answer": 42
+      }
+    }
+  },
+  {
+    "id": "mixed",
+    "marker": {
+      "$text": "./payload",
+      "other": 1
+    },
+    "payload": "resolved",
+    "upstream": {
+      "value": {
+        "$text": "./payload",
+        "other": 1
+      }
+    },
+    "local": {
+      "error": "invalid_substitution"
+    }
+  },
+  {
+    "id": "two-markers",
+    "marker": {
+      "$text": "./payload",
+      "$yaml": "./payload"
+    },
+    "payload": "resolved",
+    "upstream": {
+      "value": {
+        "$text": "./payload",
+        "$yaml": "./payload"
+      }
+    },
+    "local": {
+      "error": "invalid_substitution"
+    }
+  },
+  {
+    "id": "non-string",
+    "marker": {
+      "$text": 42
+    },
+    "payload": "unused",
+    "upstream": {
+      "error": "expected a string value parameter"
+    },
+    "local": {
+      "error": "invalid_substitution"
+    }
+  },
+  {
+    "id": "returned-marker",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "$text: ./nested\n",
+    "nested": "recursive-local",
+    "upstream": {
+      "value": {
+        "$text": "./nested"
+      }
+    },
+    "local": {
+      "value": "recursive-local"
+    }
+  },
+  {
+    "id": "json-duplicate",
+    "marker": {
+      "$json": "./payload"
+    },
+    "payload": "{\"answer\":1,\"answer\":2}",
+    "upstream": {
+      "value": {
+        "answer": 2
+      }
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  },
+  {
+    "id": "yaml-empty",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "",
+    "upstream": {
+      "value": null
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  },
+  {
+    "id": "yaml-multiple",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "a: 1\n---\nb: 2\n",
+    "upstream": {
+      "error": "expected to find exactly one document"
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  },
+  {
+    "id": "yaml-malformed",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "a: [\n",
+    "upstream": {
+      "error": "found an error in the data"
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  },
+  {
+    "id": "json-malformed",
+    "marker": {
+      "$json": "./payload"
+    },
+    "payload": "{",
+    "upstream": {
+      "error": "failed to parse JSON"
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  },
+  {
+    "id": "yaml-unsafe-number",
+    "marker": {
+      "$yaml": "./payload"
+    },
+    "payload": "9007199254740993\n",
+    "upstream": {
+      "value": 9007199254740992
+    },
+    "local": {
+      "error": "invalid_inclusion"
+    }
+  }
+]

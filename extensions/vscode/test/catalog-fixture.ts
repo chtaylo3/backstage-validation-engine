@@ -92,7 +92,8 @@ export async function createEditorCatalog(root: string, token: string = randomUU
         selected.fixture.setPrincipal({
           token,
           principalId: 'editor-reader',
-          canRead: false,
+          canAccessCatalog: false,
+          canRead: true,
           visibleRefs: '*',
         });
         events.push({ event: 'outage', version: selected.target.backstageVersion, at: Date.now() });

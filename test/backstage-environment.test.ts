@@ -22,6 +22,7 @@ interface Seed {
   expected: {
     entityRefs: string[];
     absentEntityRefs: string[];
+    absentRelations: { source: string; type: string; target: string }[];
     relations: { source: string; type: string; target: string }[];
   };
 }
@@ -63,8 +64,19 @@ void test('Backstage seeds satisfy the owned schema and retain all eight kinds a
     'User',
   ]);
   assert.equal(baseline.expected.entityRefs.length, 9);
-  assert(baseline.expected.relations.some((entry) => entry.type === 'ownedBy'));
-  assert(baseline.expected.relations.some((entry) => entry.type === 'memberOf'));
+  const golden = JSON.parse(
+    await readFile('test/fixtures/backstage-behavior/seed-graphs.json', 'utf8'),
+  ) as Record<string, string[][]>;
+  for (const name of ['baseline', 'mutation']) {
+    const seed = await load(name);
+    assert.deepEqual(
+      seed.expected.relations.map((r) => [r.source, r.type, r.target]).sort(),
+      golden[name],
+    );
+  }
+  assert.equal(baseline.expected.relations.length, 22);
+  assert.equal((await load('mutation')).expected.relations.length, 18);
+  assert.equal((await load('mutation')).expected.absentRelations.length, 3);
   const wrongVersion = { ...baseline, schemaVersion: 2 };
   assert.equal(validate(wrongVersion), false);
   assert.throws(() => validateSeed(wrongVersion));
@@ -88,6 +100,16 @@ void test('Backstage seed admission rejects conflicting identity, unsafe file pa
     },
     (seed) => {
       seed.expected.relations[0]!.target = 'group:bve-demo/unknown';
+    },
+    (seed) => {
+      seed.expected.absentRelations.push(structuredClone(seed.expected.relations[0]!));
+    },
+    (seed) => {
+      seed.expected.absentRelations.push({
+        source: seed.expected.entityRefs[0]!,
+        type: 'ownedBy',
+        target: 'group:bve-demo/unknown',
+      });
     },
     (seed) => {
       seed.expected.absentEntityRefs.push(seed.expected.entityRefs[0]!);

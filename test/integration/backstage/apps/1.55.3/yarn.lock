@@ -2281,7 +2281,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-permission-node@npm:^0.11.4, @backstage/plugin-permission-node@npm:^0.11.5":
+"@backstage/plugin-permission-node@npm:0.11.5, @backstage/plugin-permission-node@npm:^0.11.4, @backstage/plugin-permission-node@npm:^0.11.5":
   version: 0.11.5
   resolution: "@backstage/plugin-permission-node@npm:0.11.5"
   dependencies:
@@ -7525,6 +7525,7 @@ __metadata:
     "@backstage/plugin-auth-backend": "npm:0.30.1"
     "@backstage/plugin-auth-backend-module-guest-provider": "npm:0.2.23"
     "@backstage/plugin-catalog-backend": "npm:4.0.0"
+    "@backstage/plugin-permission-node": "npm:0.11.5"
     app: "workspace:*"
     better-sqlite3: "npm:12.4.1"
   languageName: unknown

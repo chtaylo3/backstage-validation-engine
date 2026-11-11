@@ -87,7 +87,13 @@ async function setup(t: TestContext) {
       principals: [
         { token: 'test-all', principalId: 'all', canRead: true, visibleRefs: '*' },
         { token: 'test-scoped', principalId: 'scoped', canRead: true, visibleRefs: [TEAM] },
-        { token: 'test-denied', principalId: 'denied', canRead: false, visibleRefs: '*' },
+        {
+          token: 'test-denied',
+          principalId: 'denied',
+          canAccessCatalog: false,
+          canRead: true,
+          visibleRefs: '*',
+        },
       ],
     }),
   );
@@ -769,4 +775,166 @@ void test('provider configuration rejects unsafe endpoints, raised limits and ma
   const report = await run(provider, []);
   assert.equal(report.data.entries.length, 0);
   assert.equal(fixture.requests().length, 0);
+});
+
+void test('single-entity malformed 404 responses remain unavailable and valid absence recovers', async (t) => {
+  const state = await setup(t);
+  for (const { fixture } of state.fixtures) {
+    const provider = await state.provider(fixture);
+    for (const fault of [
+      { body: '', contentType: 'application/json' },
+      { body: '<html>missing</html>', contentType: 'text/html' },
+      {
+        body: JSON.stringify({
+          error: { name: 'NotFoundError', message: 'missing' },
+          response: { statusCode: 200 },
+        }),
+        contentType: 'application/json',
+      },
+      {
+        body: JSON.stringify({ error: { name: 'NotFoundError' }, response: { statusCode: 404 } }),
+        contentType: 'application/json',
+      },
+    ]) {
+      fixture.failNext({ operation: 'byName' }, { kind: 'raw-response', status: 404, ...fault });
+      const report = await run(provider);
+      unavailable(report, 'provider_error');
+      assert.equal(report.failures[0]?.code, 'invalid_response');
+      assert.equal(provider.stats().cacheEntries, 0);
+    }
+    assert.equal(observation(await run(provider)).status, 'present');
+    assert.equal(observation(await run(provider, [MISSING]), MISSING).status, 'missing');
+  }
+});
+
+void test('permission-policy DENY filters existing entities while explicit plugin denial remains unavailable', async (t) => {
+  const state = await setup(t);
+  for (const { fixture } of state.fixtures) {
+    fixture.setPrincipal({
+      token: 'filtered',
+      principalId: 'filtered',
+      canRead: false,
+      visibleRefs: '*',
+    });
+    const filtered = await state.provider(fixture, {
+      credentials: (context) => Promise.resolve(credentials(context, 'filtered')),
+    });
+    const denied = await state.provider(fixture, {
+      credentials: (context) => Promise.resolve(credentials(context, 'test-denied')),
+    });
+    assert.equal(observation(await run(filtered)).status, 'missing');
+    const batch = await run(filtered, [TEAM, SERVICE]);
+    assert.deepEqual(
+      batch.data.entries.map((entry) => entry.status),
+      ['missing', 'missing'],
+    );
+    unavailable(await run(denied), 'permission_denied');
+    assert.equal(observation(await run(await state.provider(fixture))).status, 'present');
+  }
+});
+
+void test('controlled HTTP retries preserve GET/POST, exact delays, bounded attempts and cancellation', async (t) => {
+  for (const scenario of [
+    { id: 'delta-429-GET', status: 429, header: '1', wait: 1000, refs: [TEAM] },
+    {
+      id: 'date-429-POST',
+      status: 429,
+      header: 'Thu, 01 Jan 2026 00:00:01 GMT',
+      wait: 1000,
+      refs: [TEAM, SERVICE],
+    },
+    { id: 'delta-503-POST', status: 503, header: '1', wait: 1000, refs: [TEAM, SERVICE] },
+    { id: 'disconnect-POST', wait: 50, refs: [TEAM, SERVICE] },
+    { id: 'cancel-backoff', status: 503, header: '1', wait: 1000, refs: [TEAM], cancel: true },
+    { id: 'exhausted-503', status: 503, header: '1', wait: 1000, refs: [TEAM], exhaust: true },
+  ])
+    await t.test(scenario.id, async (t) => {
+      const now = Date.UTC(2026, 0, 1);
+      t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now });
+      t.mock.method(performance, 'now', () => Date.now() - now);
+      let entered!: () => void;
+      const backoffEntered = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      let scheduledDelay: number | undefined;
+      const originalTimer = globalThis.setTimeout;
+      t.mock.method(
+        globalThis,
+        'setTimeout',
+        (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+          const timer = originalTimer(fn, ms, ...args);
+          if (ms !== 5000) {
+            scheduledDelay = ms;
+            entered();
+          }
+          return timer;
+        },
+      );
+      const calls: { method: string; at: number; body: unknown }[] = [];
+      const provider = await createCatalogProvider({
+        connectionId: 'primary',
+        baseUrl: 'http://127.0.0.1:1/api/catalog',
+        adapterId: '@backstage/catalog-model@1.10.2',
+        credentials: (context) => Promise.resolve(credentials(context)),
+        limits: { retries: 1, retryDelayMs: 50 },
+        transport: (_url, init) => {
+          assert(init?.body === undefined || typeof init.body === 'string');
+          calls.push({
+            method: init?.method ?? 'GET',
+            at: Date.now(),
+            body: init?.body ? (JSON.parse(init.body) as unknown) : undefined,
+          });
+          if (calls.length === 1 || scenario.exhaust) {
+            if (!scenario.status) return Promise.reject(new TypeError('injected disconnect'));
+            return Promise.resolve(
+              Response.json(
+                { error: { name: 'Unavailable', message: 'injected' } },
+                { status: scenario.status, headers: { 'retry-after': scenario.header } },
+              ),
+            );
+          }
+          return Promise.resolve(
+            Response.json(scenario.refs.length === 1 ? team : { items: [team, service] }),
+          );
+        },
+      });
+      const controller = new AbortController();
+      const pending = provider.lookup(scenario.refs, access(), {
+        deadlineAt: now + 5000,
+        signal: controller.signal,
+      });
+      t.after(async () => {
+        controller.abort();
+        await provider.close();
+      });
+      await Promise.race([backoffEntered, pending.then(() => undefined)]);
+      assert.equal(scheduledDelay, scenario.wait, 'Schedule the independently expected backoff.');
+      assert.equal(calls.length, 1);
+      t.mock.timers.tick(scenario.wait - 1);
+      assert.equal(calls.length, 1, 'No attempt before the inclusive retry time.');
+      if (scenario.cancel) controller.abort();
+      else t.mock.timers.tick(1);
+      const report = await pending;
+      if (scenario.cancel) {
+        assert.equal(report.interrupted, 'cancelled');
+        assert.equal(report.failures[0]?.code, 'cancelled');
+        t.mock.timers.tick(1001);
+        assert.equal(calls.length, 1);
+      } else {
+        assert.equal(calls.length, 2);
+        assert.equal(calls[1]!.at - calls[0]!.at, scenario.wait);
+        if (scenario.exhaust) {
+          unavailable(report, 'provider_error');
+          assert.equal(report.failures[0]?.code, 'provider_error');
+        } else assert(report.data.entries.every((entry) => entry.status === 'present'));
+      }
+      assert(calls.every((call) => call.method === (scenario.refs.length === 1 ? 'GET' : 'POST')));
+      if (scenario.refs.length > 1)
+        assert(
+          calls.every(
+            (call) => JSON.stringify(call.body) === JSON.stringify({ entityRefs: scenario.refs }),
+          ),
+        );
+      await provider.close();
+    });
 });
