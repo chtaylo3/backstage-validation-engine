@@ -43,9 +43,9 @@ Preserve the shared engine, contract 0.2 behavior, capability ownership rules, a
 A product defect found through stronger tests needs the smallest justified correction and its regression control.
 Document any public contract change before implementation. Do not invent a new field or failure code to satisfy a test.
 
-Implementation also identified [open finding N1](test-harness-remediation-record.md#additional-open-finding-n1), beyond the original 86 findings.
+Implementation also identified [additional finding N1](test-harness-remediation-record.md#additional-open-finding-n1), beyond the original 86 findings.
 At H3 through H6, duplicate-key CEL map literals retained the last value in both pinned implementations, despite the language-defined error.
-The later authorized [temporary fix](cel-duplicate-key-workaround.md) pins the upstream patch for local qualification.
+The later authorized [temporary fix](cel-duplicate-key-workaround.md) pins the upstream patch and passes local source, packaged, CLI, and focused installed-editor checks.
 Historical phase evidence and the frozen comparison corpus remain unchanged. This follow-up does not expand H7.
 
 ## Delivery order
