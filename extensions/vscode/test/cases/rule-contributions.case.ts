@@ -149,11 +149,31 @@ export async function run(fixture: Fixture): Promise<void> {
       );
       assert(coverage?.required);
       assert.equal(coverage.status, blocked ? 'blocked' : 'verified');
-      await until(
-        () =>
-          fixture.has('validation/incomplete') === blocked && fixture.has('map-keys') === !blocked,
-        'installed duplicate-key failure or distinct-key violation',
-      );
+      await until(() => {
+        const diagnostic = vscode.languages
+          .getDiagnostics(document.uri)
+          .find((row) => row.code === 'production-only');
+        const data = (
+          diagnostic as
+            | (vscode.Diagnostic & {
+                data?: {
+                  version?: number;
+                  fixGeneration?: number;
+                  execution?: { stage: string; cause: string }[];
+                };
+              })
+            | undefined
+        )?.data;
+        if (
+          data?.version !== document.version ||
+          (data.fixGeneration ?? -1) < observation.generation
+        )
+          return false;
+        const failed =
+          data.execution?.some((row) => row.stage === 'rules' && row.cause === 'rule_failure') ??
+          false;
+        return failed === blocked && fixture.has('map-keys') === !blocked;
+      }, 'current-generation execution evidence or ordinary distinct-key violation');
       await fixture.alive(pid, document);
       assert.equal(document.getText(), repairedText);
       assert.equal(document.version, repairedVersion);
