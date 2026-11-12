@@ -374,6 +374,7 @@ async function execute(spec, output, fault, peer) {
         'race-dirty-watch',
         'race-close-reopen',
         'editor-intelligence',
+        'rule-contributions',
         'editor-discovery',
         'editor-credentials',
       ].includes(spec.id)
