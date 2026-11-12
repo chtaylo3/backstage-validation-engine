@@ -602,6 +602,16 @@ void test('CLI rules-stage failures retain exact runtime identity, coverage, int
     ],
     ['result_type', '1 + 1', '', 'invalid_policy', 'invalid_expression', 'none', 'error'],
     ['evaluation', 'entity.spec.missing == 1', '', 'error', undefined, 'none', 'error'],
+    ['duplicate_literal', "{'a': 1, 'a': 2}['a'] == 2", '', 'error', undefined, 'none', 'error'],
+    [
+      'duplicate_computed',
+      '{entity.spec.owner: 1, entity.spec.owner: 2}[entity.spec.owner] == 2',
+      '',
+      'error',
+      undefined,
+      'none',
+      'error',
+    ],
     [
       'regex_limit',
       'entity.spec.owner.matches(entity.spec.pattern)',

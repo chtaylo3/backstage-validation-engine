@@ -39,6 +39,7 @@ import { digestJson, digestText } from '../src/core/json.js';
 import { URI } from './helpers.js';
 import { attachLspServer } from '../src/lsp/server.js';
 import { closeSharedCelRuntime } from '../src/runtime/cel/index.js';
+import type { CoverageObservation } from '../src/lsp/coverage-observation.js';
 
 const lifecycleRule = {
   id: 'lifecycle-rule',
@@ -51,6 +52,67 @@ const lifecycleRule = {
   expression: 'entity.spec.lifecycle.matches("^production$")',
 };
 const position = { line: 5, character: 13 };
+
+void test('stdio reports duplicate map keys as blocked validation and keeps distinct keys evaluable', async (t) => {
+  for (const [name, expression, blocked] of [
+    ['literal', "{'a': 1, 'a': 2}['a'] == 2", true],
+    ['computed', '{entity.kind: 1, entity.kind: 2}[entity.kind] == 2', true],
+    ['distinct', '{entity.kind: 1, entity.apiVersion: 2}[entity.kind] == 2', false],
+  ] as const)
+    await t.test(name, async (t) => {
+      const text = componentText();
+      const run = policyRun({ text, rules: [{ ...lifecycleRule, id: 'map-keys', expression }] });
+      const host = await startLspClient(
+        t,
+        parseLspConfig({
+          ...run.context,
+          identity: run.request.identity,
+          source: run.request.source,
+          coverageObservation: true,
+          debounceMs: 0,
+        }),
+      );
+      await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
+      });
+      const observation = await until(async () => {
+        const value = await host.client.sendRequest<CoverageObservation | null>(
+          'bve/validationCoverage',
+          {
+            uri: URI,
+            version: 1,
+            digest: digestText(text),
+          },
+        );
+        return value ?? undefined;
+      });
+      const observedDocument = observation.documents.find((row) => row.uri === URI);
+      assert.equal(observedDocument?.digest, digestText(text));
+      assert.equal(observedDocument.version, 1);
+      assert.equal(observation.policyDigest, digestJson(run.context.policy));
+      const coverage = observation.coverage.find(
+        (row) =>
+          row.stage === 'rules' &&
+          row.subject === JSON.stringify([JSON.stringify([URI, 0]), 'map-keys']),
+      );
+      assert(coverage?.required, JSON.stringify(observation.coverage));
+      assert.equal(coverage.status, blocked ? 'blocked' : 'verified');
+      const report = await host.waitFor(
+        (row) =>
+          row.uri === URI &&
+          row.version === 1 &&
+          row.diagnostics.some((d) => d.code === (blocked ? 'validation/incomplete' : 'map-keys')),
+      );
+      assert.equal(
+        report.diagnostics.some((d) => d.code === 'map-keys'),
+        !blocked,
+      );
+      assert.equal(
+        report.diagnostics.some((d) => d.code === 'validation/incomplete'),
+        blocked,
+      );
+    });
+});
 async function until<T>(read: () => Promise<T | undefined>): Promise<T> {
   const end = performance.now() + 10_000;
   for (;;) {

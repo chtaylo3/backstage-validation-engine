@@ -31,6 +31,35 @@ const expensive =
   'entity.spec.items.all(x, entity.spec.items.all(y, entity.spec.items.all(z, x == z || x != z)))';
 const expensiveEntity = { spec: { items: Array.from({ length: 1000 }, (_, index) => index) } };
 
+void test('production workers reject repeated map keys and preserve distinct-key evaluation', async () => {
+  const pool = new ManagedCelPool();
+  const computed = '{entity.a: 1, entity.b: 2}[entity.a] == 2';
+  try {
+    await pool.warm();
+    const starts = pool.stats().workerStarts;
+    for (const expression of [
+      "{'a': 1, 'a': 2}['a'] == 2",
+      "{'outer': {'a': 1, 'a': 2}}['outer']['a'] == 2",
+      '{dyn(0): 1, dyn(0u): 2}[0] == 2',
+    ])
+      await assert.rejects(pool.evaluate(expression, {}, context()), errorCode('evaluation'));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await assert.rejects(
+        pool.evaluate(computed, { a: 'same', b: 'same' }, context()),
+        errorCode('evaluation'),
+      );
+      assert.equal(await pool.evaluate(computed, { a: 'first', b: 'second' }, context()), false);
+      assert.equal(await pool.evaluate(computed, { a: 'second', b: 'first' }, context()), false);
+    }
+    assert.equal(await pool.evaluate("{'a': 1, 'b': 2}['b'] == 2", {}, context()), true);
+    assert.equal(await pool.evaluate('true', {}, context()), true);
+    assert.equal(pool.stats().workerStarts, starts, 'Evaluation errors must not replace workers.');
+    assert.equal(pool.stats().pending, 0);
+  } finally {
+    await pool.close();
+  }
+});
+
 void test(
   'frozen CEL profile semantics pass through real production workers',
   { timeout: 15_000 },

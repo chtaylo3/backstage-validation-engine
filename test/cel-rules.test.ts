@@ -126,6 +126,41 @@ void test('bad selectors, invalid expressions and nonboolean results are invalid
   }
 });
 
+void test('duplicate map keys produce rule errors and block dependents without a successful result', async () => {
+  const pool = new ManagedCelPool();
+  try {
+    await pool.warm();
+    for (const expression of [
+      "{'a': 1, 'a': 2}['a'] == 2",
+      '{entity.spec.owner: 1, entity.spec.owner: 2}[entity.spec.owner] == 2',
+    ]) {
+      const run = setup([
+        rule('duplicate', expression),
+        rule('dependent', 'true', { requires: ['duplicate'] }),
+        rule('healthy', "{'a': 1, 'b': 2}['b'] == 2"),
+      ]);
+      const report = await executeCelRules(run.request, run.context, [subject()], {
+        runtime: pool,
+      });
+      assert.deepEqual(
+        report.ruleStates.map((state) => state.status),
+        ['error', 'blocked', 'passed'],
+      );
+      assert.deepEqual(
+        report.failures.map((failure) => failure.code),
+        ['evaluation'],
+      );
+      assert.equal(report.findings.length, 0);
+      assert.equal(report.interrupted, 'none');
+      assert.equal(result(run.request, report).outcome, 'error');
+      assert.equal(resultExitCode(result(run.request, report)), 2);
+      assert(report.coverage.some((row) => row.required && row.status === 'blocked'));
+    }
+  } finally {
+    await pool.close();
+  }
+});
+
 void test('failed prerequisites block dependents and unavailable schema rules never pass', async () => {
   const pool = new ManagedCelPool();
   try {

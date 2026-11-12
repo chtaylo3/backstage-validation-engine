@@ -44,9 +44,9 @@ A product defect found through stronger tests needs the smallest justified corre
 Document any public contract change before implementation. Do not invent a new field or failure code to satisfy a test.
 
 Implementation also identified [open finding N1](test-harness-remediation-record.md#additional-open-finding-n1), beyond the original 86 findings.
-Duplicate-key CEL map literals retain the last value in both pinned implementations, despite the language-defined error.
-N1 remains unresolved and receives no conformance or supported-vector claim. H6 must preserve that disposition.
-This finding does not expand H7 or authorize an additional language-semantics change.
+At H3 through H6, duplicate-key CEL map literals retained the last value in both pinned implementations, despite the language-defined error.
+The later authorized [temporary fix](cel-duplicate-key-workaround.md) pins the upstream patch for local qualification.
+Historical phase evidence and the frozen comparison corpus remain unchanged. This follow-up does not expand H7.
 
 ## Delivery order
 

@@ -1,6 +1,7 @@
 # Test harness remediation implementation record
 
-Status: H1 through H6 are accepted within their recorded scope. H7 remains deferred. R4-F10 remains Partial, and additional N1 remains open.
+Status: H1 through H6 are accepted within their recorded scope. H7 remains deferred. R4-F10 remains Partial.
+The later authorized [N1 temporary fix](cel-duplicate-key-workaround.md) records current local mitigation. N1 statements below preserve each historical phase's disposition.
 Created: 2026-11-10.
 The [plan](test-harness-remediation-plan.md) defines scope and acceptance criteria.
 The [register](test-harness-remediation-findings.md) preserves the amended baseline findings.

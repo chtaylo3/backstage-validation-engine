@@ -471,8 +471,9 @@ Historical 44-case cross-OS and 46-case Linux evidence retains its own candidate
 
 R4-F10 remains Partial solely for strengthened but UNEXECUTED, parent-unaccepted native Workspace Trust follow-up.
 R4-F7 and R4-F12 remain deferred. All final client, JetBrains, native Trust reliability, remote-loss, and endurance work stays in H7.
-Additional N1 remains OPEN outside the original 86 findings. Both pinned CEL implementations retain the last duplicate map key despite the language-defined error.
-N1 is not fixed, waived, or included in supported conformance vectors. H7 receives no additional scope from this finding.
+At H6 acceptance, additional N1 remained OPEN outside the original 86 findings.
+The authorized [temporary CEL fix](cel-duplicate-key-workaround.md) now pins the upstream patch for local qualification.
+Upstream release and broader map limitations remain pending. The frozen comparison corpus stays unchanged, and H7 receives no additional scope.
 Screenshots are OPTIONAL DIAGNOSTICS. Required native Trust state and UI assertions remain independent.
 
 The final H6 source/test candidate is `34680c887e13abe8c45453e6753f2c5212040225`.

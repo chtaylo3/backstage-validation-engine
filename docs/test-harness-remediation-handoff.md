@@ -1,6 +1,7 @@
 # Test harness remediation agent handoff
 
 Status: H1 through H6 are implemented and parent-accepted within their recorded scope. H7 remains deferred.
+The later authorized [temporary CEL fix](cel-duplicate-key-workaround.md) records N1 follow-up. Historical handoffs below retain their original scope and disposition.
 The user approved proceeding on 2026-11-10 under the [remediation plan](test-harness-remediation-plan.md).
 The [finding register](test-harness-remediation-findings.md) defines the amended acceptance work.
 The [implementation record](test-harness-remediation-record.md) records execution and parent decisions.
