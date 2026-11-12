@@ -473,6 +473,7 @@ async function execute(spec, output, fault, peer) {
         'editor-intelligence',
         'editor-discovery',
         'performance-budget',
+        'rule-contributions',
       ].includes(spec.id)
     ) {
       args.push('--log', 'chtaylo3.backstage-validation-engine:trace');
