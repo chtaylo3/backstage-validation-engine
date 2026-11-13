@@ -33,6 +33,8 @@ registerHooks({
 });
 const extension = await import('../../extensions/vscode/src/extension.js');
 const { Uri: EditorUri } = await import('../harness/editor-api.js');
+const { addRoot, configuredSpellings, pathKey, protocolFileUri } =
+  await import('../../extensions/vscode/src/protocol-uris.js');
 let directory: string;
 let config: string;
 let subscriptions: { dispose(): unknown }[];
@@ -263,6 +265,60 @@ void test('selector globs escape metacharacters and URI converters retain config
   );
   assert.equal(convert.protocol2Code(uri).toString(), uri);
 });
+void test('a Windows file below a configured root takes the root spelling the server discovers', () => {
+  // The spellings recorded by the installed editor on Windows: the configuration and the server
+  // use an upper-case drive letter, and the editor reports the same file with a lower-case one.
+  const root = 'file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/bve%20editor%20workspace-1/';
+  const listed = root + 'catalog.yaml';
+  const workspace = 'c:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\bve editor workspace-1';
+  const spellings = configuredSpellings();
+  spellings.files.set(pathKey('C:' + workspace.slice(2) + '\\catalog.yaml', true), listed);
+  addRoot(spellings, root, true);
+  assert.equal(protocolFileUri(workspace + '\\catalog.yaml', spellings, true), listed);
+  const discovered = protocolFileUri(workspace + '\\selected\\catalog-info.yaml', spellings, true);
+  assert.equal(discovered, root + 'selected/catalog-info.yaml');
+  // The server approves a discovered file only when its URI starts with the configured root.
+  assert(discovered.startsWith(root));
+  // Only the root takes the configured spelling. The path below it keeps the editor's spelling.
+  assert.equal(
+    protocolFileUri(workspace.toUpperCase() + '\\Selected\\A.yaml', spellings, true),
+    root + 'Selected/A.yaml',
+  );
+  // A sibling whose name starts with the root name, another drive and the root itself are outside.
+  assert.equal(
+    protocolFileUri(workspace + '-other\\catalog-info.yaml', spellings, true),
+    'file:///c:/Users/RUNNER%7E1/AppData/Local/Temp/bve%20editor%20workspace-1-other/catalog-info.yaml',
+  );
+  assert.equal(protocolFileUri('d:\\other\\a.yaml', spellings, true), 'file:///d:/other/a.yaml');
+  assert.equal(
+    protocolFileUri(workspace, spellings, true),
+    'file:///c:/Users/RUNNER%7E1/AppData/Local/Temp/bve%20editor%20workspace-1',
+  );
+});
+void test('the most specific configured root spells a file, in either configuration order', () => {
+  for (const roots of [
+    ['file:///C:/ws/', 'file:///C:/ws/Services/'],
+    ['file:///C:/ws/Services/', 'file:///C:/ws/'],
+  ]) {
+    const spellings = configuredSpellings();
+    for (const root of roots) addRoot(spellings, root, true);
+    assert.equal(
+      protocolFileUri('c:\\ws\\services\\a.yaml', spellings, true),
+      'file:///C:/ws/Services/a.yaml',
+    );
+    assert.equal(protocolFileUri('c:\\ws\\b.yaml', spellings, true), 'file:///C:/ws/b.yaml');
+  }
+});
+void test('POSIX paths match exactly and keep their own spelling below a root', () => {
+  const spellings = configuredSpellings();
+  spellings.files.set(pathKey('/ws/catalog.yaml', false), 'file:///ws/catalog.yaml');
+  addRoot(spellings, 'file:///ws/', false);
+  assert.equal(protocolFileUri('/ws/catalog.yaml', spellings, false), 'file:///ws/catalog.yaml');
+  assert.equal(protocolFileUri('/ws/a b/c.yaml', spellings, false), 'file:///ws/a%20b/c.yaml');
+  // Case is significant: a path that differs in case is another file outside the root.
+  assert.equal(protocolFileUri('/WS/catalog.yaml', spellings, false), 'file:///WS/catalog.yaml');
+  assert.equal(protocolFileUri('/other/c.yaml', spellings, false), 'file:///other/c.yaml');
+});
 void test('initialization failure cleans its client, reports safely and allows a later successful restart', async () => {
   editorState.selected = config;
   onStart(() => Promise.reject(new Error('secret details')));
@@ -462,6 +518,9 @@ void test('discovery selectors include trusted roots and reject non-file or malf
     { source: {}, filesystem: { discovery: { roots: [1] } } },
     { source: {}, filesystem: { discovery: { roots: ['https://example.invalid/'] } } },
     { source: { rootUri: 'https://example.invalid/' }, filesystem: {} },
+    // A file URI that names no local path: an encoded separator is rejected on every platform.
+    { source: {}, filesystem: { discovery: { roots: ['file:///a%2Fb/'] } } },
+    { source: { rootUri: 'file:///a%2Fb/' }, filesystem: {} },
   ]) {
     await select(value);
     await assert.rejects(command('restart'), /Invalid (?:discovery|source) root/u);
@@ -513,6 +572,33 @@ void test('configuration reload replays only approved open documents and authori
   await until(
     () => editorState.messages.at(-1) === 'Unable to refresh the editor selection history.',
   );
+});
+
+void test('coverage bridge names a document in the configured spelling, whatever spelling the caller uses', async () => {
+  const listed = pathToFileURL(path.join(directory, 'catalog.yaml')).href;
+  const root = pathToFileURL(path.join(directory, 'services') + path.sep).href;
+  await select({
+    source: { rootUri: pathToFileURL(directory + path.sep).href },
+    filesystem: { files: [listed], discovery: { roots: [root] } },
+  });
+  const api = await extension.activate(context);
+  editorState.selected = config;
+  await command('restart');
+  const current = clients.at(-1)!;
+  const digest = 'sha256:' + 'a'.repeat(64);
+  const sent = () =>
+    (current.requestCalls.at(-1) as { params: { uri: string } } | undefined)?.params.uri;
+  current.requestHandler = () => Promise.resolve(null);
+  // The same local files, spelled with a needless percent-escape as another caller might.
+  await api.coverage(listed.replace(/catalog\.yaml$/u, '%63atalog.yaml'), 1, digest);
+  assert.equal(sent(), listed);
+  await api.coverage(root + '%63atalog-info.yaml', 1, digest);
+  assert.equal(sent(), root + 'catalog-info.yaml');
+  // A value that names no local file is sent as given, and the server answers null.
+  for (const value of ['untitled:buffer', 'not a uri', 'file:///a%2Fb/catalog.yaml']) {
+    await api.coverage(value, 1, digest);
+    assert.equal(sent(), value);
+  }
 });
 
 void test('search stays closed without a running trusted client', async () => {

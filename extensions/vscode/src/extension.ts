@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import {
   CloseAction,
@@ -22,6 +21,8 @@ import type {
   SearchReferencesParams,
   ValidationCoverageParams,
 } from '../../../src/protocol/index.js';
+import { addRoot, configuredSpellings, pathKey, protocolFileUri } from './protocol-uris.js';
+import type { ConfiguredSpellings } from './protocol-uris.js';
 
 let client: LanguageClient | undefined;
 let pending: Promise<void> = Promise.resolve();
@@ -30,6 +31,8 @@ let disconnected = false;
 let extensionContext: vscode.ExtensionContext | undefined;
 let historyKey: string | undefined;
 let reloadNotification: vscode.Disposable | undefined;
+/** The configured spellings of the running client; `coverage` spells its document with them. */
+let activeSpellings: ConfiguredSpellings | undefined;
 
 /**
  * A response that fails its protocol guard is handled like a failed request: the caller sees a
@@ -37,6 +40,21 @@ let reloadNotification: vscode.Disposable | undefined;
  */
 function invalidResponse(method: string): Error {
   return new Error(`The language server sent an invalid ${method} response.`);
+}
+
+/**
+ * The server's spelling of a document that a caller names by any URI of the same local file. A
+ * value that is not a local file URI is sent as given, and the server answers that it has no such
+ * document.
+ */
+function protocolUri(uri: string): string {
+  if (!activeSpellings) return uri;
+  try {
+    const parsed = vscode.Uri.parse(uri, true);
+    return parsed.scheme === 'file' ? protocolFileUri(parsed.fsPath, activeSpellings) : uri;
+  } catch {
+    return uri;
+  }
 }
 
 async function reloadConfiguration(): Promise<void> {
@@ -184,7 +202,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 async function selectors(
   config: string,
-  configured = new Map<string, string>(),
+  spellings = configuredSpellings(),
 ): Promise<Pick<LanguageClientOptions, 'documentSelector' | 'uriConverters'>> {
   let text: string;
   try {
@@ -230,14 +248,15 @@ async function selectors(
         ? value.source.files.map((file: unknown) => (record(file) ? file.uri : undefined))
         : [];
   if (files.length > 1000) throw new Error('Trusted configuration exceeds the file limit.');
+  const configured = spellings.files;
   configured.clear();
-  const key = (value: string) => (process.platform === 'win32' ? value.toLowerCase() : value);
+  spellings.roots.length = 0;
   const documentSelector: DocumentSelector = files.length
     ? files.map((uri: unknown) => {
         if (typeof uri !== 'string') throw new Error('Invalid configured source URI.');
         const parsed = vscode.Uri.parse(uri, true);
         if (parsed.scheme !== 'file') throw new Error('Only local file sources are supported.');
-        const identity = key(parsed.fsPath);
+        const identity = pathKey(parsed.fsPath);
         if (configured.has(identity) && configured.get(identity) !== uri)
           throw new Error('Ambiguous configured file spellings.');
         configured.set(identity, uri);
@@ -261,12 +280,22 @@ async function selectors(
     for (const root of value.filesystem.discovery.roots) {
       if (typeof root !== 'string' || vscode.Uri.parse(root, true).scheme !== 'file')
         throw new Error('Invalid discovery root.');
+      try {
+        addRoot(spellings, root);
+      } catch {
+        throw new Error('Invalid discovery root.');
+      }
       documentSelector.push({ scheme: 'file', pattern: { baseUri: root, pattern: '**/*' } });
     }
   }
   if (record(value.filesystem) && typeof value.source.rootUri === 'string') {
     if (vscode.Uri.parse(value.source.rootUri, true).scheme !== 'file')
       throw new Error('Invalid source root.');
+    try {
+      addRoot(spellings, value.source.rootUri);
+    } catch {
+      throw new Error('Invalid source root.');
+    }
     documentSelector.push({
       scheme: 'file',
       pattern: { baseUri: value.source.rootUri, pattern: '**/*' },
@@ -276,9 +305,7 @@ async function selectors(
     documentSelector,
     uriConverters: {
       code2Protocol: (uri) =>
-        uri.scheme === 'file'
-          ? (configured.get(key(uri.fsPath)) ?? pathToFileURL(uri.fsPath).href)
-          : uri.toString(),
+        uri.scheme === 'file' ? protocolFileUri(uri.fsPath, spellings) : uri.toString(),
       protocol2Code: (uri) => vscode.Uri.parse(uri, true),
     },
   };
@@ -300,7 +327,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     output?.info('Set Backstage Validation: Config Path in User Settings to start validation.');
     return;
   }
-  const configured = new Map<string, string>();
+  const configured = configuredSpellings();
   const selection = await selectors(config, configured);
   const runtime = context.asAbsolutePath(
     path.join('runtime', process.platform === 'win32' ? 'node.exe' : 'node'),
@@ -356,6 +383,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     },
   );
   client = next;
+  activeSpellings = configured;
   reloadNotification = next.onNotification(BVE_METHODS.configurationReloaded, () => {
     if (client !== next || !next.isRunning()) return;
     void (async () => {
@@ -364,8 +392,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       for (const document of vscode.workspace.textDocuments ?? []) {
         if (document.uri.scheme !== 'file') continue;
         const uri = selection.uriConverters!.code2Protocol(document.uri);
-        const key =
-          process.platform === 'win32' ? document.uri.fsPath.toLowerCase() : document.uri.fsPath;
+        const key = pathKey(document.uri.fsPath);
         const rooted = selection.documentSelector?.some((filter) => {
           if (
             !record(filter) ||
@@ -386,7 +413,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
               !relative.startsWith('..' + path.sep))
           );
         });
-        if (configured.has(key) || rooted)
+        if (configured.files.has(key) || rooted)
           await next.sendNotification('textDocument/didOpen', {
             textDocument: {
               uri,
@@ -494,7 +521,7 @@ export async function activate(context: vscode.ExtensionContext) {
     },
     coverage: async (uri: string, version: number, digest: string): Promise<unknown> => {
       if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
-      const params: ValidationCoverageParams = { uri, version, digest };
+      const params: ValidationCoverageParams = { uri: protocolUri(uri), version, digest };
       const result = await client.sendRequest<unknown>(BVE_METHODS.validationCoverage, params);
       if (!isValidationCoverageEnvelope(result))
         throw invalidResponse(BVE_METHODS.validationCoverage);
