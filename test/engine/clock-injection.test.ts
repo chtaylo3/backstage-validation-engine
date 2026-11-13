@@ -45,6 +45,7 @@ import { closeSharedCelRuntime } from '../../src/runtime/cel/index.js';
 import type { CelRuntime } from '../../src/runtime/cel/index.js';
 import { FailureTimer } from '../../src/runtime/failure-evidence.js';
 import { editorArtifact } from '../harness/editor-artifact.js';
+import { fixPolicy } from '../harness/fix-fixture.js';
 import { ManualClock } from '../harness/manual-clock.js';
 import { componentText, policyRun, team } from '../harness/policy-fixture.js';
 import { releaseFixture } from '../harness/release-fixture.js';
@@ -551,4 +552,37 @@ void test('capability session admission and reply deadlines fire at the boundary
     () => session.providePrepared('hover', input, context(T0 + 100)),
     deadline('reply'),
   );
+});
+
+void test('a local editor answer is returned however long it took, until the request time is spent', async (t) => {
+  const text = componentText().replace('production', '');
+  const run = policyRun({ text, ...fixPolicy('production') });
+  const config = parseLspConfig({
+    ...run.context,
+    identity: run.request.identity,
+    source: run.request.source,
+  });
+  // A host under load: once `busy` is set, every look at the clock finds that much time gone.
+  const manual = new ManualClock(Date.now(), 1000);
+  let busy = 0;
+  const clock = {
+    wall: () => (manual.advance(busy), manual.wall()),
+    monotonic: () => (manual.advance(busy), manual.monotonic()),
+  };
+  const service = new EditorService(config, undefined, { clock });
+  t.after(() => service.close());
+  const documents = new Map([[URI, TextDocument.create(URI, 'yaml', 1, text)]]);
+  await service.update(run.request, 1);
+  const position = { textDocument: { uri: URI }, position: { line: 5, character: 13 } };
+  const labels = () => service.complete(position, 1, documents).items.map((item) => item.label);
+  assert.deepEqual(labels(), ['production']);
+  // The answer is computed synchronously, so time that passes while it is computed has already
+  // been spent. Refusing the finished answer would return nothing and save nothing.
+  busy = 60;
+  assert.deepEqual(labels(), ['production']);
+  assert.match(JSON.stringify(service.hover(URI, position.position, 1, documents)), /production/u);
+  // The bound that remains is the request time of the profile: an answer that is not admitted
+  // within it is refused.
+  busy = config.profile.limits.requestTimeoutMs;
+  assert.deepEqual(labels(), []);
 });

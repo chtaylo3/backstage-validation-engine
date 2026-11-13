@@ -243,7 +243,11 @@ export class EditorState {
             ? { authorityContextDigest: this.capabilityOptions.authorityContextDigest }
             : {}),
         }),
-        deadlineAt: this.clock.wall() + Math.min(50, this.config.profile.limits.requestTimeoutMs),
+        // The answer is computed synchronously from the prepared index, so nothing can interrupt
+        // it and a shorter deadline could only discard an answer that is already computed. The
+        // bound is the request time of the profile; the size of the work is bounded by the
+        // metadata admission limits.
+        deadlineAt: this.clock.wall() + this.config.profile.limits.requestTimeoutMs,
         current: () =>
           this.request === request && this.lifetime === lifetime && this.generation === generation,
       });

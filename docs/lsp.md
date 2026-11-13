@@ -453,6 +453,10 @@ An optional catalog connection supplies advisory identity search after at least 
 Completion waits at most 50 ms for that async search and then returns available local results. The
 current query can continue in the background for up to 500 ms. Equal queries share work.
 
+Local results are computed synchronously from the prepared index and are not subject to that
+wait. A local answer is returned however long it took to compute; its only time bound is the
+request time of the profile, and the metadata admission limits bound its size.
+
 A new query, source generation, request cancellation, or shutdown cancels obsolete work. A caller
 cancellation also cancels a shared equal query. Another request can retry. The provider shares
 admission, credentials, rate limits, response budgets and shutdown with validation. These are
