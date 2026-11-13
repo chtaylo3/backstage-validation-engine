@@ -51,6 +51,12 @@ showed one such file, and it is now in the list: `default-boundaries` parses the
 documents inside the 5-second default request deadline. Its deadline and assertions are unchanged,
 and the failure reproduces on Linux when every CPU is busy.
 
+A test that saturates the shared production CEL workers and asserts on their queue pressure
+belongs in the list for the same reason: other test processes change when those workers start and
+finish. `rule-contributions` is in the list for that. It failed once on the macOS runners in a
+parallel run and has not failed in a serial run; the failure did not reproduce on Linux under CPU
+load, so the exact trigger is not established.
+
 `BVE_TEST_PARALLEL_GROUPS` (comma-separated group names) replaces the default parallel groups for
 one run; an unknown name is an error, and an empty value means the default. With
 `BVE_TEST_PARALLEL_GROUPS=engine,lsp`, the full `npm test` passed five consecutive runs on the same
