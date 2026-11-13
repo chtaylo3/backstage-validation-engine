@@ -10,6 +10,18 @@ import {
   RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import type { DocumentSelector, LanguageClientOptions } from 'vscode-languageclient/node';
+import {
+  BVE_METHODS,
+  isFilesystemObservationResult,
+  isRecordSelectionParams,
+  isReloadConfigurationResult,
+  isSearchReferencesResult,
+  isValidationCoverageEnvelope,
+} from '../../../src/protocol/index.js';
+import type {
+  SearchReferencesParams,
+  ValidationCoverageParams,
+} from '../../../src/protocol/index.js';
 
 let client: LanguageClient | undefined;
 let pending: Promise<void> = Promise.resolve();
@@ -19,17 +31,26 @@ let extensionContext: vscode.ExtensionContext | undefined;
 let historyKey: string | undefined;
 let reloadNotification: vscode.Disposable | undefined;
 
+/**
+ * A response that fails its protocol guard is handled like a failed request: the caller sees a
+ * rejection, and the search picker clears its results. The message carries no response content.
+ */
+function invalidResponse(method: string): Error {
+  return new Error(`The language server sent an invalid ${method} response.`);
+}
+
 async function reloadConfiguration(): Promise<void> {
   const current = client;
   if (!current?.isRunning() || !vscode.workspace.isTrusted) return;
-  const result = await current.sendRequest<{ reloaded: boolean }>('bve/reloadConfiguration');
+  const result = await current.sendRequest<unknown>(BVE_METHODS.reloadConfiguration);
+  if (!isReloadConfigurationResult(result)) throw invalidResponse(BVE_METHODS.reloadConfiguration);
   if (result.reloaded) {
     output?.info('Trusted configuration and credentials reloaded.');
   } else output?.error('Validation is unavailable until the trusted configuration can be loaded.');
 }
 async function recordSelection(value: unknown): Promise<void> {
-  if (typeof value !== 'string' || value.length > 512 || !client?.isRunning()) return;
-  await client.sendNotification('bve/recordSelection', value);
+  if (!isRecordSelectionParams(value) || !client?.isRunning()) return;
+  await client.sendNotification(BVE_METHODS.recordSelection, value);
   if (historyKey && extensionContext?.workspaceState) {
     const history = extensionContext.workspaceState
       .get<string[]>(historyKey, [])
@@ -75,15 +96,19 @@ function searchReferences(): Promise<void> | undefined {
       timer = setTimeout(() => {
         const token = new vscode.CancellationTokenSource();
         cancellation = token;
+        const params: SearchReferencesParams = {
+          kind: match[1]!,
+          namespace: match[2]!,
+          prefix: match[3]!,
+        };
         void current
-          .sendRequest<readonly { reference: string; source: string }[]>(
-            'bve/searchReferences',
-            { kind: match[1], namespace: match[2], prefix: match[3] },
-            token.token,
-          )
+          .sendRequest<unknown>(BVE_METHODS.searchReferences, params, token.token)
           .then(
             (rows) => {
-              if (query === generation && !token.token.isCancellationRequested)
+              if (query !== generation) return;
+              // An invalid response clears the results, as a failed request does.
+              if (!isSearchReferencesResult(rows)) picker.items = [];
+              else if (!token.token.isCancellationRequested)
                 picker.items = rows.map((row) => ({
                   label: row.reference,
                   description: row.source,
@@ -331,7 +356,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     },
   );
   client = next;
-  reloadNotification = next.onNotification('bve/configurationReloaded', () => {
+  reloadNotification = next.onNotification(BVE_METHODS.configurationReloaded, () => {
     if (client !== next || !next.isRunning()) return;
     void (async () => {
       const selection = await selectors(config, configured);
@@ -372,13 +397,13 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
           });
       }
       for (const value of context.workspaceState?.get<string[]>(historyKey!, []) ?? [])
-        await next.sendNotification('bve/recordSelection', value);
+        await next.sendNotification(BVE_METHODS.recordSelection, value);
     })().catch(() => output?.error('Unable to refresh the editor selection history.'));
   });
   try {
     await next.start();
     for (const value of context.workspaceState?.get<string[]>(historyKey!, []) ?? [])
-      await next.sendNotification('bve/recordSelection', value);
+      await next.sendNotification(BVE_METHODS.recordSelection, value);
     output?.info('Packaged Backstage language server is ready.');
   } catch {
     reloadNotification?.dispose();
@@ -462,11 +487,18 @@ export async function activate(context: vscode.ExtensionContext) {
   return {
     filesystemObservation: async (): Promise<unknown> => {
       if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
-      return client.sendRequest('bve/filesystemObservation');
+      const result = await client.sendRequest<unknown>(BVE_METHODS.filesystemObservation);
+      if (!isFilesystemObservationResult(result))
+        throw invalidResponse(BVE_METHODS.filesystemObservation);
+      return result;
     },
     coverage: async (uri: string, version: number, digest: string): Promise<unknown> => {
       if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
-      return client.sendRequest('bve/validationCoverage', { uri, version, digest });
+      const params: ValidationCoverageParams = { uri, version, digest };
+      const result = await client.sendRequest<unknown>(BVE_METHODS.validationCoverage, params);
+      if (!isValidationCoverageEnvelope(result))
+        throw invalidResponse(BVE_METHODS.validationCoverage);
+      return result;
     },
     status: () => ({
       running: !disconnected && client?.isRunning() === true,

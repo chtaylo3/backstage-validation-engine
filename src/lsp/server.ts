@@ -1,4 +1,5 @@
 import type { Connection, Diagnostic, Disposable } from 'vscode-languageserver/node';
+import { BVE_METHODS } from '../protocol/index.js';
 import type { LspConfig } from './config.js';
 import type { CoverageObservation } from './coverage-observation.js';
 import { registerCustomHandlers } from './handlers/custom.js';
@@ -44,7 +45,7 @@ function sessionPorts(context: ServerContext): SessionPorts {
     resume: () => context.coordinator.resume(),
     ready: () => {
       watchFiles(context);
-      void connection.sendNotification('bve/configurationReloaded').catch(() => undefined);
+      void connection.sendNotification(BVE_METHODS.configurationReloaded).catch(() => undefined);
     },
   };
 }

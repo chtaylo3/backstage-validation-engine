@@ -28,29 +28,33 @@ row are peers and may not import each other.
 
 | Order | Layer           | Contents                                                                           |
 | ----- | --------------- | ---------------------------------------------------------------------------------- |
-| 1     | `base`          | Errors, canonical JSON and digests, source URIs. No internal imports.              |
-| 2     | `contracts`     | Schemas, `parseContract`, and the semantic invariants that `parseContract` applies |
-| 3     | `core`          | Snapshots, results, request bindings, processor coverage helpers                   |
-| 4     | `runtime`       | Request budget, failure evidence, managed CEL runtime                              |
-| 5     | `parsing`       | Source parser                                                                      |
-| 6     | `compatibility` | Native Backstage adapters, substitutions, custom schemas, source validation        |
-| 7     | `policy`        | Bundles, default profile, signed releases                                          |
-| 8     | `providers`     | Catalog provider and transport                                                     |
-| 9     | `capabilities`  | Capability contracts and sessions                                                  |
-| 10    | `pipeline`      | Reference preparation, rule execution, pipeline composition, verified result       |
-| 11    | `reporting`     | SARIF                                                                              |
-| 12    | `host`          | Host catalog configuration, built-in validation, rule contributions                |
-| 13    | `cli`, `lsp`    | Adapters. Peers: neither may import the other.                                     |
+| 1     | `protocol`      | Custom client/server method names, wire types, and guards. Imports nothing.        |
+| 2     | `base`          | Errors, canonical JSON and digests, source URIs. No internal imports.              |
+| 3     | `contracts`     | Schemas, `parseContract`, and the semantic invariants that `parseContract` applies |
+| 4     | `core`          | Snapshots, results, request bindings, processor coverage helpers                   |
+| 5     | `runtime`       | Request budget, failure evidence, managed CEL runtime                              |
+| 6     | `parsing`       | Source parser                                                                      |
+| 7     | `compatibility` | Native Backstage adapters, substitutions, custom schemas, source validation        |
+| 8     | `policy`        | Bundles, default profile, signed releases                                          |
+| 9     | `providers`     | Catalog provider and transport                                                     |
+| 10    | `capabilities`  | Capability contracts and sessions                                                  |
+| 11    | `pipeline`      | Reference preparation, rule execution, pipeline composition, verified result       |
+| 12    | `reporting`     | SARIF                                                                              |
+| 13    | `host`          | Host catalog configuration, built-in validation, rule contributions                |
+| 14    | `cli`, `lsp`    | Adapters. Peers: neither may import the other.                                     |
 
-`src/index.ts` is the public barrel and may import layers 1 to 11 only. Nothing under `src/`
+`src/index.ts` is the public barrel and may import layers 1 to 12 only. Nothing under `src/`
 imports it, directly or through another file. The VS Code client in `extensions/vscode/src` may
-not import `src/` or the package, and nothing imports the client.
+import `src/protocol/` and nothing else under `src/`, may not import the package, and nothing
+imports the client.
 
 `npm run architecture:check` runs `scripts/architecture-boundaries.mjs`, whose `LAYERS` list holds
 the same order as this table. Type-only imports, re-exports, `import()`, and `createRequire` loaders
 count as imports. The check also enforces these rules:
 
 - No file-level import cycle exists anywhere in `src/`.
+- A file in `src/protocol/` imports only other files in `src/protocol/`: no lower layer, no
+  package, and no Node built-in module.
 - A file outside a listed layer directory fails the check.
 - The VS Code packages are imported only from `lsp` and the client.
 - `@backstage/catalog-model` and `backstage-catalog-model-older` are imported only from
@@ -60,6 +64,26 @@ count as imports. The check also enforces these rules:
   `extensions/vscode/src/` is longer than 150 lines. `scripts/function-size-allowlist.json` lists
   the older functions above the limit, each with its current length as a ceiling. An allowlisted
   function may not grow, and an entry fails once its function is within the limit or gone.
+
+### Shared protocol
+
+`src/protocol/` defines the custom `bve/` methods that the language server and its clients
+exchange, once:
+
+- `methods.ts` holds `BVE_METHODS`, the frozen method names, and `BVE_METHOD_SHAPES`, the
+  direction and message kind of each method.
+- `types.ts` holds the parameter and result types as plain structural types. Where `src/lsp` sends
+  an engine type, such as `CoverageObservation`, a compile-time mutual-assignability check in
+  `src/lsp` keeps the engine type and the wire type equal.
+- `guards.ts` holds the validation predicates for every payload that crosses the wire as
+  `unknown`. A parameter guard accepts exactly what the server accepted before the guard existed;
+  each handler keeps its answer to invalid input (`null`, an empty list, or a silent ignore).
+- `index.ts` holds the explicit exports, published as the `./protocol` package entry point.
+
+The module has no dependencies, so the VS Code extension bundles it by relative path, and another
+client can use it without the engine. The extension validates every response with these guards
+and treats an invalid response like a failed request. `node scripts/test-client.mjs` measures the
+protocol files that the extension bundles together with the extension sources.
 
 ### Pipeline stages
 

@@ -8,6 +8,7 @@ import * as capabilities from '../src/capabilities/index.js';
 import * as contracts from '../src/contracts/index.js';
 import * as root from '../src/index.js';
 import * as lsp from '../src/lsp/index.js';
+import * as protocol from '../src/protocol/index.js';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const baselineFile = path.join(repository, 'test/fixtures/public-api.json');
@@ -16,6 +17,7 @@ const entries = {
   './contracts': 'src/contracts/index.ts',
   './lsp': 'src/lsp/index.ts',
   './capabilities': 'src/capabilities/index.ts',
+  './protocol': 'src/protocol/index.ts',
 } as const;
 type Entry = keyof typeof entries;
 type Surface = Record<Entry, string[]>;
@@ -24,6 +26,7 @@ const compiled: Record<Entry, object> = {
   './contracts': contracts,
   './lsp': lsp,
   './capabilities': capabilities,
+  './protocol': protocol,
 };
 
 const typeOnly = (checker: ts.TypeChecker, symbol: ts.Symbol) => {

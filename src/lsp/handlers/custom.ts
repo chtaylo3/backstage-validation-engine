@@ -1,18 +1,42 @@
 import type { CancellationToken } from 'vscode-languageserver/node';
 import { verifyRequestBindings } from '../../core/bindings.js';
 import { parseContract } from '../../contracts/validate.js';
+import { BVE_METHODS, isRecordSelectionParams } from '../../protocol/index.js';
+import type {
+  ReloadConfigurationResult,
+  SearchReferencesParams,
+  SearchReferencesResult,
+} from '../../protocol/index.js';
+import type { CatalogSuggestionQuery } from '../../providers/types.js';
 import { createLspRequest } from '../config.js';
 import type { ServerContext } from '../server-context.js';
 
+type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+// Compile-time checks that the engine types these handlers receive and answer with are the wire types.
+const searchMatchesProtocol: MutuallyAssignable<SearchReferencesParams, CatalogSuggestionQuery> =
+  true;
+const searchResultMatchesProtocol: MutuallyAssignable<
+  SearchReferencesResult,
+  Awaited<ReturnType<ServerContext['sessions']['current']['completion']['searchReferences']>>
+> = true;
+const reloadMatchesProtocol: MutuallyAssignable<
+  ReloadConfigurationResult,
+  Awaited<ReturnType<ServerContext['reloadConfiguration']>>
+> = true;
+void searchMatchesProtocol;
+void searchResultMatchesProtocol;
+void reloadMatchesProtocol;
+
 /**
- * `bve/filesystemObservation`, `bve/validationCoverage`, `bve/recordSelection`,
- * `bve/searchReferences`, and `bve/reloadConfiguration`.
+ * The client to server methods of `src/protocol`: `bve/filesystemObservation`,
+ * `bve/validationCoverage`, `bve/recordSelection`, `bve/searchReferences`, and
+ * `bve/reloadConfiguration`.
  */
 export function registerCustomHandlers(context: ServerContext): void {
   const { connection, lifecycle, workspace, observations } = context;
   const { requests } = context;
   const sessions = () => context.sessions;
-  connection.onRequest('bve/filesystemObservation', () => {
+  connection.onRequest(BVE_METHODS.filesystemObservation, () => {
     lifecycle.admitted(() => undefined);
     return observations.filesystem({
       available: sessions().available,
@@ -20,7 +44,7 @@ export function registerCustomHandlers(context: ServerContext): void {
       generation: sessions().current.generation,
     });
   });
-  connection.onRequest('bve/validationCoverage', (params: unknown) => {
+  connection.onRequest(BVE_METHODS.validationCoverage, (params: unknown) => {
     lifecycle.admitted(() => undefined);
     if (lifecycle.initialized && !lifecycle.stopped && sessions().available)
       sessions().current.refresh?.ensureFresh();
@@ -34,21 +58,15 @@ export function registerCustomHandlers(context: ServerContext): void {
       dependencyGeneration: sessions().current.refresh?.generation ?? 0,
     });
   });
-  connection.onNotification('bve/recordSelection', (input: unknown) => {
-    if (
-      !lifecycle.initialized ||
-      lifecycle.stopped ||
-      typeof input !== 'string' ||
-      input.length > 512
-    )
-      return;
+  connection.onNotification(BVE_METHODS.recordSelection, (input: unknown) => {
+    if (!lifecycle.initialized || lifecycle.stopped || !isRecordSelectionParams(input)) return;
     if (!sessions().available) return;
     sessions().current.completion.record(input);
     sessions().current.editor.record(input);
   });
-  connection.onRequest('bve/searchReferences', (input: unknown, token: CancellationToken) =>
+  connection.onRequest(BVE_METHODS.searchReferences, (input: unknown, token: CancellationToken) =>
     lifecycle.admitted(() =>
-      requests.execute<readonly { reference: string; source: string }[]>(
+      requests.execute<SearchReferencesResult>(
         token,
         undefined,
         () => [],
@@ -87,7 +105,7 @@ export function registerCustomHandlers(context: ServerContext): void {
       ),
     ),
   );
-  connection.onRequest('bve/reloadConfiguration', () =>
+  connection.onRequest(BVE_METHODS.reloadConfiguration, () =>
     lifecycle.admitted(context.reloadConfiguration),
   );
 }

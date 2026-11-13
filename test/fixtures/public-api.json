@@ -262,5 +262,33 @@
     "parsePluginHandshake: value",
     "requestSchemas: value",
     "resultSchemas: value"
+  ],
+  "./protocol": [
+    "BVE_METHODS: value",
+    "BVE_METHOD_SHAPES: value",
+    "BveMethod: type",
+    "BveMethodName: type",
+    "BveMethodShape: type",
+    "CoverageObservation: type",
+    "CoverageRow: type",
+    "CoverageStage: type",
+    "CoverageStatus: type",
+    "FilesystemObservation: type",
+    "FilesystemObservationResult: type",
+    "RECORD_SELECTION_MAX_LENGTH: value",
+    "RecordSelectionParams: type",
+    "ReloadConfigurationResult: type",
+    "SearchReferencesParams: type",
+    "SearchReferencesResult: type",
+    "SearchReferencesRow: type",
+    "ValidationCoverageParams: type",
+    "ValidationCoverageResult: type",
+    "isFilesystemObservationResult: value",
+    "isRecordSelectionParams: value",
+    "isReloadConfigurationResult: value",
+    "isSearchReferencesParams: value",
+    "isSearchReferencesResult: value",
+    "isValidationCoverageEnvelope: value",
+    "isValidationCoverageParams: value"
   ]
 }

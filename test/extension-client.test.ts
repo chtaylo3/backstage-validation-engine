@@ -785,3 +785,85 @@ void test('filesystem receipt bridge requires trust and a live client and sends 
   await options().errorHandler!.closed();
   assert.equal(await api.filesystemObservation(), null);
 });
+
+void test('reload rejects an invalid server response like a failed request and logs nothing', async () => {
+  const current = await startClient();
+  const messages = editorState.messages.length;
+  for (const response of [null, [], { reloaded: 'yes' }, {}]) {
+    current.requestHandler = () => Promise.resolve(response);
+    await assert.rejects(
+      command('reloadConfiguration'),
+      /invalid bve\/reloadConfiguration response/u,
+    );
+  }
+  assert.equal(editorState.messages.length, messages);
+  current.requestHandler = undefined;
+  await command('reloadConfiguration');
+  assert.match(editorState.messages.at(-1)!, /credentials reloaded/u);
+});
+
+void test('search clears its results for an invalid server response like a failed request', async () => {
+  const { current, picker } = await openSearch();
+  const valid = [{ reference: 'group:default/team', source: 'workspace' }];
+  let calls = 0;
+  for (const response of [
+    null,
+    { reference: 'group:default/team', source: 'workspace' },
+    [{ reference: 'group:default/team' }],
+    [null],
+    [{ reference: 7, source: 'workspace' }],
+  ]) {
+    current.requestHandler = () => Promise.resolve(valid);
+    picker.change('group:default/te');
+    calls++;
+    await until(() => current.requestCalls.length === calls);
+    await settle();
+    assert.equal(picker.items.length, 1);
+    current.requestHandler = () => Promise.resolve(response);
+    picker.change('group:default/tea');
+    calls++;
+    await until(() => current.requestCalls.length === calls);
+    await settle();
+    assert.deepEqual(picker.items, [], JSON.stringify(response));
+    assert.equal(picker.busy, false);
+  }
+  assert(!editorState.messages.join('\n').includes('invalid'));
+});
+
+void test('observation bridges reject invalid server responses and pass valid ones through unchanged', async () => {
+  editorState.selected = config;
+  const api = await extension.activate(context);
+  const current = clients.at(-1)!;
+  let response: unknown;
+  current.requestHandler = () => Promise.resolve(response);
+  for (response of [
+    undefined,
+    [],
+    'receipt',
+    { sessionGeneration: 1, generation: 3, uris: 'file:///a.yaml', truncated: false },
+    { sessionGeneration: 1, generation: 3, uris: [7], truncated: false },
+    { sessionGeneration: '1', generation: 3, uris: [], truncated: false },
+    { sessionGeneration: 1, generation: 3, uris: [] },
+  ])
+    await assert.rejects(
+      api.filesystemObservation(),
+      /invalid bve\/filesystemObservation response/u,
+    );
+  response = null;
+  assert.equal(await api.filesystemObservation(), null);
+  for (response of [undefined, [], 'coverage', 7])
+    await assert.rejects(
+      api.coverage('file:///workspace/catalog.yaml', 1, 'sha256:' + 'a'.repeat(64)),
+      /invalid bve\/validationCoverage response/u,
+    );
+  response = null;
+  assert.equal(
+    await api.coverage('file:///workspace/catalog.yaml', 1, 'sha256:' + 'a'.repeat(64)),
+    null,
+  );
+  response = { generation: 1 };
+  assert.equal(
+    await api.coverage('file:///workspace/catalog.yaml', 1, 'sha256:' + 'a'.repeat(64)),
+    response,
+  );
+});

@@ -1,5 +1,6 @@
 import { ApplyWorkspaceEditRequest, ResponseError } from 'vscode-languageserver/node';
 import type { ClientCapabilities, Connection, Disposable } from 'vscode-languageserver/node';
+import { isValidationCoverageParams } from '../protocol/index.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { ClientEdits } from './client-edits.js';
 import type { LspConfig } from './config.js';
@@ -170,18 +171,10 @@ export function currentCoverageObservation(
     workspace.unavailableSources ||
     workspace.capacityExceeded ||
     !state.enabled ||
-    !params ||
-    typeof params !== 'object' ||
-    Array.isArray(params)
+    !isValidationCoverageParams(params)
   )
     return null;
-  const requested = params as { uri?: unknown; version?: unknown; digest?: unknown };
-  if (
-    typeof requested.uri !== 'string' ||
-    typeof requested.version !== 'number' ||
-    typeof requested.digest !== 'string'
-  )
-    return null;
+  const requested = params;
   const current = workspace.document(requested.uri);
   const observation = state.observation;
   if (

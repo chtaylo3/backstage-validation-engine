@@ -6,10 +6,13 @@ import ts from 'typescript';
 /**
  * Engine layers, lowest first. A file's layer is its top-level directory under `src/`. A file may
  * import its own layer and any lower layer. Layers that share an entry are peers and may not import
- * each other. `docs/architecture.md` lists the same layers in the same order.
+ * each other. `docs/architecture.md` lists the same layers in the same order. `protocol` is the custom
+ * client/server protocol: it imports nothing outside its own directory, and it is the only part of
+ * `src/` that the VS Code client may import.
  */
 export const LAYERS = Object.freeze(
   [
+    ['protocol'],
     ['base'],
     ['contracts'],
     ['core'],
@@ -47,6 +50,8 @@ export const FUNCTION_LINE_LIMIT = 150;
 export const FUNCTION_ALLOWLIST = 'scripts/function-size-allowlist.json';
 const VSCODE_PACKAGES =
   /^(?:vscode|vscode-languageserver|vscode-languageclient|vscode-jsonrpc)(?:$|[/-])/u;
+/** The directory of the dependency-free protocol layer. */
+const PROTOCOL = 'src/protocol/';
 const ranks = new Map(LAYERS.flatMap((names, rank) => names.map((name) => [name, rank])));
 const normalize = (value) => value.replaceAll('\\', '/');
 function category(file) {
@@ -63,7 +68,10 @@ function rank(name) {
 function forbidden(origin, target) {
   const from = category(origin);
   const to = category(target);
-  if (from === 'client') return target.startsWith('src/') ? 'client imports src/' : undefined;
+  if (from === 'client')
+    return target.startsWith('src/') && !target.startsWith(PROTOCOL)
+      ? 'client imports src/ outside src/protocol/'
+      : undefined;
   if (to === 'client') return 'imports the VS Code client';
   if (to === 'public' && from !== 'public') return 'imports the public barrel src/index.ts';
   if (from === 'unlisted' || to === 'unlisted' || to === 'external') return undefined;
@@ -313,6 +321,17 @@ export async function checkArchitecture(root) {
       failures.add(
         `${file} is not in a layer: top-level src/ directories must be one of ${LAYERS.flat().join(', ')}`,
       );
+    if (category(file) === 'protocol') {
+      for (const target of graph.get(file) ?? [])
+        if (!target.startsWith(PROTOCOL))
+          failures.add(
+            `${file} -> ${target}: protocol files may import only other files in src/protocol/`,
+          );
+      for (const pkg of externals.get(file) ?? [])
+        failures.add(
+          `${file} -> ${pkg}: protocol files may not import packages or Node built-in modules`,
+        );
+    }
     for (const pkg of externals.get(file) ?? []) {
       const allowed = PACKAGE_LAYERS[packageName(pkg)];
       if (allowed && file.startsWith('src/') && !allowed.includes(category(file)))

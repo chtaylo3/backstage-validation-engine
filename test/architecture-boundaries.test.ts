@@ -253,6 +253,62 @@ void test('packages are contained: yaml only in parsing and lsp, catalog-model o
   assert.equal(failures.length, 2);
 });
 
+void test('protocol: the client may import src/protocol and nothing else under src', async (t) => {
+  const protocol = {
+    'src/protocol/index.ts': "export { METHOD } from './methods.js';",
+    'src/protocol/methods.ts': "export const METHOD = 'bve/x';",
+  };
+  assert.deepEqual(
+    await check(t, {
+      ...protocol,
+      'extensions/vscode/src/extension.ts':
+        "import { METHOD } from '../../../src/protocol/index.js'; export const m = METHOD;",
+    }),
+    [],
+  );
+  const failures = await check(t, {
+    ...protocol,
+    'src/lsp/a.ts': 'export const a = 1;',
+    'src/base/b.ts': 'export const b = 1;',
+    'extensions/vscode/src/lsp.ts':
+      "import { a } from '../../../src/lsp/a.js'; export const x = a;",
+    'extensions/vscode/src/base.ts':
+      "import type { B } from '../../../src/base/b.js'; export type Y = B;",
+  });
+  rejects(failures, 'extensions/vscode/src/lsp.ts -> src/lsp/a.ts', 'client imports src/');
+  rejects(failures, 'extensions/vscode/src/base.ts -> src/base/b.ts', 'client imports src/');
+});
+
+void test('protocol: a protocol file may not import a lower engine file, a package or a Node built-in', async (t) => {
+  const failures = await check(t, {
+    'src/base/json.ts': 'export type Json = string;',
+    'src/protocol/engine.ts': "import type { Json } from '../base/json.js'; export type X = Json;",
+    'src/protocol/package.ts': "import { parse } from 'yaml'; export const x = parse;",
+    'src/protocol/builtin.ts':
+      "import { createHash } from 'node:crypto'; export const x = createHash;",
+    'src/protocol/methods.ts': "export const METHOD = 'bve/x';",
+    'src/protocol/index.ts': "export { METHOD } from './methods.js';",
+  });
+  rejects(failures, 'src/protocol/engine.ts -> src/base/json.ts', 'protocol files may import only');
+  rejects(failures, 'src/protocol/package.ts -> yaml', 'protocol files may not import packages');
+  rejects(failures, 'src/protocol/builtin.ts -> node:crypto', 'protocol files may not import');
+  assert.deepEqual(
+    failures.filter((failure) => failure.startsWith('src/protocol/index.ts')),
+    [],
+  );
+});
+
+void test('protocol: every engine layer may import src/protocol', async (t) => {
+  const { LAYERS } = await boundaries();
+  const files: Record<string, string> = {
+    'src/protocol/index.ts': "export const METHOD = 'bve/x';",
+  };
+  for (const name of LAYERS.flat().filter((layer) => layer !== 'protocol'))
+    files[`src/${name}/a.ts`] =
+      "import { METHOD } from '../protocol/index.js'; export const a = METHOD;";
+  assert.deepEqual(await check(t, files), []);
+});
+
 void test('the repository satisfies every architecture rule', async () => {
   assert.deepEqual(await (await boundaries()).checkArchitecture(repository), []);
 });

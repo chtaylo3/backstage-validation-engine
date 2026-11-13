@@ -22,6 +22,7 @@ import {
 import type { ReferencePattern } from '../contracts/reference-contexts.js';
 import { normalizeCatalogAccess } from '../providers/catalog.js';
 import { abortable } from '../providers/async.js';
+import { isSearchReferencesParams } from '../protocol/index.js';
 import type {
   CatalogProvider,
   CatalogAccessContext,
@@ -485,17 +486,11 @@ export class CompletionService {
       signal.aborted ||
       !index ||
       index.generation !== generation ||
-      !input ||
-      typeof input !== 'object' ||
-      Array.isArray(input) ||
-      Object.keys(input).some((key) => !['kind', 'namespace', 'prefix'].includes(key))
+      !isSearchReferencesParams(input)
     )
       return [];
-    const query = input as Partial<CatalogSuggestionQuery>;
+    const query = input;
     if (
-      typeof query.kind !== 'string' ||
-      typeof query.namespace !== 'string' ||
-      typeof query.prefix !== 'string' ||
       !/^[a-z0-9_.-]{0,63}$/u.test(query.prefix) ||
       !safeRef(`${query.kind}:${query.namespace}/a`)
     )
