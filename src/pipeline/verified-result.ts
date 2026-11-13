@@ -1,10 +1,10 @@
 import type { Coverage } from '../contracts/schemas.js';
-import type { validatePolicySources } from '../core/policy-sources.js';
+import type { validatePolicySources } from './policy-sources.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { canonicalJson } from '../core/json.js';
-import { reject } from '../core/errors.js';
+import { canonicalJson } from '../base/json.js';
+import { reject } from '../base/errors.js';
 import { createValidationResult } from '../core/results.js';
-import type { verifyPolicyRelease } from './releases.js';
+import type { verifyPolicyRelease } from '../policy/releases.js';
 
 /** Bind execution evidence to a verified release and narrow publication to its validity window. */
 export function createVerifiedPolicyResult(

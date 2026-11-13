@@ -163,15 +163,21 @@ see the [policy and CLI guide](docs/policy-cli.md).
 ## Structure
 
 ```text
-src/
-  contracts/   Versioned schemas, inferred types, and contract validation
-  core/        Canonical JSON, snapshots, bindings, findings, and outcomes
+src/           Ordered engine layers, lowest first; see docs/architecture.md
+  base/        Errors, canonical JSON and digests, and source URIs
+  contracts/   Versioned schemas, inferred types, contract validation, outcomes and rule graphs
+  core/        Snapshots, request bindings, findings, and processor coverage
+  runtime/     Shared supervised CEL/RE2 workers and request budgets
   parsing/     Bounded YAML normalization, diagnostics and source locations
   compatibility/  Versioned native Backstage adapters and normalization provenance
-  lsp/         Stdio transport, trusted host configuration and editor lifecycle
-  policy/      Signed releases, mandatory inheritance and bounded rule graphs
+  policy/      Signed releases, mandatory inheritance and the default profile
+  providers/   Catalog provider and transport
+  capabilities/  Capability contracts and sessions
+  pipeline/    Reference preparation, rule execution, and verified results
+  reporting/   SARIF reporting
+  host/        Shared host catalog configuration and built-in validation
   cli/         Snapshot validation command and JSON/SARIF reporting
-  runtime/     Shared supervised CEL/RE2 workers and request budgets
+  lsp/         Stdio transport, trusted host configuration and editor lifecycle
 schemas/       Generated draft-07 JSON Schemas, checked into Git
 examples/      Wire examples for requests, profiles, and result states
 test/          Contract, integrity, resource, and enforcement tests

@@ -1,5 +1,5 @@
 import type { Coverage, Finding, JsonValue, ValidationResult } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 
 export type SourceLocation = Finding['location'];
 export type SourceRange = SourceLocation['range'];

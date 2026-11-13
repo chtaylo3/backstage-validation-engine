@@ -3,7 +3,7 @@ import type { SchemaValidationIssue } from '../compatibility/custom-schemas.js';
 import type { SourceSubstitution } from '../compatibility/types.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
 import { SourceLineIndex } from '../parsing/locations.js';
-import type { Immutable } from './json.js';
+import type { Immutable } from '../base/json.js';
 
 export const SCALAR_FIX_LIMITS = Object.freeze({ generated: 64, scalarBytes: 4096 });
 const scalar = (value: unknown): value is null | string | number | boolean =>

@@ -11,11 +11,11 @@ import type { CatalogAccessContext, CatalogProvider } from '../providers/types.j
 import { CatalogProviderError } from '../providers/types.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
 import { executePolicyRules } from './cel-rules.js';
-import { canonicalJson, deepFreeze } from './json.js';
-import type { Immutable } from './json.js';
+import { canonicalJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { prepareBackstageReferenceData } from './reference-data.js';
 import type { LocalCatalogSources } from './reference-data.js';
-import { verifyRequestBindings } from './bindings.js';
+import { verifyRequestBindings } from '../core/bindings.js';
 import {
   FAILURE_EVIDENCE_LIMIT,
   FailureTimer,
@@ -23,7 +23,7 @@ import {
   sanitizeFailureEvidence,
 } from '../runtime/failure-evidence.js';
 import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
-import { reject } from './errors.js';
+import { reject } from '../base/errors.js';
 
 export interface PolicySourceContext {
   readonly profile: Immutable<DeploymentProfile>;

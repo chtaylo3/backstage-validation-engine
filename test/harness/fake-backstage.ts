@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
-import { immutableJson } from '../../src/core/json.js';
+import { immutableJson } from '../../src/base/json.js';
 import type { ContractArtifact } from './contract-artifact.js';
 import { CatalogContractError, compileCatalogContract } from './catalog-contract.js';
 import type { CatalogOperation } from './catalog-contract.js';

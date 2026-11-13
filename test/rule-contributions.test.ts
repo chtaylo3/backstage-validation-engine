@@ -7,7 +7,7 @@ import { EditorService } from '../src/lsp/editor.js';
 import { FixRegistry } from '../src/lsp/fixes.js';
 import { prepareRuleContributions } from '../src/host/rule-contributions.js';
 import { parseEditorArtifacts } from '../src/capabilities/editor-artifacts.js';
-import { validatePolicySources } from '../src/core/policy-sources.js';
+import { validatePolicySources } from '../src/pipeline/policy-sources.js';
 import { getSharedCelRuntime, closeSharedCelRuntime, CelError } from '../src/runtime/cel/index.js';
 import {
   policyRun,

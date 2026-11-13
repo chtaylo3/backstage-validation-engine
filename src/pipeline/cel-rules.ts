@@ -3,54 +3,36 @@ import type {
   Coverage,
   DeploymentProfile,
   Finding,
-  JsonValue,
   PolicyBundle,
   RuleState,
   SchemaArtifact,
   ValidationRequest,
-  ValidationResult,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { orderRules } from '../policy/rule-graph.js';
+import { orderRules } from '../contracts/rule-graph.js';
 import { getSharedCelRuntime } from '../runtime/cel/index.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
 import { CelError, cancellationError } from '../runtime/cel/errors.js';
 import type { CelErrorCode } from '../runtime/cel/errors.js';
 import { RequestBudget } from '../runtime/request-budget.js';
-import { verifyRequestBindings } from './bindings.js';
-import { reject } from './errors.js';
-import { deepFreeze, immutableJson } from './json.js';
-import type { Immutable } from './json.js';
-import { createFindingId } from './results.js';
+import { verifyRequestBindings } from '../core/bindings.js';
+import { reject } from '../base/errors.js';
+import { deepFreeze, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { createFindingId } from '../core/results.js';
 import { bindCatalogReferences } from './catalog-bindings.js';
 import type { CatalogBindings } from './catalog-bindings.js';
 import type { ReferenceDataPreparation } from './reference-data.js';
-import { blockedProcessorRules } from './processing.js';
+import { blockedProcessorRules } from './blocked-rules.js';
 import { createSchemaRegistry } from '../compatibility/custom-schemas.js';
 import { scalarConstEdit, SCALAR_FIX_LIMITS } from './scalar-fixes.js';
 import type { SourceSubstitution } from '../compatibility/types.js';
 import { locateParsedPath } from '../parsing/locations.js';
 import type { SourceLineIndex } from '../parsing/locations.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
+import type { RuleExecutionReport, RuleSubject } from './types.js';
 
-export interface RuleSubject {
-  readonly id: string;
-  readonly value: Immutable<JsonValue>;
-  readonly location: Immutable<Finding['location']>;
-}
-
-export interface RuleExecutionReport {
-  readonly findings: readonly Immutable<Finding>[];
-  readonly coverage: readonly Immutable<Coverage>[];
-  readonly ruleStates: readonly Immutable<RuleState>[];
-  readonly failures: readonly {
-    readonly subjectId: string;
-    readonly ruleId: string;
-    readonly code:
-      CelErrorCode | 'unsupported_rule' | 'unsupported_processor' | 'catalog_unavailable';
-  }[];
-  readonly interrupted: ValidationResult['resources']['interrupted'];
-}
+export type { RuleSubject, RuleExecutionReport } from './types.js';
 
 type StateFailure = Pick<RuleState, 'status' | 'reason'>;
 type Interruption = RuleExecutionReport['interrupted'];

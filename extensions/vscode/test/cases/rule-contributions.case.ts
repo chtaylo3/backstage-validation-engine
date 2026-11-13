@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { until, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 import { configuration, reload } from '../configuration.js';
-import { digestJson } from '../../../../src/core/json.js';
+import { digestJson } from '../../../../src/base/json.js';
 
 export async function run(fixture: Fixture): Promise<void> {
   const document = await fixture.document();

@@ -1,5 +1,5 @@
-import { digestJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import type { ValidationRequest } from '../contracts/schemas.js';
 import { parseBinding } from './admission.js';
 import type { ContextBinding } from './schemas.js';

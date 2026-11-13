@@ -1,9 +1,9 @@
 import type { Finding, ValidationRequest, ValidationResult } from '../contracts/schemas.js';
 import { CONTRACT_VERSION } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { digestJson } from './json.js';
-import type { Immutable } from './json.js';
-import { decideOutcome } from './outcomes.js';
+import { digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { decideOutcome } from '../contracts/outcomes.js';
 
 export interface FindingIdentity {
   readonly ruleId: string;

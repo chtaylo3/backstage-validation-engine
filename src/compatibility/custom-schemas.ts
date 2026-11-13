@@ -9,9 +9,9 @@ import type {
 } from '../contracts/schemas.js';
 import { SCHEMA_DIALECT } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { canonicalJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
+import { canonicalJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 import { childPointer } from '../parsing/locations.js';
 
 export const CUSTOM_SCHEMA_LIMITS = Object.freeze({

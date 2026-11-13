@@ -1,7 +1,7 @@
 import type { Finding, ValidationResult } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 
 const header = {
   $schema: 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json',

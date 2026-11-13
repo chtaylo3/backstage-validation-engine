@@ -2,15 +2,15 @@ import { setImmediate as yieldTurn } from 'node:timers/promises';
 import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 import type { CompletionList, CompletionParams, Range } from 'vscode-languageserver/node';
 import type { ValidationRequest, JsonValue } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import type { LocalCatalogSources } from '../core/reference-data.js';
-import { digestText } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import type { LocalCatalogSources } from '../pipeline/reference-data.js';
+import { digestText } from '../base/json.js';
 import { builtinCapabilitySession } from '../capabilities/session.js';
 import type { CapabilitySession } from '../capabilities/session.js';
 import { capabilityBinding, capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
-import { buildProposedCatalog } from '../core/proposed-catalog.js';
+import { buildProposedCatalog } from '../pipeline/proposed-catalog.js';
 import { parseSourceSnapshot } from '../parsing/parser.js';
 import { SourceLineIndex, childPointer } from '../parsing/locations.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
@@ -18,8 +18,8 @@ import {
   compileReferenceContexts,
   isArrayIndex,
   REFERENCE_LIMITS,
-} from '../policy/reference-contexts.js';
-import type { ReferencePattern } from '../policy/reference-contexts.js';
+} from '../contracts/reference-contexts.js';
+import type { ReferencePattern } from '../contracts/reference-contexts.js';
 import { normalizeCatalogAccess } from '../providers/catalog.js';
 import { abortable } from '../providers/async.js';
 import type {

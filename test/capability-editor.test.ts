@@ -5,12 +5,12 @@ import { builtinMetadataSession } from '../src/capabilities/builtin-metadata.js'
 import { builtinCapabilitySession } from '../src/capabilities/session.js';
 import { capabilityBinding } from '../src/capabilities/bindings.js';
 import { capabilityAuthorityDigest } from '../src/capabilities/bindings.js';
-import { digestJson } from '../src/core/json.js';
+import { digestJson } from '../src/base/json.js';
 import { EditorService } from '../src/lsp/editor.js';
 import { CompletionService } from '../src/lsp/completion.js';
 import type { CatalogProvider } from '../src/providers/types.js';
 import { parseLspConfig } from '../src/lsp/config.js';
-import { validatePolicySources } from '../src/core/policy-sources.js';
+import { validatePolicySources } from '../src/pipeline/policy-sources.js';
 import { closeSharedCelRuntime } from '../src/runtime/cel/index.js';
 import { componentText, localTeam, policyRun } from './harness/policy-fixture.js';
 import { URI } from './helpers.js';

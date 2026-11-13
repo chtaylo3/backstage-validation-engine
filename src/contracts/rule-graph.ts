@@ -1,6 +1,6 @@
-import type { PolicyBundle } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
+import type { PolicyBundle } from './schemas.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 
 /** Validates one resolved bundle; inherited bundles must be resolved before calling. */
 export function orderRules(

@@ -1,7 +1,7 @@
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
 import type { Diagnostic } from 'vscode-languageserver/node';
 import type { Finding } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import type { FailureEvidence } from '../runtime/failure-evidence.js';
 
 export function diagnostic(

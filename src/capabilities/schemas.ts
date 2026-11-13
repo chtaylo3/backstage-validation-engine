@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
 import type { Static, TProperties, TSchema } from '@sinclair/typebox';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import {
   CoverageSchema,
   DataSnapshotSchema,

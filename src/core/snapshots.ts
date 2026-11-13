@@ -1,9 +1,9 @@
 import type { DataEntry, SourceChange, SourceSnapshot } from '../contracts/schemas.js';
 import { CONTRACT_VERSION } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { digestJson, digestText, immutableJson } from './json.js';
-import type { Immutable } from './json.js';
-import { reject } from './errors.js';
+import { digestJson, digestText, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 
 export interface SourceInput {
   readonly uri: string;

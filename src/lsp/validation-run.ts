@@ -1,12 +1,12 @@
 import type { SessionOperations } from './request-context.js';
 import type { Diagnostic } from 'vscode-languageserver/node';
-import { digestText } from '../core/json.js';
+import { digestText } from '../base/json.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { BuiltinValidationService } from '../host/builtin-validation.js';
 import type { CoverageObservation } from './coverage-observation.js';
 import { CapabilityError } from '../capabilities/admission.js';
-import type { LocalCatalogSources } from '../core/reference-data.js';
+import type { LocalCatalogSources } from '../pipeline/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { FAILURE_EVIDENCE_LIMIT, FailureTimer, failureCause } from '../runtime/failure-evidence.js';
 import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';

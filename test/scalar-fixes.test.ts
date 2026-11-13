@@ -7,7 +7,7 @@ import {
   validatePolicySources,
 } from '../src/index.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { SCALAR_FIX_LIMITS } from '../src/core/scalar-fixes.js';
+import { SCALAR_FIX_LIMITS } from '../src/pipeline/scalar-fixes.js';
 import { fixPolicy } from './harness/fix-fixture.js';
 import { schemaArtifact } from './harness/custom-kind-fixture.js';
 import type { JsonValue } from '../src/index.js';

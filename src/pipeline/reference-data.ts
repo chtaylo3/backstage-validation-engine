@@ -22,11 +22,11 @@ import { FailureTimer, failureCause } from '../runtime/failure-evidence.js';
 import type { FailureEvidence } from '../runtime/failure-evidence.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';
-import { verifyRequestBindings } from './bindings.js';
-import { ContractError, reject } from './errors.js';
-import { deepFreeze } from './json.js';
-import type { Immutable } from './json.js';
-import { createDataSnapshot } from './snapshots.js';
+import { verifyRequestBindings } from '../core/bindings.js';
+import { ContractError, reject } from '../base/errors.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { createDataSnapshot } from '../core/snapshots.js';
 import {
   buildProposedCatalog,
   proposedCatalogEntry,

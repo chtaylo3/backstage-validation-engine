@@ -1,4 +1,4 @@
-import { digestJson } from '../../src/core/json.js';
+import { digestJson } from '../../src/base/json.js';
 import type { EditorArtifact } from '../../src/capabilities/editor-artifacts.js';
 import type { policyRun } from './policy-fixture.js';
 

@@ -12,11 +12,11 @@ import { parseContract } from '../contracts/validate.js';
 import type { SchemaArtifact, SourceSnapshot } from '../contracts/schemas.js';
 import { createCustomKindRegistry } from '../compatibility/custom-schemas.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { deepFreeze, digestJson, immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze, digestJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
-import { approvedFilesystemUri } from './discovery.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
+import { approvedFilesystemUri } from './filesystem-scope.js';
 import { parseEditorArtifacts } from '../capabilities/editor-artifacts.js';
 
 const text = Type.String({ minLength: 1, maxLength: 4096 });

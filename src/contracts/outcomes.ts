@@ -1,5 +1,5 @@
-import type { ValidationResult } from '../contracts/schemas.js';
-import type { Immutable } from './json.js';
+import type { ValidationResult } from './schemas.js';
+import type { Immutable } from '../base/json.js';
 
 export interface DecisionEvidence {
   readonly mode: ValidationResult['mode'];

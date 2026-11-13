@@ -1,44 +1,19 @@
 import { opendir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import type { LspConfig } from './config.js';
+import { approvedFilesystemUri, discoveryMatches, DISCOVERY_EXCLUDES } from './filesystem-scope.js';
 import { builtinCapabilitySession } from '../capabilities/session.js';
 import { parseBinding } from '../capabilities/admission.js';
-import { digestJson } from '../core/json.js';
+import { digestJson } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { randomUUID } from 'node:crypto';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import type { SourceSnapshot } from '../contracts/schemas.js';
 
-const excluded = [
-  '**/node_modules/**',
-  '**/.git/**',
-  '**/.artifacts/**',
-  '**/.test-dist/**',
-  '**/dist/**',
-];
-function matches(config: LspConfig, root: string, uri: string): boolean {
-  if (!uri.startsWith(root)) return false;
-  const name = decodeURIComponent(uri.slice(root.length));
-  const settings = config.filesystem?.discovery;
-  return (
-    !!settings &&
-    settings.include.some((pattern) => path.posix.matchesGlob(name, pattern)) &&
-    ![...excluded, ...(settings.exclude ?? [])].some((pattern) =>
-      path.posix.matchesGlob(name, pattern),
-    )
-  );
-}
-export function approvedFilesystemUri(config: LspConfig, uri: string): boolean {
-  return (
-    !!config.filesystem &&
-    isCanonicalSourceUri(uri) &&
-    (config.filesystem.files.includes(uri) ||
-      !!config.filesystem.discovery?.roots.some((root) => matches(config, root, uri)))
-  );
-}
+export { approvedFilesystemUri } from './filesystem-scope.js';
+
 export function filesystemEvent(config: LspConfig, uri: string): boolean {
   return (
     approvedFilesystemUri(config, uri) ||
@@ -72,13 +47,13 @@ async function scanApprovedFiles(
         const uri = pathToFileURL(target).href;
         const relative = decodeURIComponent(uri.slice(root.length));
         if (
-          [...excluded, ...(settings.exclude ?? [])].some((pattern) =>
+          [...DISCOVERY_EXCLUDES, ...(settings.exclude ?? [])].some((pattern) =>
             path.posix.matchesGlob(`${relative}${entry.isDirectory() ? '/' : ''}`, pattern),
           )
         )
           continue;
         if (entry.isDirectory()) stack.push({ directory: target, depth: depth + 1 });
-        else if (matches(config, root, uri)) {
+        else if (discoveryMatches(config, root, uri)) {
           if (entry.isSymbolicLink() || !entry.isFile())
             throw new Error('Discovered source is not a regular file.');
           files.add(uri);

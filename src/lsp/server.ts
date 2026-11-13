@@ -23,7 +23,7 @@ import type {
   Diagnostic,
   CancellationToken,
 } from 'vscode-languageserver/node';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { parseContract } from '../contracts/validate.js';

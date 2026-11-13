@@ -1,12 +1,40 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import type { TestContext } from 'node:test';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 const execute = promisify(execFile);
+const repository = fileURLToPath(new URL('../../', import.meta.url));
+interface Boundaries {
+  readonly LAYERS: readonly (readonly string[])[];
+  checkArchitecture(root: string): Promise<string[]>;
+}
+const boundaries = async () =>
+  (await import(
+    pathToFileURL(path.join(repository, 'scripts/architecture-boundaries.mjs')).href
+  )) as Boundaries;
+const tsconfig = JSON.stringify({
+  compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext' },
+});
+async function check(t: TestContext, files: Record<string, string>) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'bve-layers-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const [name, contents] of Object.entries({ 'tsconfig.json': tsconfig, ...files })) {
+    await mkdir(path.dirname(path.join(directory, name)), { recursive: true });
+    await writeFile(path.join(directory, name), contents);
+  }
+  return (await boundaries()).checkArchitecture(directory);
+}
+const rejects = (failures: readonly string[], ...parts: string[]) =>
+  assert(
+    failures.some((failure) => parts.every((part) => failure.includes(part))),
+    `No failure names ${parts.join(' and ')}:\n${failures.join('\n')}`,
+  );
 void test('architecture checks reject adapter dependencies through aliases, barrels, type imports and module loaders', async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'bve-architecture-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -20,10 +48,10 @@ void test('architecture checks reject adapter dependencies through aliases, barr
       },
     }),
     'src/lsp/adapter.ts': 'export interface Adapter { value: string }',
-    'src/shared/barrel.ts': "export type { Adapter } from '../lsp/adapter.js';",
+    'src/lsp/barrel.ts': "export type { Adapter } from './adapter.js';",
     'src/contracts/reverse.ts':
       "import type { Adapter } from '@adapter/adapter'; export type Result = Adapter;",
-    'src/runtime/reverse.ts': "export type { Adapter } from '../shared/barrel.js';",
+    'src/runtime/reverse.ts': "export type { Adapter } from '../lsp/barrel.js';",
     'src/core/dynamic.ts': "export const load = () => import('../lsp/adapter.js');",
     'src/providers/require.ts':
       "import { createRequire } from 'node:module'; const load = createRequire(import.meta.url); load('../lsp/adapter.js');",
@@ -90,5 +118,156 @@ void test('architecture checks reject adapter dependencies through aliases, barr
     () => assert.fail('Ownership cycle passed.'),
     (error: unknown) => error as { stderr: string },
   );
-  assert.match(cycle.stderr, /Ownership dependency cycle/u);
+  assert.match(
+    cycle.stderr,
+    /Import cycle: src\/lsp\/request-context\.ts -> src\/lsp\/workspace-state\.ts -> src\/lsp\/request-context\.ts/u,
+  );
+});
+
+void test('layers reject a value import from base to contracts', async (t) => {
+  const failures = await check(t, {
+    'src/base/a.ts': "import { b } from '../contracts/b.js'; export const a = b;",
+    'src/contracts/b.ts': 'export const b = 1;',
+  });
+  rejects(failures, 'src/base/a.ts -> src/contracts/b.ts', 'upward import from base to contracts');
+});
+
+void test('layers reject a type-only import from parsing to compatibility', async (t) => {
+  const failures = await check(t, {
+    'src/parsing/a.ts': "import type { B } from '../compatibility/b.js'; export type A = B;",
+    'src/compatibility/b.ts': 'export interface B { value: string }',
+  });
+  rejects(failures, 'src/parsing/a.ts -> src/compatibility/b.ts', 'upward import');
+});
+
+void test('layers reject a dynamic import from core to pipeline', async (t) => {
+  const failures = await check(t, {
+    'src/core/a.ts': "export const load = () => import('../pipeline/b.js');",
+    'src/pipeline/b.ts': 'export const b = 1;',
+  });
+  rejects(failures, 'src/core/a.ts -> src/pipeline/b.ts', 'upward import from core to pipeline');
+});
+
+void test('layers reject an upward import through a barrel in an intermediate layer and name the chain', async (t) => {
+  const failures = await check(t, {
+    'src/base/a.ts': "export { b } from '../contracts/barrel.js';",
+    'src/contracts/barrel.ts': "export * from '../pipeline/b.js';",
+    'src/pipeline/b.ts': 'export const b = 1;',
+  });
+  rejects(
+    failures,
+    'src/base/a.ts -> src/pipeline/b.ts',
+    'src/base/a.ts -> src/contracts/barrel.ts -> src/pipeline/b.ts',
+  );
+});
+
+void test('layers accept downward and same-layer imports', async (t) => {
+  assert.deepEqual(
+    await check(t, {
+      'src/pipeline/a.ts': "import { b } from '../core/b.js'; export const a = b;",
+      'src/core/b.ts': "import { c } from './c.js'; export const b = c;",
+      'src/core/c.ts': "import type { D } from '../base/d.js'; export const c: D = 1;",
+      'src/base/d.ts': 'export type D = number;',
+    }),
+    [],
+  );
+});
+
+void test('layers reject imports between the cli and lsp peers in both directions', async (t) => {
+  const failures = await check(t, {
+    'src/cli/a.ts': "import { b } from '../lsp/b.js'; export const a = b;",
+    'src/lsp/b.ts': 'export const b = 1;',
+    'src/lsp/c.ts': "import { d } from '../cli/d.js'; export const c = d;",
+    'src/cli/d.ts': 'export const d = 1;',
+  });
+  rejects(failures, 'src/cli/a.ts -> src/lsp/b.ts', 'peer layers cli and lsp');
+  rejects(failures, 'src/lsp/c.ts -> src/cli/d.ts', 'peer layers lsp and cli');
+});
+
+void test('layers reject a file in a directory that LAYERS does not name', async (t) => {
+  const failures = await check(t, { 'src/misc/x.ts': 'export const x = 1;' });
+  rejects(failures, 'src/misc/x.ts', 'not in a layer');
+});
+
+void test('cycles reject a two-file cycle inside one layer with value and with type-only imports', async (t) => {
+  for (const [kind, importer] of [
+    ['value', (name: string) => `import { ${name} } from './${name}.js'; export const`],
+    ['type', (name: string) => `import type { ${name} } from './${name}.js'; export type`],
+  ] as const) {
+    const failures = await check(t, {
+      'src/core/a.ts': `${importer('b')} a = b;`,
+      'src/core/b.ts': `${importer('a')} b = a;`,
+    });
+    assert.deepEqual(
+      failures,
+      ['Import cycle: src/core/a.ts -> src/core/b.ts -> src/core/a.ts'],
+      `${kind} cycle`,
+    );
+  }
+});
+
+void test('cycles across two layers report a chain that names all three files', async (t) => {
+  const failures = await check(t, {
+    'src/core/a.ts': "import type { B } from './b.js'; export type A = B;",
+    'src/core/b.ts': "import type { C } from '../base/c.js'; export type B = C;",
+    'src/base/c.ts': "import type { A } from '../core/a.js'; export type C = A | string;",
+  });
+  rejects(
+    failures,
+    'Import cycle: src/base/c.ts -> src/core/a.ts -> src/core/b.ts -> src/base/c.ts',
+  );
+});
+
+void test('no file under src imports the public barrel, directly or transitively', async (t) => {
+  const failures = await check(t, {
+    'src/index.ts': "export { d } from './base/d.js';",
+    'src/base/d.ts': 'export const d = 1;',
+    'src/lsp/a.ts': "import { d } from '../index.js'; export const a = d;",
+    'src/base/a.ts': "import { d } from '../index.js'; export const a = d;",
+    'src/lsp/t.ts': "import { h } from '../host/h.js'; export const t = h;",
+    'src/host/h.ts': "export * as h from '../index.js';",
+  });
+  rejects(failures, 'src/lsp/a.ts -> src/index.ts', 'public barrel src/index.ts');
+  rejects(failures, 'src/base/a.ts -> src/index.ts', 'public barrel src/index.ts');
+  rejects(
+    failures,
+    'src/lsp/t.ts -> src/index.ts',
+    'public barrel src/index.ts',
+    'src/lsp/t.ts -> src/host/h.ts -> src/index.ts',
+  );
+});
+
+void test('packages are contained: yaml only in parsing and lsp, catalog-model only in compatibility', async (t) => {
+  const failures = await check(t, {
+    'src/policy/a.ts': "import { parse } from 'yaml'; export const a = parse;",
+    'src/parsing/b.ts': "import { parse } from 'yaml'; export const b = parse;",
+    'src/providers/c.ts':
+      "import type { Entity } from '@backstage/catalog-model'; export type C = Entity;",
+  });
+  rejects(failures, 'src/policy/a.ts -> yaml', 'parsing, lsp');
+  rejects(failures, 'src/providers/c.ts -> @backstage/catalog-model', 'compatibility');
+  assert.deepEqual(
+    failures.filter((failure) => failure.includes('src/parsing/b.ts')),
+    [],
+  );
+  assert.equal(failures.length, 2);
+});
+
+void test('the repository satisfies every architecture rule', async () => {
+  assert.deepEqual(await (await boundaries()).checkArchitecture(repository), []);
+});
+
+void test('docs/architecture.md lists the layers in LAYERS order', async () => {
+  const markdown = await readFile(path.join(repository, 'docs/architecture.md'), 'utf8');
+  const section = markdown.slice(markdown.indexOf('### Engine layers'));
+  const rows = section
+    .split('\n')
+    .filter((line) => /^\|\s*\d+\s*\|/u.test(line))
+    .map((line) =>
+      [...(line.split('|')[2] ?? '').matchAll(/`([^`]+)`/gu)].map((match) => match[1]),
+    );
+  assert.deepEqual(
+    rows,
+    (await boundaries()).LAYERS.map((names) => [...names]),
+  );
 });

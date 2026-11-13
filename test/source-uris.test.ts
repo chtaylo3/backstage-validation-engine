@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { isCanonicalSourceUri } from '../src/core/source-uris.js';
+import { isCanonicalSourceUri } from '../src/base/source-uris.js';
 
 void test('native temporary directory and file URIs retain their canonical platform spelling', () => {
   const root = join(tmpdir(), 'bve-uri-probe');

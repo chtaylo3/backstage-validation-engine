@@ -5,9 +5,9 @@ import type {
   CompatibleSourceEntity,
   SourceIdentityClaim,
 } from '../compatibility/types.js';
-import type { Immutable } from './json.js';
-import { digestJson } from './json.js';
-import { reject } from './errors.js';
+import type { Immutable } from '../base/json.js';
+import { digestJson } from '../base/json.js';
+import { reject } from '../base/errors.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 
 export const PROPOSED_CATALOG_PROVIDER = 'backstage-proposed-catalog';

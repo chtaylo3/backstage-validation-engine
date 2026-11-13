@@ -1,6 +1,7 @@
 import { Type } from '@sinclair/typebox';
 import type { Static, TProperties, TSchema } from '@sinclair/typebox';
-import { deepFreeze } from '../core/json.js';
+import { deepFreeze } from '../base/json.js';
+import type { JsonValue as StructuralJsonValue } from '../base/json.js';
 
 export const CONTRACT_VERSION = '0.2' as const;
 export const SCHEMA_DIALECT = 'http://json-schema.org/draft-07/schema#';
@@ -39,6 +40,10 @@ export const JsonValueSchema = Type.Recursive(
   { $schema: SCHEMA_DIALECT, $id: 'urn:backstage-validation:json-value:0.2' },
 );
 export type JsonValue = Static<typeof JsonValueSchema>;
+type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+// Compile-time check that the schema-derived and the structural `base/json.ts` types agree.
+const jsonValueMatchesStructuralType: MutuallyAssignable<JsonValue, StructuralJsonValue> = true;
+void jsonValueMatchesStructuralType;
 const jsonValue = () => reference(JsonValueSchema);
 
 const position = object({ line: count(), character: count() });

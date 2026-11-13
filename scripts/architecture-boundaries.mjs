@@ -3,54 +3,121 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-const domain = new Set([
-  'contracts',
-  'capabilities',
-  'core',
-  'parsing',
-  'policy',
-  'providers',
-  'compatibility',
-  'runtime',
-]);
-const ownership = new Set([
-  'src/lsp/workspace-state.ts',
-  'src/lsp/validation-coordinator.ts',
-  'src/lsp/validation-run.ts',
-  'src/lsp/request-context.ts',
-  'src/lsp/session-resources.ts',
-  'src/lsp/catalog-refresh.ts',
-  'src/lsp/diagnostic-publisher.ts',
-  'src/lsp/diagnostics.ts',
-  'src/lsp/client-edits.ts',
-  'src/lsp/config-watches.ts',
-  'src/host/catalog-config.ts',
-  'src/host/builtin-validation.ts',
-  'src/host/rule-contributions.ts',
-  'src/capabilities/editor-artifacts.ts',
-  'src/capabilities/session.ts',
-  'src/capabilities/bindings.ts',
-  'src/capabilities/builtin-metadata.ts',
-  'src/compatibility/schema-artifacts.ts',
-  'src/reporting/sarif.ts',
-]);
+/**
+ * Engine layers, lowest first. A file's layer is its top-level directory under `src/`. A file may
+ * import its own layer and any lower layer. Layers that share an entry are peers and may not import
+ * each other. `docs/architecture.md` lists the same layers in the same order.
+ */
+export const LAYERS = Object.freeze(
+  [
+    ['base'],
+    ['contracts'],
+    ['core'],
+    ['runtime'],
+    ['parsing'],
+    ['compatibility'],
+    ['policy'],
+    ['providers'],
+    ['capabilities'],
+    ['pipeline'],
+    ['reporting'],
+    ['host'],
+    ['cli', 'lsp'],
+  ].map((names) => Object.freeze(names)),
+);
+/** Packages that only the named layers may import directly. */
+export const PACKAGE_LAYERS = Object.freeze({
+  '@backstage/catalog-model': Object.freeze(['compatibility']),
+  'backstage-catalog-model-older': Object.freeze(['compatibility']),
+  '@marcbachmann/cel-js': Object.freeze(['runtime']),
+  yaml: Object.freeze(['parsing', 'lsp']),
+});
+/**
+ * `src/index.ts` sits just above this layer: it may import this layer and every lower one. No other
+ * file under `src/` may import it, directly or transitively.
+ */
+const PUBLIC_CEILING = 'reporting';
+const VSCODE_PACKAGES =
+  /^(?:vscode|vscode-languageserver|vscode-languageclient|vscode-jsonrpc)(?:$|[/-])/u;
+const ranks = new Map(LAYERS.flatMap((names, rank) => names.map((name) => [name, rank])));
 const normalize = (value) => value.replaceAll('\\', '/');
 function category(file) {
   if (file.startsWith('extensions/vscode/src/')) return 'client';
   if (file === 'src/index.ts') return 'public';
-  const segment = file.split('/')[1];
-  return domain.has(segment) ? 'domain' : segment;
+  const parts = file.split('/');
+  if (parts[0] !== 'src') return 'external';
+  return parts.length > 2 && ranks.has(parts[1]) ? parts[1] : 'unlisted';
 }
+function rank(name) {
+  return name === 'public' ? ranks.get(PUBLIC_CEILING) + 0.5 : ranks.get(name);
+}
+/** Returns why an import from `origin` to `target` is forbidden, or undefined when it is allowed. */
 function forbidden(origin, target) {
   const from = category(origin);
   const to = category(target);
-  if (from === 'domain' || from === 'host' || from === 'reporting')
-    return ['cli', 'lsp', 'client', 'host'].includes(to) && !(from === 'host' && to === 'host');
-  if (from === 'cli') return to === 'lsp' || to === 'client';
-  if (from === 'lsp') return to === 'cli' || to === 'client';
-  if (from === 'client') return target.startsWith('src/');
-  if (from === 'public') return ['cli', 'lsp', 'client', 'host'].includes(to);
-  return false;
+  if (from === 'client') return target.startsWith('src/') ? 'client imports src/' : undefined;
+  if (to === 'client') return 'imports the VS Code client';
+  if (to === 'public' && from !== 'public') return 'imports the public barrel src/index.ts';
+  if (from === 'unlisted' || to === 'unlisted' || to === 'external') return undefined;
+  if (from === to) return undefined;
+  if (rank(to) === rank(from)) return `peer layers ${from} and ${to} may not import each other`;
+  if (rank(to) > rank(from)) return `upward import from ${from} to ${to}`;
+  return undefined;
+}
+const packageName = (specifier) =>
+  specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
+/** One readable chain per strongly connected component of the file graph. */
+function cycles(graph) {
+  const index = new Map();
+  const low = new Map();
+  const stack = [];
+  const onStack = new Set();
+  const components = [];
+  let counter = 0;
+  function connect(file) {
+    index.set(file, counter);
+    low.set(file, counter++);
+    stack.push(file);
+    onStack.add(file);
+    for (const target of graph.get(file) ?? []) {
+      if (!graph.has(target)) continue;
+      if (!index.has(target)) {
+        connect(target);
+        low.set(file, Math.min(low.get(file), low.get(target)));
+      } else if (onStack.has(target)) low.set(file, Math.min(low.get(file), index.get(target)));
+    }
+    if (low.get(file) !== index.get(file)) return;
+    const component = [];
+    let member;
+    do {
+      member = stack.pop();
+      onStack.delete(member);
+      component.push(member);
+    } while (member !== file);
+    if (component.length > 1 || (graph.get(file) ?? []).includes(file))
+      components.push(new Set(component));
+  }
+  for (const file of [...graph.keys()].sort()) if (!index.has(file)) connect(file);
+  return components.map((component) => {
+    const start = [...component].sort()[0];
+    const previous = new Map([[start, undefined]]);
+    const queue = [start];
+    while (queue.length) {
+      const file = queue.shift();
+      for (const target of [...(graph.get(file) ?? [])].sort()) {
+        if (target === start) {
+          const chain = [start];
+          for (let step = file; step !== start; step = previous.get(step)) chain.splice(1, 0, step);
+          return [...chain, start];
+        }
+        if (component.has(target) && !previous.has(target)) {
+          previous.set(target, file);
+          queue.push(target);
+        }
+      }
+    }
+    return [start, start];
+  });
 }
 function dependencies(source) {
   const result = [];
@@ -148,18 +215,24 @@ export async function checkArchitecture(root) {
     externals.set(relative, packages);
   }
   const failures = new Set();
+  for (const file of graph.keys()) {
+    if (category(file) === 'unlisted')
+      failures.add(
+        `${file} is not in a layer: top-level src/ directories must be one of ${LAYERS.flat().join(', ')}`,
+      );
+    for (const pkg of externals.get(file) ?? []) {
+      const allowed = PACKAGE_LAYERS[packageName(pkg)];
+      if (allowed && file.startsWith('src/') && !allowed.includes(category(file)))
+        failures.add(`${file} -> ${pkg}: package may only be imported from ${allowed.join(', ')}`);
+    }
+  }
   for (const origin of graph.keys()) {
     const visited = new Set();
     function visit(file, chain) {
       if (visited.has(file)) return;
       visited.add(file);
       for (const pkg of externals.get(file) ?? []) {
-        if (
-          ['domain', 'host', 'reporting', 'cli', 'public'].includes(category(origin)) &&
-          /^(?:vscode|vscode-languageserver|vscode-languageclient|vscode-jsonrpc)(?:$|[/-])/u.test(
-            pkg,
-          )
-        )
+        if (!['lsp', 'client'].includes(category(origin)) && VSCODE_PACKAGES.test(pkg))
           failures.add(`${origin} -> ${pkg} via ${[...chain, file].join(' -> ')}`);
         if (
           category(origin) === 'client' &&
@@ -168,15 +241,18 @@ export async function checkArchitecture(root) {
           failures.add(`${origin} -> ${pkg}`);
       }
       for (const target of graph.get(file) ?? []) {
-        if (target === origin && ownership.has(origin))
-          failures.add(`Ownership dependency cycle: ${[...chain, file, target].join(' -> ')}`);
-        if (forbidden(origin, target))
-          failures.add(`${origin} -> ${target} via ${[...chain, file].join(' -> ')}`);
+        const reason = forbidden(origin, target);
+        if (reason)
+          failures.add(
+            `${origin} -> ${target} (${reason}) via ${[...chain, file, target].join(' -> ')}`,
+          );
         visit(target, [...chain, file]);
       }
     }
     visit(origin, []);
   }
+  const sources = new Map([...graph].filter(([file]) => file.startsWith('src/')));
+  for (const chain of cycles(sources)) failures.add(`Import cycle: ${chain.join(' -> ')}`);
   return [...failures].sort();
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

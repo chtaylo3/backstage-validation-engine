@@ -1,9 +1,9 @@
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
 import type { DataEntry } from '../contracts/schemas.js';
-import { deepFreeze, digestJson, digestText, canonicalJson, immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze, digestJson, digestText, canonicalJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
-import { ContractError } from '../core/errors.js';
+import { ContractError } from '../base/errors.js';
 import { FailureTimer } from '../runtime/failure-evidence.js';
 import type { FailureStage } from '../runtime/failure-evidence.js';
 import { RequestBudget } from '../runtime/request-budget.js';

@@ -35,7 +35,7 @@ import {
 import { editorArtifact } from './harness/editor-artifact.js';
 import { startLspClient } from './harness/lsp-client.js';
 import { fixPolicy } from './harness/fix-fixture.js';
-import { digestJson, digestText } from '../src/core/json.js';
+import { digestJson, digestText } from '../src/base/json.js';
 import { URI } from './helpers.js';
 import { attachLspServer } from '../src/lsp/server.js';
 import { closeSharedCelRuntime } from '../src/runtime/cel/index.js';

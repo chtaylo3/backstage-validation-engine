@@ -1,7 +1,7 @@
 import { normalizeCatalogAccess } from '../providers/catalog.js';
 import { CatalogFailure } from '../providers/types.js';
 import { abortable } from '../providers/async.js';
-import { digestJson } from '../core/json.js';
+import { digestJson } from '../base/json.js';
 import type {
   CatalogAccessContext,
   CatalogProvider,

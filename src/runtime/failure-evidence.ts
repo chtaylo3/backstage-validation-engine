@@ -1,4 +1,4 @@
-import { ContractError } from '../core/errors.js';
+import { ContractError } from '../base/errors.js';
 import { CelError } from './cel/errors.js';
 import { BudgetAdmissionError } from './request-budget.js';
 

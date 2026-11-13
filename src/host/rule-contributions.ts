@@ -1,9 +1,9 @@
 import type { Finding, JsonValue } from '../contracts/schemas.js';
 import type { EditorArtifact } from '../capabilities/editor-artifacts.js';
-import { digestJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { validatePolicySources } from '../core/policy-sources.js';
-import type { PolicySourceContext } from '../core/policy-sources.js';
+import { digestJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { validatePolicySources } from '../pipeline/policy-sources.js';
+import type { PolicySourceContext } from '../pipeline/policy-sources.js';
 import { createDataSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
 import { parseContract } from '../contracts/validate.js';
 import { SourceLineIndex } from '../parsing/locations.js';

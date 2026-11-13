@@ -1,9 +1,9 @@
 import { setImmediate as yieldTurn } from 'node:timers/promises';
 import type { DeploymentProfile, JsonValue, SourceSnapshot } from '../contracts/schemas.js';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createSourceSnapshot } from '../core/snapshots.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
 import { locateParsedPath, parseSourceSnapshot, SourceLineIndex } from '../parsing/index.js';
 import { childPointer } from '../parsing/locations.js';
 import type {

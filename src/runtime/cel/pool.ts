@@ -1,6 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import type { JsonValue } from '../../contracts/schemas.js';
-import type { Immutable } from '../../core/json.js';
+import type { Immutable } from '../../base/json.js';
 import type { EvaluationContext } from '../request-budget.js';
 import { cancellationError, CelError } from './errors.js';
 import { snapshotCelInput } from './input.js';

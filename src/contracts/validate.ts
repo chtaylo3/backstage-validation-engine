@@ -15,14 +15,14 @@ import type {
   ValidationResult,
 } from './schemas.js';
 import { contractSchemas } from './schemas.js';
-import { ContractError, reject } from '../core/errors.js';
-import { canonicalJson, deepFreeze, digestJson, digestText } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { orderRules } from '../policy/rule-graph.js';
-import { compileReferenceContexts } from '../policy/reference-contexts.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
-import { decideOutcome } from '../core/outcomes.js';
-import { validateAdmissionProfile } from '../policy/admission.js';
+import { ContractError, reject } from '../base/errors.js';
+import { canonicalJson, deepFreeze, digestJson, digestText } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { orderRules } from './rule-graph.js';
+import { compileReferenceContexts } from './reference-contexts.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
+import { decideOutcome } from './outcomes.js';
+import { validateAdmissionProfile } from './admission.js';
 
 export interface ContractTypes {
   'json-value': JsonValue;

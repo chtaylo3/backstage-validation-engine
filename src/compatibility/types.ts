@@ -4,24 +4,16 @@ import type {
   JsonValue,
   ValidationResult,
 } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
+
+export { BUILTIN_KINDS } from '../contracts/kinds.js';
 
 export const BACKSTAGE_ADAPTER_IDS = Object.freeze([
   '@backstage/catalog-model@1.10.2',
   '@backstage/catalog-model@1.7.5',
 ] as const);
 export type BackstageAdapterId = (typeof BACKSTAGE_ADAPTER_IDS)[number];
-export const BUILTIN_KINDS = Object.freeze([
-  'Component',
-  'API',
-  'Group',
-  'User',
-  'Resource',
-  'System',
-  'Domain',
-  'Location',
-] as const);
 export type NativePolicyName =
   | 'schema'
   | 'default_namespace'

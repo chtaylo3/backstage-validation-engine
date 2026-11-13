@@ -8,8 +8,8 @@ import type {
   TextEdit,
 } from 'vscode-languageserver/node';
 import type { Finding, JsonValue, ValidationRequest } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { digestText, immutableJson } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import { digestText, immutableJson } from '../base/json.js';
 import { builtinMetadataSession } from '../capabilities/builtin-metadata.js';
 import { capabilityBinding } from '../capabilities/bindings.js';
 import type { CapabilitySession } from '../capabilities/session.js';
@@ -23,7 +23,7 @@ import { BUILTIN_KINDS } from '../compatibility/types.js';
 import { getSharedCelRuntime } from '../runtime/cel/index.js';
 import { ParsingBudget } from '../parsing/budget.js';
 import { SourceLineIndex } from '../parsing/locations.js';
-import { admitsKind } from '../policy/admission.js';
+import { admitsKind } from '../contracts/admission.js';
 import { editorDocuments, editorTarget } from './editor-documents.js';
 import type { EditorDocument, EditorFile } from './editor-documents.js';
 import {
@@ -37,7 +37,7 @@ import {
 import type { EditorSchema, ResolvedField } from './editor-schemas.js';
 import type { FixDocument, SuggestedFix } from './fixes.js';
 import type { LspConfig } from './config.js';
-import type { validatePolicySources } from '../core/policy-sources.js';
+import type { validatePolicySources } from '../pipeline/policy-sources.js';
 import type { PreparedRuleMetadata } from '../host/rule-contributions.js';
 import { RULE_EDITOR_LIMITS } from '../host/rule-contributions.js';
 

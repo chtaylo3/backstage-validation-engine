@@ -2,14 +2,14 @@ import type { DataEntry, DeploymentProfile, ValidationRequest } from '../contrac
 import type { BackstageSourceReference } from '../compatibility/types.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
 import { extractEntityReferences } from '../compatibility/references.js';
-import { compileReferenceContexts } from '../policy/reference-contexts.js';
+import { compileReferenceContexts } from '../contracts/reference-contexts.js';
 import { catalogEntityKey } from '../providers/catalog.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import type { ReferenceDataPreparation } from './reference-data.js';
-import type { RuleSubject } from './cel-rules.js';
-import { digestJson, immutableJson } from './json.js';
-import type { Immutable } from './json.js';
-import { reject } from './errors.js';
+import type { RuleSubject } from './types.js';
+import { digestJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 import {
   buildProposedCatalog,
   proposedCatalogEntry,

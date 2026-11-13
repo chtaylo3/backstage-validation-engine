@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
-import type { JsonValue } from '../contracts/schemas.js';
 import { reject } from './errors.js';
+
+/**
+ * Structural JSON value. `contracts/schemas.ts` derives the same type from `JsonValueSchema` and
+ * checks at compile time that the two stay mutually assignable.
+ */
+export type JsonValue =
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export type Immutable<T> = T extends readonly (infer U)[]
   ? readonly Immutable<U>[]

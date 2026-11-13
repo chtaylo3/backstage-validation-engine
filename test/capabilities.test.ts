@@ -25,8 +25,8 @@ import type {
   CapabilityOutputs,
   HostHandshake,
 } from '../src/capabilities/index.js';
-import type { Immutable } from '../src/core/json.js';
-import { digestJson } from '../src/core/json.js';
+import type { Immutable } from '../src/base/json.js';
+import { digestJson } from '../src/base/json.js';
 import { policyRun } from './harness/policy-fixture.js';
 import { BuiltinValidationService } from '../src/host/builtin-validation.js';
 import { createDataSnapshot } from '../src/core/snapshots.js';

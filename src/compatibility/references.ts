@@ -1,10 +1,10 @@
 import { setImmediate as yieldTurn } from 'node:timers/promises';
 import type { JsonValue } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import { childPointer, locateParsedPath } from '../parsing/locations.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
-import { isArrayIndex, REFERENCE_LIMITS } from '../policy/reference-contexts.js';
-import type { ReferencePattern } from '../policy/reference-contexts.js';
+import { isArrayIndex, REFERENCE_LIMITS } from '../contracts/reference-contexts.js';
+import type { ReferencePattern } from '../contracts/reference-contexts.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import { BackstageRuntimeError } from './types.js';
 import type { BackstageAdapter, BackstageSourceReference } from './types.js';

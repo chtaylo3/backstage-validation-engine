@@ -7,8 +7,8 @@ import type {
   WorkspaceEdit,
 } from 'vscode-languageserver/node';
 import type { Finding, SourceSnapshot } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { digestText } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import { digestText } from '../base/json.js';
 import { SourceLineIndex } from '../parsing/locations.js';
 
 export const APPLY_FIX_COMMAND = 'bve.applyFix';

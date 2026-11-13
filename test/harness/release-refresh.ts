@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { digestJson } from '../../src/core/json.js';
+import { digestJson } from '../../src/base/json.js';
 import { parsePinnedInventory } from './pinned-matrix.js';
 import type { PinnedInventory } from './pinned-matrix.js';
 import { selectLatestReleaseVersions } from './version-matrix.js';

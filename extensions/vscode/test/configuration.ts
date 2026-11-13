@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { digestJson } from '../../../src/core/json.js';
+import { digestJson } from '../../../src/base/json.js';
 import assert from 'node:assert/strict';
 import { until } from './readiness.js';
 import type { Fixture } from './fixture.js';

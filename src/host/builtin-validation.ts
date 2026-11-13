@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { validatePolicySources } from '../core/policy-sources.js';
-import type { PolicySourceContext } from '../core/policy-sources.js';
+import { validatePolicySources } from '../pipeline/policy-sources.js';
+import type { PolicySourceContext } from '../pipeline/policy-sources.js';
 import type { ValidationRequest } from '../contracts/schemas.js';
-import { canonicalJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { canonicalJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { capabilityBinding, capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import { builtinCapabilitySession } from '../capabilities/session.js';
 import { CapabilityError } from '../capabilities/admission.js';

@@ -12,26 +12,26 @@ import type {
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
 import { verifyRequestBindings } from '../core/bindings.js';
-import { ContractError } from '../core/errors.js';
-import { canonicalJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { ContractError } from '../base/errors.js';
+import { canonicalJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createFindingId } from '../core/results.js';
 import { locateParsedPath, parseSourceSnapshot, parsingFindings } from '../parsing/index.js';
 import type { ParsedSourceDocument } from '../parsing/index.js';
 import { CelError } from '../runtime/cel/errors.js';
 import { RequestBudget } from '../runtime/request-budget.js';
-import { compileReferenceContexts } from '../policy/reference-contexts.js';
+import { compileReferenceContexts } from '../contracts/reference-contexts.js';
 import { extractEntityReferences } from './references.js';
 import { loadBackstageAdapter } from './adapter.js';
 import { BackstageRuntimeError } from './types.js';
-import { admitsKind } from '../policy/admission.js';
+import { admitsKind } from '../contracts/admission.js';
 import { createCustomKindRegistry } from './custom-schemas.js';
 import {
   processingCoverage,
   processingFinding,
   PROCESSING_UNAVAILABLE,
 } from '../core/processing.js';
-import { reject } from '../core/errors.js';
+import { reject } from '../base/errors.js';
 import {
   SnapshotSourceResolver,
   SourceResolutionError,

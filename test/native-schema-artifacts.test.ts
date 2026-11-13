@@ -7,7 +7,7 @@ import {
   resolveNativePackage,
 } from '../src/compatibility/schema-artifacts.js';
 import { BACKSTAGE_ADAPTER_IDS } from '../src/compatibility/types.js';
-import { validatePolicySources } from '../src/core/policy-sources.js';
+import { validatePolicySources } from '../src/pipeline/policy-sources.js';
 import { parseLspConfig } from '../src/lsp/config.js';
 import { EditorService } from '../src/lsp/editor.js';
 import { componentText, policyRun } from './harness/policy-fixture.js';

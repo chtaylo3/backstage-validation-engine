@@ -2,10 +2,10 @@ import { createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import type { PolicyRelease } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
 import { createCustomKindRegistry, createSchemaRegistry } from '../compatibility/custom-schemas.js';
-import { canonicalJson, deepFreeze, digestJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
-import { orderRules } from './rule-graph.js';
+import { canonicalJson, deepFreeze, digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
+import { orderRules } from '../contracts/rule-graph.js';
 import { POLICY_BUNDLE_LIMITS, resolvePolicyBundles } from './bundles.js';
 
 export type PolicyReleasePayload = Omit<PolicyRelease, 'signature'>;

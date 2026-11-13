@@ -16,5 +16,5 @@ export type {
   SourceSubstitution,
   BackstageCompatibilityReport,
 } from './types.js';
-export { REFERENCE_LIMITS } from '../policy/reference-contexts.js';
+export { REFERENCE_LIMITS } from '../contracts/reference-contexts.js';
 export { CUSTOM_SCHEMA_LIMITS } from './custom-schemas.js';

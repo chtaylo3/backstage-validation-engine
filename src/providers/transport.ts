@@ -1,8 +1,8 @@
 import type { BackstageAdapter } from '../compatibility/types.js';
 import type { JsonValue } from '../contracts/schemas.js';
-import { ContractError } from '../core/errors.js';
-import { canonicalJson, immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { ContractError } from '../base/errors.js';
+import { canonicalJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import type { FailureStage } from '../runtime/failure-evidence.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';

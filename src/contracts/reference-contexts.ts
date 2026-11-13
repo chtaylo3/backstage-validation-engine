@@ -1,6 +1,6 @@
-import type { DeploymentProfile } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
+import type { DeploymentProfile } from './schemas.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 
 export const REFERENCE_LIMITS = Object.freeze({
   contexts: 256,

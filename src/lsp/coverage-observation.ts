@@ -1,4 +1,4 @@
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import type { ValidationResult } from '../contracts/schemas.js';
 
 /** Read-only host-approved projection. It contains no catalog access or credential configuration. */

@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { canonicalJson, digestJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { canonicalJson, digestJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { cancellationError } from '../runtime/cel/errors.js';
 import { parseContract } from '../contracts/validate.js';
 import { childPointer } from '../parsing/locations.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
 import {
   CapabilityError,
   parseBinding,

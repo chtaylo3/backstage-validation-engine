@@ -20,12 +20,49 @@ These are logical boundaries. Start in one package and split packages when their
 or distribution requirements justify it. Developer installation does not require a broker, database,
 or central validation service.
 
+### Engine layers
+
+Every top-level directory under `src/` is one layer. The layers are ordered, lowest first. A file
+may import its own layer and any lower layer, directly or through other files. Layers in the same
+row are peers and may not import each other.
+
+| Order | Layer           | Contents                                                                           |
+| ----- | --------------- | ---------------------------------------------------------------------------------- |
+| 1     | `base`          | Errors, canonical JSON and digests, source URIs. No internal imports.              |
+| 2     | `contracts`     | Schemas, `parseContract`, and the semantic invariants that `parseContract` applies |
+| 3     | `core`          | Snapshots, results, request bindings, processor coverage helpers                   |
+| 4     | `runtime`       | Request budget, failure evidence, managed CEL runtime                              |
+| 5     | `parsing`       | Source parser                                                                      |
+| 6     | `compatibility` | Native Backstage adapters, substitutions, custom schemas, source validation        |
+| 7     | `policy`        | Bundles, default profile, signed releases                                          |
+| 8     | `providers`     | Catalog provider and transport                                                     |
+| 9     | `capabilities`  | Capability contracts and sessions                                                  |
+| 10    | `pipeline`      | Reference preparation, rule execution, pipeline composition, verified result       |
+| 11    | `reporting`     | SARIF                                                                              |
+| 12    | `host`          | Host catalog configuration, built-in validation, rule contributions                |
+| 13    | `cli`, `lsp`    | Adapters. Peers: neither may import the other.                                     |
+
+`src/index.ts` is the public barrel and may import layers 1 to 11 only. Nothing under `src/`
+imports it, directly or through another file. The VS Code client in `extensions/vscode/src` may
+not import `src/` or the package, and nothing imports the client.
+
+`npm run architecture:check` runs `scripts/architecture-boundaries.mjs`, whose `LAYERS` list holds
+the same order as this table. Type-only imports, re-exports, `import()`, and `createRequire` loaders
+count as imports. The check also enforces these rules:
+
+- No file-level import cycle exists anywhere in `src/`.
+- A file outside a listed layer directory fails the check.
+- The VS Code packages are imported only from `lsp` and the client.
+- `@backstage/catalog-model` and `backstage-catalog-model-older` are imported only from
+  `compatibility`, `@marcbachmann/cel-js` only from `runtime`, and `yaml` only from `parsing` and
+  `lsp`.
+
 ## Implemented editor and host ownership
 
 CLI and LSP use neutral catalog admission and construction from `src/host/catalog-config.ts`.
 The catalog file does not replace authority from a verified release or trusted editor launcher.
 The root SARIF export uses neutral reporting. The CLI module path remains a compatibility wrapper.
-The import policy rejects reverse domain dependencies and cycles among extracted ownership modules.
+The import policy enforces the engine layers above and rejects every file-level import cycle.
 
 The LSP composition root registers protocol handlers and negotiates client capabilities.
 Its owners separate mutable source state, scheduling, session resources, requests, and publication:

@@ -1,7 +1,7 @@
-import type { DeploymentProfile } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
-import { BUILTIN_KINDS } from '../compatibility/types.js';
+import type { DeploymentProfile } from './schemas.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
+import { BUILTIN_KINDS } from './kinds.js';
 
 /** Canonical source names only; a trailing slash denotes a directory prefix. */
 export function isAdmissionSource(value: string): boolean {

@@ -1,7 +1,7 @@
 import type { JsonValue } from '../../contracts/schemas.js';
-import { canonicalJson, deepFreeze } from '../../core/json.js';
-import type { Immutable } from '../../core/json.js';
-import { ContractError } from '../../core/errors.js';
+import { canonicalJson, deepFreeze } from '../../base/json.js';
+import type { Immutable } from '../../base/json.js';
+import { ContractError } from '../../base/errors.js';
 import { CelError } from './errors.js';
 import { CEL_LIMITS } from './limits.js';
 

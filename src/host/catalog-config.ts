@@ -5,8 +5,8 @@ import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import type { DeploymentProfile, ValidationRequest } from '../contracts/schemas.js';
-import { immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
 
