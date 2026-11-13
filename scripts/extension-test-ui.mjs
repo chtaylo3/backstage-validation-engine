@@ -155,6 +155,39 @@ export class Workbench {
     await this.clickAt(rectangle);
     return rectangle.text;
   }
+  /**
+   * Clicks a named control and confirms that the click took effect; `settled` is the caller's
+   * evidence of the effect. A press can move the control, because focus scrolls its pane, and a
+   * release that lands beside the moved control focuses it without activating it. The control is
+   * then still offered and nothing has changed, which is when a person clicks again. Every click
+   * is native input on the visible control. Returns the text of each control clicked.
+   *
+   * It stops without a further click when the effect is confirmed, when the control is no longer
+   * offered, or after `attempts` clicks. It never fails for a missing effect: the caller's own
+   * wait reports that.
+   */
+  async clickUntil(pattern, settled, { attempts = 3, graceMs = 3000 } = {}) {
+    const clicked = [await this.click(pattern)];
+    for (;;) {
+      const end = Date.now() + graceMs;
+      for (;;) {
+        if (await settled()) return clicked;
+        if (Date.now() >= end) break;
+        await pause(30);
+      }
+      if (clicked.length >= attempts) return clicked;
+      let offered;
+      try {
+        offered = await this.rectangle(pattern);
+        if (!offered) return clicked;
+        await this.clickAt(offered);
+      } catch {
+        // The control went away while it was being clicked again, so the first click worked.
+        return clicked;
+      }
+      clicked.push(offered.text);
+    }
+  }
   async clickAt(rectangle, count = 1) {
     // Native scrolling and workbench layout can move a previously found control.
     // Reacquire it after paint and require its center to hit the intended element.
@@ -335,8 +368,12 @@ export async function controlTrust({ port, base, stage, isExited }) {
       } else if (state.step === 'grant') {
         await browser.trustPane();
         await browser.screenshot(path.join(base, `${stage}-before-grant.png`));
-        const button = await browser.click('^Trust(?:\\s|$)');
-        await record('clicked-grant', { button });
+        // The scenario leaves the grant step once the editor reports the folder as trusted.
+        const clicked = await browser.clickUntil('^Trust(?:\\s|$)', async () => {
+          const next = await read(control);
+          return !!next && next.step !== 'grant';
+        });
+        await record('clicked-grant', { button: clicked[0], clicks: clicked.length });
       } else if (state.step === 'revoke') {
         await browser.trustPane(true);
         const epoch = browser.epoch;
