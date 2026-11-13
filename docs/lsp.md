@@ -108,6 +108,9 @@ on shutdown or EOF.
 ## Internal state and resource ownership
 
 `attachLspServer` composes the workspace, validation coordinator, resource generations, and protocol handlers.
+It builds one server context (`src/lsp/server-context.ts`) that holds the owners, the connection lifecycle, the client features accepted at `initialize`, and the latest coverage and filesystem observations.
+The handler modules in `src/lsp/handlers/` register the lifecycle, document, language, and custom `bve/` methods over that context and keep no state of their own.
+`EditorService` is a facade over the indexing, rule contribution, completion, navigation, and repair modules in `src/lsp/editor/`.
 Features consume immutable document views. A document lifetime changes after close and reopen, even with the same URI and version.
 Source capture commits only when its disk and workspace generations remain current.
 

@@ -1,0 +1,70 @@
+[
+  {
+    "name": "acceptsReference",
+    "kind": "method"
+  },
+  {
+    "name": "capabilities",
+    "kind": "property"
+  },
+  {
+    "name": "close",
+    "kind": "method"
+  },
+  {
+    "name": "complete",
+    "kind": "method"
+  },
+  {
+    "name": "definition",
+    "kind": "method"
+  },
+  {
+    "name": "expireRules",
+    "kind": "method"
+  },
+  {
+    "name": "hover",
+    "kind": "method"
+  },
+  {
+    "name": "installRuleContributions",
+    "kind": "method"
+  },
+  {
+    "name": "invalidate",
+    "kind": "method"
+  },
+  {
+    "name": "record",
+    "kind": "method"
+  },
+  {
+    "name": "refine",
+    "kind": "method"
+  },
+  {
+    "name": "renderRuleCandidate",
+    "kind": "method"
+  },
+  {
+    "name": "repairs",
+    "kind": "method"
+  },
+  {
+    "name": "ruleExpiresAt",
+    "kind": "accessor"
+  },
+  {
+    "name": "rulePreparationExpired",
+    "kind": "accessor"
+  },
+  {
+    "name": "ruleRepairs",
+    "kind": "method"
+  },
+  {
+    "name": "update",
+    "kind": "method"
+  }
+]

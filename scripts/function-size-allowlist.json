@@ -12,15 +12,6 @@
   "src/lsp/editor-documents.ts": {
     "editorTarget": 151
   },
-  "src/lsp/filesystem.ts": {
-    "createFilesystemSource": 207
-  },
-  "src/lsp/server.ts": {
-    "attachLspServer": 597
-  },
-  "src/lsp/validation-run.ts": {
-    "runValidation": 268
-  },
   "src/parsing/parser.ts": {
     "parseSourceSnapshot": 182
   },
