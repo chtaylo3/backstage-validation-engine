@@ -3,6 +3,7 @@ import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient
 export const RevealOutputChannelOn = { Never: 4 };
 export const CloseAction = { DoNotRestart: 1, Restart: 2 };
 export const ErrorAction = { Continue: 1, Shutdown: 2 };
+export const LSPErrorCodes = { ContentModified: -32801 };
 export const clients: LanguageClient[] = [];
 export let starting: (() => Promise<void>) | undefined;
 export let stopping: (() => Promise<void>) | undefined;

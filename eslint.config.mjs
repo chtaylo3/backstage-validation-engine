@@ -31,6 +31,52 @@ export default tseslint.config(
     },
   },
   {
+    // Engine decisions read time through an injected `Clock` (src/base/clock.ts), never directly.
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Date',
+          property: 'now',
+          message: 'Read wall time through an injected Clock (src/base/clock.ts).',
+        },
+        {
+          object: 'performance',
+          property: 'now',
+          message: 'Read monotonic time through an injected Clock (src/base/clock.ts).',
+        },
+      ],
+    },
+  },
+  {
+    // Every exported name is a decision: barrels list their names instead of `export *`.
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message: 'Export names explicitly; `export *` makes every new export public by accident.',
+        },
+      ],
+    },
+  },
+  {
+    // The real-time allowlist. Each file measures real elapsed time on purpose:
+    // - src/base/clock.ts: the systemClock implementation.
+    // - src/runtime/cel/pool.ts: worker supervision with real timers across the worker boundary.
+    // - src/parsing/budget.ts: cooperative yielding by real elapsed CPU time.
+    // - src/compatibility/adapter.ts: the native-call yield loop, by real elapsed CPU time.
+    files: [
+      'src/base/clock.ts',
+      'src/runtime/cel/pool.ts',
+      'src/parsing/budget.ts',
+      'src/compatibility/adapter.ts',
+    ],
+    rules: { 'no-restricted-properties': 'off' },
+  },
+  {
     files: ['**/*.mjs'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
   },

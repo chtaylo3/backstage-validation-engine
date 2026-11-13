@@ -21,9 +21,11 @@ export function verifyResourceGrowth(
   samples: ResourceSample[],
   budgets: GrowthBudgets,
   requireMeasurement = true,
+  requireSlope = false,
 ): void {
   for (const side of ['client', 'server'] as const) {
     let measured = 0;
+    let slopes = 0;
     const generations =
       side === 'client'
         ? [samples]
@@ -33,8 +35,7 @@ export function verifyResourceGrowth(
     for (const generation of generations) {
       const origin = generation[0]?.operation;
       if (origin === undefined) continue;
-      const warmed = generation.filter((row) => row.operation - origin >= budgets.warmupOperations);
-      const warm = warmed.slice(Math.floor(warmed.length / 4));
+      const warm = generation.filter((row) => row.operation - origin >= budgets.warmupOperations);
       if (warm.length < 3) continue;
       measured++;
       const first = warm[0]!,
@@ -50,6 +51,7 @@ export function verifyResourceGrowth(
         side + ' handle growth',
       );
       if (last.operation - first.operation >= 100) {
+        slopes++;
         const meanX = warm.reduce((sum, row) => sum + row.operation, 0) / warm.length;
         const meanY = warm.reduce((sum, row) => sum + row[side].rssMiB, 0) / warm.length;
         const slope =
@@ -58,6 +60,8 @@ export function verifyResourceGrowth(
         assert(slope <= budgets.growthMiBPerOperation, side + ' growth per operation');
       }
     }
+    if (requireSlope)
+      assert(slopes > 0, side + ' needs a measured slope spanning at least 100 operations');
     if (requireMeasurement)
       assert(measured > 0, side + ' needs enough samples after warmup in a live generation');
   }

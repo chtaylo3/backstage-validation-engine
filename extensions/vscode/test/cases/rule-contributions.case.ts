@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
-import { until, guardedCommand } from '../fixture.js';
+import { sameFile, until, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
+import { configuration, reload } from '../configuration.js';
+import { digestJson } from '../../../../src/base/json.js';
 
 export async function run(fixture: Fixture): Promise<void> {
   const document = await fixture.document();
@@ -97,8 +99,91 @@ export async function run(fixture: Fixture): Promise<void> {
     'CEL and RE2 agree after the real editor change',
   );
   assert(fixture.has('production-only'), 'Unrelated validation remains authoritative.');
+  await fixture.alive(pid, document);
   assert.equal(fixture.pid(), pid);
   fixture.note(
     'Finite CEL/RE2 choices collected fresh catalog facts, refreshed candidate-only dependencies without edits, rejected a stale token, and passed post-edit validation.',
+  );
+  const initial = await configuration();
+  const repairedText = document.getText(),
+    repairedVersion = document.version;
+  try {
+    for (const [expression, blocked] of [
+      ["{'a': 1, 'a': 2}['a'] == 2", true],
+      ['{entity.kind: 1, entity.kind: 2}[entity.kind] == 2', true],
+      ['{entity.kind: 1, entity.apiVersion: 2}[entity.kind] == 2', false],
+    ] as const) {
+      const before = await fixture.observed(document);
+      const policy = {
+        ...initial.policy,
+        rules: [
+          ...initial.policy.rules,
+          {
+            id: 'map-keys',
+            version: '1',
+            kind: 'cel' as const,
+            mandatory: true,
+            severity: 'error' as const,
+            requires: [],
+            selector: 'entity.kind == "Component"',
+            expression,
+          },
+        ],
+      };
+      await reload(
+        {
+          ...initial,
+          policy,
+          editorArtifacts: [],
+          activation: { ...initial.activation, policyDigest: digestJson(policy) },
+        },
+        fixture,
+      );
+      const observation = await fixture.observed(document, before.generation);
+      assert.equal(observation.policyDigest, digestJson(policy));
+      // A rule subject names its document in the server's spelling of the URI.
+      const observed = observation.documents.find((row) => sameFile(row.uri, document.uri));
+      assert(observed);
+      const coverage = observation.coverage.find(
+        (row) =>
+          row.stage === 'rules' &&
+          row.subject === JSON.stringify([JSON.stringify([observed.uri, 0]), 'map-keys']),
+      );
+      assert(coverage?.required);
+      assert.equal(coverage.status, blocked ? 'blocked' : 'verified');
+      await until(() => {
+        const diagnostic = vscode.languages
+          .getDiagnostics(document.uri)
+          .find((row) => row.code === 'production-only');
+        const data = (
+          diagnostic as
+            | (vscode.Diagnostic & {
+                data?: {
+                  version?: number;
+                  fixGeneration?: number;
+                  execution?: { stage: string; cause: string }[];
+                };
+              })
+            | undefined
+        )?.data;
+        if (
+          data?.version !== document.version ||
+          (data.fixGeneration ?? -1) < observation.generation
+        )
+          return false;
+        const failed =
+          data.execution?.some((row) => row.stage === 'rules' && row.cause === 'rule_failure') ??
+          false;
+        return failed === blocked && fixture.has('map-keys') === !blocked;
+      }, 'current-generation execution evidence or ordinary distinct-key violation');
+      await fixture.alive(pid, document);
+      assert.equal(document.getText(), repairedText);
+      assert.equal(document.version, repairedVersion);
+    }
+  } finally {
+    await reload(initial, fixture);
+  }
+  fixture.note(
+    'Pinned CEL rejects literal/computed duplicate keys and recovers with distinct keys through the installed client.',
   );
 }

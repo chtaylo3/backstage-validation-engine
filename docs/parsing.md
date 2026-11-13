@@ -19,7 +19,7 @@ Passing parsing does not attest native Backstage compatibility, resolve source s
 authorize admission, or execute organization policy. This parsing increment alone does not complete
 BC-01 through BC-07. Each case requires its corresponding pipeline stage.
 
-The [48 parser acceptance checks](../test/parsing.test.ts) exercise this register. The parsing
+The [48 parser acceptance checks](../test/engine/parsing.test.ts) exercise this register. The parsing
 increment brought the local suite to 138 checks, including contracts and managed CEL qualification.
 Subsequent totals are tracked in the [implementation status](implementation-status.md). Native
 IDE/OS and hosted scale qualification remain release work.
@@ -131,3 +131,23 @@ npm run example:parse
 
 The example emits a parsed catalog fixture, its captured buffer version, a precise `/metadata/name`
 location, and parse coverage. It does not claim the complete Backstage validation pipeline ran.
+
+## Independent specification and default boundary controls
+
+The [independent vectors](../test/fixtures/conformance/README.md) cite the YAML 1.2.2 core-schema table.
+The tests exercise all seven explicit JSON-compatible tags and the `%YAML 1.2` directive.
+Authored alias keys remain excluded. Non-finite scalars and timestamp tags retain their declared failures.
+
+Byte limits count UTF-8 bytes. Depth counts edges from the root at depth zero.
+All count and byte ceilings admit equality and reject the first excess unit.
+The [default controls](../test/engine/default-boundaries.test.ts) retain multibyte byte fixtures and exact quotas.
+Quoted scalar sequences reach 100,000 syntax nodes and 100,000 expanded values at 200,000 lexical tokens.
+An extra scalar crosses the token ceiling before syntax admission.
+The tests separately cross the expanded-value ceiling with 48 aliases and fewer authored nodes.
+Alias expansion reaches exactly one MiB per document and 16 MiB across documents.
+A single extra expanded byte fails. These controls retain the default five-second request budget.
+
+Snapshot admission rejects raw files above one MiB and aggregate source above 16 MiB before parsing.
+The parser cannot admit a larger raw source by changing its own limit.
+The diagnostic quota admits 1,000 errors within one document. The next error produces a terminal resource diagnostic.
+A terminal diagnostic replaces the final quota row. It does not silently discard the resource failure.

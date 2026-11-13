@@ -13,8 +13,8 @@ establish complete Backstage ingestion or verified policy authority.
 
 The LSP ownership separation completed phases 0 through 9 and merged in PR #2.
 Its native VS Code and real SSH, dev-container, and Windows WSL2 qualification passed for the recorded candidate.
-See the [current qualification record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
+See the [current qualification record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
 Later dated increment sections retain their historical qualification scope.
 
 ## Explicit catalog rules
@@ -108,6 +108,19 @@ on shutdown or EOF.
 ## Internal state and resource ownership
 
 `attachLspServer` composes the workspace, validation coordinator, resource generations, and protocol handlers.
+It builds one server context (`src/lsp/server-context.ts`) that holds the owners, the connection lifecycle, the client features accepted at `initialize`, and the latest coverage and filesystem observations.
+The handler modules in `src/lsp/handlers/` register the lifecycle, document, language, and custom `bve/` methods over that context and keep no state of their own.
+The custom method names, payload types, and payload guards come from the dependency-free `src/protocol/` module (package entry point `./protocol`), which the VS Code client also bundles.
+
+Admission rule for client-to-server methods. A request outside the initialized state is rejected:
+with `-32002` (not initialized) before `initialize`, and with `-32600` (invalid request) after
+`shutdown`. A notification outside the initialized state, or with parameters that fail its guard,
+is dropped without effect and without a response: JSON-RPC gives a notification no response, and
+the server may send nothing before it has answered `initialize`.
+The server registers every custom notification through one internal helper, and `test/lsp/protocol-parity.test.ts` checks the rule for every method in `BVE_METHOD_SHAPES`.
+`bve/recordSelection` is that notification: the VS Code client sends it only while the language client runs and replays its stored selection history after every start and configuration reload, so a dropped notification loses nothing.
+
+`EditorService` is a facade over the indexing, rule contribution, completion, navigation, and repair modules in `src/lsp/editor/`.
 Features consume immutable document views. A document lifetime changes after close and reopen, even with the same URI and version.
 Source capture commits only when its disk and workspace generations remain current.
 
@@ -120,10 +133,13 @@ Reload blocks affected requests, prepares and admits replacement resources, and 
 One activation commit installs the new services and source selection. Failures cannot reactivate retired resources.
 Session close bounds internal draining and attempts every owned finalizer. Cleanup failure requires reconnecting.
 The process configuration watch survives failed reloads. Each credential watch belongs to its resource generation.
+The configuration watch does not reload a file that still holds the bytes the configuration in use was read from, so one
+change that an explicit reload request already loaded is not loaded a second time. It compares a digest of the bytes, not
+file times. A file that cannot be read stably, a load that failed, and a credential change all reload as before.
 
 Programmatic hosts retain responsibility for supplied provider/filesystem cleanup through their aggregate `dispose` callback.
 The stdio launcher supplies a callback that attempts both closes. Session replacement does not close its shared CEL runtime.
-See [the implementation record](lsp-separation-implementation-record.md) for qualification evidence.
+See [the implementation record](history/lsp-separation-implementation-record.md) for qualification evidence.
 
 ## Supported editor lifecycle
 
@@ -147,10 +163,10 @@ See [the implementation record](lsp-separation-implementation-record.md) for qua
   replacement or close/reopen to recover. Exceeding open-document capacity blocks the session until
   restart.
 
-The server uses the official language-server SDK for framing/JSON-RPC lifecycle and the official
-text-document implementation for UTF-16 edits. The preflight stream bounds messages before the SDK
-parses them. Stdout contains protocol messages. Startup errors use fixed text on stderr without
-upstream details.
+The server uses the official language-server SDK for JSON-RPC and protocol types.
+The official text-document implementation supplies UTF-16 edits.
+The preflight stream bounds messages before SDK parsing. The wire adapter enforces initialize/shutdown admission.
+Stdout contains protocol messages. Startup errors use fixed text on stderr without upstream details.
 
 Optional launcher-approved filesystem refresh is described below. Pull diagnostics and broader
 release qualification remain future work. Existing hover, reload, and packaging behavior is documented
@@ -165,8 +181,9 @@ bytes and revalidate dependents. See [overlay/editor scope](proposed-overlays.md
 
 ## Acceptance
 
-`npm run test:lsp` compiles and runs catalog-rule and real subprocess/stdio tests.
-`npm run test:harness` includes them with the provider and versioned API fixtures. Tests initialize
+`npm run test:lsp` compiles and runs the `engine` and `lsp` test groups, which hold the catalog-rule
+and real subprocess/stdio tests. `npm run test:harness` adds the `tooling` group with the versioned
+API fixture tests. Tests initialize
 the production launcher, exchange standard LSP messages, inspect published diagnostics and shut it
 down. HTTP response gates synchronize race and cancellation scenarios.
 
@@ -439,8 +456,19 @@ An optional catalog connection supplies advisory identity search after at least 
 Completion waits at most 50 ms for that async search and then returns available local results. The
 current query can continue in the background for up to 500 ms. Equal queries share work.
 
+Local results are computed synchronously from the prepared index and are not subject to that
+wait. A local answer is returned however long it took to compute; its only time bound is the
+request time of the profile, and the metadata admission limits bound its size.
+
 A new query, source generation, request cancellation, or shutdown cancels obsolete work. A caller
-cancellation also cancels a shared equal query. Another request can retry. The provider shares
+cancellation also cancels a shared equal query. Another request can retry.
+
+The reference search request tells its caller when to retry. A search that a source change or a
+configuration reload overtook has no answer, and the server refuses it with the LSP
+`ContentModified` error (-32801); an empty list would say that nothing matches. The VS Code client
+asks the same query again after its usual 120 ms pause, at most four times in all, and a new query
+or closing the picker stops that. A search that the client cancelled, or that the server cannot
+run, is still answered with an empty list. The provider shares
 admission, credentials, rate limits, response budgets and shutdown with validation. These are
 configured wait bounds, not an end-to-end editor latency guarantee.
 
@@ -520,3 +548,85 @@ Local overlays, invalid replacements, conflicts, and deletion masks retain prece
 Reload, cleanup failure, and shutdown suspend refresh immediately, including the asynchronous configuration preparation interval.
 Cached requests reject, entered reads receive cancellation, and disposal drains owned reads before the underlying connection closes.
 Optional Backstage event adapters remain unimplemented. Future hints must satisfy the declared dependency-change interface and trigger fresh authorized reads.
+
+## Read-only coverage observation
+
+A trusted launcher can set `coverageObservation: true` to enable `bve/validationCoverage`.
+The default is disabled. Requests supply the current document URI, version, and text digest.
+The response contains current coverage and its source, authority, workspace, and dependency bindings.
+A stale or foreign document, unavailable session, or revoked launcher permission returns `null`.
+Initialization options and workspace settings cannot grant access. The request performs no edits or general debug operations.
+The [evidence contract](release-evidence-contract.md#cli-variants-and-coverage-parity) defines the projection and its compatibility requirements.
+
+## Protocol lifecycle admission
+
+The wire adapter must reject feature requests before successful initialization with JSON-RPC error `-32002`.
+After shutdown starts, it must reject later requests with `InvalidRequest` (`-32600`).
+It drops source and selection notifications before initialization and after shutdown.
+The `exit` notification remains available in both states.
+A rejected shutdown request does not authorize a successful EOF or exit.
+The existing inner request admission still denies unavailable, stale, or cancelled feature work.
+These changes correct a demonstrated wire defect that returned empty feature results outside the protocol lifetime.
+They follow the [LSP initialize rules](https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/general/initialize.md)
+and [shutdown rules](https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/shutdown.md).
+
+The server supports UTF-16 positions. An absent encoding offer retains UTF-16.
+An offer that includes UTF-16 selects it. An offer that excludes it fails initialization with `InvalidParams` (`-32602`),
+the message `UTF-16 positions are required.`, and `data: { retry: false }` (the protocol's `InitializeError`).
+The check runs before the server records any client feature, so a rejected `initialize` leaves the server uninitialized and a later valid `initialize` succeeds.
+The guard against a second `initialize` or one after shutdown (`-32600`) runs first.
+Client `rootUri` and `workspaceFolders` cannot widen or replace the trusted launcher source roots or file selection.
+Watcher registration rejection produces a sanitized warning. Save notifications still refresh approved files.
+
+## Editor limits and recovery
+
+All ceilings below are inclusive. A byte means one UTF-8 byte unless the row states another unit.
+The launcher can impose a smaller source/profile ceiling. The first binding limit controls admission.
+
+| Boundary                       | Admitted ceiling                                                                           | Rejection and recovery                                                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Message payload and header     | 8,388,608 payload bytes and 8,192 header bytes, including header delimiters                | Invalid framing closes the transport. Reconnect with valid frames.                                                                                                                     |
+| Open documents                 | 1,000 open documents                                                                       | Open-count overflow makes the session incomplete. Closing a buffer does not clear this latch. Start a fresh trusted server.                                                            |
+| Unique source/buffer URIs      | 1,000 unique URIs in the current source and open buffers                                   | Below the open-count ceiling, unique-file overflow makes the affected buffer unavailable. Close it or reduce the source union, then fully synchronize any retained unavailable buffer. |
+| Changes in one notification    | 1,000 ordered changes                                                                      | The next change invalidates that buffer. Incremental changes cannot repair lost synchronization. Send a full replacement or close and reopen.                                          |
+| Scalar repair generation       | 64 repairs per validation and 4,096 bytes per authored scalar or serialized replacement    | Larger scalars remain findings without speculative edits. Replacement quotes count toward the byte ceiling.                                                                            |
+| Guarded edit                   | 16 nonoverlapping edits in one document and 16,384 replacement bytes in total              | An over-limit edit never reaches the client. A fresh eligible action remains available after valid revalidation.                                                                       |
+| Action and candidate inventory | 32 actions per response, first 64 eligible candidates                                      | A query can select candidate 64. Candidate 65 is outside that inventory. The 16-candidate evaluation limit remains separate.                                                           |
+| Opaque fix tokens              | 128 live tokens in FIFO order                                                              | Inserting token 129 evicts the oldest token. The next-oldest remains usable. Successful application consumes the generation.                                                           |
+| Remote query cache             | 32 scopes and 262,144 serialized report bytes                                              | The next demand evicts oldest scopes until both ceilings hold. Cache hits do not change insertion order.                                                                               |
+| Discovery                      | 10,000 examined entries, root depth 0 through directory depth 32, and 1,000 selected files | Exceeding any ceiling fails discovery. Removing the excess permits a fresh capture. Unmatched entries still count.                                                                     |
+| Credential capture             | 16,384 raw file bytes before whitespace trimming                                           | Oversized, symbolic, replaced, or unstable file entries fail capture. A valid atomic replacement between requests restores access.                                                     |
+
+A two-character prefix admits remote suggestions. A shorter prefix still permits eligible local suggestions.
+Completion returns local fallback after 50 ms. Advisory picker search and its remote operation have a 500 ms ceiling.
+These budgets differ from the larger test observation timeout.
+The source discovery entry test uses unmatched files to isolate 10,000 entries from the lower 1,000-selected-file ceiling.
+The unique source-file ceiling can bind first when other pinned files exist.
+It follows buffer-unavailable recovery. It does not set the open-count latch.
+The 1,000-document wire test uses the launcher's supported 250 ms debounce to isolate count admission from repeated validation preemption.
+It does not claim zero-debounce load or performance qualification.
+
+A field insertion can supply an explicit blank placeholder. That placeholder does not satisfy a schema that requires a nonempty value.
+The user must fill it before the intended validation can pass.
+Repair tests keep client rejection after dispatch separate from server rejection after an earlier `didChange`.
+Fixed UTF-16 coordinate vectors remain independent expected values for fixed fixtures.
+
+## Host observation of admitted filesystem events
+
+A trusted launcher can enable `bve/filesystemObservation` with the existing `coverageObservation: true` flag.
+The installed host requires Workspace Trust and a running client. The request accepts no parameters and controls no server work.
+It returns `null` when disabled, unavailable, or without an admitted event in the current session.
+Normal initialization and shutdown admission rules apply. The projection performs no provider or filesystem reads.
+
+The result contains `sessionGeneration`, `generation`, `uris`, and `truncated`.
+The server records the coordinator generation synchronously after it admits and invalidates for the watcher notification.
+It includes only canonical URIs admitted by the same source-selection predicate that triggers invalidation.
+The latest record contains at most 32 URIs and at most 64 KiB of URI text in UTF-8.
+Further admitted URIs set `truncated: true`. Batches over the existing 1,000-event bound record no URIs and set that flag.
+Configuration replacement clears the record. The projection withholds records from another session or unavailable configuration.
+It retains no event history, credential, catalog access, or file contents.
+
+This observation proves accepted notification receipt. It does not prove filesystem existence or authenticate an operating-system event.
+Installed tests separately drive the real native watcher, observe the client notification, and request this projection in stream order.
+A later coverage observation proves completed validation after the recorded generation.
+These host observations add no public validation 0.2 fields or plugin capability interfaces.

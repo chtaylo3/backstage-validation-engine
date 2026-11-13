@@ -1,0 +1,112 @@
+[
+  {
+    "method": "*",
+    "kind": "request",
+    "registrar": "onRequest"
+  },
+  {
+    "method": "bve/filesystemObservation",
+    "kind": "request",
+    "registrar": "onRequest"
+  },
+  {
+    "method": "bve/recordSelection",
+    "kind": "notification",
+    "registrar": "onNotification"
+  },
+  {
+    "method": "bve/reloadConfiguration",
+    "kind": "request",
+    "registrar": "onRequest"
+  },
+  {
+    "method": "bve/searchReferences",
+    "kind": "request",
+    "registrar": "onRequest"
+  },
+  {
+    "method": "bve/validationCoverage",
+    "kind": "request",
+    "registrar": "onRequest"
+  },
+  {
+    "method": "exit",
+    "kind": "notification",
+    "registrar": "onExit"
+  },
+  {
+    "method": "initialize",
+    "kind": "request",
+    "registrar": "onInitialize"
+  },
+  {
+    "method": "initialized",
+    "kind": "notification",
+    "registrar": "onInitialized"
+  },
+  {
+    "method": "shutdown",
+    "kind": "request",
+    "registrar": "onShutdown"
+  },
+  {
+    "method": "textDocument/codeAction",
+    "kind": "request",
+    "registrar": "onCodeAction"
+  },
+  {
+    "method": "textDocument/completion",
+    "kind": "request",
+    "registrar": "onCompletion"
+  },
+  {
+    "method": "textDocument/definition",
+    "kind": "request",
+    "registrar": "onDefinition"
+  },
+  {
+    "method": "textDocument/didChange",
+    "kind": "notification",
+    "registrar": "onDidChangeTextDocument"
+  },
+  {
+    "method": "textDocument/didClose",
+    "kind": "notification",
+    "registrar": "onDidCloseTextDocument"
+  },
+  {
+    "method": "textDocument/didOpen",
+    "kind": "notification",
+    "registrar": "onDidOpenTextDocument"
+  },
+  {
+    "method": "textDocument/didSave",
+    "kind": "notification",
+    "registrar": "onDidSaveTextDocument"
+  },
+  {
+    "method": "textDocument/hover",
+    "kind": "request",
+    "registrar": "onHover"
+  },
+  {
+    "method": "workspace/didChangeWatchedFiles",
+    "kind": "notification",
+    "registrar": "onDidChangeWatchedFiles"
+  },
+  {
+    "method": "workspace/didDeleteFiles",
+    "kind": "notification",
+    "registrar": "workspace.onDidDeleteFiles"
+  },
+  {
+    "method": "workspace/didRenameFiles",
+    "kind": "notification",
+    "registrar": "workspace.onDidRenameFiles"
+  },
+  {
+    "method": "workspace/executeCommand",
+    "kind": "request",
+    "registrar": "onExecuteCommand"
+  }
+]

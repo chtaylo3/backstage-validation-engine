@@ -1,3 +1,42 @@
-export * from './schemas.js';
+export {
+  CONTRACT_VERSION,
+  SCHEMA_DIALECT,
+  JsonValueSchema,
+  SchemaArtifactSchema,
+  SourceSnapshotSchema,
+  DataSnapshotSchema,
+  ResourceLimitsSchema,
+  DeploymentProfileSchema,
+  PolicyBundleSchema,
+  ActivationManifestSchema,
+  ValidationRequestSchema,
+  PolicyTrustSchema,
+  PolicyReleaseSchema,
+  CoverageSchema,
+  RuleStateSchema,
+  BypassReceiptSchema,
+  ValidationResultSchema,
+  contractSchemas,
+} from './schemas.js';
+export type {
+  JsonValue,
+  SourceSnapshot,
+  SchemaArtifact,
+  SourceFile,
+  SourceChange,
+  DataSnapshot,
+  DataEntry,
+  DeploymentProfile,
+  PolicyBundle,
+  ActivationManifest,
+  PolicyTrust,
+  PolicyRelease,
+  ValidationRequest,
+  Coverage,
+  Finding,
+  RuleState,
+  BypassReceipt,
+  ValidationResult,
+} from './schemas.js';
 export { parseContract } from './validate.js';
 export type { ContractTypes } from './validate.js';

@@ -17,6 +17,68 @@ and a SemVer policy with exceptions. See the upstream
 umbrella patches. It does not derive backend or model package versions from those numbers. Each
 inventory entry records both packages exactly.
 
+## Test layout and runner
+
+Every `*.test.ts` file lives in exactly one group directory, chosen by what the file mainly
+exercises:
+
+| Group             | Contents                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `test/engine/`    | Engine layers from `base` to `host`, and `protocol`                                            |
+| `test/lsp/`       | Language server and editor service                                                             |
+| `test/cli/`       | CLI and CLI candidate                                                                          |
+| `test/extension/` | VS Code client and extension tooling                                                           |
+| `test/tooling/`   | Import policy, public API, harness evidence, fixture refresh, release harness and script tests |
+
+`test/harness/`, `test/fixtures/`, and `test/integration/` hold support code and data, not test
+files. `scripts/test.mjs` discovers the compiled `*.test.js` files recursively under
+`.test-dist/test/<group>/`. `--group <name>` (repeatable) runs only the named groups; without it,
+every group runs. An unknown group, a group without test files, or a test file outside the group
+directories is an error. `npm run test:lsp` runs `engine` and `lsp`; `npm run test:harness` runs
+`engine`, `lsp`, and `tooling`.
+
+The `engine` group runs in one `node --test` invocation with `--test-concurrency` set to the smaller
+of 4 and the available parallelism. Every other file runs in a second invocation, one file at a time.
+The serial list in `scripts/test-selection.mjs` keeps named files serial even when their group runs
+in parallel, each with its reason; an entry that names a missing file fails the run, and an entry
+whose group is not parallel in the current run changes nothing. The engine group passed five
+consecutive parallel runs on Linux with that list (WSL2, 20 logical CPUs, Node 24). Windows and
+macOS concurrency is not separately proven.
+
+A test that does real work against a real-time deadline belongs in the serial list, because the
+deadline is part of what the test proves. The first parallel CI run on the 4-CPU Windows runners
+showed one such file, and it is now in the list: `default-boundaries` parses the largest admitted
+documents inside the 5-second default request deadline. Its deadline and assertions are unchanged,
+and the failure reproduces on Linux when every CPU is busy.
+
+A test that saturates the shared production CEL workers and asserts on their queue pressure
+belongs in the list for the same reason: other test processes change when those workers start and
+finish. `rule-contributions` is in the list for that. It failed once on the macOS runners in a
+parallel run and has not failed in a serial run; the failure did not reproduce on Linux under CPU
+load, so the exact trigger is not established.
+
+`BVE_TEST_PARALLEL_GROUPS` (comma-separated group names) replaces the default parallel groups for
+one run; an unknown name is an error, and an empty value means the default. With
+`BVE_TEST_PARALLEL_GROUPS=engine,lsp`, the full `npm test` passed five consecutive runs on the same
+Linux host, with `lsp-catalog-refresh` and `lsp-rule-contributions` in the serial list for their
+250 ms freshness windows: 85.7, 81.0, 86.0, 85.4 and 83.7 seconds wall time, against about 124
+seconds with the default (`engine` only) and 142 seconds with every file serial. This switch is an
+opt-in and is proven on Linux only; CI does not set it. Enabling it in CI is a deliberate later
+step that needs the same proof on the Windows and macOS runners. `BVE_TEST_CONCURRENCY=1` runs every
+file in one serial
+invocation; another positive integer sets the parallel concurrency. `--coverage` always runs one
+serial invocation, so that `lcov.info` comes from a single run.
+
+A run of every group, with or without explicit `--group` flags, writes its reports to
+`.artifacts/tests/<source|packaged|coverage>/`. A run of a strict subset of the groups writes to a
+directory named after the mode and the groups in group order, for example
+`.artifacts/tests/source--engine+lsp/` for `npm run test:lsp`, so a partial run never replaces the
+full-run evidence that CI uploads. `summary.jsonl` holds the per-file
+summaries of both invocations followed by one merged total. `junit.xml` holds one `<testsuites>`
+element with the merged counts. `inventory.json` keeps its fields; `files` lists every file that
+ran, and `invocations` lists the files and concurrency of each invocation. With `CI` set, a skipped
+test fails the run.
+
 ## Implemented plumbing
 
 - `test/harness/version-matrix.ts`: `createFixtureMatrix` selects one target per supported minor,
@@ -50,8 +112,8 @@ localhost listener. Do not share mutable state or a global "active version" betw
 Client/provider caches must also distinguish target endpoint, connection and authorization scope.
 
 Synthetic lifecycle tests continue to prove concurrent majors and multiple minors without depending
-on upstream publishing a particular major. The catalog HTTP tests also run against these real,
-pinned fixture targets:
+on upstream publishing a particular major. The catalog HTTP tests also run against these fake targets with
+pinned captured API contracts:
 
 | Backstage release | Catalog backend package | Catalog model package | Upstream source commit                     |
 | ----------------- | ----------------------- | --------------------- | ------------------------------------------ |
@@ -69,8 +131,8 @@ qualification on 2026-11-07 discovered 1.56.3. Its OpenAPI and license bytes mat
 1.56.2 capture, and its model/backend package versions are unchanged. The inventory now selects
 1.56.3. Older bytes remain historical evidence and are not additional active fixture targets.
 
-Fixture targets describe wire-contract coverage. Real deployed backend smoke qualification remains
-open. Recorded catalog-model package versions describe the captured deployment. The fake uses the
+Fixture targets describe fake API-contract coverage. They do not execute deployed Backstage backends.
+The [H4 record](test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) records later focused actual-backend controls for both targets. Recorded catalog-model package versions describe the captured deployment. The fake uses the
 installed native reference helper to canonicalize kind, namespace, and name. It does not run each
 deployment's native policies or processors. The production native-validation adapters remain
 separately pinned to 1.10.2 and 1.7.5.
@@ -83,7 +145,7 @@ local socket access. Normal local runs require no fixed port configuration.
 
 The 2026-10-29 production-provider increment adds 31 checks to `test:harness`, for 88
 harness/provider checks. The full project check passed 356 tests. The provider example passed
-against the standalone fixture server. Real-backend runs remain open.
+against the standalone fixture server. Actual-backend execution was open at that dated checkpoint.
 
 The source-reference/preparation increment adds 31 checks to `test:harness`, for 119
 harness/integration checks. The full project check passed 387 tests, and the new source-reference
@@ -133,12 +195,14 @@ include them in `npm run check`.
   absence from the principal's authorized view.
 - `POST /api/catalog/entities/by-refs` accepts `entityRefs`, preserves order and duplicates, and
   returns `null` for absent or hidden entities.
-- Missing or invalid bearer credentials produce 401. A principal denied catalog reads receives 403.
+- Missing or invalid bearer credentials produce 401. Explicit plugin denial (`canAccessCatalog: false`) produces 403.
+  Permission filtering (`canRead: false`) returns authorized-view absence: by-name 404, batch nulls, and empty query items.
   These are controlled fixture identities, not real Backstage token issuance or permission-policy
   verification.
-- Query parameters, projections (`fields`) and predicate queries are outside the implemented subset
-  and explicitly return 501. `/entities/by-query` is not implemented yet. The fake does not silently
-  ignore a requested capability.
+- `GET /api/catalog/entities/by-query` implements the completion path with fixed kind/namespace filters and name-text matching.
+  It requires the fixed identity projection and supports bounded limits with opaque, principal-scoped cursors.
+  Broader predicates, arbitrary projections, and unsupported query parameters return 501.
+  The fake admits only the declared subset of the captured OpenAPI contract.
 - JSON requests have a 64 KiB limit. The fake checks input schemas, references, and content type.
   Each server configures five-second body/header receipt timeouts and permits 64 connections.
 - `upsert`, `remove`, `setPrincipal` and `revokeToken` are in-process controls. There are no HTTP
@@ -153,7 +217,7 @@ include them in `npm run check`.
 - `requests()` returns immutable log snapshots with principal IDs and outcomes, excluding bearer
   tokens. `assertHealthy()` surfaces internal/schema failures.
 
-Tests cover request and response schemas and HTTP behavior for both real targets. They also cover
+Tests cover request and response schemas and HTTP behavior for both fake captured-contract targets. They also cover
 authorized-view absence, credential changes, malformed inputs, state isolation, one-shot fault
 recovery, cancellation, out-of-order delivery, and repeated cleanup. Changing an upstream required
 entity field is exercised as a startup failure.
@@ -213,9 +277,35 @@ separate explicit support-policy change.
 - The [production LSP](lsp.md) now has a subprocess stdio test client covering versioned
   diagnostics, cancellation, close/reopen, UTF-16 edits, buffer limits and shutdown against pinned
   fixtures. Actual editor qualification remains open.
-- Smoke tests against real pinned Backstage backends. Neither fake probes nor the two existing
-  catalog-model adapters establish deployed backend compatibility.
+- H4 executes 22 focused controls per actual backend at source `60e9ac4031908127400cd6a8b9debadb5a286e90`.
+  Its CLI archive SHA-256 is `0feeb3eb31506c617c72985ccf97f024ab2138b529eaa6461745b04a05fed076`.
+  Neither fake probes nor the two native adapters qualify the final remediation candidate against actual backends.
 
 The fake/provider/reference/LSP loop is implemented. Extend it alongside complete BC-07 processing
 qualification. BC-04 substitutions, BC-05 admission/custom schemas, BC-06 overlays and their LSP
 scenarios are implemented. This does not establish full ingestion or real-backend compatibility.
+
+## Current evidence boundaries
+
+The native adapter pins are 1.7.5 and 1.10.2. They are independent from umbrella releases 1.55.3 and 1.56.3.
+The corresponding backend packages are 4.0.0 and 4.0.2. Their catalog-model packages are 1.10.1 and 1.10.2.
+Version-sensitive provider batching, authorization, rotation, response admission, retry, and cooldown controls exercise both fake targets.
+Generic clock, transport, and resource controls retain their declared scope without duplicate version claims.
+
+Run `node scripts/qualification-inventory.mjs` from a clean checkout to print the exact revision and declared counts.
+This command reads the actual installed selector and versioned Backstage inventories. It performs no qualification execution.
+The current inventories contain 58 installed modules, with 50 in the ordinary portable selector.
+The Backstage inventory declares 47 cases: nine environment, 16 CLI, 12 editor, and ten runner cases.
+Two editor versions expand that inventory to 59 cases per backend and 118 across both backends.
+H4's focused 22 controls per backend are a separate inventory and candidate.
+
+H5 selects 30 installed cases per editor on Linux x64. Its 60 unique combinations pass across 62 attempts.
+The two original X display failures remain failed. H5 does not qualify all 50 current portable cases or another platform.
+The historical cross-OS baseline contains 44 portable cases, or 88 case/version executions per OS.
+The later Linux baseline contains 46 portable cases, or 92 executions. Those records retain their own exact candidates.
+See [current VS Code scope](vscode-qualification.md#versioned-inventories-and-execution-scope) for attribution.
+
+`test/fixtures/backstage-evidence-controls.json` records independent inventory and identity expectations.
+Its metadata labels synthetic verifier controls. These controls never count as executed release qualification.
+A loader-omission mutation demonstrates that this independent record detects a dropped case that a self-derived fixture accepts.
+The controls also reject wrong editors, wrong SQLite drivers, empty matrices, missing or duplicate cases, and incorrect counts.

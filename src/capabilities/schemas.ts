@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
-import type { Static, TProperties, TSchema } from '@sinclair/typebox';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import type { Static, TSchema } from '@sinclair/typebox';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import {
   CoverageSchema,
   DataSnapshotSchema,
@@ -11,6 +11,7 @@ import {
   ValidationRequestSchema,
   ValidationResultSchema,
 } from '../contracts/schemas.js';
+import { count, digest, object, text } from '../contracts/schema-kit.js';
 
 export const CAPABILITY_API = 'bve-plugin/1' as const;
 export const CAPABILITY_LIMITS = Object.freeze({
@@ -36,15 +37,10 @@ export type CapabilityId = (typeof CAPABILITY_IDS)[number];
 export function isCapabilityId(id: string): id is CapabilityId {
   return CAPABILITY_IDS.some((known) => known === id);
 }
-const object = <T extends TProperties>(properties: T) =>
-  Type.Object(properties, { additionalProperties: false });
-const text = (maxLength = 4096) => Type.String({ minLength: 1, maxLength });
-const count = () => Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER });
-const digest = () => Type.String({ pattern: '^sha256:[a-f0-9]{64}$' });
 const pointer = () => Type.String({ maxLength: 4096, pattern: '^(?:/(?:[^~]|~[01])*)*$' });
 const ref = <T extends TSchema>(schema: T) => Type.Unsafe<Static<T>>(Type.Ref(schema.$id!));
 const json = () => ref(JsonValueSchema);
-const strings = (maxItems = 100) => Type.Array(text(), { maxItems, uniqueItems: true });
+const strings = (maxItems = 100) => Type.Array(text(4096), { maxItems, uniqueItems: true });
 const schema = <T extends TSchema>(name: string, definition: T): T => {
   const safe: unknown = JSON.parse(
     JSON.stringify({
@@ -60,7 +56,7 @@ const capabilityVersion = Type.Integer({ minimum: 1, maximum: 1000 });
 export const ContextBindingSchema = schema(
   'binding',
   object({
-    contextId: text(),
+    contextId: text(4096),
     sourceDigest: digest(),
     baselineDigest: Type.Optional(digest()),
     policyDigest: digest(),
@@ -156,7 +152,7 @@ export const PresenceSchema = Type.Union([
 ]);
 export type Presence = Static<typeof PresenceSchema>;
 const provenance = object({
-  label: text(),
+  label: text(4096),
   artifactDigest: Type.Optional(digest()),
   ruleId: Type.Optional(text(128)),
 });
@@ -167,7 +163,7 @@ const entityScope = Type.Union([
 const presentation = object({
   root: json(),
   definitions: Type.Record(Type.String(), json()),
-  label: text(),
+  label: text(4096),
   artifactDigest: Type.Optional(digest()),
   ruleId: Type.Optional(text(128)),
 });
@@ -204,7 +200,7 @@ const schemaInput = {
 };
 const candidate = object({
   value: json(),
-  label: text(),
+  label: text(4096),
   classification: Type.Union([
     Type.Literal('required'),
     Type.Literal('allowed'),
@@ -222,12 +218,12 @@ const query = object({
 const identity = () =>
   Type.String({ pattern: '^[a-z][a-z0-9]{0,62}:[a-z0-9_.-]{1,63}/[a-z0-9_.-]{1,63}$' });
 const repair = object({
-  findingId: text(),
-  subjectId: text(),
+  findingId: text(4096),
+  subjectId: text(4096),
   path: pointer(),
   operation: Type.Union([Type.Literal('setValue'), Type.Literal('insertProperty')]),
   value: json(),
-  label: text(),
+  label: text(4096),
 });
 export const inputSchemas = {
   validation: schema('validation-input', object({ request: ref(ValidationRequestSchema) })),
@@ -245,8 +241,8 @@ export const inputSchemas = {
     'repairs-input',
     object({
       ...schemaInput,
-      findingId: text(),
-      subjectId: text(),
+      findingId: text(4096),
+      subjectId: text(4096),
       current: PresenceSchema,
       required: Type.Boolean(),
     }),
@@ -254,7 +250,7 @@ export const inputSchemas = {
   search: schema('search-input', query),
   'dependency-changes': schema(
     'dependency-changes-input',
-    object({ scopes: strings(1000), cursor: Type.Optional(text()) }),
+    object({ scopes: strings(1000), cursor: Type.Optional(text(4096)) }),
   ),
   'source-discovery': schema(
     'source-discovery-input',
@@ -280,7 +276,7 @@ export const outputSchemas = {
     object({
       fields: Type.Array(
         object({
-          name: text(),
+          name: text(4096),
           path: pointer(),
           required: Type.Boolean(),
           description: Type.String({ maxLength: 16384 }),
@@ -336,11 +332,11 @@ export const outputSchemas = {
           kind: Type.Union(
             ['entity', 'query', 'collection', 'authority'].map((k) => Type.Literal(k)),
           ),
-          key: text(),
+          key: text(4096),
         }),
         { maxItems: 1000 },
       ),
-      cursor: Type.Optional(text()),
+      cursor: Type.Optional(text(4096)),
       reset: Type.Boolean(),
       coverage: Type.Literal('hints'),
       observedAt: count(),
@@ -349,7 +345,7 @@ export const outputSchemas = {
   'source-discovery': schema(
     'source-discovery-output',
     object({
-      sources: Type.Array(object({ uri: text(), revision: Type.Optional(text()) }), {
+      sources: Type.Array(object({ uri: text(4096), revision: Type.Optional(text(4096)) }), {
         maxItems: 1000,
       }),
       complete: Type.Boolean(),

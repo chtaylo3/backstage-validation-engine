@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "backstageVersion": "1.55.3",
+      "catalogBackendVersion": "4.0.0",
+      "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+      "path": "1.55.3/processors/PlaceholderProcessor.ts.txt",
+      "sha256": "d70839bfacb6bada47298105ee738842468a890611beceaa199fbe15a771b997",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/processors/PlaceholderProcessor.ts"
+    },
+    {
+      "backstageVersion": "1.55.3",
+      "catalogBackendVersion": "4.0.0",
+      "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+      "path": "1.55.3/processors/BuiltinKindsEntityProcessor.ts.txt",
+      "sha256": "063aea5ccab3976fda9566248c59301a7809150414224e2be2568524f8336866",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/processors/BuiltinKindsEntityProcessor.ts"
+    },
+    {
+      "backstageVersion": "1.55.3",
+      "catalogBackendVersion": "4.0.0",
+      "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+      "path": "1.55.3/service/request/entitiesBatchRequest.ts.txt",
+      "sha256": "4d0294f089d07108ecc83d12243c19458db4ef5aa8b339c1baa67e815d636d66",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/service/request/entitiesBatchRequest.ts"
+    },
+    {
+      "backstageVersion": "1.55.3",
+      "catalogBackendVersion": "4.0.0",
+      "sourceCommit": "6c66969256572989ed10ee862b26065a0980c0bd",
+      "path": "1.55.3/service/AuthorizedEntitiesCatalog.ts.txt",
+      "sha256": "ccefdb5eae4dec5d99898e104cc29f69ff05150f6f9ff0b94cc3ca2ddcdbe93b",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/plugins/catalog-backend/src/service/AuthorizedEntitiesCatalog.ts"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "catalogBackendVersion": "4.0.2",
+      "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
+      "path": "1.56.3/processors/PlaceholderProcessor.ts.txt",
+      "sha256": "99a2ada249475288fb2a08bdf256c2d74efe167633acbc871b8aa184c9cd18b9",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/processors/PlaceholderProcessor.ts"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "catalogBackendVersion": "4.0.2",
+      "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
+      "path": "1.56.3/processors/BuiltinKindsEntityProcessor.ts.txt",
+      "sha256": "063aea5ccab3976fda9566248c59301a7809150414224e2be2568524f8336866",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/processors/BuiltinKindsEntityProcessor.ts"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "catalogBackendVersion": "4.0.2",
+      "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
+      "path": "1.56.3/service/request/entitiesBatchRequest.ts.txt",
+      "sha256": "4d0294f089d07108ecc83d12243c19458db4ef5aa8b339c1baa67e815d636d66",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/service/request/entitiesBatchRequest.ts"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "catalogBackendVersion": "4.0.2",
+      "sourceCommit": "7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0",
+      "path": "1.56.3/service/AuthorizedEntitiesCatalog.ts.txt",
+      "sha256": "ccefdb5eae4dec5d99898e104cc29f69ff05150f6f9ff0b94cc3ca2ddcdbe93b",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/plugins/catalog-backend/src/service/AuthorizedEntitiesCatalog.ts"
+    }
+  ],
+  "notices": [
+    {
+      "backstageVersion": "1.55.3",
+      "path": "LICENSE.upstream",
+      "sha256": "e3620220d6f8a43cb5c968720f86d4e7c6e97847ee61a9c7694039896efb869b",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/LICENSE"
+    },
+    {
+      "backstageVersion": "1.55.3",
+      "path": "NOTICE.upstream",
+      "sha256": "36395569b3867d0769a40ffb908709c0b5fbfd79bf4b827856dd34feeed644ba",
+      "url": "https://github.com/backstage/backstage/blob/6c66969256572989ed10ee862b26065a0980c0bd/NOTICE"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "path": "LICENSE.upstream",
+      "sha256": "e3620220d6f8a43cb5c968720f86d4e7c6e97847ee61a9c7694039896efb869b",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/LICENSE"
+    },
+    {
+      "backstageVersion": "1.56.3",
+      "path": "NOTICE.upstream",
+      "sha256": "36395569b3867d0769a40ffb908709c0b5fbfd79bf4b827856dd34feeed644ba",
+      "url": "https://github.com/backstage/backstage/blob/7e29caf1d87edb3c51bd07f85d0f7f8c4f0a33c0/NOTICE"
+    }
+  ]
+}

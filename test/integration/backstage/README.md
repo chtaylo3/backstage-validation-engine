@@ -161,8 +161,14 @@ Deliberate runner failures exercise failed builds, ingestion errors, editor cras
 ## Read the reports
 
 The root report is `.artifacts/backstage/<run-id>/results.json`. JUnit output is beside it.
-Each target has its own `reports/` directory for sanitized logs, client output, editor evidence, and failure screenshots.
+Each target has its own `reports/` directory for sanitized logs, client output, editor evidence, and optional failure screenshots.
 The root report records versions, package and source digests, case counts, and cleanup status.
+Screenshots are OPTIONAL DIAGNOSTICS. They have no integrity or completeness claim.
+Required client and native Trust assertions remain independent from screenshot availability.
+Each CLI phase retains its own sanitized `reports/authority/<phase>.json`. Processor fixtures use a separate suffix.
+Each editor session retains its own `authority.json` with constructor verification and effective expiry.
+These reports omit launcher data, keys, signatures, credentials, endpoints, and private paths.
+Contract 0.2 bundles have no validity fields. See [authority evidence](../../../docs/backstage-release-test-plan.md#current-proposal-and-authority-evidence).
 The most recent suite path is also in `.artifacts/backstage/latest-release.json`.
 
 An active case fails if execution stops before completion. Remaining cases stay unexecuted.
@@ -173,3 +179,34 @@ It rejects evidence from different inputs.
 Upload only the root result, JUnit output, and target `reports/` directories.
 Keep raw SQLite files, environment files, signed launcher material, and credentials outside that upload set.
 Local evidence and hosted evidence are separate requirements. The existing native OS, remote, and endurance release requirements still apply.
+
+## Focused H4 backend controls
+
+Create a clean CLI candidate with `npm run cli:package`.
+Run `node scripts/test-h4-backends.mjs --cli <candidate.tgz>` from the repository root.
+The command exercises both supported backends without an installed editor or a release-wide workload.
+
+The focused command derives each test image from its cached pinned application image.
+It installs the changed app manifest with immutable Yarn admission and records package, lock, source, configuration, and image identities.
+Its deterministic permission service delegates the native `ServerPermissionClient` before it denies `catalog.entity.read` for `bve-filtered`.
+Administrator, reader, filtered, and plugin-denied identities remain separate. This does not qualify a remote permission backend or conditional resource policies.
+
+Normal file ingestion must produce all declared baseline and mutation graph tuples.
+The graph includes component/resource System relations, their inverse relations, and the existing System-Domain relation.
+Mutation convergence also rejects declared obsolete ownership and API relations. Generated location edges need no removal unless a seed declares it.
+Catalog convergence and client cache convergence remain separate observations. The focused CLI/provider calls use fresh processes or fresh providers.
+
+The write control sends the same valid `POST /api/catalog/refresh` body with administrator and reader credentials.
+The administrator succeeds, the reader receives HTTP 403, and the reader still reads the entity.
+The backend decision report attributes that rejection to native token permission restrictions.
+
+Reports remain under `.artifacts/harness-remediation/H4/backends`. Credentials remain in each run's private directory.
+The default command removes only its owned container and SQLite volume. It never writes database rows directly.
+For independent inspection, add `--target 1.56.3 --keep`. Use that run's private `connection.json` and `backend.env` locally.
+Remove the recorded container and volume after inspection. Preserve the existing host-network CI and published-port Docker Desktop/WSL SSH paths.
+
+The declared inventory contains 47 cases: nine environment, 16 CLI, 12 editor, and ten runner cases.
+Two pinned editor versions expand it to 59 executions per backend and 118 across both targets.
+Run `node scripts/qualification-inventory.mjs` from the repository root for revision-bound counts without execution.
+The [H4 record](../../../docs/test-harness-remediation-record.md#h4-catalog-compatibility-and-convergence) qualifies a separate 22-control scope per backend at an older candidate.
+No new full-matrix qualification follows from this inventory reconciliation.

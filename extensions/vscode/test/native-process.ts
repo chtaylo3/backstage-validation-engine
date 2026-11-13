@@ -14,20 +14,41 @@ public static class HarnessThreads {
 }
 '@
 `;
-async function powershell(script: string): Promise<string> {
-  const { stdout } = await exec(
-    'powershell.exe',
-    [
-      '-NoProfile',
-      '-NonInteractive',
-      '-EncodedCommand',
-      Buffer.from('$ErrorActionPreference="Stop"\n' + kernel + script, 'utf16le').toString(
-        'base64',
-      ),
-    ],
-    { windowsHide: true, timeout: 10_000 },
+/**
+ * Bounds one helper run: a cold Windows PowerShell start plus the C# compilation of `kernel`. It
+ * is not a product budget. The case that uses this helper starts its measurement after the helper
+ * returns.
+ */
+const POWERSHELL_TIMEOUT_MS = 30_000;
+/** Says whether the helper ran out of time or failed, without repeating the encoded script. */
+export function powershellFailure(error: unknown, timeoutMs = POWERSHELL_TIMEOUT_MS): Error {
+  const failure = (error ?? {}) as { killed?: boolean; code?: unknown; stderr?: unknown };
+  const detail = typeof failure.stderr === 'string' ? failure.stderr.trim().slice(0, 2000) : '';
+  return new Error(
+    failure.killed
+      ? `PowerShell helper was stopped after ${timeoutMs} ms without finishing.`
+      : `PowerShell helper failed with exit code ${String(failure.code)}${detail ? ': ' + detail : '.'}`,
+    { cause: error },
   );
-  return stdout.trim();
+}
+async function powershell(script: string): Promise<string> {
+  try {
+    const { stdout } = await exec(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from('$ErrorActionPreference="Stop"\n' + kernel + script, 'utf16le').toString(
+          'base64',
+        ),
+      ],
+      { windowsHide: true, timeout: POWERSHELL_TIMEOUT_MS },
+    );
+    return stdout.trim();
+  } catch (error) {
+    throw powershellFailure(error);
+  }
 }
 /** Freeze only the owned server, never the editor or an unrelated process. */
 export async function suspendServer(pid: number): Promise<() => Promise<void>> {

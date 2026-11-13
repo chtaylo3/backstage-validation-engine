@@ -1,6 +1,7 @@
 import { childPointer } from '../parsing/locations.js';
 import type { JsonValue } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Clock } from '../base/clock.js';
+import type { Immutable } from '../base/json.js';
 import {
   acceptsValue,
   fieldDescription,
@@ -276,7 +277,8 @@ export function schemaRepairProposals(
       })),
   };
 }
-export function builtinMetadataSession(dependencies: readonly string[]) {
+/** The built-in schema metadata session. `clock` reads its admission and reply deadlines. */
+export function builtinMetadataSession(dependencies: readonly string[], clock?: Clock) {
   return builtinCapabilitySession(
     'bve.builtin.schema-metadata',
     {
@@ -305,6 +307,7 @@ export function builtinMetadataSession(dependencies: readonly string[]) {
         're2js@2.9.0/schema-v1',
         'bve-cel/1',
       ],
+      ...(clock ? { clock } : {}),
     },
   );
 }

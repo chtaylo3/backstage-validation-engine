@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "historicalCorpusSha256": "5dbcd903f3caaff62067c4c99e0f04e21d980c53827825536fba4176a74d4fc1",
+  "errorCodes": {
+    "missing_value_errors": "evaluation",
+    "missing_intermediate_errors": "evaluation",
+    "mixed_arithmetic_errors": "evaluation",
+    "integer_overflow": "evaluation",
+    "division_by_zero": "evaluation",
+    "non_boolean_result": "result_type",
+    "negative_index_errors": "evaluation",
+    "re2_lookbehind_rejected": "regex",
+    "re2_backreference_rejected": "regex",
+    "invalid_regex_rejected": "regex",
+    "reserved_adapter_call_rejected": "profile",
+    "host_functions_unavailable": "profile",
+    "malformed_expression": "parse",
+    "regex_wrong_receiver_type": "evaluation",
+    "unqualified_extension_rejected": "profile"
+  },
+  "additions": [
+    {
+      "name": "uint_conversion",
+      "expression": "uint(\"42\") == 42u",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "double_conversion",
+      "expression": "double(\"1.5\") == 1.5",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "string_conversion",
+      "expression": "string(42) == \"42\"",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "bool_conversion",
+      "expression": "bool(\"true\") == true",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "bytes_conversion",
+      "expression": "bytes(\"abc\") == b\"abc\"",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "size_function",
+      "expression": "size([1,2]) == 2",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "type_function",
+      "expression": "type(\"text\") == string",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "dyn_function",
+      "expression": "dyn(1) == 1",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "duration_function",
+      "expression": "duration(\"1s\") < duration(\"2s\")",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "contains_method",
+      "expression": "\"catalog\".contains(\"tal\")",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "startsWith_method",
+      "expression": "\"catalog\".startsWith(\"cat\")",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "endsWith_method",
+      "expression": "\"catalog\".endsWith(\"log\")",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "mixed_list_literal",
+      "expression": "[1,\"x\",true,null][1] == \"x\"",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "mixed_map_literal",
+      "expression": "{\"a\":1,\"b\":\"x\",\"c\":true,\"d\":null}[\"b\"] == \"x\"",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "mixed_numeric_literal",
+      "expression": "[1,1.0,1u].size() == 3",
+      "entity": {},
+      "expected": true,
+      "scope": "supported"
+    },
+    {
+      "name": "strings_extension_excluded",
+      "expression": "\"abc\".upperAscii() == \"ABC\"",
+      "entity": {},
+      "expected": "error",
+      "scope": "rejected",
+      "errorCode": "profile"
+    },
+    {
+      "name": "lists_extension_excluded",
+      "expression": "[1,2].reverse() == [2,1]",
+      "entity": {},
+      "expected": "error",
+      "scope": "rejected",
+      "errorCode": "profile"
+    },
+    {
+      "name": "timestamp_getter_excluded",
+      "expression": "timestamp(\"2026-01-01T00:00:00Z\").getFullYear() == 2026",
+      "entity": {},
+      "expected": "error",
+      "scope": "rejected",
+      "errorCode": "profile"
+    }
+  ],
+  "goErrorOutcomes": {
+    "missing_value_errors": "evaluation",
+    "missing_intermediate_errors": "evaluation",
+    "mixed_arithmetic_errors": "evaluation",
+    "integer_overflow": "evaluation",
+    "division_by_zero": "evaluation",
+    "non_boolean_result": "result_type",
+    "negative_index_errors": "evaluation",
+    "re2_lookbehind_rejected": "evaluation",
+    "re2_backreference_rejected": "evaluation",
+    "invalid_regex_rejected": "evaluation",
+    "reserved_adapter_call_rejected": "check",
+    "host_functions_unavailable": "check",
+    "malformed_expression": "parse",
+    "regex_wrong_receiver_type": "evaluation",
+    "unqualified_extension_rejected": "check",
+    "strings_extension_excluded": "check",
+    "lists_extension_excluded": "check"
+  },
+  "differences": [
+    {
+      "name": "timestamp_getter_excluded",
+      "goExpected": true,
+      "bveExpected": "profile",
+      "reason": "The BVE receiver allowlist excludes timestamp getters. CEL-Go supports getFullYear. Parent reviewed this existing profile difference on 2026-11-11."
+    }
+  ],
+  "provenance": {
+    "authorship": "Independently authored fixed semantic/rejection inputs. Original 43 cases remain frozen.",
+    "license": "Apache-2.0",
+    "specification": "https://github.com/google/cel-spec/blob/21ec6f4e52e8d694687ff9ed7408d3eccbb955d7/doc/langdef.md",
+    "comparator": "github.com/google/cel-go v0.26.1 at 8e7beb65e9a70f501fd743c3b70b2a0a2fadac52",
+    "reviewedAt": "2026-11-11",
+    "approval": "Parent approved sidecar and timestamp-method disposition before expected outcome updates. Mixed-literal positives preceded the implementation correction."
+  }
+}

@@ -6,28 +6,36 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { digest } from './seed.mjs';
+import { verifyCliReport } from './client-contracts.mjs';
+import { writeJson } from './evidence.mjs';
 
 const exec = promisify(execFile);
-const candidate = '/run/work/candidate/node_modules/@chtaylo3/backstage-validation-engine';
+const workRoot = process.env.BVE_BACKSTAGE_WORK_ROOT ?? '/run/work';
+const candidateDirectory = path.join(workRoot, 'candidate');
+const candidate = path.join(
+  candidateDirectory,
+  'node_modules/@chtaylo3/backstage-validation-engine',
+);
+const archive = process.env.BVE_BACKSTAGE_CLI_ARCHIVE ?? '/candidate/cli.tgz';
 const fixtureRoot = new URL('../', import.meta.url);
 export async function installClient() {
   const checksum = createHash('sha256')
-    .update(await readFile('/candidate/cli.tgz'))
+    .update(await readFile(archive))
     .digest('hex');
-  const marker = '/run/work/candidate.sha256';
+  const marker = path.join(workRoot, 'candidate.sha256');
   if ((await readFile(marker, 'utf8').catch(() => '')) !== checksum) {
-    await rm('/run/work/candidate', { recursive: true, force: true });
+    await rm(candidateDirectory, { recursive: true, force: true });
     await exec(
       'npm',
       [
         'install',
         '--prefix',
-        '/run/work/candidate',
+        candidateDirectory,
         '--omit=dev',
         '--ignore-scripts',
         '--no-audit',
         '--no-fund',
-        '/candidate/cli.tgz',
+        archive,
       ],
       { timeout: 300_000, maxBuffer: 4 * 1024 * 1024 },
     );
@@ -38,8 +46,8 @@ export async function installClient() {
 export const validText =
   'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: proposal, namespace: bve-demo}\nspec:\n  type: service\n  lifecycle: production\n  owner: group:bve-demo/team-demo\n';
 export const invalidText = validText.replace('lifecycle: production', 'lifecycle: experimental');
-export async function sourceFor(fixture, text) {
-  const engine = await installClient();
+export async function sourceFor(fixture, text, suppliedEngine) {
+  const engine = suppliedEngine ?? (await installClient());
   return engine.createSourceSnapshot({
     repository: 'backstage-release-proposal',
     revision: process.env.BVE_REVISION ?? 'development',
@@ -49,13 +57,16 @@ export async function sourceFor(fixture, text) {
   });
 }
 export async function createClientFixture({
-  directory = '/run/work/client-fixture',
-  workspace = '/run/work/proposals',
+  directory = path.join(workRoot, 'client-fixture'),
+  workspace = path.join(workRoot, 'proposals'),
   baseUrl = process.env.BVE_BACKSTAGE_URL,
   tokenEnv = 'BVE_BACKSTAGE_READER_TOKEN',
   profile: suppliedProfile,
+  engine: suppliedEngine,
+  trustMaxAgeMs = 3_600_000,
+  authorityReport,
 } = {}) {
-  const engine = await installClient();
+  const engine = suppliedEngine ?? (await installClient());
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await mkdir(workspace, { recursive: true });
   const data = JSON.parse(await readFile(new URL('policy.json', fixtureRoot), 'utf8'));
@@ -110,9 +121,27 @@ export async function createClientFixture({
       },
     ],
     mandatoryDigests: [engine.digestJson(policy)],
-    maxAgeMs: 3_600_000,
+    maxAgeMs: trustMaxAgeMs,
   });
-  engine.verifyPolicyRelease(release, trust);
+  const verified = engine.verifyPolicyRelease(release, trust);
+  // Internal harness evidence only. Contract 0.2 bundles have no validity dates.
+  const authorityEvidence = {
+    schemaVersion: 1,
+    policyDigest: engine.digestJson(policy),
+    profileDigest: engine.digestJson(profile),
+    activation: { activatedAt: activation.activatedAt, generation: activation.generation },
+    release: { issuedAt: release.issuedAt, expiresAt: release.expiresAt },
+    trust: { maxAgeMs: trust.maxAgeMs },
+    bundleValidity: { present: false },
+    constructionVerification: {
+      verifiedAt: verified.verification.verifiedAt,
+      expiresAt: verified.verification.expiresAt,
+    },
+  };
+  await writeJson(
+    authorityReport ?? path.join(directory, 'authority-evidence.json'),
+    authorityEvidence,
+  );
   const sourceFile = path.join(workspace, 'catalog.yaml');
   const fixture = {
     directory,
@@ -123,6 +152,7 @@ export async function createClientFixture({
     trustPath: path.join(directory, 'trust.json'),
     catalogConfigPath: path.join(directory, 'catalog.json'),
     policyDigest: digest(policy),
+    authorityEvidence,
     profile,
     policy,
     activation,
@@ -131,7 +161,7 @@ export async function createClientFixture({
     validText,
     invalidText,
   };
-  fixture.source = await sourceFor(fixture, invalidText);
+  fixture.source = await sourceFor(fixture, invalidText, engine);
   const catalog = {
     connectionId: 'real-backstage',
     allowInsecureHttp: true,
@@ -155,6 +185,7 @@ export async function createClientFixture({
     },
     catalog,
     debounceMs: 25,
+    coverageObservation: true,
   };
   for (const [filename, value] of [
     [fixture.releasePath, release],
@@ -169,7 +200,14 @@ export async function createClientFixture({
 export async function runCli(
   fixture,
   text,
-  { format = 'json', token = process.env.BVE_BACKSTAGE_READER_TOKEN, output, sourceOverride } = {},
+  {
+    format = 'json',
+    token = process.env.BVE_BACKSTAGE_READER_TOKEN,
+    output,
+    sourceOverride,
+    expectedVariant = 'validation',
+    expectedOutcome = 'completed',
+  } = {},
 ) {
   const engine = await installClient();
   const source = sourceOverride ?? (await sourceFor(fixture, text));
@@ -205,12 +243,25 @@ export async function runCli(
     result = { code: error.code, stdout: error.stdout, stderr: error.stderr };
   }
   const report = JSON.parse(result.stdout);
-  if (format === 'json' && report.provenance) engine.parseContract('validation-result', report);
+  verifyCliReport(engine, report, {
+    variant: format === 'sarif' ? 'sarif' : expectedVariant,
+    exitCode: result.code,
+    outcome: expectedOutcome,
+    provenance: {
+      sourceDigest: source.digest,
+      policyDigest: engine.digestJson(fixture.policy),
+      profileDigest: engine.digestJson(fixture.profile),
+      activationDigest: engine.digestJson(fixture.activation),
+      installationId: fixture.identity.installationId,
+      repositoryId: fixture.identity.repositoryId,
+    },
+  });
   if (output) await writeFile(output, result.stdout, { mode: 0o644 });
   for (const secret of [
     process.env.BVE_BACKSTAGE_READER_TOKEN,
     process.env.BVE_BACKSTAGE_ADMIN_TOKEN,
     process.env.BVE_BACKSTAGE_DENIED_TOKEN,
+    process.env.BVE_BACKSTAGE_FILTERED_TOKEN,
   ].filter(Boolean))
     assert(
       !result.stdout.includes(secret) && !result.stderr.includes(secret),

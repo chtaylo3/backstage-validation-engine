@@ -1,4 +1,8 @@
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
+import type { CelRuntime } from '../runtime/cel/index.js';
+import { bounded } from '../base/async.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { abortable } from '../providers/async.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
@@ -6,7 +10,7 @@ import { BuiltinValidationService } from '../host/builtin-validation.js';
 import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import type { LspConfig } from './config.js';
 import type { FilesystemSource } from './filesystem.js';
-import { CatalogRefresh } from './catalog-refresh.js';
+import { CatalogRefresh, refreshClock } from './catalog-refresh.js';
 import { SessionOperations } from './request-context.js';
 
 export interface SessionRegistration {
@@ -17,25 +21,18 @@ export interface LspServerResources {
   readonly config: LspConfig;
   readonly catalog?: { readonly provider: CatalogProvider; readonly access: CatalogAccessContext };
   readonly filesystem?: FilesystemSource;
+  /**
+   * The CEL runtime of this generation's editor selectors, validation and rule hints. The stdio
+   * entry point passes the shared runtime; when absent, each consumer applies the documented
+   * default of rule execution. The host owns its lifetime: a generation never closes it.
+   */
+  readonly runtime?: CelRuntime;
   /** The host owns provider/filesystem cleanup through this aggregate finalizer. */
   readonly dispose?: () => Promise<void>;
 }
-async function bounded<T>(work: Promise<T>, remaining: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Session cleanup deadline exceeded.')),
-          Math.max(0, remaining),
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Session cleanup rejects with a plain `Error`; capability cleanup uses `CapabilityError`. */
+const boundedSessionCleanup = <T>(work: Promise<T>, remaining: number): Promise<T> =>
+  bounded(work, remaining, () => new Error('Session cleanup deadline exceeded.'));
 /** A complete resource generation. Provider cleanup remains with its supplied host owner. */
 export class SessionGeneration {
   readonly operations = new SessionOperations();
@@ -53,13 +50,15 @@ export class SessionGeneration {
     private readonly closeMs = 5000,
     private readonly cleanupFailed: () => void = () => {},
     dependencyChanged: () => void = () => {},
+    /** The connection's clock; see `LspServerOptions.clock`. */
+    private readonly clock: Clock = systemClock,
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
     this.refresh = resources.catalog
-      ? new CatalogRefresh(resources.catalog, dependencyChanged)
+      ? new CatalogRefresh(resources.catalog, dependencyChanged, refreshClock(clock))
       : undefined;
-    this.completion = new CompletionService(resources.config, this.catalog, undefined, {
+    this.completion = new CompletionService(resources.config, this.catalog, clock, {
       dependencyGeneration: () => this.refresh?.generation ?? 0,
       sessionGeneration: generation,
     });
@@ -71,8 +70,17 @@ export class SessionGeneration {
       sessionGeneration: generation,
       authorityContextDigest,
       dependencyGeneration: () => this.refresh?.generation ?? 0,
+      clock,
+      ...(resources.runtime ? { runtime: resources.runtime } : {}),
     });
-    this.validation = new BuiltinValidationService(resources.config, generation);
+    this.validation = new BuiltinValidationService(resources.config, generation, {
+      clock,
+      ...(resources.runtime ? { runtime: resources.runtime } : {}),
+    });
+  }
+  /** The host-supplied CEL runtime of this generation, if any. */
+  get runtime(): CelRuntime | undefined {
+    return this.resources.runtime;
   }
   get config() {
     return this.resources.config;
@@ -123,8 +131,8 @@ export class SessionGeneration {
     this.editor.invalidate();
     this.completion.invalidate();
     this.disposal = (async () => {
-      const deadline = performance.now() + this.closeMs;
-      const draining = await bounded(
+      const deadline = this.clock.monotonic() + this.closeMs;
+      const draining = await boundedSessionCleanup(
         Promise.allSettled([
           this.operations.drain(),
           this.refresh?.close(),
@@ -132,7 +140,7 @@ export class SessionGeneration {
           this.editor.close(),
           this.validation.close(),
         ]),
-        deadline - performance.now(),
+        deadline - this.clock.monotonic(),
       ).then(
         (outcomes) => outcomes.every((outcome) => outcome.status === 'fulfilled'),
         () => false,
@@ -144,7 +152,7 @@ export class SessionGeneration {
       cleanup.push(Promise.resolve().then(() => this.resources.dispose?.()));
       const outcomes = await Promise.all(
         cleanup.map((work) =>
-          bounded(work, deadline - performance.now()).then(
+          boundedSessionCleanup(work, deadline - this.clock.monotonic()).then(
             () => true,
             () => false,
           ),
@@ -182,6 +190,8 @@ export class SessionResources {
     private readonly ports: SessionPorts,
     private readonly load?: () => Promise<LspServerResources>,
     private readonly closeMs = 5000,
+    /** The connection's clock, handed to every generation. */
+    private readonly clock: Clock = systemClock,
   ) {
     this.active = this.createGeneration(initial);
   }
@@ -204,6 +214,7 @@ export class SessionResources {
         }
       },
       () => this.ports.dependencyChanged?.(),
+      this.clock,
     );
   }
   get current() {
@@ -267,7 +278,7 @@ export class SessionResources {
       candidate = this.createGeneration(replacement);
       this.prepared = candidate;
       replacement = undefined;
-      await bounded(pausing, this.closeMs);
+      await boundedSessionCleanup(pausing, this.closeMs);
       await previous.close().catch(() => {
         this.failed = true;
         throw new Error('Retired resource cleanup failed.');
@@ -312,7 +323,7 @@ export class SessionResources {
     }
   }
   private async disposeAbandoned(resources: LspServerResources): Promise<void> {
-    await bounded(
+    await boundedSessionCleanup(
       Promise.resolve().then(() => resources.dispose?.()),
       this.closeMs,
     ).catch(() => {
@@ -329,7 +340,7 @@ export class SessionResources {
     this.active.editor.invalidate();
     this.active.completion.invalidate();
     this.disposal = (async () => {
-      const outcomes = await bounded(
+      const outcomes = await boundedSessionCleanup(
         Promise.allSettled([Promise.resolve().then(() => this.ports.pause()), this.reloading]),
         this.closeMs,
       ).catch(() => [

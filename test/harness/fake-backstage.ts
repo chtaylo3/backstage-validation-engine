@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
-import { immutableJson } from '../../src/core/json.js';
+import { immutableJson } from '../../src/base/json.js';
 import type { ContractArtifact } from './contract-artifact.js';
 import { CatalogContractError, compileCatalogContract } from './catalog-contract.js';
 import type { CatalogOperation } from './catalog-contract.js';
@@ -12,6 +12,7 @@ export interface FixturePrincipal {
   readonly token: string;
   readonly principalId: string;
   readonly canRead: boolean;
+  readonly canAccessCatalog?: boolean;
   readonly visibleRefs: '*' | readonly string[];
 }
 export interface RequestMatch {
@@ -26,6 +27,12 @@ export type FixtureFault =
       readonly location?: string;
     }
   | { readonly kind: 'invalid-body'; readonly body: unknown }
+  | {
+      readonly kind: 'raw-response';
+      readonly status: number;
+      readonly body: string;
+      readonly contentType?: string;
+    }
   | { readonly kind: 'malformed-json' }
   | { readonly kind: 'disconnect' };
 export interface FixtureRequest {
@@ -207,8 +214,8 @@ export async function startFakeBackstage(
       const principal = token === undefined ? undefined : principals.get(token);
       if (!principal) throw new HttpError(401, 'Fixture credentials are missing or invalid');
       log.principalId = principal.principalId;
-      if (!principal.canRead)
-        throw new HttpError(403, 'Fixture principal cannot read catalog entities');
+      if (principal.canAccessCatalog === false)
+        throw new HttpError(403, 'Fixture principal cannot access the catalog plugin');
       if (url.search && operation !== 'byQuery')
         throw new HttpError(501, 'Query parameters are outside the implemented fixture subset');
       let params: Record<string, string> = {};
@@ -286,6 +293,7 @@ export async function startFakeBackstage(
         const all = [...entities.keys()]
           .filter(
             (ref) =>
+              principal.canRead &&
               (principal.visibleRefs === '*' || principal.visibleRefs.includes(ref)) &&
               ref.startsWith(`${query.kind}:${query.namespace}/`) &&
               ref.slice(ref.indexOf('/') + 1).includes(query.prefix),
@@ -340,9 +348,9 @@ export async function startFakeBackstage(
           ? [canonical({ kind: params.kind!, namespace: params.namespace!, name: params.name! })]
           : operation === 'byQuery'
             ? queryRefs
-            : input!.entityRefs!.map((ref) => canonical(ref));
+            : input!.entityRefs!;
       const visible = (ref: string): unknown =>
-        principal.visibleRefs === '*' || principal.visibleRefs.includes(ref)
+        principal.canRead && (principal.visibleRefs === '*' || principal.visibleRefs.includes(ref))
           ? (entities.get(ref) ?? null)
           : null;
       // Capture the response before the gate, so races can deliberately deliver an older snapshot.
@@ -374,6 +382,15 @@ export async function startFakeBackstage(
         log.fault = fault.kind;
         if (fault.kind === 'disconnect') {
           response.destroy();
+          return;
+        }
+        if (fault.kind === 'raw-response') {
+          log.status = fault.status;
+          response.writeHead(
+            fault.status,
+            fault.contentType ? { 'content-type': fault.contentType } : {},
+          );
+          response.end(fault.body);
           return;
         }
         if (fault.kind === 'malformed-json') {

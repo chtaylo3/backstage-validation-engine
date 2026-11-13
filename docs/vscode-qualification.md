@@ -1,14 +1,57 @@
 # VS Code qualification evidence
 
+## H5 provisional measurement policy
+
+The parent approved this policy before H5 changes the measurement windows.
+These limits are provisional regression gates. They do not define a responsiveness service-level agreement.
+The existing limits remain unchanged because no independent requirement or baseline justifies different caps.
+Historical measurements describe their own candidates. H5 records new measurements for its exact candidate without tuning these limits.
+
+Cold readiness, edit p95, completion p95, and restart p95 each permit at most 20,000 milliseconds.
+The inner `until` and `readProvider` helpers share a 60,000-millisecond total observation deadline, including pending checks and cancellations.
+The fixture `bounded` helper adds a 65,000-millisecond outer grace wrapper. Production request deadlines remain unchanged.
+A completed operation over its budget fails the budget assertion before the observation deadline.
+The nearest-rank p95 sorts all observations and selects position `ceil(0.95 * n)`, with positions starting at one.
+Every measured latency operation is included. The harness does not discard latency warmup operations.
+Each focused load requires at least 60 paired edit and completion observations and two restart observations.
+Cold readiness has one observation per editor launch. It has no percentile claim.
+
+Resident set size (RSS) measures memory held in RAM.
+Resource samples exclude exactly the first ten operations from each process generation's observed origin.
+The client remains one generation across server restarts. Server measurements use separate PID generations.
+At least three samples after warmup are required for a measured generation.
+Endpoint RSS growth permits at most 128 MiB for each process, and endpoint handle growth permits at most 64 handles.
+There is no additional exclusion of the first quarter of samples after warmup.
+The least-squares RSS slope uses every included sample and permits at most 0.15 MiB per operation.
+A slope requires at least three included samples spanning at least 100 operations within one process generation.
+Short focused workloads measure endpoint growth only. They do not qualify that slope or the deferred long workloads.
+The independent release verdict recomputes these decisions from raw observations and rejects insufficient required windows.
+
+The exact H5 candidate records these short-load observations on Linux x64:
+
+| VS Code | Configured files | Cold ms | Edit p95 ms | Completion p95 ms | Restart p95 ms |
+| ------- | ---------------- | ------- | ----------- | ----------------- | -------------- |
+| 1.106.3 | 100              | 2212    | 187         | 176               | 683            |
+| 1.106.3 | 1000             | 3542    | 1706        | 43                | 2068           |
+| 1.145.2 | 100              | 2225    | 187         | 26                | 676            |
+| 1.145.2 | 1000             | 3909    | 1697        | 43                | 2182           |
+
+Each row contains 60 paired edits/completions, two restarts, and 22 resource samples.
+Included client windows span 45 operations. Server windows span six or nine operations.
+Their largest positive endpoint RSS growth is 4.473 MiB for the client and 52.219 MiB for a server.
+The largest handle growth is two. These observations pass existing provisional caps without changing them.
+They do not justify new caps or qualify a 100-operation slope.
+The [H5 record](test-harness-remediation-record.md#h5-installed-editor-outcomes-and-measurement-policy) binds the exact artifact, raw reports, display rerun attribution, and limits.
+
 Implementation records which features exist. Qualification records which required tests passed for a
 specific candidate. A workflow file, a successful short test of the harness, or a build from another
 revision does not complete qualification.
 
 | Area                       | Implemented qualification                                                                                                                                             | Evidence required before support is claimed                                                                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Portable desktop           | Installed VSIX, 44 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                                        | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
+| Portable desktop           | Historical installed VSIX baseline, 44 independent scenarios on Ubuntu 24.04 x64, Windows 2025 x64 and macOS 15 arm64, VS Code 1.106.3 and 1.145.2                    | All six combinations at the candidate SHA. No failed or unexecuted cases                                                                                                          |
 | Races and native lifecycle | Entered/cancelled/released catalog gates, suspended-server apply delivery, watchers, multi-root and two real windows, native reload and close                         | 20 independent repetitions per OS and editor, with every earlier failure retained                                                                                                 |
-| Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, screenshots, UI actions and owned server cleanup on all six combinations                                                             |
+| Workspace Trust            | Restricted Mode, visible grant/revoke, actual reload, persisted consent and unrelated folder isolation                                                                | Native trust API state, no product override, required UI actions and owned server cleanup on all six combinations                                                                 |
 | YAML coexistence           | Red Hat YAML 1.19.1, independent findings, overlapping completions, guarded fix and formatting, continued YAML validation after product Stop                          | Both editor versions on all three OS targets                                                                                                                                      |
 | Package lifecycle          | Fixture predecessor 0.0.1 → candidate 0.1.0, disable/re-enable, uninstall/reinstall, persistent User Settings and one native server                                   | Both versions on all three OS targets. A real historical release remains unqualified until a supported predecessor exists                                                         |
 | Virtual workspace          | Native custom filesystem workspace. Installed product stays inactive without diagnostics, fixes or completions                                                        | Both versions on all three OS targets. This is not a browser test                                                                                                                 |
@@ -75,13 +118,13 @@ sustained workload test, must run for its full declared duration.
 
 The load and soak fixture contains one Group. The remaining files are Components. Only the edited
 Component initially violates the policy. It uses the production 25 ms debounce, a five-second engine
-deadline and the existing 20-second readiness bound. A separate zero-debounce saturation case makes
-all 999 Components violate policy.
+deadline and the 60-second harness observation bound. The separate saturation case uses two configured files
+and a dirty buffer exactly one byte above the unchanged file-byte admission cap.
 
 Each edit must complete or publish a typed bound. Guarded fixes remain unavailable after incomplete
-validation. The test preserves exact buffer text, then verifies that fixes recover with a smaller
-source. Its observations do not establish capacity to complete every zero-debounce 1000-violation
-workload. Performance budgets are explicit in `resource-metrics.json`. Local timings do not qualify
+validation. The test preserves exact buffer text and rejects an earlier repair token. It then closes and reopens
+the rejected buffer to resynchronize valid source and recover guarded repairs. This deterministic bound does not establish
+capacity to complete every 1,000-file workload. Performance budgets are explicit in `resource-metrics.json`. Local timings do not qualify
 hosted hardware.
 
 The client baseline is measured after product Stop and includes the loaded client module, while cold
@@ -179,17 +222,18 @@ The LSP separation completed phases 0 through 9 and merged in [PR #2](https://gi
 Tested head `6938b8b85c1b5889af3fbe1119684de6577e5b45` passed the native source, packaged, installed-editor, and quick qualification lanes.
 Each operating system passed 989 source tests, 989 packaged tests, and 88 portable installed-editor cases.
 Quick qualification passed 36 desktop compatibility/load cases and 12 real remote disconnect/reconnect sessions.
-The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies exact digests and successful workflow links.
+The [separation record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies exact digests and successful workflow links.
 
 The first macOS qualification attempt passed 87/88 after a native `trust-persisted` UI timeout.
 The separate PR run passed. An isolated macOS rerun also passed 88/88 with unchanged assertions and bounds.
 The original failure evidence remains retained. This does not establish a fix for native Trust automation reliability.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
 
 ## Installed request and input controls
 
 Rule-contribution readiness reads completion, hover, and code-action results through a bounded helper.
-Only an explicit editor `Canceled` error is retried, within the existing 20-second readiness bound.
+Only an explicit editor `Canceled` error is retried within the current total 60-second observation deadline.
+Pending checks and cancellations share that inner deadline. The fixture outer grace wrapper is 65 seconds.
 The report records each cancellation and its provider command. Other errors still fail the case.
 A cancelled read cannot count as an empty result or prove that a candidate disappeared.
 Guarded edit commands are never retried through this helper.
@@ -270,3 +314,34 @@ deadline. This prepares the compiler before the first repository expression. Fre
 exercise both first selectors without replacing a worker. Rule-stage evidence also distinguishes the
 CEL attempt deadline from the overall request deadline. No execution, readiness or resource ceiling
 was raised, and the changed candidate requires its own complete qualification.
+
+## H1 evidence admission
+
+The [release evidence contract](release-evidence-contract.md) defines the current raw metric and payload requirements.
+The final verifier reads raw latencies and resource samples from both load sizes and required soaks.
+It recomputes the current budgets and rejects reports that inflate budgets or misstate percentile summaries.
+Long runs require an observed slope spanning at least 100 operations. Short load runs cannot establish that measurement.
+H1 retained the original sample policy. The current H5 policy above removes the extra quarter exclusion without changing numeric caps.
+Native failure verification also retains separate scratch host accounting for the actual entered editor crash and later successful editor case.
+These scratch rows do not enter the normal positive release inventory.
+
+## Versioned inventories and execution scope
+
+Run `node scripts/qualification-inventory.mjs` from a clean checkout. The output identifies the exact source revision and client/mode/platform scope.
+The command reads the same selector as the installed runner. It declares counts and performs no editor execution.
+The current source contains 58 installed modules. The ordinary portable selector includes 50 of them.
+The historical cross-OS baseline at `6938b8b85c1b5889af3fbe1119684de6577e5b45` selects 44 portable cases per editor.
+Its 88 executions per OS cover Linux x64, Windows x64, and macOS arm64 on editors 1.106.3 and 1.145.2.
+The later Linux baseline at `54ce7a932c46b85e70f3fec0a68c15852af7e28b` selects 46 cases per editor, or 92 ordinary executions.
+The pre-merge Linux/macOS records retain their own 46-case, 92-execution scope and candidate identities in the remediation record.
+
+H5's exact source is `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a`.
+It selects 30 cases per editor on Linux x64, with 60 passing unique combinations across 62 attempts.
+Two original X display failures remain failed. Two unchanged reruns supply the missing positive observations.
+It does not qualify the full current portable selector, another platform, native Trust reliability, remote clients, JetBrains, or endurance.
+R4-F10 remains Partial solely for strengthened but UNEXECUTED and parent-unaccepted native Workspace Trust follow-up.
+
+Screenshots are OPTIONAL DIAGNOSTICS. Their presence, PNG integrity, and correspondence to UI steps are not qualification gates.
+Native Trust API/state, required UI actions, and owned-server cleanup remain independent required assertions.
+Only screenshot capture/write failures are optional. UI command, click, transition, and Trust assertion failures continue to fail their cases.
+The H6 screenshot control proves this separation without native Trust execution. H7 remains deferred.

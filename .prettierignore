@@ -19,3 +19,6 @@ LICENSE
 test/fixtures/cel-qualification.json
 # Verbatim upstream OpenAPI bytes are integrity pinned.
 test/fixtures/backstage/**/openapi.yaml
+
+# Independent conformance inputs retain upstream bytes and integrity digests.
+test/fixtures/conformance/

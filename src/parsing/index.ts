@@ -1,5 +1,5 @@
 import type { SourceSnapshot } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
 import type { ParsingOptions, ParsingReport } from './types.js';
 
 /** Loads the syntax library on the parsing path; other adapters share the light API. */

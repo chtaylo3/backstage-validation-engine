@@ -133,7 +133,7 @@ npm run example:custom -- --invalid
 
 The [wire artifact](../examples/contracts/schema-artifact.json) and
 [runnable example](../examples/validate-custom-kind.mjs) use synthetic development authority.
-[BC-05 tests](../test/backstage-admission.test.ts) and [stdio tests](../test/lsp.test.ts) exercise
+[BC-05 tests](../test/engine/backstage-admission.test.ts) and [stdio tests](../test/lsp/lsp.test.ts) exercise
 admission, pins, native normalization, custom schemas, source attribution, unsupported dependencies,
 catalog guards and both model/API pins. Schema-defined Template-shaped data does not implement
 scaffolder execution or arbitrary deployment processors. Organization schema rules, policy

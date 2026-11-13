@@ -14,24 +14,60 @@ import {
   ExitNotification,
   RegistrationRequest,
   ApplyWorkspaceEditRequest,
+  LogMessageNotification,
+  ResponseError,
+  ErrorCodes,
+  StreamMessageReader,
+  StreamMessageWriter,
 } from 'vscode-languageserver/node';
 import type {
   ApplyWorkspaceEditParams,
   ApplyWorkspaceEditResult,
   PublishDiagnosticsParams,
+  ClientCapabilities,
+  InitializeParams,
+  LogMessageParams,
+  Message,
 } from 'vscode-languageserver/node';
 import type { LspConfig } from '../../src/lsp/config.js';
 
-export async function startLspClient(
+interface ClientOptions {
+  watchFiles?: boolean;
+  fixes?: boolean;
+  capabilities?: ClientCapabilities;
+  initializeParams?: Partial<InitializeParams>;
+  registration?: (params: unknown) => boolean;
+  applyEdit?: (
+    params: ApplyWorkspaceEditParams,
+  ) => ApplyWorkspaceEditResult | Promise<ApplyWorkspaceEditResult>;
+}
+
+/**
+ * Asks a reference search as a client must. The server refuses a search that a source or
+ * dependency change overtook with the LSP `ContentModified` error (-32801), and the same question
+ * is asked again: here until the usual ten-second bound of a test wait, where the VS Code client
+ * stops after four requests. Any other failure is thrown at once.
+ */
+export async function searchReferences<T>(
+  client: { sendRequest(method: string, params: unknown): Promise<unknown> },
+  query: unknown,
+): Promise<T> {
+  const end = Date.now() + 10_000;
+  for (;;) {
+    try {
+      return (await client.sendRequest('bve/searchReferences', query)) as T;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== -32801 || Date.now() >= end) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+}
+
+/** A real child connection without automatic initialize, for protocol lifecycle controls. */
+export async function createLspClient(
   t: TestContext,
   config: LspConfig,
-  options: {
-    watchFiles?: boolean;
-    fixes?: boolean;
-    applyEdit?: (
-      params: ApplyWorkspaceEditParams,
-    ) => ApplyWorkspaceEditResult | Promise<ApplyWorkspaceEditResult>;
-  } = {},
+  options: ClientOptions = {},
 ) {
   const directory = await mkdtemp(path.join(tmpdir(), 'bve-lsp-'));
   const configPath = path.join(directory, 'host.json');
@@ -57,7 +93,56 @@ export async function startLspClient(
     child.once('exit', resolve);
     child.once('error', reject);
   });
-  const client = createProtocolConnection(child.stdout, child.stdin);
+  async function bounded<T>(work: Promise<T>, milliseconds = 10_000): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        work,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Timed out waiting for LSP child cleanup.')),
+            milliseconds,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  let cancelNext: string | undefined;
+  const cancellationFrames: { method: string; id: string | number | null }[] = [];
+  class WireWriter extends StreamMessageWriter {
+    override write(message: Message): Promise<void> {
+      if (
+        'method' in message &&
+        'id' in message &&
+        typeof message.method === 'string' &&
+        (typeof message.id === 'string' || typeof message.id === 'number') &&
+        message.method === cancelNext
+      ) {
+        cancelNext = undefined;
+        const cancellation = {
+          jsonrpc: '2.0',
+          method: '$/cancelRequest',
+          params: { id: message.id },
+        };
+        const frames = [message, cancellation].map((value) => {
+          const body = Buffer.from(JSON.stringify(value));
+          return Buffer.concat([Buffer.from(`Content-Length: ${body.length}\r\n\r\n`), body]);
+        });
+        cancellationFrames.push({ method: message.method, id: message.id });
+        // One real write makes cancellation precede child handler dispatch, without a client SDK shortcut.
+        return new Promise((resolve, reject) =>
+          child.stdin.write(Buffer.concat(frames), (error) => (error ? reject(error) : resolve())),
+        );
+      }
+      return super.write(message);
+    }
+  }
+  const client = createProtocolConnection(
+    new StreamMessageReader(child.stdout),
+    new WireWriter(child.stdin),
+  );
   const diagnostics: PublishDiagnosticsParams[] = [];
   const waiters = new Set<() => void>();
   client.onNotification(PublishDiagnosticsNotification.type, (params) => {
@@ -67,6 +152,14 @@ export async function startLspClient(
   const registrations: unknown[] = [];
   client.onRequest(RegistrationRequest.type, (params) => {
     registrations.push(params);
+    for (const check of [...waiters]) check();
+    if (options.registration?.(params) === false)
+      throw new ResponseError(ErrorCodes.InvalidRequest, 'Client rejected watcher registration.');
+  });
+  const logs: LogMessageParams[] = [];
+  client.onNotification(LogMessageNotification.type, (params) => {
+    logs.push(params);
+    for (const check of [...waiters]) check();
   });
   const applyRequests: ApplyWorkspaceEditParams[] = [];
   client.onRequest(ApplyWorkspaceEditRequest.type, (params) => {
@@ -75,27 +168,29 @@ export async function startLspClient(
   });
   client.listen();
   let stopped = false;
+  let admitted = false;
   async function shutdown() {
     if (stopped) return;
     stopped = true;
-    await client.sendRequest(ShutdownRequest.type);
+    await bounded(client.sendRequest(ShutdownRequest.type));
     await client.sendNotification(ExitNotification.type);
-    assert.equal(await exited, 0, stderr);
+    assert.equal(await bounded(exited), 0, stderr);
     assert.equal(stderr, '');
   }
   t.after(async () => {
     try {
-      if (!stopped && child.exitCode === null) await shutdown();
+      if (!stopped && child.exitCode === null && admitted) await shutdown();
     } finally {
       client.dispose();
-      if (child.exitCode === null) child.kill('SIGKILL');
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      await bounded(exited, 5000);
       await rm(directory, { recursive: true, force: true });
     }
   });
-  const initialized = await client.sendRequest(InitializeRequest.type, {
+  const defaults: InitializeParams = {
     processId: null,
     rootUri: 'file:///workspace',
-    capabilities: {
+    capabilities: options.capabilities ?? {
       general: { positionEncodings: ['utf-16'] },
       workspace: {
         ...(options.fixes
@@ -125,21 +220,53 @@ export async function startLspClient(
       catalog: { baseUrl: 'http://untrusted.invalid' },
       policy: { rules: [] },
     },
-  });
-  await client.sendNotification(InitializedNotification.type, {});
+  };
+  function waitForState<T>(select: () => T | undefined, description: string): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        waiters.delete(check);
+        reject(new Error('Timed out waiting for LSP ' + description + '. ' + stderr));
+      }, 10_000);
+      const check = () => {
+        const found = select();
+        if (found !== undefined) {
+          clearTimeout(timer);
+          waiters.delete(check);
+          resolve(found);
+        }
+      };
+      waiters.add(check);
+      check();
+    });
+  }
   return {
     configPath,
     client,
     diagnostics,
-    initialized,
+    async initialize(params: Partial<InitializeParams> = options.initializeParams ?? {}) {
+      const result = await client.sendRequest(InitializeRequest.type, { ...defaults, ...params });
+      admitted = true;
+      await client.sendNotification(InitializedNotification.type, {});
+      return result;
+    },
     registrations,
+    logs,
+    waitForLog(predicate: (row: LogMessageParams) => boolean, after = 0) {
+      return waitForState(() => logs.slice(after).find(predicate), 'log message');
+    },
     applyRequests,
+    cancellationFrames,
+    cancelledRequest(method: string, params: unknown): Promise<unknown> {
+      assert.equal(cancelNext, undefined);
+      cancelNext = method;
+      return client.sendRequest(method, params);
+    },
     shutdown,
     async disconnect(kind: 'eof' | 'exit') {
       stopped = true;
       if (kind === 'eof') child.stdin.end();
       else await client.sendNotification(ExitNotification.type);
-      const code = await exited;
+      const code = await bounded(exited);
       assert.equal(stderr, '');
       return code;
     },
@@ -147,22 +274,17 @@ export async function startLspClient(
       predicate: (params: PublishDiagnosticsParams) => boolean,
       after = 0,
     ): Promise<PublishDiagnosticsParams> {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          waiters.delete(check);
-          reject(new Error('Timed out waiting for LSP diagnostics. ' + stderr));
-        }, 10_000);
-        const check = () => {
-          const found = diagnostics.slice(after).find(predicate);
-          if (found) {
-            clearTimeout(timer);
-            waiters.delete(check);
-            resolve(found);
-          }
-        };
-        waiters.add(check);
-        check();
-      });
+      return waitForState(() => diagnostics.slice(after).find(predicate), 'diagnostics');
     },
   };
+}
+
+export async function startLspClient(
+  t: TestContext,
+  config: LspConfig,
+  options: ClientOptions = {},
+) {
+  const host = await createLspClient(t, config, options);
+  const initialized = await host.initialize();
+  return { ...host, initialized };
 }

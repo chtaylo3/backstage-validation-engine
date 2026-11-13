@@ -56,9 +56,9 @@ does not prove that its runs passed. `.npmrc` disables dependency lifecycle scri
 | ----------------------------------------- | ------------------------------------------------------------------- |
 | `npm run build`                           | Compile ESM JavaScript, declarations, and source maps into `dist/`  |
 | `npm run cli:package`                     | Build a CLI archive with a locked dependency graph and provenance   |
-| `npm test`                                | Compile and run the Node test suite                                 |
-| `npm run test:harness`                    | Check version selection, pinned artifacts and concurrent fixtures   |
-| `npm run test:lsp`                        | Exercise catalog policies, fixes, completion and stdio lifecycle    |
+| `npm test`                                | Compile and run every test group                                    |
+| `npm run test:harness`                    | Run the `engine`, `lsp` and `tooling` test groups                   |
+| `npm run test:lsp`                        | Run the `engine` and `lsp` test groups                              |
 | `npm run fixtures:serve`                  | Start the pinned fake catalog APIs on isolated localhost ports      |
 | `npm run fixtures:refresh`                | Capture latest patches and upstream specs for supported minors      |
 | `npm run fixtures:check-upstream`         | Detect upstream release, package or contract drift                  |
@@ -145,7 +145,7 @@ For declared CEL and RE2 editor hints and guarded repairs, see [rule contributio
 For plugin conformance requirements, see the
 [rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
 execution controls, and conformance tests for each supported function.
-The [five-phase editor plan](docs/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.
+The [five-phase editor plan](docs/history/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.
 Its client reliability and release qualification phase is deferred.
 
 For safe local includes, file Locations, source roots and catalog entrypoints, see
@@ -163,15 +163,21 @@ see the [policy and CLI guide](docs/policy-cli.md).
 ## Structure
 
 ```text
-src/
-  contracts/   Versioned schemas, inferred types, and contract validation
-  core/        Canonical JSON, snapshots, bindings, findings, and outcomes
+src/           Ordered engine layers, lowest first; see docs/architecture.md
+  base/        Errors, canonical JSON and digests, and source URIs
+  contracts/   Versioned schemas, inferred types, contract validation, outcomes and rule graphs
+  core/        Snapshots, request bindings, findings, and processor coverage
+  runtime/     Shared supervised CEL/RE2 workers and request budgets
   parsing/     Bounded YAML normalization, diagnostics and source locations
   compatibility/  Versioned native Backstage adapters and normalization provenance
-  lsp/         Stdio transport, trusted host configuration and editor lifecycle
-  policy/      Signed releases, mandatory inheritance and bounded rule graphs
+  policy/      Signed releases, mandatory inheritance and the default profile
+  providers/   Catalog provider and transport
+  capabilities/  Capability contracts and sessions
+  pipeline/    Reference preparation, rule execution, and verified results
+  reporting/   SARIF reporting
+  host/        Shared host catalog configuration and built-in validation
   cli/         Snapshot validation command and JSON/SARIF reporting
-  runtime/     Shared supervised CEL/RE2 workers and request budgets
+  lsp/         Stdio transport, trusted host configuration and editor lifecycle
 schemas/       Generated draft-07 JSON Schemas, checked into Git
 examples/      Wire examples for requests, profiles, and result states
 test/          Contract, integrity, resource, and enforcement tests

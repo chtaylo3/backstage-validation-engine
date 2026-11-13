@@ -1,5 +1,6 @@
 import type { DataSnapshot, ValidationResult } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Clock } from '../base/clock.js';
+import type { Immutable } from '../base/json.js';
 import type { FailureEvidence } from '../runtime/failure-evidence.js';
 import type { BackstageAdapterId } from '../compatibility/types.js';
 
@@ -56,6 +57,8 @@ export interface CatalogProviderOptions {
   readonly limits?: CatalogLimitOptions;
   /** Trusted transport injection; defaults to Node fetch. */
   readonly transport?: typeof fetch;
+  /** Reads observation times, cache lifetimes, request deadlines and retry waits. */
+  readonly clock?: Clock;
 }
 export type CatalogFailureCode =
   | 'permission_denied'

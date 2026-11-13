@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { canonicalJson, digestJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { bounded } from '../base/async.js';
+import { canonicalJson, digestJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { RequestBudget } from '../runtime/request-budget.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { cancellationError } from '../runtime/cel/errors.js';
 import { parseContract } from '../contracts/validate.js';
 import { childPointer } from '../parsing/locations.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
 import {
   CapabilityError,
   parseBinding,
@@ -63,19 +66,9 @@ export interface CapabilityInvocation {
   readonly current?: () => boolean;
 }
 const same = (left: unknown, right: unknown) => canonicalJson(left) === canonicalJson(right);
-async function bounded<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new CapabilityError('cleanup')), Math.max(0, ms));
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Capability cleanup rejects with `CapabilityError('cleanup')`; the LSP session uses `Error`. */
+const boundedCapabilityCleanup = <T>(work: Promise<T>, ms: number): Promise<T> =>
+  bounded(work, ms, () => new CapabilityError('cleanup'));
 /** Host approval is an independent argument. A manifest is never its own permission grant. */
 export class CapabilitySession {
   readonly manifest: Immutable<CapabilityManifest>;
@@ -99,6 +92,8 @@ export class CapabilitySession {
     approval: CapabilityApproval,
     private readonly endpoint: CapabilityEndpoint,
     private readonly closeMs: number = CAPABILITY_LIMITS.closeMs,
+    /** Reads admission and reply deadlines and the close budget. Cleanup timers stay real. */
+    private readonly clock: Clock = systemClock,
   ) {
     this.manifest = parseManifest(manifest);
     if (!Number.isSafeInteger(closeMs) || closeMs < 1 || closeMs > CAPABILITY_LIMITS.closeMs)
@@ -175,7 +170,7 @@ export class CapabilitySession {
           () => this.owned.delete(result),
           () => this.owned.delete(result),
         );
-        this.ready = bounded(result, closeMs)
+        this.ready = boundedCapabilityCleanup(result, closeMs)
           .then(accept)
           .catch((error: unknown) => {
             this.failed = true;
@@ -185,7 +180,7 @@ export class CapabilitySession {
         void result
           .then(() => {
             if (this.stopped || this.failed) {
-              const cleanup = bounded(
+              const cleanup = boundedCapabilityCleanup(
                 Promise.resolve().then(() => endpoint.dispose()),
                 closeMs,
               );
@@ -240,7 +235,7 @@ export class CapabilitySession {
     if (this.stopped || this.failed) throw new CapabilityError('closed');
     if (!this.initialized || !this.negotiated.has(id)) throw new CapabilityError('unsupported');
     if (context.signal?.aborted) throw new CapabilityError('cancelled');
-    if (Date.now() >= context.deadlineAt) throw new CapabilityError('deadline', 'admission');
+    if (this.clock.wall() >= context.deadlineAt) throw new CapabilityError('deadline', 'admission');
     if (context.current && !context.current()) throw new CapabilityError('binding');
     if (this.active.size >= CAPABILITY_LIMITS.outstanding)
       throw new CapabilityError('resource_limit');
@@ -281,7 +276,7 @@ export class CapabilitySession {
   ): Immutable<CapabilityResult<K>> {
     if (this.stopped || this.failed) throw new CapabilityError('closed');
     if (context.signal?.aborted) throw new CapabilityError('cancelled');
-    if (Date.now() >= context.deadlineAt) throw new CapabilityError('deadline', 'reply');
+    if (this.clock.wall() >= context.deadlineAt) throw new CapabilityError('deadline', 'reply');
     if (context.current && !context.current()) throw new CapabilityError('binding');
     const result = parseCapabilityResult(id, input);
     if (
@@ -374,6 +369,7 @@ export class CapabilitySession {
     using budget = new RequestBudget(
       context.deadlineAt,
       AbortSignal.any([controller.signal, ...(context.signal ? [context.signal] : [])]),
+      this.clock,
     );
     const result = this.endpoint.provide(request, {
       signal: budget.signal,
@@ -426,6 +422,7 @@ export class CapabilitySession {
     using budget = new RequestBudget(
       context.deadlineAt,
       AbortSignal.any([controller.signal, ...(context.signal ? [context.signal] : [])]),
+      this.clock,
     );
     const work = Promise.resolve().then(() => {
       budget.throwIfInterrupted();
@@ -472,7 +469,10 @@ export class CapabilitySession {
           },
         );
         try {
-          const outcomes = await bounded(Promise.allSettled([work, cancelling]), this.closeMs);
+          const outcomes = await boundedCapabilityCleanup(
+            Promise.allSettled([work, cancelling]),
+            this.closeMs,
+          );
           if (outcomes[1]?.status === 'rejected') {
             this.failed = true;
             this.cleanupFailed = true;
@@ -491,12 +491,12 @@ export class CapabilitySession {
     this.stopped = true;
     for (const { controller } of this.active.values()) controller.abort();
     this.disposal = (async () => {
-      const deadline = performance.now() + this.closeMs;
+      const deadline = this.clock.monotonic() + this.closeMs;
       const drain = async () => {
         while (this.invocations.size || this.owned.size) {
-          await bounded(
+          await boundedCapabilityCleanup(
             Promise.allSettled([...this.invocations, ...this.owned]),
-            deadline - performance.now(),
+            deadline - this.clock.monotonic(),
           );
         }
       };
@@ -508,9 +508,9 @@ export class CapabilitySession {
         ),
       );
       // Final disposal follows cancellation acknowledgement. It still runs after a failed drain.
-      const finalizing = bounded(
+      const finalizing = boundedCapabilityCleanup(
         this.ready.catch(() => undefined).then(() => this.endpoint.dispose()),
-        deadline - performance.now(),
+        deadline - this.clock.monotonic(),
       );
       outcomes.push(
         await finalizing.then(
@@ -545,6 +545,8 @@ export function builtinCapabilitySession(
     readonly permissions?: readonly ('catalog-read' | 'source-discovery')[];
     readonly languageProfiles?: readonly string[];
     readonly changeObservation?: CapabilityManifest['changeObservation'];
+    /** The session's clock; see `CapabilitySession`. */
+    readonly clock?: Clock;
   } = {},
 ): CapabilitySession {
   const declared = CAPABILITY_IDS.filter((key) => handlers[key]);
@@ -620,5 +622,7 @@ export function builtinCapabilitySession(
       languageProfiles: settings.languageProfiles ?? ['host-contract/0.2'],
     },
     endpoint,
+    CAPABILITY_LIMITS.closeMs,
+    settings.clock,
   );
 }

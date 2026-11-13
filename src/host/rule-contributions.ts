@@ -1,13 +1,16 @@
 import type { Finding, JsonValue } from '../contracts/schemas.js';
 import type { EditorArtifact } from '../capabilities/editor-artifacts.js';
-import { digestJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { validatePolicySources } from '../core/policy-sources.js';
-import type { PolicySourceContext } from '../core/policy-sources.js';
+import { digestJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { validatePolicySources } from '../pipeline/policy-sources.js';
+import type { PolicySourceContext } from '../pipeline/policy-sources.js';
 import { createDataSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
 import { parseContract } from '../contracts/validate.js';
 import { SourceLineIndex } from '../parsing/locations.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
+import type { CelRuntime } from '../runtime/cel/index.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { object } from '../capabilities/schema-metadata.js';
 import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
@@ -48,8 +51,7 @@ export interface PreparedRuleMetadata {
   }[];
   readonly expiresAt: number;
 }
-/** Optional work shares the original deadline and the production supervised runtime. */
-export async function prepareRuleContributions(input: {
+export interface RuleContributionInput {
   readonly report: Report;
   readonly context: PolicySourceContext;
   readonly artifacts: readonly Immutable<EditorArtifact>[];
@@ -63,18 +65,26 @@ export async function prepareRuleContributions(input: {
     value: JsonValue,
     ruleId: string,
   ) => Immutable<Finding> | undefined;
-}): Promise<readonly PreparedRuleMetadata[]> {
-  const { report, signal } = input;
+  /** The runtime of candidate validation; the pipeline default when absent. */
+  readonly runtime?: CelRuntime;
+  /** Reads the original deadline and the candidate lifetimes, and decides candidate validation. */
+  readonly clock?: Clock;
+}
+/** Optional work shares the original deadline and the production supervised runtime. */
+export async function prepareRuleContributions(
+  input: RuleContributionInput,
+): Promise<readonly PreparedRuleMetadata[]> {
+  const { report, signal, clock = systemClock } = input;
   const result: PreparedRuleMetadata[] = [];
   let admitted = 0;
   let visited = 0;
   const alive = () =>
-    !signal.aborted && input.current() && Date.now() < report.request.execution.deadlineAt;
+    !signal.aborted && input.current() && clock.wall() < report.request.execution.deadlineAt;
   const freshness = input.catalog?.access.maxAgeMs || RULE_EDITOR_LIMITS.ttlMs;
   const expiry = (row: Report['request']['data']['entries'][number]) =>
     Math.min(row.provenance.expiresAt, row.provenance.fetchedAt + freshness);
   const originalExpiry = Math.min(
-    Date.now() + RULE_EDITOR_LIMITS.ttlMs,
+    clock.wall() + RULE_EDITOR_LIMITS.ttlMs,
     ...report.request.data.entries.map(expiry),
   );
   if (report.interrupted !== 'none') return [];
@@ -145,6 +155,8 @@ export async function prepareRuleContributions(input: {
             // A new source must collect its own catalog bindings. No old observation is reused.
             const candidate = await validatePolicySources(request, input.context, {
               signal,
+              clock,
+              ...(input.runtime ? { runtime: input.runtime } : {}),
               ...(input.catalog
                 ? {
                     catalog: { ...input.catalog, access: { ...input.catalog.access, maxAgeMs: 0 } },
@@ -179,7 +191,7 @@ export async function prepareRuleContributions(input: {
               originalExpiry,
               ...candidate.request.data.entries.map(expiry),
             );
-            if (Date.now() >= expiresAt) continue;
+            if (clock.wall() >= expiresAt) continue;
             const evidence: CandidateEvidence = {
               originalSourceDigest: report.request.source.digest,
               hypotheticalSourceDigest: source.digest,

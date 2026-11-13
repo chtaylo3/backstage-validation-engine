@@ -2,11 +2,10 @@ import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import type { DeploymentProfile, PolicyBundle } from '../contracts/schemas.js';
-import { digestJson, immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { digestJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { digest, text } from '../contracts/schema-kit.js';
 
-const text = (maximum: number) => Type.String({ minLength: 1, maxLength: maximum });
-const digest = Type.String({ pattern: '^sha256:[a-f0-9]{64}$' });
 const scalar = Type.Union([
   Type.Null(),
   Type.Boolean(),
@@ -18,14 +17,14 @@ export const EditorArtifactSchema = Type.Object(
   {
     artifactVersion: Type.Literal('bve-editor/1'),
     id: text(128),
-    digest,
-    policyDigest: digest,
-    profileDigest: digest,
+    digest: digest(),
+    policyDigest: digest(),
+    profileDigest: digest(),
     contributions: Type.Array(
       Type.Object(
         {
           ruleId: text(128),
-          ruleDigest: digest,
+          ruleDigest: digest(),
           languageProfile: Type.Union([
             Type.Literal('bve-cel/1'),
             Type.Literal('draft-07/re2js@2.9.0/schema-v1'),

@@ -1,8 +1,8 @@
 import type { BackstageAdapter } from '../compatibility/types.js';
 import type { JsonValue } from '../contracts/schemas.js';
-import { ContractError } from '../core/errors.js';
-import { canonicalJson, immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { ContractError } from '../base/errors.js';
+import { canonicalJson, immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import type { FailureStage } from '../runtime/failure-evidence.js';
 import type { RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';
@@ -29,6 +29,7 @@ export function interruptionFailure(
   });
 }
 
+// Reads a bounded HTTP response body; `readJson` in src/cli/main.ts reads a local file.
 async function readJson(
   response: Response,
   signal: AbortSignal,
@@ -86,11 +87,11 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function retryDelay(header: string | null): number | undefined {
+function retryDelay(header: string | null, now: number): number | undefined {
   if (header === null) return undefined;
   if (/^\d+$/.test(header)) return Number(header) * 1000;
   const date = Date.parse(header);
-  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+  return Number.isFinite(date) ? Math.max(0, date - now) : undefined;
 }
 
 /** Bounded identity projection with opaque cursor pagination, sharing transport/admission limits. */
@@ -103,12 +104,12 @@ export async function fetchCatalogSuggestions(
   const refs = new Set<string>();
   const cursors = new Set<string>();
   let cursor: string | undefined;
-  const fetchedAt = Date.now();
+  const fetchedAt = budget.clock.wall();
   for (let page = 0; page < CATALOG_SUGGESTION_LIMITS.pages; page++) {
     budget.throwIfInterrupted();
     await options.rateLimit.wait(
       budget.signal,
-      budget.deadlineAt - Date.now(),
+      budget.deadlineAt - budget.clock.wall(),
       limits.retryAfterMs,
     );
     const timeout = AbortSignal.timeout(limits.attemptMs);
@@ -139,7 +140,7 @@ export async function fetchCatalogSuggestions(
       if (response.status !== 200) {
         void response.body?.cancel().catch(() => {});
         if ([401, 403].includes(response.status)) throw new CatalogFailure('permission_denied');
-        const delay = retryDelay(response.headers.get('retry-after'));
+        const delay = retryDelay(response.headers.get('retry-after'), budget.clock.wall());
         if (response.status === 429 || (response.status === 503 && delay !== undefined))
           options.rateLimit.block(delay ?? limits.retryDelayMs);
         throw new CatalogFailure(response.status === 429 ? 'rate_limited' : 'provider_error');
@@ -217,13 +218,13 @@ export async function fetchCatalogBatch(options: {
     budget.throwIfInterrupted();
     await options.rateLimit.wait(
       budget.signal,
-      budget.deadlineAt - Date.now(),
+      budget.deadlineAt - budget.clock.wall(),
       limits.retryAfterMs,
     );
     budget.throwIfInterrupted();
     const timeout = AbortSignal.timeout(limits.attemptMs);
     const signal = AbortSignal.any([budget.signal, timeout]);
-    const fetchedAt = Date.now();
+    const fetchedAt = budget.clock.wall();
     let stage: FailureStage = 'catalog_transport';
     try {
       const response = await abortable(
@@ -264,7 +265,7 @@ export async function fetchCatalogBatch(options: {
         void response.body?.cancel().catch(() => {});
         if (response.status === 401 || response.status === 403)
           throw new CatalogFailure('permission_denied');
-        const delay = retryDelay(response.headers.get('retry-after'));
+        const delay = retryDelay(response.headers.get('retry-after'), budget.clock.wall());
         if (response.status === 429 || (response.status === 503 && delay !== undefined)) {
           options.rateLimit.block(delay ?? limits.retryDelayMs);
         }
@@ -313,7 +314,7 @@ export async function fetchCatalogBatch(options: {
         !failure.retryable ||
         attempt >= limits.retries ||
         delay > limits.retryAfterMs ||
-        delay >= budget.deadlineAt - Date.now()
+        delay >= budget.deadlineAt - budget.clock.wall()
       ) {
         throw failure;
       }

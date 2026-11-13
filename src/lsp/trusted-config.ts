@@ -1,9 +1,29 @@
+import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { parseLspConfig } from './config.js';
 
+const digests = new WeakMap<object, string>();
+const digest = (bytes: Buffer) => 'sha256:' + createHash('sha256').update(bytes).digest('hex');
+/** The digest of the file bytes that `readTrustedLspConfig` parsed this configuration from. */
+export function trustedConfigDigest(config: object): string | undefined {
+  return digests.get(config);
+}
+/** The digest of the bytes of the file now, read with the checks of a configuration load. */
+export async function trustedFileDigest(filename: string): Promise<string> {
+  return digest(await captureTrustedFile(filename));
+}
 /** The path is fixed by the host process. No protocol request can replace it. */
 export async function readTrustedLspConfig(filename: string) {
+  const bytes = await captureTrustedFile(filename);
+  const config = parseLspConfig(
+    JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown,
+  );
+  digests.set(config, digest(bytes));
+  return config;
+}
+/** One bounded read of a regular file that did not change while it was read. */
+async function captureTrustedFile(filename: string): Promise<Buffer> {
   const handle = await open(filename, constants.O_RDONLY | constants.O_NONBLOCK);
   try {
     const before = await handle.stat({ bigint: true });
@@ -27,11 +47,7 @@ export async function readTrustedLspConfig(filename: string) {
       BigInt(bytes) !== after.size
     )
       throw new Error('Trusted configuration changed during capture.');
-    return parseLspConfig(
-      JSON.parse(
-        new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)),
-      ) as unknown,
-    );
+    return Buffer.concat(chunks);
   } finally {
     await handle.close();
   }

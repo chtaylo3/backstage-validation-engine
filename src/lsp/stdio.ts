@@ -7,8 +7,9 @@ import {
   StreamMessageWriter,
 } from 'vscode-languageserver/node';
 import { closeSharedCelRuntime, getSharedCelRuntime } from '../runtime/cel/index.js';
+import { systemClock } from '../base/clock.js';
 import { createLspCatalog } from './config.js';
-import { readTrustedLspConfig } from './trusted-config.js';
+import { readTrustedLspConfig, trustedConfigDigest, trustedFileDigest } from './trusted-config.js';
 import { BoundedLspInput } from './framing.js';
 import { createFilesystemSource } from './filesystem.js';
 import { attachLspServer } from './server.js';
@@ -20,6 +21,8 @@ try {
   if (process.argv.length !== 4 || process.argv[2] !== '--config')
     throw new Error('Expected --config <trusted-config.json>.');
   const configPath = process.argv[3]!;
+  // The one clock of this process: the connection, the filesystem reader and the catalog read it.
+  const clock = systemClock;
   const config = await readTrustedLspConfig(configPath);
   // Load the pinned native dependency during server initialization. This is
   // static runtime preparation, not workspace validation; cold editor readiness
@@ -28,16 +31,19 @@ try {
   if (!config.profile.requiredProcessors.length)
     await loadBackstageAdapter(config.profile.adapterId).catch(() => undefined);
   const resources = async (current = config): Promise<LspServerResources> => {
-    const filesystem = current.filesystem ? await createFilesystemSource(current) : undefined;
+    const filesystem = current.filesystem
+      ? await createFilesystemSource(current, clock)
+      : undefined;
     let catalog: Awaited<ReturnType<typeof createLspCatalog>>;
     try {
-      catalog = await createLspCatalog(current, process.env);
+      catalog = await createLspCatalog(current, process.env, clock);
     } catch (error) {
       await filesystem?.close();
       throw error;
     }
     return {
       config: current,
+      runtime: getSharedCelRuntime(),
       ...(catalog ? { catalog } : {}),
       ...(filesystem ? { filesystem } : {}),
       dispose: async () => {
@@ -64,7 +70,7 @@ try {
   const watchdog = {
     initialize: () => {},
     shutdownReceived: false,
-    exit: (code: number) => stop(code),
+    exit: () => stop(server.shutdownReceived ? 0 : 1),
   };
   const connection = createConnection(
     (logger) =>
@@ -76,16 +82,28 @@ try {
     watchdog,
   );
   let watches: TrustedFileWatches | undefined = undefined;
+  // The digest of the file bytes behind the configuration in use. It changes only when a session
+  // activates, so the watch still retries a load that failed or was read but never activated.
+  let inUse = trustedConfigDigest(config);
   const server = attachLspServer(connection, config, {
     ...initial,
+    clock,
     reload: async () => resources(await readTrustedLspConfig(configPath)),
-    configurationChanged: (current) => watches?.credential(current.catalog?.tokenFile),
+    configurationChanged: (current) => {
+      inUse = trustedConfigDigest(current);
+      return watches?.credential(current.catalog?.tokenFile);
+    },
     onClose: () => watches?.close(),
   });
   startupCleanup = server.close;
-  watches = new TrustedFileWatches(configPath, () => {
-    void server.reload().catch(() => undefined);
-  });
+  watches = new TrustedFileWatches(
+    configPath,
+    () => {
+      void server.reload().catch(() => undefined);
+    },
+    undefined,
+    async () => inUse !== undefined && (await trustedFileDigest(configPath)) === inUse,
+  );
   server.own(watches.credential(config.catalog?.tokenFile));
   let stopping = false;
   const stop = (code: number) => {
@@ -111,7 +129,7 @@ try {
   connection.listen();
   process.stdin.pipe(input);
   process.stdin.once('end', () => {
-    stop(watchdog.shutdownReceived ? 0 : 1);
+    stop(server.shutdownReceived ? 0 : 1);
   });
 } catch {
   if (startupCleanup) await startupCleanup().catch(() => undefined);

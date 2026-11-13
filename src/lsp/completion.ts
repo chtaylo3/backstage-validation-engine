@@ -2,15 +2,17 @@ import { setImmediate as yieldTurn } from 'node:timers/promises';
 import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 import type { CompletionList, CompletionParams, Range } from 'vscode-languageserver/node';
 import type { ValidationRequest, JsonValue } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import type { LocalCatalogSources } from '../core/reference-data.js';
-import { digestText } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
+import type { LocalCatalogSources } from '../pipeline/reference-data.js';
+import { digestText } from '../base/json.js';
 import { builtinCapabilitySession } from '../capabilities/session.js';
 import type { CapabilitySession } from '../capabilities/session.js';
 import { capabilityBinding, capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import { loadBackstageAdapter } from '../compatibility/adapter.js';
-import { buildProposedCatalog } from '../core/proposed-catalog.js';
+import { buildProposedCatalog } from '../pipeline/proposed-catalog.js';
 import { parseSourceSnapshot } from '../parsing/parser.js';
 import { SourceLineIndex, childPointer } from '../parsing/locations.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
@@ -18,10 +20,11 @@ import {
   compileReferenceContexts,
   isArrayIndex,
   REFERENCE_LIMITS,
-} from '../policy/reference-contexts.js';
-import type { ReferencePattern } from '../policy/reference-contexts.js';
+} from '../contracts/reference-contexts.js';
+import type { ReferencePattern } from '../contracts/reference-contexts.js';
 import { normalizeCatalogAccess } from '../providers/catalog.js';
 import { abortable } from '../providers/async.js';
+import { isSearchReferencesParams } from '../protocol/index.js';
 import type {
   CatalogProvider,
   CatalogAccessContext,
@@ -142,7 +145,7 @@ export class CompletionService {
   constructor(
     private readonly config: LspConfig,
     catalog?: { provider: CatalogProvider; access: CatalogAccessContext },
-    private readonly clock = { wall: () => Date.now(), mono: () => performance.now() },
+    private readonly clock: Clock = systemClock,
     private readonly capabilityOptions: {
       readonly sessionGeneration?: number;
       readonly dependencyGeneration?: () => number;
@@ -175,6 +178,7 @@ export class CompletionService {
           async: ['search'],
           permissions: ['catalog-read'],
           dependencies: [config.profile.adapterId],
+          clock,
         },
       );
     if (catalog) {
@@ -221,6 +225,8 @@ export class CompletionService {
     this.controller = controller;
     const task = (async () => {
       const request = input.request;
+      // The indexed request's creator set its deadline; this budget keeps the process clock, and
+      // the injected clock decides cache freshness and the remote search deadline.
       using budget = new RequestBudget(request.execution.deadlineAt, controller.signal);
       const adapter = await loadBackstageAdapter(this.config.profile.adapterId);
       const local = input.local ? await abortable(input.local, budget.signal) : undefined;
@@ -374,7 +380,7 @@ export class CompletionService {
       now >= cached.wall &&
       now >= cached.report.fetchedAt &&
       now < cached.report.expiresAt &&
-      this.clock.mono() - cached.mono < cached.ttl
+      this.clock.monotonic() - cached.mono < cached.ttl
     )
       return cached.report;
     this.discard(key);
@@ -396,7 +402,7 @@ export class CompletionService {
               dependencyGeneration: this.capabilityOptions.dependencyGeneration?.() ?? 0,
               authorityContextDigest: capabilityAuthorityDigest(this.config.identity, catalog),
             }),
-            deadlineAt: Date.now() + COMPLETION_LIMITS.remoteMs,
+            deadlineAt: this.clock.wall() + COMPLETION_LIMITS.remoteMs,
             signal: combined,
             current: () => !this.stopped && lifetime === this.generation && this.index === index,
           })
@@ -426,7 +432,7 @@ export class CompletionService {
                   this.cacheBytes + bytes > COMPLETION_LIMITS.cacheBytes)
               )
                 this.discard(this.cache.keys().next().value!);
-              this.cache.set(key, { report, wall, mono: this.clock.mono(), ttl, bytes });
+              this.cache.set(key, { report, wall, mono: this.clock.monotonic(), ttl, bytes });
               this.cacheBytes += bytes;
             }
           }
@@ -485,17 +491,11 @@ export class CompletionService {
       signal.aborted ||
       !index ||
       index.generation !== generation ||
-      !input ||
-      typeof input !== 'object' ||
-      Array.isArray(input) ||
-      Object.keys(input).some((key) => !['kind', 'namespace', 'prefix'].includes(key))
+      !isSearchReferencesParams(input)
     )
       return [];
-    const query = input as Partial<CatalogSuggestionQuery>;
+    const query = input;
     if (
-      typeof query.kind !== 'string' ||
-      typeof query.namespace !== 'string' ||
-      typeof query.prefix !== 'string' ||
       !/^[a-z0-9_.-]{0,63}$/u.test(query.prefix) ||
       !safeRef(`${query.kind}:${query.namespace}/a`)
     )

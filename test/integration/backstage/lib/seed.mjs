@@ -95,6 +95,7 @@ export function validateSeed(seed) {
   assert(refs.size <= 1000, 'Limit the complete seed to 1000 entities.');
   assert.deepEqual(Object.keys(seed.expected).sort(), [
     'absentEntityRefs',
+    'absentRelations',
     'entityRefs',
     'relations',
   ]);
@@ -117,6 +118,24 @@ export function validateSeed(seed) {
       'Relations must name authored entities.',
     );
     assert.match(relation.type, /^[a-zA-Z][a-zA-Z0-9]+$/u);
+  }
+  assert(Array.isArray(seed.expected.absentRelations));
+  const declaredRefs = new Set([...refs, ...seed.expected.absentEntityRefs]);
+  const requiredTuples = new Set(seed.expected.relations.map(canonical));
+  const absentTuples = new Set();
+  for (const relation of seed.expected.absentRelations) {
+    assert.deepEqual(Object.keys(relation).sort(), ['source', 'target', 'type']);
+    assert(
+      refs.has(relation.source) && declaredRefs.has(relation.target),
+      'Absent relations must name declared entities.',
+    );
+    assert.match(relation.type, /^[a-zA-Z][a-zA-Z0-9]+$/u);
+    const tuple = canonical(relation);
+    assert(
+      !requiredTuples.has(tuple) && !absentTuples.has(tuple),
+      'Relation expectations cannot conflict or repeat.',
+    );
+    absentTuples.add(tuple);
   }
   const edges = new Map(files.map((file) => [file.filename, []]));
   for (const file of files)

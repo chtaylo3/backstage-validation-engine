@@ -1,3 +1,5 @@
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { CatalogFailure } from './types.js';
 
 /** Bound even trusted callbacks that ignore their signal; late rejections are always observed. */
@@ -51,11 +53,13 @@ export async function pause(ms: number, signal: AbortSignal): Promise<void> {
 /** Shared across this connection's callers so new requests cannot bypass Retry-After. */
 export class CatalogRateLimit {
   private notBefore = 0;
+  /** The block and the wait decision read monotonic time; the wait itself is a real timer. */
+  constructor(private readonly clock: Clock = systemClock) {}
   block(ms: number): void {
-    this.notBefore = Math.max(this.notBefore, performance.now() + ms);
+    this.notBefore = Math.max(this.notBefore, this.clock.monotonic() + ms);
   }
   async wait(signal: AbortSignal, remainingMs: number, maxWaitMs: number): Promise<void> {
-    const delay = Math.max(0, this.notBefore - performance.now());
+    const delay = Math.max(0, this.notBefore - this.clock.monotonic());
     if (delay > maxWaitMs || delay >= remainingMs) throw new CatalogFailure('rate_limited');
     if (delay > 0) await pause(Math.ceil(delay), signal);
   }

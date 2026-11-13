@@ -1,15 +1,29 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import {
   CloseAction,
   ErrorAction,
   LanguageClient,
+  LSPErrorCodes,
   RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import type { DocumentSelector, LanguageClientOptions } from 'vscode-languageclient/node';
+import {
+  BVE_METHODS,
+  isFilesystemObservationResult,
+  isRecordSelectionParams,
+  isReloadConfigurationResult,
+  isSearchReferencesResult,
+  isValidationCoverageEnvelope,
+} from '../../../src/protocol/index.js';
+import type {
+  SearchReferencesParams,
+  ValidationCoverageParams,
+} from '../../../src/protocol/index.js';
+import { addRoot, configuredSpellings, pathKey, protocolFileUri } from './protocol-uris.js';
+import type { ConfiguredSpellings } from './protocol-uris.js';
 
 let client: LanguageClient | undefined;
 let pending: Promise<void> = Promise.resolve();
@@ -18,18 +32,44 @@ let disconnected = false;
 let extensionContext: vscode.ExtensionContext | undefined;
 let historyKey: string | undefined;
 let reloadNotification: vscode.Disposable | undefined;
+/** The configured spellings of the running client; `coverage` spells its document with them. */
+let activeSpellings: ConfiguredSpellings | undefined;
+
+/**
+ * A response that fails its protocol guard is handled like a failed request: the caller sees a
+ * rejection, and the search picker clears its results. The message carries no response content.
+ */
+function invalidResponse(method: string): Error {
+  return new Error(`The language server sent an invalid ${method} response.`);
+}
+
+/**
+ * The server's spelling of a document that a caller names by any URI of the same local file. A
+ * value that is not a local file URI is sent as given, and the server answers that it has no such
+ * document.
+ */
+function protocolUri(uri: string): string {
+  if (!activeSpellings) return uri;
+  try {
+    const parsed = vscode.Uri.parse(uri, true);
+    return parsed.scheme === 'file' ? protocolFileUri(parsed.fsPath, activeSpellings) : uri;
+  } catch {
+    return uri;
+  }
+}
 
 async function reloadConfiguration(): Promise<void> {
   const current = client;
   if (!current?.isRunning() || !vscode.workspace.isTrusted) return;
-  const result = await current.sendRequest<{ reloaded: boolean }>('bve/reloadConfiguration');
+  const result = await current.sendRequest<unknown>(BVE_METHODS.reloadConfiguration);
+  if (!isReloadConfigurationResult(result)) throw invalidResponse(BVE_METHODS.reloadConfiguration);
   if (result.reloaded) {
     output?.info('Trusted configuration and credentials reloaded.');
   } else output?.error('Validation is unavailable until the trusted configuration can be loaded.');
 }
 async function recordSelection(value: unknown): Promise<void> {
-  if (typeof value !== 'string' || value.length > 512 || !client?.isRunning()) return;
-  await client.sendNotification('bve/recordSelection', value);
+  if (!isRecordSelectionParams(value) || !client?.isRunning()) return;
+  await client.sendNotification(BVE_METHODS.recordSelection, value);
   if (historyKey && extensionContext?.workspaceState) {
     const history = extensionContext.workspaceState
       .get<string[]>(historyKey, [])
@@ -38,7 +78,16 @@ async function recordSelection(value: unknown): Promise<void> {
     await extensionContext.workspaceState.update(historyKey, history.slice(-128));
   }
 }
-function searchReferences(): void {
+/** How often one search query is asked: once, and again after each overtaken answer. */
+const SEARCH_ATTEMPTS = 4;
+/**
+ * The server answers a search that a source change or a configuration reload overtook with the
+ * LSP `ContentModified` error: that search has no answer, and the same question can be asked again.
+ */
+function overtaken(error: unknown): boolean {
+  return record(error) && error.code === LSPErrorCodes.ContentModified;
+}
+function searchReferences(): Promise<void> | undefined {
   const current = client;
   if (!current?.isRunning() || !vscode.workspace.isTrusted) return;
   const editor = vscode.window.activeTextEditor;
@@ -48,6 +97,11 @@ function searchReferences(): void {
   picker.title = 'Backstage: Search Entity References';
   picker.placeholder = 'Enter kind:namespace/name, for example group:default/te';
   picker.matchOnDescription = true;
+  let complete!: () => void;
+  const completed = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  let accepted = false;
   let query = 0;
   let timer: NodeJS.Timeout | undefined;
   let cancellation: vscode.CancellationTokenSource | undefined;
@@ -67,38 +121,49 @@ function searchReferences(): void {
         return;
       }
       picker.busy = true;
-      timer = setTimeout(() => {
+      const params: SearchReferencesParams = {
+        kind: match[1]!,
+        namespace: match[2]!,
+        prefix: match[3]!,
+      };
+      const ask = (attempt: number) => {
         const token = new vscode.CancellationTokenSource();
         cancellation = token;
-        void current
-          .sendRequest<readonly { reference: string; source: string }[]>(
-            'bve/searchReferences',
-            { kind: match[1], namespace: match[2], prefix: match[3] },
-            token.token,
-          )
-          .then(
-            (rows) => {
-              if (query === generation && !token.token.isCancellationRequested)
-                picker.items = rows.map((row) => ({
-                  label: row.reference,
-                  description: row.source,
-                  reference: row.reference,
-                }));
-            },
-            () => {
-              if (query === generation) picker.items = [];
-            },
-          )
-          .finally(() => {
-            if (query === generation) picker.busy = false;
-          });
-      }, 120);
+        void current.sendRequest<unknown>(BVE_METHODS.searchReferences, params, token.token).then(
+          (rows) => {
+            if (query !== generation) return;
+            // An invalid response clears the results, as a failed request does.
+            if (!isSearchReferencesResult(rows)) picker.items = [];
+            else if (!token.token.isCancellationRequested)
+              picker.items = rows.map((row) => ({
+                label: row.reference,
+                description: row.source,
+                reference: row.reference,
+              }));
+            picker.busy = false;
+          },
+          (error: unknown) => {
+            if (query !== generation) return;
+            // An overtaken search is asked again, after the same pause as a new query. The picker
+            // stays busy meanwhile, and a new query or closing the picker stops the retries.
+            if (overtaken(error) && attempt < SEARCH_ATTEMPTS) {
+              token.dispose();
+              timer = setTimeout(() => ask(attempt + 1), 120);
+              return;
+            }
+            picker.items = [];
+            picker.busy = false;
+          },
+        );
+      };
+      timer = setTimeout(() => ask(1), 120);
     }),
   );
   subscriptions.push(
     picker.onDidAccept(() => {
       const reference = picker.selectedItems[0]?.reference;
-      if (!reference) return;
+      if (!reference || accepted) return;
+      accepted = true;
       picker.hide();
       void (async () => {
         if (
@@ -114,11 +179,14 @@ function searchReferences(): void {
         } else if (!editor) {
           await vscode.env.clipboard.writeText(reference);
           await recordSelection(reference);
-        } else
-          await vscode.window.showInformationMessage(
-            'The document changed during search. Run Search Entity References again.',
-          );
-      })().catch(() => output?.error('Unable to insert the selected reference.'));
+        } else {
+          const message = 'The document changed during search. Run Search Entity References again.';
+          output?.info(message);
+          void vscode.window.showInformationMessage(message).then(undefined, () => undefined);
+        }
+      })()
+        .catch(() => output?.error('Unable to insert the selected reference.'))
+        .finally(complete);
     }),
   );
   subscriptions.push(
@@ -129,9 +197,11 @@ function searchReferences(): void {
       cancellation?.dispose();
       for (const subscription of subscriptions) subscription.dispose();
       picker.dispose();
+      if (!accepted) complete();
     }),
   );
   picker.show();
+  return completed;
 }
 
 function selectedConfig(): string | undefined {
@@ -148,12 +218,30 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 async function selectors(
   config: string,
-  configured = new Map<string, string>(),
+  spellings = configuredSpellings(),
 ): Promise<Pick<LanguageClientOptions, 'documentSelector' | 'uriConverters'>> {
-  const text = await readFile(config, 'utf8');
+  let text: string;
+  try {
+    text = await readFile(config, 'utf8');
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    const reason =
+      code === 'ENOENT'
+        ? 'Trusted configuration file was not found.'
+        : code === 'EACCES' || code === 'EPERM'
+          ? 'Trusted configuration file is not readable.'
+          : 'Trusted configuration file is unavailable.';
+    // eslint-disable-next-line preserve-caught-error -- Native causes contain private paths. Only the fixed classification crosses this boundary.
+    throw new Error(reason);
+  }
   if (Buffer.byteLength(text) > 32 * 1024 * 1024)
     throw new Error('Trusted configuration exceeds the size limit.');
-  const value: unknown = JSON.parse(text);
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error('Trusted configuration contains invalid JSON.');
+  }
   if (!record(value) || !record(value.source)) throw new Error('Invalid trusted configuration.');
   historyKey =
     'backstageValidation.history:' +
@@ -176,14 +264,15 @@ async function selectors(
         ? value.source.files.map((file: unknown) => (record(file) ? file.uri : undefined))
         : [];
   if (files.length > 1000) throw new Error('Trusted configuration exceeds the file limit.');
+  const configured = spellings.files;
   configured.clear();
-  const key = (value: string) => (process.platform === 'win32' ? value.toLowerCase() : value);
+  spellings.roots.length = 0;
   const documentSelector: DocumentSelector = files.length
     ? files.map((uri: unknown) => {
         if (typeof uri !== 'string') throw new Error('Invalid configured source URI.');
         const parsed = vscode.Uri.parse(uri, true);
         if (parsed.scheme !== 'file') throw new Error('Only local file sources are supported.');
-        const identity = key(parsed.fsPath);
+        const identity = pathKey(parsed.fsPath);
         if (configured.has(identity) && configured.get(identity) !== uri)
           throw new Error('Ambiguous configured file spellings.');
         configured.set(identity, uri);
@@ -207,12 +296,22 @@ async function selectors(
     for (const root of value.filesystem.discovery.roots) {
       if (typeof root !== 'string' || vscode.Uri.parse(root, true).scheme !== 'file')
         throw new Error('Invalid discovery root.');
+      try {
+        addRoot(spellings, root);
+      } catch {
+        throw new Error('Invalid discovery root.');
+      }
       documentSelector.push({ scheme: 'file', pattern: { baseUri: root, pattern: '**/*' } });
     }
   }
   if (record(value.filesystem) && typeof value.source.rootUri === 'string') {
     if (vscode.Uri.parse(value.source.rootUri, true).scheme !== 'file')
       throw new Error('Invalid source root.');
+    try {
+      addRoot(spellings, value.source.rootUri);
+    } catch {
+      throw new Error('Invalid source root.');
+    }
     documentSelector.push({
       scheme: 'file',
       pattern: { baseUri: value.source.rootUri, pattern: '**/*' },
@@ -222,9 +321,7 @@ async function selectors(
     documentSelector,
     uriConverters: {
       code2Protocol: (uri) =>
-        uri.scheme === 'file'
-          ? (configured.get(key(uri.fsPath)) ?? pathToFileURL(uri.fsPath).href)
-          : uri.toString(),
+        uri.scheme === 'file' ? protocolFileUri(uri.fsPath, spellings) : uri.toString(),
       protocol2Code: (uri) => vscode.Uri.parse(uri, true),
     },
   };
@@ -235,6 +332,7 @@ async function stop(): Promise<void> {
   const previous = client;
   if (previous) await previous.stop();
   if (client === previous) client = undefined;
+  output?.info('Backstage validation stopped. Use Restart Language Server to resume.');
 }
 async function start(context: vscode.ExtensionContext): Promise<void> {
   await stop();
@@ -245,7 +343,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     output?.info('Set Backstage Validation: Config Path in User Settings to start validation.');
     return;
   }
-  const configured = new Map<string, string>();
+  const configured = configuredSpellings();
   const selection = await selectors(config, configured);
   const runtime = context.asAbsolutePath(
     path.join('runtime', process.platform === 'win32' ? 'node.exe' : 'node'),
@@ -301,7 +399,8 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     },
   );
   client = next;
-  reloadNotification = next.onNotification('bve/configurationReloaded', () => {
+  activeSpellings = configured;
+  reloadNotification = next.onNotification(BVE_METHODS.configurationReloaded, () => {
     if (client !== next || !next.isRunning()) return;
     void (async () => {
       const selection = await selectors(config, configured);
@@ -309,8 +408,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       for (const document of vscode.workspace.textDocuments ?? []) {
         if (document.uri.scheme !== 'file') continue;
         const uri = selection.uriConverters!.code2Protocol(document.uri);
-        const key =
-          process.platform === 'win32' ? document.uri.fsPath.toLowerCase() : document.uri.fsPath;
+        const key = pathKey(document.uri.fsPath);
         const rooted = selection.documentSelector?.some((filter) => {
           if (
             !record(filter) ||
@@ -331,7 +429,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
               !relative.startsWith('..' + path.sep))
           );
         });
-        if (configured.has(key) || rooted)
+        if (configured.files.has(key) || rooted)
           await next.sendNotification('textDocument/didOpen', {
             textDocument: {
               uri,
@@ -342,13 +440,13 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
           });
       }
       for (const value of context.workspaceState?.get<string[]>(historyKey!, []) ?? [])
-        await next.sendNotification('bve/recordSelection', value);
+        await next.sendNotification(BVE_METHODS.recordSelection, value);
     })().catch(() => output?.error('Unable to refresh the editor selection history.'));
   });
   try {
     await next.start();
     for (const value of context.workspaceState?.get<string[]>(historyKey!, []) ?? [])
-      await next.sendNotification('bve/recordSelection', value);
+      await next.sendNotification(BVE_METHODS.recordSelection, value);
     output?.info('Packaged Backstage language server is ready.');
   } catch {
     reloadNotification?.dispose();
@@ -364,9 +462,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
         if (client === next && !next.serverProcess) client = undefined;
       },
     );
-    throw new Error(
-      'Unable to start Backstage validation. Check the trusted configuration and output channel.',
-    );
+    throw new Error('Trusted configuration was rejected during server initialization.');
   }
 }
 function schedule(operation: () => Promise<void>): Promise<void> {
@@ -374,13 +470,39 @@ function schedule(operation: () => Promise<void>): Promise<void> {
   pending = work.catch(() => {});
   return work;
 }
+function reportStartupFailure(error: unknown): void {
+  const safe = new Set([
+    'Select an absolute trusted configuration path in User Settings.',
+    'Trusted configuration file was not found.',
+    'Trusted configuration file is not readable.',
+    'Trusted configuration file is unavailable.',
+    'Trusted configuration contains invalid JSON.',
+    'Invalid trusted configuration.',
+    'Trusted configuration exceeds the size limit.',
+    'Trusted configuration exceeds the file limit.',
+    'Only local file sources are supported.',
+    'Invalid configured source URI.',
+    'Ambiguous configured file spellings.',
+    'Invalid discovery root.',
+    'Invalid source root.',
+    'Trusted configuration was rejected during server initialization.',
+  ]);
+  output?.error(
+    error instanceof Error && safe.has(error.message)
+      ? error.message
+      : 'Trusted configuration could not be loaded.',
+  );
+}
 export async function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
   output = vscode.window.createOutputChannel('Backstage Validation', { log: true });
   context.subscriptions.push(
     output,
     vscode.commands.registerCommand('backstageValidation.restart', () =>
-      schedule(() => start(context)),
+      schedule(() => start(context)).catch((error: unknown) => {
+        reportStartupFailure(error);
+        throw error;
+      }),
     ),
     vscode.commands.registerCommand('backstageValidation.stop', () => schedule(stop)),
     vscode.commands.registerCommand('backstageValidation.showOutput', () => output?.show()),
@@ -391,19 +513,36 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('backstageValidation.recordSelection', recordSelection),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('backstageValidation.configPath'))
-        void schedule(() => start(context)).catch(() => {
+        void schedule(() => start(context)).catch((error: unknown) => {
           output?.error('Unable to restart validation; check trusted User Settings.');
+          reportStartupFailure(error);
         });
     }),
   );
   try {
     await schedule(() => start(context));
-  } catch {
+  } catch (error) {
     output.error(
       'Unable to start validation; check trusted User Settings and launcher configuration.',
     );
+    reportStartupFailure(error);
   }
   return {
+    filesystemObservation: async (): Promise<unknown> => {
+      if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
+      const result = await client.sendRequest<unknown>(BVE_METHODS.filesystemObservation);
+      if (!isFilesystemObservationResult(result))
+        throw invalidResponse(BVE_METHODS.filesystemObservation);
+      return result;
+    },
+    coverage: async (uri: string, version: number, digest: string): Promise<unknown> => {
+      if (disconnected || !vscode.workspace.isTrusted || !client?.isRunning()) return null;
+      const params: ValidationCoverageParams = { uri: protocolUri(uri), version, digest };
+      const result = await client.sendRequest<unknown>(BVE_METHODS.validationCoverage, params);
+      if (!isValidationCoverageEnvelope(result))
+        throw invalidResponse(BVE_METHODS.validationCoverage);
+      return result;
+    },
     status: () => ({
       running: !disconnected && client?.isRunning() === true,
       pid: client?.serverProcess?.pid,

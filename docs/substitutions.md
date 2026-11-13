@@ -99,12 +99,27 @@ and patterns produce required incomplete coverage. Resource exhaustion, timeout 
 also remain incomplete. CI aggregation distinguishes violations (exit 1) from incomplete work (exit
 2). Required unavailable processors still block native work before substitutions.
 
-The [substitution tests](../test/backstage-substitutions.test.ts) cover both native pins, nested
+The [substitution tests](../test/engine/backstage-substitutions.test.ts) cover both native pins, nested
 ranges, malformed data, cycles, path escapes, disk/symlink isolation, resource limits, Locations,
-catalog rules and cancellation. The [stdio tests](../test/lsp.test.ts) exercise included-buffer
+catalog rules and cancellation. The [stdio tests](../test/lsp/lsp.test.ts) exercise included-buffer
 revalidation, projected diagnostics, repair, close restoration and stale HTTP suppression against
 the pinned fake APIs. Actual editor/backend and filesystem-capture qualification remain open.
 
 Local qualification on 2026-10-29: all 56 substitution checks and five added LSP checks passed. The
 complete `npm run check` passed all 485 tests and required static, build, and schema checks. These
 runs used loopback access for the fake APIs.
+
+## Deliberate upstream differences
+
+The [fixed behavior table](../test/fixtures/backstage-behavior/substitutions.json) separates local and upstream expected results.
+Its [source manifest](../test/fixtures/backstage-behavior/sources.json) binds both pinned processor versions and published notices.
+Both upstream versions reject non-string resolver targets. Both reject empty or multiple YAML documents.
+
+Upstream leaves mixed mappings and mappings with multiple markers unchanged. The local profile rejects them as `invalid_substitution`.
+Upstream does not recursively process placeholders returned by a resolver. The local profile resolves them within the original snapshot budgets.
+Upstream JSON parsing keeps the last duplicate key. Upstream YAML parsing permits rounded unsafe numbers.
+The local parser rejects duplicate keys and unsafe numbers as `invalid_inclusion`. These are deliberate safe-profile choices.
+
+The focused backend command executes each upstream table case on both locked processor implementations.
+Source tests execute the separate local expectations with both native model adapters.
+These controls cover the declared table. They do not qualify unrestricted readers or arbitrary deployment processors.

@@ -5,7 +5,8 @@ Use Node 24.x and npm 11.x. Install dependencies with `npm ci`. Before you submi
 TypeScript installation, broker, database, Go installation, or planning repository.
 
 Keep one production engine. Add a module or package when the implementation needs a separate
-boundary. Use `.js` extensions in source imports for Node ESM, the ECMAScript module format. Put
+boundary. Put each module in the lowest [engine layer](docs/architecture.md#engine-layers) that
+holds everything it imports; `npm run architecture:check` rejects upward imports and import cycles. Use `.js` extensions in source imports for Node ESM, the ECMAScript module format. Put
 public exports in `src/index.ts`, `src/contracts/index.ts`, and `src/lsp/index.ts`. Production
 TypeScript uses strict type rules, unchecked-index checks, and exact optional properties.
 
@@ -16,6 +17,15 @@ contract version. If behavior changes, update the examples and tests.
 
 Both structural JSON Schema validation and semantic integrity checks are required. Structural
 validation checks data shape. Semantic checks cover meaning and consistency.
+
+Put each test file in the group directory of what it mainly exercises: `test/engine/`,
+`test/lsp/`, `test/cli/`, `test/extension/`, or `test/tooling/`. No test file sits directly in
+`test/`. `node scripts/test.mjs --group <name>` runs one group after `npm run test:compile`. The
+`engine` group runs in parallel; a file there that depends on tight real-time deadlines belongs in
+the serial list in `scripts/test-selection.mjs`, with its reason. `BVE_TEST_CONCURRENCY=1` runs
+every file serially. See [test layout and runner](docs/testing-harness.md#test-layout-and-runner).
+Scripts listed in `tsconfig.scripts.json` are type checked with JSDoc types by
+`npm run typecheck`.
 
 Tests use `node:test` and `node:assert/strict`. Test behavior that callers depend on:
 classification, source history, resource limits, integrity, cancellation, authority, and

@@ -1,0 +1,49 @@
+{
+  // Type checks the listed scripts as JavaScript with JSDoc types. `npm run typecheck` runs it.
+  // A checked script also checks every script it imports, so imported scripts are listed too.
+  //
+  // Not yet checked (remaining work):
+  //   scripts/test-extension.mjs, scripts/test-extension-remote.mjs, scripts/extension-test-ui.mjs:
+  //     import build outputs under .artifacts/vscode/test/ that a clean checkout does not have, and
+  //     pull in the unchecked extension-test-*.mjs and extension-ssh-network.mjs modules.
+  //   scripts/backstage-test-env.mjs: pulls in scripts/cli-candidate.mjs and the unchecked
+  //     test/integration/backstage/lib/*.mjs modules.
+  //   scripts/backstage-release-evidence.mjs, scripts/backstage-runner-controls.mjs,
+  //   scripts/benchmark-cel.mjs, scripts/benchmark-lsp-separation.mjs,
+  //   scripts/build-extension-tests.mjs, scripts/cli-candidate.mjs, scripts/compare-cel-go.mjs,
+  //   scripts/extension-remote-fixture.mjs, scripts/extension-ssh-network.mjs,
+  //   scripts/extension-test-cli.mjs, scripts/extension-test-fixture.mjs,
+  //   scripts/extension-test-permissions.mjs, scripts/extension-test-process.mjs,
+  //   scripts/extension-test-upgrade.mjs, scripts/jetbrains-template.mjs,
+  //   scripts/package-cli.mjs, scripts/package-extension.mjs, scripts/test-extension-cli.mjs,
+  //   scripts/test-h4-backends.mjs, scripts/test-h5-controls.mjs, scripts/test-ssh-network.mjs,
+  //   scripts/use-cli-candidate.mjs, scripts/use-extension-candidate.mjs,
+  //   scripts/verify-extension-qualification.mjs
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    // scripts/schemas.mjs imports ../dist/*.js; before a build, those resolve to src/*.ts.
+    "rootDirs": ["dist", "src"],
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "scripts/architecture-boundaries.mjs",
+    "scripts/candidate-runs.mjs",
+    "scripts/ci-test-reporter.mjs",
+    "scripts/clean.mjs",
+    "scripts/extension-test-selection.mjs",
+    "scripts/qualification-inventory.mjs",
+    "scripts/schemas.mjs",
+    "scripts/test-client.mjs",
+    "scripts/test-selection.mjs",
+    "scripts/test.mjs"
+  ]
+}

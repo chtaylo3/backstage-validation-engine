@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import Ajv from 'ajv';
-import { openEvidence, writeJson, counts } from './evidence.mjs';
+import { openEvidence, writeJson } from './evidence.mjs';
 import { validateSeed, renderSeed, digest, loadSeed } from './seed.mjs';
 import { request, converge, refresh, readEntities } from './catalog.mjs';
 import { createClientFixture, runCli, installClient, sourceFor } from './clients.mjs';
-import { runCommand } from './process.mjs';
+import { assertH4CliCase } from './h4-cli-contracts.mjs';
+import { verifyHostControl } from './host-controls.mjs';
 
 await mkdir('/run/work/home', { recursive: true });
 const root = new URL('../', import.meta.url);
@@ -39,9 +40,18 @@ async function cliCase(id, fixture, text, expected, options) {
   return run(id, async () => {
     const value = await runCli(fixture, text, {
       output: '/reports/reports/cli/' + id + '.json',
+      expectedOutcome: [
+        'cli.required-processor',
+        'cli.invalid-credentials',
+        'cli.permission-denied',
+        'cli.outage',
+      ].includes(id)
+        ? 'incomplete'
+        : 'completed',
       ...options,
     });
     assert.equal(value.code, expected, 'Require the documented CLI exit.');
+    if ((options?.format ?? 'json') === 'json') assertH4CliCase(id, value);
     if (expected === 0 && (options?.format ?? 'json') === 'json')
       assert.equal(value.report.outcome, 'completed');
     if (
@@ -115,13 +125,15 @@ async function connected() {
       }));
     assert.deepEqual(state(after), state(before));
   });
-  const fixture = await createClientFixture();
+  const fixture = await createClientFixture({
+    authorityReport: '/reports/reports/authority/' + phase + '.json',
+  });
   const good = await cliCase('cli.valid-json', fixture, fixture.validText, 0);
   await cliCase('cli.valid-sarif', fixture, fixture.validText, 0, { format: 'sarif' });
   await cliCase(
     'cli.native-rejection',
     fixture,
-    fixture.validText.replace('type: service\n', ''),
+    fixture.validText.replace('  type: service\n', ''),
     1,
   );
   const violation = await cliCase('cli.policy-violation', fixture, fixture.invalidText, 1);
@@ -137,13 +149,17 @@ async function connected() {
   const engine = await installClient();
   const processor = await createClientFixture({
     directory: '/run/work/processor',
+    authorityReport: '/reports/reports/authority/' + phase + '-processor.json',
     profile: {
       ...engine.DEFAULT_DEPLOYMENT_PROFILE,
       requiredProcessors: [{ id: 'unavailable-release-processor', stage: 'before-native' }],
     },
   });
   await cliCase('cli.required-processor', processor, processor.validText, 2);
-  await cliCase('cli.missing-credentials', fixture, fixture.validText, 2, { token: null });
+  await cliCase('cli.missing-credentials', fixture, fixture.validText, 2, {
+    token: null,
+    expectedVariant: 'error',
+  });
   await cliCase('cli.invalid-credentials', fixture, fixture.validText, 2, {
     token: 'invalid-release-token',
   });
@@ -154,6 +170,7 @@ async function connected() {
   };
   const invocation = await cliCase('cli.invalid-snapshot', fixture, fixture.validText, 2, {
     sourceOverride: invalidSnapshot,
+    expectedVariant: 'error',
   });
   assert.equal(invocation.report.outcome, 'error');
   const incompleteSarif = await cliCase('cli.incomplete-sarif', fixture, fixture.validText, 2, {
@@ -194,40 +211,12 @@ async function runnerCases() {
       }),
     ),
   );
-  await run('runner.missing-report', async () => {
-    const file = '/run/work/missing-report.json';
-    await rm(file, { force: true });
-    const child = await runCommand(process.execPath, ['-e', 'process.exit(0)']);
-    assert.equal(child.code, 0);
-    await assert.rejects(readFile(file), { code: 'ENOENT' });
-  });
-  await run('runner.failure-accounting', async () => {
-    const file = '/run/work/accounting.json';
-    await rm(file, { force: true });
-    const proof = await openEvidence(file, [
-      { id: 'injected-failure', scope: 'runner' },
-      { id: 'following-case', scope: 'runner' },
-    ]);
-    await assert.rejects(
-      proof.run('injected-failure', 'execution', () =>
-        runCommand(process.execPath, ['-e', 'process.exit(23)']),
-      ),
-    );
-    await proof.run('following-case', 'execution', () =>
-      runCommand(process.execPath, ['-e', 'process.exit(0)']),
-    );
-    assert.deepEqual(counts(proof.report.cases), {
-      discovered: 2,
-      executed: 2,
-      passed: 1,
-      failed: 1,
-      unexecuted: 0,
-    });
-    await writeJson('/reports/reports/runner-accounting.json', {
-      fixtureOnly: true,
-      ...proof.report,
-    });
-  });
+  await run('runner.missing-report', () =>
+    verifyHostControl('/reports/reports/runner/host-missing-report', 'missing-report'),
+  );
+  await run('runner.failure-accounting', () =>
+    verifyHostControl('/reports/reports/runner/host-failed-child', 'failed-child'),
+  );
   await run('runner.ingestion-failure', async () => {
     // A deliberate ingestion fault bypasses the valid renderer and exercises Backstage's parser.
     await writeFile('/catalog/child.yaml', 'apiVersion: [\n');
@@ -266,23 +255,9 @@ async function runnerCases() {
       await apply(baseline);
     }
   });
-  await run('runner.interrupted-run', async () => {
-    const file = '/run/work/interrupted.json';
-    await rm(file, { force: true });
-    const module = new URL('./evidence.mjs', import.meta.url).href;
-    const program = `import { openEvidence } from ${JSON.stringify(module)};const e=await openEvidence(${JSON.stringify(file)},[{id:'active',scope:'runner'},{id:'remaining',scope:'runner'}]);await e.run('active','execution',async()=>{process.kill(process.pid,'SIGTERM');await new Promise(()=>{});});`;
-    const child = await runCommand(process.execPath, ['--input-type=module', '-e', program], {
-      allowFailure: true,
-    }).catch((error) => error);
-    assert.equal(child.signal, 'SIGTERM');
-    const proof = JSON.parse(await readFile(file, 'utf8'));
-    assert.equal(proof.cases[0].status, 'failed');
-    assert.equal(proof.cases[1].status, 'unexecuted');
-    await writeJson('/reports/reports/interruption-accounting.json', {
-      fixtureOnly: true,
-      ...proof,
-    });
-  });
+  await run('runner.interrupted-run', () =>
+    verifyHostControl('/reports/reports/runner/host-interrupted', 'interrupted-child'),
+  );
 }
 try {
   if (phase === 'render') {
@@ -310,10 +285,14 @@ try {
         ),
       );
     });
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.mutation', fixture, fixture.validText.replace('team-demo', 'team-next'), 0);
   } else if (phase === 'outage') {
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.outage', fixture, fixture.validText, 2);
   } else if (phase === 'recovery') {
     await run('environment.persistence', async () => {
@@ -332,7 +311,9 @@ try {
         entityCount: entities.length,
       });
     });
-    const fixture = await createClientFixture();
+    const fixture = await createClientFixture({
+      authorityReport: '/reports/reports/authority/' + phase + '.json',
+    });
     await cliCase('cli.recovery', fixture, fixture.validText, 0);
   } else if (phase === 'reset')
     await run('environment.reset', async () => {

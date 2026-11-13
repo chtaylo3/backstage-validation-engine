@@ -9,6 +9,7 @@ export async function run(fixture: Fixture): Promise<void> {
   await yaml.activate();
   const document = await fixture.document();
   await fixture.diagnostic();
+  const pid = fixture.pid();
   const other = () =>
     vscode.languages
       .getDiagnostics(document.uri)
@@ -40,7 +41,14 @@ export async function run(fixture: Fixture): Promise<void> {
   await fixture.apply(await fixture.fix());
   await until(() => !fixture.has('production-only'), 'product fix clears its finding');
   assert(other().length, 'Product fix preserves the YAML extension finding.');
-  const pid = fixture.pid();
+  const choices = await fixture.provider<vscode.CompletionList>(
+    'vscode.executeCompletionItemProvider',
+    document.uri,
+    new vscode.Position(6, 11),
+  );
+  assert(choices.items.some((row) => row.label === 'group:default/team'));
+  assert(fixture.api!.status().running);
+  assert.equal(fixture.pid(), pid);
   await vscode.commands.executeCommand('backstageValidation.stop');
   await until(() => exited(pid), 'Stop only reaps the product server');
   const text = document.getText();

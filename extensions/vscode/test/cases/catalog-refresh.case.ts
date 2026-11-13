@@ -30,6 +30,7 @@ export async function run(fixture: Fixture): Promise<void> {
     'A subsequent completion request receives the added team.',
   );
   assert(fixture.has('production-only'), 'Independent validation stays active.');
+  await fixture.alive(pid, document);
   await fixture.control({ op: 'remove-refresh' });
   await fixture.diagnostic('owner-exists');
   await until(
@@ -45,6 +46,7 @@ export async function run(fixture: Fixture): Promise<void> {
   );
   assert.equal(document.version, version);
   assert.equal(document.getText(), text);
+  await fixture.alive(pid, document);
   assert.equal(fixture.pid(), pid);
   fixture.note(
     'Catalog addition and removal changed diagnostics at the same document version without save or reload.',

@@ -1,8 +1,8 @@
 import { isAlias, isMap, isScalar, isSeq } from 'yaml';
 import type { Document, Node } from 'yaml';
 import type { JsonValue, SourceFile } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
-import { deepFreeze } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import { deepFreeze } from '../base/json.js';
 import type { ParsingBudget } from './budget.js';
 import { childPointer } from './locations.js';
 import type { SourceLineIndex } from './locations.js';

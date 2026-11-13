@@ -9,9 +9,9 @@ import type {
 } from '../contracts/schemas.js';
 import { SCHEMA_DIALECT } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { canonicalJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
-import { reject } from '../core/errors.js';
+import { canonicalJson, deepFreeze, isRecord } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { reject } from '../base/errors.js';
 import { childPointer } from '../parsing/locations.js';
 
 export const CUSTOM_SCHEMA_LIMITS = Object.freeze({
@@ -200,8 +200,6 @@ export interface PolicySchemaValidator {
 // A failed branch of anyOf/oneOf/conditionals does not prescribe its const.
 // The first fix inventory accepts only unconditional direct properties chains.
 function directConst(schema: Immutable<JsonValue>, path: string, expected: unknown): boolean {
-  const record = (value: unknown): value is Readonly<Record<string, unknown>> =>
-    value !== null && typeof value === 'object' && !Array.isArray(value);
   let node: unknown = schema;
   for (const key of path
     ? path
@@ -209,13 +207,13 @@ function directConst(schema: Immutable<JsonValue>, path: string, expected: unkno
         .split('/')
         .map((part) => part.replace(/~1/g, '/').replace(/~0/g, '~'))
     : []) {
-    if (!record(node) || node.$ref !== undefined) return false;
+    if (!isRecord(node) || node.$ref !== undefined) return false;
     const properties = node.properties;
-    if (!record(properties) || !Object.hasOwn(properties, key)) return false;
+    if (!isRecord(properties) || !Object.hasOwn(properties, key)) return false;
     node = properties[key];
   }
   return (
-    record(node) &&
+    isRecord(node) &&
     node.$ref === undefined &&
     Object.hasOwn(node, 'const') &&
     node.const === expected

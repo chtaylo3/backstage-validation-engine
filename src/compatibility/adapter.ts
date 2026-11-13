@@ -3,9 +3,9 @@ import { setImmediate as yieldTurn } from 'node:timers/promises';
 import type { Entity, EntityPolicy } from '@backstage/catalog-model';
 import type * as NativeLibrary from '@backstage/catalog-model';
 import type { JsonValue } from '../contracts/schemas.js';
-import { ContractError, reject } from '../core/errors.js';
-import { canonicalJson, deepFreeze, digestJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { ContractError, reject } from '../base/errors.js';
+import { canonicalJson, deepFreeze, digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { childPointer } from '../parsing/locations.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { nativeErrorPath } from './native-errors.js';
@@ -127,7 +127,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     context: NativeExecutionContext,
     mode: 'entity' | 'kind' | 'normalize' = 'entity',
   ): Promise<NativeEntityCheck> => {
-    using budget = new RequestBudget(context.deadlineAt, context.signal);
+    using budget = new RequestBudget(context.deadlineAt, context.signal, context.clock);
     budget.throwIfInterrupted();
     const parentPolicy = settings ? configuredParent(settings) : undefined;
     const authored = snapshot(value);

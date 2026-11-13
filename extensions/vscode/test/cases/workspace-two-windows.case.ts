@@ -35,9 +35,14 @@ export async function run(fixture: Fixture): Promise<void> {
     'Concurrent windows own distinct server processes.',
   );
   if (peer === 'a') {
-    const text = original.replace('lifecycle: experimental', 'lifecycle: production');
+    const text = original
+      .replace('lifecycle: experimental', 'lifecycle: production')
+      .replace('owner: team', 'owner: missing');
     await fixture.replace(document, text);
     await until(() => !fixture.has('production-only'), 'first window validates its private buffer');
+    await fixture.missingOwner(document);
+    assert(fixture.has('owner-exists'));
+    await fixture.alive(pid, document, 'owner-exists');
     await mark('edited');
     await wait('b.edited');
     assert.equal(document.getText(), text, 'Other window cannot replace this buffer.');
@@ -48,11 +53,21 @@ export async function run(fixture: Fixture): Promise<void> {
   } else {
     await wait('a.edited');
     assert.equal(document.getText(), original, 'First window unsaved edits stay private.');
+    await fixture.replace(document, original.replace('owner: team', 'owner: missing'));
+    await fixture.currentDiagnostic(document);
+    await fixture.missingOwner(document);
     await fixture.apply(await fixture.fix());
     await until(
       () => document.getText().includes('lifecycle: "stable"'),
       'second authority applies its own policy',
     );
+    await until(
+      () => !fixture.has('production-only'),
+      'second window validates its own guarded repair',
+    );
+    await fixture.missingOwner(document);
+    assert(fixture.has('owner-exists'));
+    await fixture.alive(pid, document, 'owner-exists');
     await mark('edited');
     await wait('a.stopped');
     assert.equal(

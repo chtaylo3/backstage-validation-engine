@@ -372,7 +372,7 @@ The process configuration watch remains live across invalid reloads. Credential 
 Each native operating system passed 989 source tests, 989 packaged tests, and 88 installed-editor cases.
 Quick qualification passed 36 desktop compatibility/load cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
 The macOS qualification needed one isolated rerun after a native Trust UI timeout. Its original 87/88 result remains recorded.
-See [the implementation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for exact candidate digests, hosted runs, and remaining release limits.
+See [the implementation record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) for exact candidate digests, hosted runs, and remaining release limits.
 
 ## Editor authoring and workspace increment
 
@@ -421,8 +421,8 @@ Optional event adapters remain unimplemented. CLI runs retain their existing sin
 
 ## Current editor implementation sequence
 
-The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative delivery order.
-Its [implementation record](lsp-editor-improvements-implementation-record.md) records phase evidence and parent acceptance.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) is the authoritative delivery order.
+Its [implementation record](history/lsp-editor-improvements-implementation-record.md) records phase evidence and parent acceptance.
 Phase 1 updates documentation. Phase 2 implements capability contracts and adapts built-in providers.
 Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions.
 Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.
@@ -454,3 +454,29 @@ The broader governed pilot and stable-release roadmap retain their separate auth
 Kafka, SQS, both IDE families, governed plugins, and support matrices remain in stable-release
 scope. Concrete installation/version access, workload dimensions, and team capacity are still needed
 before calendar commitments.
+
+## Test harness remediation through H6
+
+The user approved H1 through H6 on 2026-11-10. The parent accepted all six packages within their recorded scopes.
+H6 implements accepted independent evidence controls, exact-revision workflow guards, versioned inventories, and corrected scope documentation.
+The [remediation record](test-harness-remediation-record.md#h6-evidence-inventories-and-documentation) binds each finding, criterion, candidate, and gate.
+Its current disposition table accounts for all 86 original findings without changing the frozen register.
+
+H4 executes 22 focused controls per actual backend at source `60e9ac4031908127400cd6a8b9debadb5a286e90`.
+H5's Linux x64 source `5ca82fbf4457553ab4c8e0b7b2bb915485e9083a` selects 30 installed cases on each pinned editor.
+Its 60 unique combinations pass across 62 attempts. Two original X display failures remain failed.
+These records do not qualify the later H6 candidate against actual backends or installed clients.
+The current 58 installed modules include 50 portable cases. The full Backstage inventory declares 47 cases, expanded to 118 across two backends.
+Historical 44-case cross-OS and 46-case Linux evidence retains its own candidate and platform scope.
+
+R4-F10 remains Partial solely for strengthened but UNEXECUTED, parent-unaccepted native Workspace Trust follow-up.
+R4-F7 and R4-F12 remain deferred. All final client, JetBrains, native Trust reliability, remote-loss, and endurance work stays in H7.
+At H6 acceptance, additional N1 remained OPEN outside the original 86 findings.
+The authorized [temporary CEL fix](cel-duplicate-key-workaround.md) pins the upstream patch and passes local source, packaged, CLI, and focused installed-editor checks.
+Upstream release and broader map limitations remain pending. The frozen comparison corpus stays unchanged, and H7 receives no additional scope.
+Screenshots are OPTIONAL DIAGNOSTICS. Required native Trust state and UI assertions remain independent.
+
+The final H6 source/test candidate is `34680c887e13abe8c45453e6753f2c5212040225`.
+Its clean serial gates pass 1,377 source tests, 45 client tests, and 1,377 packaged tests without failures or skips.
+The exact Linux package and independent fault evidence are bound in the [H6 qualification record](test-harness-remediation-record.md#final-committed-qualification).
+The parent accepted H6 on 2026-11-11. These gates do not extend installed-client, backend, or endurance qualification.

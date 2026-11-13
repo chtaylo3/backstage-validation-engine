@@ -1,0 +1,11 @@
+Static Analysis Results Interchange Format (SARIF) Version 2.1.0 Plus Errata 01.
+Edited by Michael C. Fanning and Laurence J. Golding. 28 August 2023.
+OASIS Standard incorporating Approved Errata.
+https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html
+Schema source:
+https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json
+
+Copyright (c) OASIS Open 2023. All Rights Reserved.
+The unmodified schema accompanies this source and its SHA-256 appears in upstream-manifest.json.
+Repository IPR terms and feedback license links are retained in SARIF-LICENSE.upstream.
+The published specification's notices govern schema redistribution and attribution.

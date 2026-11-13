@@ -42,6 +42,13 @@ backend:
           subject: bve-denied
         accessRestrictions:
           - plugin: app
+      - type: static
+        options:
+          token: ${BVE_BACKSTAGE_FILTERED_TOKEN}
+          subject: bve-filtered
+        accessRestrictions:
+          - plugin: catalog
+            permission: catalog.entity.read
 auth:
   environment: development
   providers:

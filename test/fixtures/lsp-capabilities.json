@@ -1,0 +1,333 @@
+{
+  "no filesystem; empty capabilities": {
+    "result": {
+      "capabilities": {
+        "positionEncoding": "utf-16",
+        "completionProvider": {
+          "triggerCharacters": [":", "/"],
+          "resolveProvider": false
+        },
+        "hoverProvider": true,
+        "definitionProvider": true,
+        "textDocumentSync": {
+          "openClose": true,
+          "change": 2
+        },
+        "workspace": {
+          "fileOperations": {
+            "didRename": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            },
+            "didDelete": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "serverInfo": {
+        "name": "backstage-validation-engine",
+        "version": "0.1.0-dev.0"
+      }
+    }
+  },
+  "no filesystem; all features": {
+    "result": {
+      "capabilities": {
+        "positionEncoding": "utf-16",
+        "completionProvider": {
+          "triggerCharacters": [":", "/"],
+          "resolveProvider": false
+        },
+        "hoverProvider": true,
+        "definitionProvider": true,
+        "textDocumentSync": {
+          "openClose": true,
+          "change": 2
+        },
+        "codeActionProvider": {
+          "codeActionKinds": ["quickfix"]
+        },
+        "executeCommandProvider": {
+          "commands": ["bve.applyFix"]
+        },
+        "workspace": {
+          "fileOperations": {
+            "didRename": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            },
+            "didDelete": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "serverInfo": {
+        "name": "backstage-validation-engine",
+        "version": "0.1.0-dev.0"
+      }
+    }
+  },
+  "no filesystem; fixes without workspace.applyEdit": {
+    "<same-as>": "/no filesystem; empty capabilities"
+  },
+  "no filesystem; fixes without workspaceEdit.documentChanges": {
+    "<same-as>": "/no filesystem; empty capabilities"
+  },
+  "no filesystem; fixes without codeActionLiteralSupport": {
+    "<same-as>": "/no filesystem; empty capabilities"
+  },
+  "no filesystem; fixes without publishDiagnostics.dataSupport": {
+    "<same-as>": "/no filesystem; empty capabilities"
+  },
+  "no filesystem; fixes with applyEdit false": {
+    "<same-as>": "/no filesystem; empty capabilities"
+  },
+  "no filesystem; failure handling textOnlyTransactional": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; failure handling abort": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; failure handling absent": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; watching without relative patterns": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; watching without dynamic registration": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; position encodings absent": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; position encodings empty": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; position encodings offer UTF-8 and UTF-16": {
+    "<same-as>": "/no filesystem; all features"
+  },
+  "no filesystem; position encodings without UTF-16": {
+    "error": {
+      "type": "ResponseError",
+      "code": -32602,
+      "message": "UTF-16 positions are required.",
+      "data": {
+        "retry": false
+      }
+    }
+  },
+  "filesystem; empty capabilities": {
+    "result": {
+      "capabilities": {
+        "positionEncoding": "utf-16",
+        "completionProvider": {
+          "triggerCharacters": [":", "/"],
+          "resolveProvider": false
+        },
+        "hoverProvider": true,
+        "definitionProvider": true,
+        "textDocumentSync": {
+          "openClose": true,
+          "change": 2,
+          "save": {
+            "includeText": false
+          }
+        },
+        "workspace": {
+          "fileOperations": {
+            "didRename": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            },
+            "didDelete": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "serverInfo": {
+        "name": "backstage-validation-engine",
+        "version": "0.1.0-dev.0"
+      }
+    }
+  },
+  "filesystem; all features": {
+    "result": {
+      "capabilities": {
+        "positionEncoding": "utf-16",
+        "completionProvider": {
+          "triggerCharacters": [":", "/"],
+          "resolveProvider": false
+        },
+        "hoverProvider": true,
+        "definitionProvider": true,
+        "textDocumentSync": {
+          "openClose": true,
+          "change": 2,
+          "save": {
+            "includeText": false
+          }
+        },
+        "codeActionProvider": {
+          "codeActionKinds": ["quickfix"]
+        },
+        "executeCommandProvider": {
+          "commands": ["bve.applyFix"]
+        },
+        "workspace": {
+          "fileOperations": {
+            "didRename": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            },
+            "didDelete": {
+              "filters": [
+                {
+                  "scheme": "file",
+                  "pattern": {
+                    "glob": "**/*",
+                    "matches": "file"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "serverInfo": {
+        "name": "backstage-validation-engine",
+        "version": "0.1.0-dev.0"
+      }
+    }
+  },
+  "filesystem; fixes without workspace.applyEdit": {
+    "<same-as>": "/filesystem; empty capabilities"
+  },
+  "filesystem; fixes without workspaceEdit.documentChanges": {
+    "<same-as>": "/filesystem; empty capabilities"
+  },
+  "filesystem; fixes without codeActionLiteralSupport": {
+    "<same-as>": "/filesystem; empty capabilities"
+  },
+  "filesystem; fixes without publishDiagnostics.dataSupport": {
+    "<same-as>": "/filesystem; empty capabilities"
+  },
+  "filesystem; fixes with applyEdit false": {
+    "<same-as>": "/filesystem; empty capabilities"
+  },
+  "filesystem; failure handling textOnlyTransactional": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; failure handling abort": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; failure handling absent": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; watching without relative patterns": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; watching without dynamic registration": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; position encodings absent": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; position encodings empty": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; position encodings offer UTF-8 and UTF-16": {
+    "<same-as>": "/filesystem; all features"
+  },
+  "filesystem; position encodings without UTF-16": {
+    "error": {
+      "type": "ResponseError",
+      "code": -32602,
+      "message": "UTF-16 positions are required.",
+      "data": {
+        "retry": false
+      }
+    }
+  },
+  "second initialize after success": [
+    {
+      "<same-as>": "/no filesystem; all features"
+    },
+    {
+      "error": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server cannot initialize in its current state."
+      }
+    }
+  ],
+  "initialize after a rejected position encoding": [
+    {
+      "error": {
+        "type": "ResponseError",
+        "code": -32602,
+        "message": "UTF-16 positions are required.",
+        "data": {
+          "retry": false
+        }
+      }
+    },
+    {
+      "<same-as>": "/no filesystem; all features"
+    }
+  ]
+}

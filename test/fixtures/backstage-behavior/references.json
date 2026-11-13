@@ -1,0 +1,205 @@
+[
+  {
+    "id": "Component",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Component",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "type": "service",
+        "lifecycle": "production",
+        "owner": "Team",
+        "system": "Ledger",
+        "providesApis": ["Public"],
+        "consumesApis": ["External"],
+        "subcomponentOf": "Parent",
+        "dependsOn": ["resource:Database"],
+        "dependencyOf": ["component:Client"]
+      }
+    },
+    "upstreamRelations": [
+      ["api:org/external", "apiConsumedBy", "component:org/subject"],
+      ["api:org/public", "apiProvidedBy", "component:org/subject"],
+      ["component:org/client", "dependsOn", "component:org/subject"],
+      ["component:org/parent", "hasPart", "component:org/subject"],
+      ["component:org/subject", "consumesApi", "api:org/external"],
+      ["component:org/subject", "dependencyOf", "component:org/client"],
+      ["component:org/subject", "dependsOn", "resource:org/database"],
+      ["component:org/subject", "ownedBy", "group:org/team"],
+      ["component:org/subject", "partOf", "component:org/parent"],
+      ["component:org/subject", "partOf", "system:org/ledger"],
+      ["component:org/subject", "providesApi", "api:org/public"],
+      ["group:org/team", "ownerOf", "component:org/subject"],
+      ["resource:org/database", "dependencyOf", "component:org/subject"],
+      ["system:org/ledger", "hasPart", "component:org/subject"]
+    ],
+    "localReferences": ["api:org/external", "api:org/public", "group:org/team", "system:org/ledger"]
+  },
+  {
+    "id": "API",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "API",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "type": "openapi",
+        "lifecycle": "production",
+        "owner": "Team",
+        "system": "Ledger",
+        "definition": "openapi: 3.0.0"
+      }
+    },
+    "upstreamRelations": [
+      ["api:org/subject", "ownedBy", "group:org/team"],
+      ["api:org/subject", "partOf", "system:org/ledger"],
+      ["group:org/team", "ownerOf", "api:org/subject"],
+      ["system:org/ledger", "hasPart", "api:org/subject"]
+    ],
+    "localReferences": ["group:org/team", "system:org/ledger"]
+  },
+  {
+    "id": "Resource",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Resource",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "type": "database",
+        "owner": "Team",
+        "system": "Ledger",
+        "dependsOn": ["component:Service"],
+        "dependencyOf": ["component:Client"]
+      }
+    },
+    "upstreamRelations": [
+      ["component:org/client", "dependsOn", "resource:org/subject"],
+      ["component:org/service", "dependencyOf", "resource:org/subject"],
+      ["group:org/team", "ownerOf", "resource:org/subject"],
+      ["resource:org/subject", "dependencyOf", "component:org/client"],
+      ["resource:org/subject", "dependsOn", "component:org/service"],
+      ["resource:org/subject", "ownedBy", "group:org/team"],
+      ["resource:org/subject", "partOf", "system:org/ledger"],
+      ["system:org/ledger", "hasPart", "resource:org/subject"]
+    ],
+    "localReferences": ["group:org/team", "system:org/ledger"]
+  },
+  {
+    "id": "Group",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Group",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "type": "team",
+        "children": ["Child"],
+        "parent": "Parent",
+        "members": ["Alice"]
+      }
+    },
+    "upstreamRelations": [
+      ["group:org/child", "childOf", "group:org/subject"],
+      ["group:org/parent", "parentOf", "group:org/subject"],
+      ["group:org/subject", "childOf", "group:org/parent"],
+      ["group:org/subject", "hasMember", "user:org/alice"],
+      ["group:org/subject", "parentOf", "group:org/child"],
+      ["user:org/alice", "memberOf", "group:org/subject"]
+    ],
+    "localReferences": []
+  },
+  {
+    "id": "User",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "User",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "memberOf": ["Team"],
+        "owner": "Extra"
+      }
+    },
+    "upstreamRelations": [
+      ["group:org/team", "hasMember", "user:org/subject"],
+      ["user:org/subject", "memberOf", "group:org/team"]
+    ],
+    "localReferences": ["group:org/extra"]
+  },
+  {
+    "id": "System",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "System",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "owner": "Team",
+        "domain": "Business"
+      }
+    },
+    "upstreamRelations": [
+      ["domain:org/business", "hasPart", "system:org/subject"],
+      ["group:org/team", "ownerOf", "system:org/subject"],
+      ["system:org/subject", "ownedBy", "group:org/team"],
+      ["system:org/subject", "partOf", "domain:org/business"]
+    ],
+    "localReferences": ["group:org/team"]
+  },
+  {
+    "id": "Domain",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Domain",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "owner": "Team",
+        "subdomainOf": "Parent"
+      }
+    },
+    "upstreamRelations": [
+      ["domain:org/parent", "hasPart", "domain:org/subject"],
+      ["domain:org/subject", "ownedBy", "group:org/team"],
+      ["domain:org/subject", "partOf", "domain:org/parent"],
+      ["group:org/team", "ownerOf", "domain:org/subject"]
+    ],
+    "localReferences": ["group:org/team"]
+  },
+  {
+    "id": "Location",
+    "entity": {
+      "apiVersion": "backstage.io/v1alpha1",
+      "kind": "Location",
+      "metadata": {
+        "name": "subject",
+        "namespace": "org"
+      },
+      "spec": {
+        "type": "file",
+        "target": "./child.yaml",
+        "owner": "Extra",
+        "system": "Ledger",
+        "presence": "optional"
+      }
+    },
+    "upstreamRelations": [],
+    "localReferences": ["group:org/extra", "system:org/ledger"]
+  }
+]

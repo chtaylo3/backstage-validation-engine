@@ -2,8 +2,8 @@ import { Ajv } from 'ajv';
 import type { ValidateFunction } from 'ajv';
 import { contractSchemas } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { canonicalJson, deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { canonicalJson, deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import {
   CAPABILITY_LIMITS,
   CapabilityManifestSchema,

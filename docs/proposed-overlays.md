@@ -130,10 +130,10 @@ npm run example:overlay -- --deleted
 ```
 
 The [runnable example](../examples/validate-overlay.mjs) uses synthetic authority and qualifies
-source facts without a backend. [Overlay acceptance tests](../test/backstage-overlays.test.ts) cover
+source facts without a backend. [Overlay acceptance tests](../test/engine/backstage-overlays.test.ts) cover
 additions, replacements, admission/custom schemas, delete/rename, multi-document and Location
 changes, conflicts, provenance, tampering, resource bounds and cancellation.
-[Stdio tests](../test/lsp.test.ts) cover editor operations on both model/API pins. Actual deployed
+[Stdio tests](../test/lsp/lsp.test.ts) cover editor operations on both model/API pins. Actual deployed
 backend/editor/OS runs, host filesystem capture/refresh and complete deployment processor
 qualification remain open.
 

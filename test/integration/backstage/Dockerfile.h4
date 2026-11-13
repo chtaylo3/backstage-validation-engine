@@ -1,0 +1,11 @@
+ARG BASE_IMAGE=bve-backstage:1.55.3
+FROM ${BASE_IMAGE}
+ARG APP_TARGET
+USER root
+COPY apps/${APP_TARGET}/packages/backend/package.json /app/packages/backend/package.json
+COPY apps/${APP_TARGET}/yarn.lock /app/yarn.lock
+RUN yarn install --immutable --mode=skip-build
+COPY apps/${APP_TARGET}/packages/backend/src/ /app/packages/backend/src/
+COPY app-config.test.yaml /app/app-config.test.yaml
+COPY targets.json /app/test-targets.json
+USER node

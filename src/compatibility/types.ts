@@ -4,24 +4,18 @@ import type {
   JsonValue,
   ValidationResult,
 } from '../contracts/schemas.js';
-import type { Immutable } from '../core/json.js';
+import type { Clock } from '../base/clock.js';
+import type { Immutable } from '../base/json.js';
+import type { StageReport } from '../core/stage-report.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
+
+export { BUILTIN_KINDS } from '../contracts/kinds.js';
 
 export const BACKSTAGE_ADAPTER_IDS = Object.freeze([
   '@backstage/catalog-model@1.10.2',
   '@backstage/catalog-model@1.7.5',
 ] as const);
 export type BackstageAdapterId = (typeof BACKSTAGE_ADAPTER_IDS)[number];
-export const BUILTIN_KINDS = Object.freeze([
-  'Component',
-  'API',
-  'Group',
-  'User',
-  'Resource',
-  'System',
-  'Domain',
-  'Location',
-] as const);
 export type NativePolicyName =
   | 'schema'
   | 'default_namespace'
@@ -59,6 +53,8 @@ export interface NativeEntityCheck {
 export interface NativeExecutionContext {
   readonly deadlineAt: number;
   readonly signal?: AbortSignal;
+  /** Decides the deadline. The cooperative yield between native calls keeps real time. */
+  readonly clock?: Clock;
 }
 export interface BackstageAdapter {
   readonly id: BackstageAdapterId;
@@ -112,7 +108,7 @@ export interface CompatibleSourceEntity {
   })[];
 }
 
-export interface BackstageCompatibilityReport {
+export interface BackstageCompatibilityReport extends StageReport {
   readonly adapterId: BackstageAdapterId;
   readonly sourceDigest: string;
   readonly profileDigest: string;
@@ -121,10 +117,7 @@ export interface BackstageCompatibilityReport {
   readonly sourceClaims: readonly SourceIdentityClaim[];
   /** Some proposed sources cannot yet be assigned a safe canonical identity. */
   readonly unresolvedSourceIdentities: boolean;
-  readonly findings: readonly Immutable<Finding>[];
-  readonly coverage: readonly Immutable<ValidationResult['coverage'][number]>[];
   readonly artifacts: Immutable<ValidationResult['artifacts']>;
-  readonly interrupted: ValidationResult['resources']['interrupted'];
 }
 
 export interface BackstageSourceReference {

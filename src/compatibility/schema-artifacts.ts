@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { digestJson, immutableJson } from '../core/json.js';
+import { digestJson, immutableJson } from '../base/json.js';
 import { BACKSTAGE_ADAPTER_IDS, BUILTIN_KINDS, BackstageRuntimeError } from './types.js';
 import type { BackstageAdapterId } from './types.js';
 

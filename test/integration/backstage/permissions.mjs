@@ -29,6 +29,7 @@ const env = {
   BVE_BACKSTAGE_READER_TOKEN: 'unused-permission-probe-reader',
   BVE_BACKSTAGE_ADMIN_TOKEN: 'unused-permission-probe-admin',
   BVE_BACKSTAGE_DENIED_TOKEN: 'unused-permission-probe-denied',
+  BVE_BACKSTAGE_FILTERED_TOKEN: 'unused-permission-probe-filtered',
   BVE_REPORT_DIRECTORY: reports,
   BVE_CLI_ARCHIVE: cli.archive,
   BVE_VSIX_ARCHIVE: candidate,

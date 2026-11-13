@@ -158,3 +158,67 @@ disabled.
 `executePolicyRules` also supports explicit catalog-existence rules. `executeCelRules` remains a
 compatible alias. Catalog bindings are evaluated outside the interpreter. The `bve-cel/1` variables,
 semantics and frozen corpus remain unchanged. See the [catalog policy/LSP guide](lsp.md).
+
+## H3 reviewed semantic clarification
+
+List and map literals can contain values of different CEL types.
+For example, `[1, "x", true, null]` and `{"a": 1, "b": "x"}` are supported.
+Mixed numeric literals retain their explicit CEL types. JSON entity numbers remain doubles.
+The worker selects `homogeneousAggregateLiterals: false` in the pinned interpreter.
+This corrects the interpreter default without changing limits, functions, or host access.
+The original 43-case corpus remains unchanged.
+
+The profile excludes timestamp receiver methods such as `getFullYear`.
+CEL-Go accepts that method. BVE rejects it with `profile` because its method allowlist excludes it.
+The independent comparison records this difference and does not rewrite expressions.
+
+AST depth counts edges from the root node at depth zero.
+A chain of 64 unary operators over a literal reaches depth 64 and remains admitted.
+A chain of 65 operators exceeds the existing ceiling and fails with `parse`.
+The worker must enforce this bound before recursive regex traversal or evaluation.
+The pinned parser also limits recursive expression frames to 64, including its top-level frame.
+That separate parser bound admits 63 nested parentheses and rejects 64.
+
+## Independent H3 controls
+
+The [versioned sidecar](../test/fixtures/cel-qualification-v2.json) pins exact errors for the frozen corpus.
+It adds 18 fixed cases for functions, heterogeneous literals, and excluded extensions.
+Its SHA-256 is `09884eddbbf1468a446c27a12e932ecac3f0e32923624aae532b1cae01cd1377`.
+Normal corpus tests remain offline and execute all 61 cases through production workers.
+The [pinned CEL-Go comparison](../scripts/cel-go/README.md) runs separately in CI.
+It retains error-stage correspondences and the reviewed timestamp-method difference.
+It does not replace the BVE error contract with an arbitrary error verdict.
+
+The actual AST guard counts only nodes reached through AST arguments.
+It runs before the regex adapter traverses the tree recursively.
+Parser expression frames and actual AST edges have separate depth controls.
+The 4,096-character expression ceiling prevents an authored AST above 4,096 nodes.
+Unique-key maps with 1,000 literal entries also exceed the earlier character ceiling.
+The tests retain those earlier rejections and execute a 1,000-entry list successfully.
+A call with 32 arguments passes structural parsing but lacks a supported overload.
+It fails with `evaluation`. A 33-argument call fails earlier with `parse`.
+The default resource ceilings remain unchanged.
+
+Program and pattern caches clear at their 256-entry ceiling.
+A hit before that ceiling reuses compilation. A discarded entry recompiles with the same answer.
+The tests exercise 800 distinct programs and 800 patterns with compilation observations.
+The cache policy does not promise least-recently-used eviction.
+
+Runtime failures retain these rules-stage outcomes:
+
+| Runtime code                                            | Rule state / reason                     | Interruption     |
+| ------------------------------------------------------- | --------------------------------------- | ---------------- |
+| `parse`, `profile`, `regex`, `result_type`              | `invalid_policy` / `invalid_expression` | `none`           |
+| `evaluation`, `input_type`                              | `error` / no reason                     | `none`           |
+| `input_limit`, `regex_limit`                            | `incomplete` / `resource_limit`         | `resource_limit` |
+| `queue_limit`                                           | `incomplete` / `queue_exhausted`        | `resource_limit` |
+| `cancelled`                                             | `incomplete` / `cancelled`              | `cancelled`      |
+| `queue_timeout`, `request_timeout`, `execution_timeout` | `incomplete` / `timeout`                | `timeout`        |
+| `worker_start`, `worker_failure`, `protocol`, `closed`  | `incomplete` / `worker_failure`         | `worker_failure` |
+
+Every row blocks required per-rule coverage and required subject completion.
+A dependent rule remains `blocked` with `prerequisite_blocked` and never enters the runtime.
+An independent rule still executes. Required failures produce result exit 2.
+A `not_applicable` prerequisite also blocks its dependents.
+Per-request worker and outstanding limits independently lower scheduling against the shared pool.
+Neither request owns or closes that pool.

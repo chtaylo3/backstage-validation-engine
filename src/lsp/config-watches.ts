@@ -14,10 +14,24 @@ export class TrustedFileWatches {
     private readonly filename: string,
     private readonly changed: () => void,
     private readonly watch: Watch = poll,
+    /**
+     * Whether the configuration file still holds the bytes that the configuration in use was read
+     * from. An explicit reload request and this watch both see one change of the file. Without
+     * this check the watch reloads what the request already loaded: it replaces the session with
+     * an equal one and refuses every request meanwhile. Credential changes are not subject to it.
+     */
+    inUse?: () => Promise<boolean>,
   ) {
     this.stop = watch(filename, () => {
-      if (!this.closed) changed();
+      if (this.closed) return;
+      if (inUse) void this.reloadUnlessInUse(inUse);
+      else changed();
     });
+  }
+  /** Anything short of proof that the file is unchanged reloads, as a change does. */
+  private async reloadUnlessInUse(inUse: () => Promise<boolean>): Promise<void> {
+    const unchanged = await inUse().catch(() => false);
+    if (!unchanged && !this.closed) this.changed();
   }
   credential(filename: string | undefined): Disposable | void {
     if (this.closed || !filename || filename === this.filename) return;

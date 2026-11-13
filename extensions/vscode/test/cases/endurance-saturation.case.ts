@@ -1,87 +1,81 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { createSourceSnapshot } from '../../../../src/core/snapshots.js';
-import { until, guardedCommand } from '../fixture.js';
+import { until, guardedCommand, documentRange } from '../fixture.js';
+import { writeEvidence } from '../evidence.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
-  const document = await fixture.document();
-  const original = document.getText();
-  const observations: {
-    version: number;
-    codes: (string | number | undefined)[];
-    bounded: boolean;
-  }[] = [];
-  for (let operation = 0; operation < 8; operation++) {
-    for (let burst = 0; burst < 3; burst++)
-      await fixture.replace(document, original + `# saturation ${operation}:${burst}\n`);
-    await until(
-      () =>
-        vscode.languages
-          .getDiagnostics(document.uri)
-          .some(
-            (row) =>
-              (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
-              document.version,
-          ),
-      'saturation completes or publishes a typed bound',
-    );
-    const diagnostics = vscode.languages.getDiagnostics(document.uri);
-    const bounded = diagnostics.some((row) => row.code === 'validation/incomplete');
-    assert(bounded || diagnostics.some((row) => row.code === 'production-only'));
-    observations.push({
-      version: document.version,
-      codes: diagnostics.map((row) => (typeof row.code === 'object' ? row.code.value : row.code)),
-      bounded,
-    });
-    assert.equal(document.getText(), original + `# saturation ${operation}:2\n`);
-    if (bounded) {
-      const actions = await vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
-        'vscode.executeCodeActionProvider',
-        document.uri,
-        new vscode.Range(5, 0, 5, 30),
-      );
-      assert(
-        !actions?.some((row) => guardedCommand(row) !== undefined),
-        'Incomplete validation cannot offer a guarded edit.',
-      );
-      break;
-    }
-  }
-  await writeFile(
+  let document = await fixture.document();
+  const pid = fixture.pid();
+  const original = document.getText().replace('owner: team', 'owner: missing');
+  await fixture.replace(document, original);
+  await fixture.currentDiagnostic(document);
+  await fixture.missingOwner(document);
+  const old = await fixture.fix();
+  const config = JSON.parse(await readFile(process.env.BVE_EXTENSION_TEST_CONFIG!, 'utf8')) as {
+    profile: { limits: { fileBytes: number } };
+  };
+  const limit = config.profile.limits.fileBytes;
+  const oversized = original + '#' + 'x'.repeat(limit - Buffer.byteLength(original));
+  assert.equal(Buffer.byteLength(oversized), limit + 1);
+  await fixture.replace(document, oversized);
+  await until(
+    () =>
+      vscode.languages
+        .getDiagnostics(document.uri)
+        .some(
+          (row) =>
+            (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+            document.version,
+        ),
+    'deterministic current-version incomplete branch above unchanged file byte cap',
+  );
+  assert(
+    fixture.has('validation/incomplete'),
+    'The deterministic saturation input must execute the incomplete branch.',
+  );
+  const actions = await fixture.provider<(vscode.CodeAction | vscode.Command)[]>(
+    'vscode.executeCodeActionProvider',
+    document.uri,
+    documentRange(document),
+    vscode.CodeActionKind.QuickFix.value,
+  );
+  assert(
+    !actions?.some((row) => guardedCommand(row)),
+    'Incomplete validation cannot offer a guarded edit.',
+  );
+  assert.deepEqual(await fixture.apply(old), { applied: false, reason: 'stale' });
+  assert.equal(document.getText(), oversized);
+  assert.equal(fixture.pid(), pid);
+  assert(fixture.api!.status().running);
+  await writeEvidence(
     path.join(path.dirname(process.env.BVE_EXTENSION_TEST_PROGRESS!), 'capacity-observations.json'),
     JSON.stringify(
-      { files: 1000, initialPolicyViolations: 999, debounceMs: 0, observations },
+      {
+        mechanism: 'buffer file-byte admission',
+        limit,
+        bytes: Buffer.byteLength(oversized),
+        version: document.version,
+        incompleteObserved: true,
+        guardedActions: 0,
+        oldRepairRejected: true,
+        pid,
+      },
       null,
       2,
     ) + '\n',
   );
-  const file = process.env.BVE_EXTENSION_TEST_CONFIG!;
-  const config = JSON.parse(await readFile(file, 'utf8')) as {
-    source: ReturnType<typeof createSourceSnapshot>;
-    filesystem: { files: string[]; entrypoints: string[] };
-  };
-  const approved = new Set([fixture.uri.fsPath, fixture.teamUri.fsPath]);
-  const files = config.source.files.filter((row) => approved.has(vscode.Uri.parse(row.uri).fsPath));
-  assert.equal(files.length, 2, 'Recovery retains the Component and its referenced Group.');
-  config.source = createSourceSnapshot({
-    repository: config.source.repository,
-    revision: config.source.revision,
-    ...(config.source.rootUri ? { rootUri: config.source.rootUri } : {}),
-    entrypoints: files.map((row) => row.uri),
-    files,
-  });
-  config.filesystem = {
-    files: files.map((row) => row.uri),
-    entrypoints: files.map((row) => row.uri),
-  };
-  await writeFile(file, JSON.stringify(config));
-  await vscode.commands.executeCommand('backstageValidation.restart');
-  await until(() => fixture.api!.status().running, 'recover from capacity workload');
-  fixture.pid();
+  // A full document resynchronization is required after admission rejects a delta.
+  await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+  document = await fixture.document();
+  await fixture.replace(document, original + '# valid in-cap recovery\n');
   await fixture.currentDiagnostic(document);
   await fixture.apply(await fixture.fix());
-  await until(() => !fixture.has('production-only'), 'fresh guarded fix after saturation recovery');
+  await until(() => !fixture.has('production-only'), 'fresh guarded repair after bounded recovery');
   assert(document.getText().includes('lifecycle: "production"'));
+  assert(fixture.has('owner-exists'));
+  await fixture.alive(pid, document, 'owner-exists');
+  assert.equal(fixture.pid(), pid);
+  assert(fixture.api!.status().running);
 }

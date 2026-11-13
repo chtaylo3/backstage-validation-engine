@@ -1,0 +1,22 @@
+{
+  "src/compatibility/adapter.ts": {
+    "createAdapter": 205
+  },
+  "src/compatibility/substitutions.ts": {
+    "SnapshotSourceResolver.resolve": 186,
+    "SnapshotSourceResolver.resolve.visit": 168
+  },
+  "src/host/rule-contributions.ts": {
+    "prepareRuleContributions": 158
+  },
+  "src/lsp/editor-documents.ts": {
+    "editorTarget": 151
+  },
+  "src/parsing/parser.ts": {
+    "parseSourceSnapshot": 182
+  },
+  "src/providers/catalog.ts": {
+    "createCatalogProvider": 425,
+    "createCatalogProvider.lookup": 268
+  }
+}

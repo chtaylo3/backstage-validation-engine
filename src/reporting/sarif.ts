@@ -1,7 +1,7 @@
 import type { Finding, ValidationResult } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 
 const header = {
   $schema: 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json',
@@ -42,6 +42,15 @@ export function formatSarif(input: Immutable<ValidationResult>) {
                       level: 'error',
                       message: { text: 'Validation could not complete all required work.' },
                     },
+                    // An execution finding is a fault of the tool itself; it stays in `results` too.
+                    ...result.findings
+                      .filter((finding) => finding.category === 'execution')
+                      .map((finding) => ({
+                        level: 'error',
+                        descriptor: { id: finding.ruleId },
+                        message: { text: finding.message },
+                        locations: [location(finding.location)],
+                      })),
                   ],
                 }
               : {}),
@@ -76,6 +85,7 @@ export function formatSarif(input: Immutable<ValidationResult>) {
   });
 }
 
+/** The SARIF document of a run that produced no result; `code` is the CLI's error code. */
 export function formatSarifError(code: string) {
   return deepFreeze({
     ...header,
@@ -90,7 +100,12 @@ export function formatSarifError(code: string) {
               {
                 level: 'error',
                 descriptor: { id: code },
-                message: { text: 'Validation input or trusted configuration could not be loaded.' },
+                message: {
+                  text:
+                    code === 'internal_error'
+                      ? 'Validation failed with an internal error.'
+                      : 'Validation input or trusted configuration could not be loaded.',
+                },
               },
             ],
           },

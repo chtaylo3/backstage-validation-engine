@@ -1,5 +1,22 @@
 import assert from 'node:assert/strict';
 import type { Report } from './reporting.js';
+import { verifyResourceGrowth } from './resources.js';
+import type { ResourceSample } from './resources.js';
+
+/** Parent-approved provisional H5 policy. See docs/vscode-qualification.md. */
+export const METRIC_BUDGETS = Object.freeze({
+  coldMs: 20_000,
+  editP95Ms: 20_000,
+  completionP95Ms: 20_000,
+  restartP95Ms: 20_000,
+  warmupOperations: 10,
+  clientGrowthMiB: 128,
+  serverGrowthMiB: 128,
+  handleGrowth: 64,
+  growthMiBPerOperation: 0.15,
+});
+export const metricPercentile = (values: number[]) =>
+  [...values].sort((a, b) => a - b)[Math.ceil(values.length * 0.95) - 1]!;
 export function verifyReport(
   report: Report,
   revision: string,
@@ -35,24 +52,73 @@ export interface ResourceMetrics {
   operation: number;
   interruptions: number;
   catalogVersionsObserved: string[];
-  samples: {
-    pid: number;
-    client: { rssMiB: number; handles: number };
-    server: { rssMiB: number; handles: number };
-  }[];
+  coldMs: number;
+  budgets: typeof METRIC_BUDGETS;
+  latencies: { edits: number[]; completions: number[]; restarts: number[] };
+  percentiles: { editP95Ms: number; completionP95Ms: number; restartP95Ms: number };
+  samples: ResourceSample[];
 }
-export function verifyMetrics(metrics: ResourceMetrics, duration: number): void {
+export function verifyMetrics(metrics: ResourceMetrics, duration: number, size = 1000): void {
   assert.equal(metrics.complete, true);
+  assert([100, 1000].includes(size));
+  assert(Number.isFinite(metrics.elapsedMs) && Number.isFinite(metrics.workloadElapsedMs));
+  assert(metrics.workloadElapsedMs <= metrics.elapsedMs);
+  assert(Number.isSafeInteger(metrics.interruptions) && metrics.interruptions >= 0);
+  assert.deepEqual(metrics.budgets, METRIC_BUDGETS, 'Use the host-approved budget policy.');
+  assert(
+    Number.isFinite(metrics.coldMs) &&
+      metrics.coldMs >= 0 &&
+      metrics.coldMs <= METRIC_BUDGETS.coldMs,
+  );
+  for (const [raw, summary] of [
+    ['edits', 'editP95Ms'],
+    ['completions', 'completionP95Ms'],
+    ['restarts', 'restartP95Ms'],
+  ] as const) {
+    const values = metrics.latencies[raw];
+    assert(
+      Array.isArray(values) && values.length >= (raw === 'restarts' ? 2 : 60),
+      'Require raw latency observations.',
+    );
+    assert(values.every((value) => Number.isFinite(value) && value >= 0));
+    const actual = metricPercentile(values);
+    assert.equal(
+      metrics.percentiles[summary],
+      actual,
+      'Latency summary must match raw observations.',
+    );
+    assert(actual <= METRIC_BUDGETS[summary], summary + ' exceeds the host budget');
+  }
+  assert.equal(metrics.latencies.edits.length, metrics.operation);
+  assert.equal(metrics.latencies.completions.length, metrics.operation);
   assert.equal(metrics.durationSeconds, duration);
-  assert.equal(metrics.size, 1000);
+  assert.equal(metrics.size, size);
   assert(metrics.elapsedMs >= duration * 1000);
   assert(metrics.workloadElapsedMs >= duration * 1000);
-  assert(metrics.operation >= 100);
-  assert(metrics.interruptions >= 2);
-  assert.deepEqual([...metrics.catalogVersionsObserved].sort(), ['1.55.3', '1.56.3']);
+  assert(
+    Number.isSafeInteger(metrics.operation) && metrics.operation >= (duration === 0 ? 60 : 100),
+  );
+  if (duration > 0) {
+    assert(metrics.interruptions >= 2);
+    assert.deepEqual([...metrics.catalogVersionsObserved].sort(), ['1.55.3', '1.56.3']);
+  }
   assert(metrics.samples.length >= 8);
+  let previousOperation = -1,
+    previousElapsed = -1;
   for (const sample of metrics.samples) {
-    assert(sample.pid > 1);
+    assert(
+      Number.isSafeInteger(sample.operation) &&
+        sample.operation > previousOperation &&
+        sample.operation < metrics.operation,
+    );
+    assert(
+      Number.isFinite(sample.elapsedMs) &&
+        sample.elapsedMs > previousElapsed &&
+        sample.elapsedMs <= metrics.elapsedMs,
+    );
+    previousOperation = sample.operation;
+    previousElapsed = sample.elapsedMs;
+    assert(Number.isSafeInteger(sample.pid) && sample.pid > 1);
     for (const side of [sample.client, sample.server])
       assert(
         Number.isFinite(side.rssMiB) &&
@@ -61,6 +127,7 @@ export function verifyMetrics(metrics: ResourceMetrics, duration: number): void 
           side.handles > 0,
       );
   }
+  verifyResourceGrowth(metrics.samples, METRIC_BUDGETS, true, duration > 0);
 }
 export function verifyRepetitions(
   repetitions: { iteration: number; conclusion: string; counts: Report['counts'] }[],

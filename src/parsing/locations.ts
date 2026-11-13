@@ -1,5 +1,5 @@
-import type { Immutable } from '../core/json.js';
-import { deepFreeze } from '../core/json.js';
+import type { Immutable } from '../base/json.js';
+import { deepFreeze } from '../base/json.js';
 import type { NodeSourceSpan, ParsedSourceDocument, SourceLocation, SourceRange } from './types.js';
 
 /** Indexes authored UTF-16 offsets once; handles LF, CRLF, CR, and EOF. */

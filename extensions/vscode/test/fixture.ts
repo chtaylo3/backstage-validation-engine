@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { readProvider, until } from './readiness.js';
+import type {
+  CoverageObservation,
+  FilesystemObservation,
+} from '../../../src/lsp/coverage-observation.js';
 export { until } from './readiness.js';
 
 export interface Api {
+  filesystemObservation(): Promise<FilesystemObservation | null>;
+  coverage(uri: string, version: number, digest: string): Promise<CoverageObservation | null>;
   status(): { running: boolean; pid?: number; disconnected?: boolean };
 }
 export const team =
@@ -15,7 +22,7 @@ export const invalidTeam =
 export async function bounded<T>(
   work: PromiseLike<T>,
   description: string,
-  ms = 25_000,
+  ms = 65_000,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -28,6 +35,9 @@ export async function bounded<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+export function documentRange(document: vscode.TextDocument): vscode.Range {
+  return new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
 }
 export function exited(pid: number): boolean {
   try {
@@ -43,6 +53,28 @@ export function guardedCommand(
 ): vscode.Command | undefined {
   const command = typeof action.command === 'string' ? (action as vscode.Command) : action.command;
   return command?.command === 'bve.applyFix' ? command : undefined;
+}
+/**
+ * Whether a URI in the server's spelling names the same local file as an editor URI. The two
+ * spell one Windows file differently: the editor lower-cases the drive letter and escapes its
+ * colon, and the server keeps the spelling of the trusted configuration. On other platforms the
+ * spellings are equal, so this is string equality there.
+ */
+export function sameFile(wire: string, uri: vscode.Uri): boolean {
+  try {
+    return vscode.Uri.parse(wire, true).toString() === uri.toString();
+  } catch {
+    return false;
+  }
+}
+/** Whether a URI in the server's spelling names a local file at or below an editor directory. */
+export function belowDirectory(wire: string, directory: vscode.Uri): boolean {
+  try {
+    const spelled = vscode.Uri.parse(wire, true).toString();
+    return spelled === directory.toString() || spelled.startsWith(directory.toString() + '/');
+  } catch {
+    return false;
+  }
 }
 export class Fixture {
   api: Api | undefined;
@@ -230,6 +262,107 @@ export class Fixture {
         `${error instanceof Error ? error.message : String(error)}; version=${document.version}; status=${JSON.stringify(this.api?.status())}; diagnostics=${JSON.stringify(vscode.languages.getDiagnostics(document.uri).map((row) => ({ code: row.code, message: row.message, data: (row as vscode.Diagnostic & { data?: unknown }).data })))}`,
         { cause: error },
       );
+    }
+  }
+  async observed(document: vscode.TextDocument, after = -1): Promise<CoverageObservation> {
+    let result: CoverageObservation | null = null;
+    const digest = 'sha256:' + createHash('sha256').update(document.getText()).digest('hex');
+    await until(async () => {
+      result = await this.api!.coverage(document.uri.toString(), document.version, digest);
+      return result !== null && result.generation > after;
+    }, 'completed validation of exact version/digest after generation ' + after);
+    const actual = result as CoverageObservation | null;
+    assert(actual);
+    this.note(
+      'coverage generation ' +
+        actual.generation +
+        ' version ' +
+        document.version +
+        ' digest ' +
+        digest,
+    );
+    return actual;
+  }
+  async alive(pid: number, document: vscode.TextDocument, code = 'production-only'): Promise<void> {
+    assert(this.api!.status().running, 'The positive control cannot use a dead server.');
+    assert.equal(this.pid(), pid);
+    await until(
+      () =>
+        vscode.languages
+          .getDiagnostics(document.uri)
+          .some(
+            (row) =>
+              row.code === code &&
+              (row as vscode.Diagnostic & { data?: { version: number } }).data?.version ===
+                document.version,
+          ),
+      'surviving current-version finding ' + code,
+    );
+    assert(this.api!.status().running);
+    assert.equal(this.pid(), pid);
+    assert(!exited(pid));
+  }
+  async missingOwner(document: vscode.TextDocument): Promise<void> {
+    const finding = await this.diagnostic('owner-exists');
+    const data = (finding as vscode.Diagnostic & { data: { category: string; version: number } })
+      .data;
+    assert.equal(
+      data.category,
+      'policy',
+      'A completed 404 is a missing entity, not unavailable catalog data.',
+    );
+    assert.equal(data.version, document.version);
+    assert.equal(finding.severity, vscode.DiagnosticSeverity.Error);
+    const read = await this.control({ op: 'assert-missing' });
+    this.note('authenticated byName 404 complete missing-owner control request ' + read.id);
+  }
+  async stoppedEdit(document: vscode.TextDocument, message: string): Promise<void> {
+    await vscode.commands.executeCommand('backstageValidation.showOutput');
+    assert(
+      (await this.trace()).includes(message),
+      'Expected user-visible stopped reason: ' + message,
+    );
+    assert.equal(
+      vscode.languages
+        .getDiagnostics(document.uri)
+        .filter((row) => row.source === 'backstage-validation').length,
+      0,
+      'Stopped client clears its diagnostics.',
+    );
+    const publications: vscode.Diagnostic[][] = [];
+    const listener = vscode.languages.onDidChangeDiagnostics((event) => {
+      if (event.uris.some((uri) => uri.toString() === document.uri.toString()))
+        publications.push(
+          vscode.languages
+            .getDiagnostics(document.uri)
+            .filter((row) => row.source === 'backstage-validation'),
+        );
+    });
+    try {
+      await this.replace(
+        document,
+        document.getText() + '# edited after stopped command completed\n',
+      );
+      // Completion crosses the editor extension-host boundary after the edit.
+      // The disposed product provider cannot receive or publish new validation work.
+      await this.provider(
+        'vscode.executeCompletionItemProvider',
+        document.uri,
+        new vscode.Position(6, 11),
+      );
+      await vscode.commands.executeCommand('backstageValidation.stop');
+      assert.equal(this.api!.status().running, false);
+      assert.equal(this.api!.status().pid, undefined);
+      assert(publications.every((rows) => rows.length === 0));
+      assert.equal(
+        vscode.languages
+          .getDiagnostics(document.uri)
+          .filter((row) => row.source === 'backstage-validation').length,
+        0,
+      );
+      this.note('later edit/provider and Stop command completed without product diagnostics');
+    } finally {
+      listener.dispose();
     }
   }
   async control(value: Record<string, unknown>): Promise<{ id: string; reference?: string }> {

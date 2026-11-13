@@ -7,6 +7,7 @@ import { until, exited } from './fixture.js';
 import type { Fixture } from './fixture.js';
 import { resources, ownedServers, verifyResourceGrowth } from './resources.js';
 import type { ResourceSample as Sample } from './resources.js';
+import { METRIC_BUDGETS } from './qualification.js';
 const percentile = (values: number[], p: number) =>
   [...values].sort((a, b) => a - b)[Math.ceil(values.length * p) - 1]!;
 export async function endurance(fixture: Fixture, soak = false): Promise<void> {
@@ -46,17 +47,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
     catalogIndex = 0,
     interruptions = 0,
     completed = false;
-  const budgets = {
-    coldMs: 20_000,
-    editP95Ms: 20_000,
-    completionP95Ms: 20_000,
-    restartP95Ms: 20_000,
-    warmupOperations: 10,
-    clientGrowthMiB: 128,
-    serverGrowthMiB: 128,
-    handleGrowth: 64,
-    growthMiBPerOperation: 0.15,
-  };
+  const budgets = METRIC_BUDGETS;
   const cadenceMs = duration === 60 ? 15_000 : 60_000;
   const restartCadenceMs = duration === 60 ? 15_000 : 15 * 60_000;
   const catalogVersions = new Set<string>();
@@ -81,6 +72,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
         completionP95Ms: completions.length ? percentile(completions, 0.95) : null,
         restartP95Ms: restarts.length ? percentile(restarts, 0.95) : null,
       },
+      latencies: { edits, completions, restarts },
       samples,
     };
     const file = path.join(directory, 'resource-metrics.json');
@@ -208,7 +200,7 @@ export async function endurance(fixture: Fixture, soak = false): Promise<void> {
     assert(percentile(completions, 0.95) <= budgets.completionP95Ms);
     assert(restarts.length && percentile(restarts, 0.95) <= budgets.restartP95Ms);
     assert(samples.length >= (duration === 60 ? 3 : 8));
-    verifyResourceGrowth(samples, budgets, duration !== 60);
+    verifyResourceGrowth(samples, budgets, duration !== 60, soak && duration !== 60);
     if (soak)
       assert(interruptions > 1, 'A soak must exercise repeated catalog interruption and recovery.');
     completed = true;

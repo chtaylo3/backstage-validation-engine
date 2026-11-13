@@ -1,30 +1,32 @@
-import { open } from 'node:fs/promises';
+import { lstat, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import type { DeploymentProfile, ValidationRequest } from '../contracts/schemas.js';
-import { immutableJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { text } from '../contracts/schema-kit.js';
+import { immutableJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
 
-const text = Type.String({ minLength: 1, maxLength: 4096 });
 export const CatalogSettingsSchema = Type.Object(
   {
-    connectionId: text,
-    baseUrl: text,
+    connectionId: text(4096),
+    baseUrl: text(4096),
     allowInsecureHttp: Type.Optional(Type.Boolean()),
-    principalId: text,
-    credentialRevision: text,
+    principalId: text(4096),
+    credentialRevision: text(4096),
     scope: Type.Array(Type.String({ minLength: 1, maxLength: 128 }), {
       maxItems: 16,
       uniqueItems: true,
     }),
     maxAgeMs: Type.Integer({ minimum: 0, maximum: 30_000 }),
     tokenEnv: Type.Optional(Type.String({ pattern: '^[A-Za-z_][A-Za-z0-9_]{0,127}$' })),
-    tokenFile: Type.Optional(text),
+    tokenFile: Type.Optional(text(4096)),
   },
   { additionalProperties: false },
 );
@@ -49,11 +51,15 @@ export function parseCatalogSettings(input: unknown): Immutable<CatalogSettings>
   return settings;
 }
 
-/** Credentials come from the host, independently of CLI or editor protocol configuration. */
+/**
+ * Credentials come from the host, independently of CLI or editor protocol configuration. `clock`
+ * is the provider's clock (see `CatalogProviderOptions.clock`); defaults to `systemClock`.
+ */
 export async function createHostCatalog(
   settings: Immutable<CatalogSettings> | undefined,
   context: CatalogHostContext,
   environment: NodeJS.ProcessEnv,
+  clock: Clock = systemClock,
 ) {
   if (!settings) return undefined;
   const credential = async () => {
@@ -62,23 +68,43 @@ export async function createHostCatalog(
       if (!token) throw new Error('Configured catalog credential is unavailable.');
       return token;
     }
+    const before = await lstat(settings.tokenFile!);
+    if (!before.isFile()) throw new Error('Configured catalog credential is unavailable.');
     const handle = await open(
       settings.tokenFile!,
       constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
     );
     try {
       const stat = await handle.stat();
-      if (!stat.isFile() || stat.size < 1 || stat.size > 16 * 1024 || stat.nlink !== 1)
+      if (
+        !stat.isFile() ||
+        stat.size < 1 ||
+        stat.size > 16 * 1024 ||
+        stat.nlink !== 1 ||
+        before.ino !== stat.ino ||
+        before.dev !== stat.dev ||
+        before.size !== stat.size ||
+        before.mtimeMs !== stat.mtimeMs ||
+        before.ctimeMs !== stat.ctimeMs
+      )
         throw new Error('Configured catalog credential is unavailable.');
       const buffer = Buffer.alloc(16 * 1024 + 1);
       const { bytesRead } = await handle.read(buffer);
       const after = await handle.stat();
+      const entry = await lstat(settings.tokenFile!);
       if (
         bytesRead !== stat.size ||
         after.nlink !== 1 ||
         after.size !== stat.size ||
         after.mtimeMs !== stat.mtimeMs ||
-        after.ctimeMs !== stat.ctimeMs
+        after.ctimeMs !== stat.ctimeMs ||
+        !entry.isFile() ||
+        entry.ino !== stat.ino ||
+        entry.dev !== stat.dev ||
+        entry.nlink !== 1 ||
+        entry.size !== stat.size ||
+        entry.mtimeMs !== stat.mtimeMs ||
+        entry.ctimeMs !== stat.ctimeMs
       )
         throw new Error('Configured catalog credential changed during capture.');
       const token = new TextDecoder('utf-8', { fatal: true })
@@ -99,6 +125,7 @@ export async function createHostCatalog(
       ? {}
       : { allowInsecureHttp: settings.allowInsecureHttp }),
     adapterId: context.adapterId,
+    clock,
     credentials: async (access) => ({
       token: await credential(),
       installationId: access.installationId,

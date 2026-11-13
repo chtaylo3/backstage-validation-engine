@@ -45,7 +45,7 @@
     "expected": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["entityRefs", "relations", "absentEntityRefs"],
+      "required": ["entityRefs", "relations", "absentEntityRefs", "absentRelations"],
       "properties": {
         "entityRefs": {
           "type": "array",
@@ -64,6 +64,25 @@
           }
         },
         "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "type", "target"],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "absentRelations": {
           "type": "array",
           "items": {
             "type": "object",

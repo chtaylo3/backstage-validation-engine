@@ -1,0 +1,648 @@
+{
+  "*": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32601,
+        "message": "Language server method is not supported."
+      },
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "bve/filesystemObservation": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "returns": null,
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "bve/recordSelection": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "bve/reloadConfiguration": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": {
+        "reloaded": false
+      },
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "bve/searchReferences": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": [],
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "bve/validationCoverage": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "returns": null,
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "exit": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": [],
+      "exit": [1]
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "throws": {
+          "type": "ResponseError",
+          "code": -32600,
+          "message": "Language server is shut down."
+        }
+      },
+      "exit": [1]
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": [],
+      "exit": [0]
+    }
+  },
+  "initialize": {
+    "before initialize": {
+      "returns": {
+        "capabilities": {
+          "positionEncoding": "utf-16",
+          "completionProvider": {
+            "triggerCharacters": [":", "/"],
+            "resolveProvider": false
+          },
+          "hoverProvider": true,
+          "definitionProvider": true,
+          "textDocumentSync": {
+            "openClose": true,
+            "change": 2,
+            "save": {
+              "includeText": false
+            }
+          },
+          "codeActionProvider": {
+            "codeActionKinds": ["quickfix"]
+          },
+          "executeCommandProvider": {
+            "commands": ["bve.applyFix"]
+          },
+          "workspace": {
+            "fileOperations": {
+              "didRename": {
+                "filters": [
+                  {
+                    "scheme": "file",
+                    "pattern": {
+                      "glob": "**/*",
+                      "matches": "file"
+                    }
+                  }
+                ]
+              },
+              "didDelete": {
+                "filters": [
+                  {
+                    "scheme": "file",
+                    "pattern": {
+                      "glob": "**/*",
+                      "matches": "file"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "serverInfo": {
+          "name": "backstage-validation-engine",
+          "version": "0.1.0-dev.0"
+        }
+      },
+      "effects": []
+    },
+    "running": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server cannot initialize in its current state."
+      },
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server cannot initialize in its current state."
+      },
+      "effects": []
+    }
+  },
+  "initialized": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "shutdown": {
+    "before initialize": {
+      "rejects": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": "<undefined>",
+      "effects": [],
+      "probe": {
+        "throws": {
+          "type": "ResponseError",
+          "code": -32600,
+          "message": "Language server is shut down."
+        }
+      }
+    },
+    "after shutdown": {
+      "rejects": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "textDocument/codeAction": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": [],
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "textDocument/completion": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": {
+        "isIncomplete": true,
+        "items": []
+      },
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "textDocument/definition": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": [],
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "textDocument/didChange": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "textDocument/didClose": {
+    "before initialize": {
+      "resolves": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "resolves": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "resolves": "<undefined>",
+      "effects": []
+    }
+  },
+  "textDocument/didOpen": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 2,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "textDocument/didSave": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 2,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "textDocument/hover": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": null,
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  },
+  "workspace/didChangeWatchedFiles": {
+    "before initialize": {
+      "returns": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "returns": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 2,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "returns": "<undefined>",
+      "effects": []
+    }
+  },
+  "workspace/didDeleteFiles": {
+    "before initialize": {
+      "resolves": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "resolves": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 2,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "resolves": "<undefined>",
+      "effects": []
+    }
+  },
+  "workspace/didRenameFiles": {
+    "before initialize": {
+      "resolves": "<undefined>",
+      "effects": []
+    },
+    "running": {
+      "resolves": "<undefined>",
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 2,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "resolves": "<undefined>",
+      "effects": []
+    }
+  },
+  "workspace/executeCommand": {
+    "before initialize": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32002,
+        "message": "Language server is not initialized."
+      },
+      "effects": []
+    },
+    "running": {
+      "resolves": {
+        "applied": false,
+        "reason": "stale"
+      },
+      "effects": [],
+      "probe": {
+        "returns": {
+          "sessionGeneration": 0,
+          "generation": 1,
+          "uris": ["file:///workspace/catalog-info.yaml"],
+          "truncated": false
+        }
+      }
+    },
+    "after shutdown": {
+      "throws": {
+        "type": "ResponseError",
+        "code": -32600,
+        "message": "Language server is shut down."
+      },
+      "effects": []
+    }
+  }
+}

@@ -166,3 +166,24 @@ still need release qualification.
 The 2026-11-07 follow-up adds [safe failure evidence](catalog-provider.md#safe-failure-evidence) and
 separates deterministic budget/buffer proofs from HTTP integration. Explicit clock-regression tests
 preserve the current deadline and freshness behavior. The historical cause remains unconfirmed.
+
+## H3 subprocess and schema controls
+
+The [CLI subprocess tests](../test/cli/cli.test.ts) exercise `--help`, `--baseline`, and `--data`.
+Normal results retain the selected baseline and data digests.
+Foreign baselines and invalid data digests fail their existing admission rules with exit 2.
+An output rename failure returns exit 2 and a redacted error envelope on stdout.
+The CLI removes its temporary output file. Successful output-file writes still produce no stdout report.
+
+On POSIX hosts, actual SIGINT and SIGTERM cancel an entered catalog request.
+The CLI emits incomplete execution with `cancelled`, exits 2, and closes the connection.
+The tests observe process death and connection closure within a ten-second observation window.
+The product request ceiling remains five seconds. No cleanup budget is increased.
+Windows does not deliver these POSIX signals through Node's child-process API.
+The Windows gate runs the portable option and output controls but makes no graceful-signal claim.
+
+Normal, incomplete, and configuration-error SARIF outputs pass the pinned OASIS 2.1.0 Errata 01 schema.
+The automated controls use test-only draft-04 and full format validators.
+They reject invalid URI, URI-reference, date-time, version, and missing-tool variants.
+The [provenance record](../test/fixtures/conformance/README.md) retains the schema, notices, and digest.
+This replaces the earlier manual structural admission as H3 evidence.

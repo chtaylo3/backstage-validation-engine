@@ -5,10 +5,10 @@ import type {
   ValidationRequest,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { reject } from './errors.js';
-import { digestJson } from './json.js';
-import type { Immutable } from './json.js';
-import { orderRules } from '../policy/rule-graph.js';
+import { reject } from '../base/errors.js';
+import { digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
+import { orderRules } from '../contracts/rule-graph.js';
 
 /**
  * Checks pinned artifact consistency after a trusted adapter verifies authority.

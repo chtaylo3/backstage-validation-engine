@@ -44,6 +44,24 @@ function walk(node: ASTNode, visit: (node: ASTNode) => void): void {
   child(node.args);
 }
 
+/** Bound actual AST edges before any recursive adapter traversal or execution. */
+function admitAst(root: ASTNode): void {
+  const pending: { node: ASTNode; depth: number }[] = [{ node: root, depth: 0 }];
+  let count = 0;
+  while (pending.length) {
+    const { node, depth } = pending.pop()!;
+    if (++count > CEL_LIMITS.astNodes || depth > CEL_LIMITS.astDepth) throw new CelError('parse');
+    const args: unknown[] = [node.args];
+    while (args.length) {
+      const value = args.pop();
+      if (Array.isArray(value)) args.push(...(value as unknown[]));
+      else if (value && typeof value === 'object' && 'op' in value && 'args' in value)
+        pending.push({ node: value as ASTNode, depth: depth + 1 });
+    }
+    if (pending.length + count > CEL_LIMITS.astNodes) throw new CelError('parse');
+  }
+}
+
 /** Rename only AST-identified method tokens; never reserialize decimal literals. */
 function routeRegex(expression: string, ast: ASTNode): string {
   const edits: number[] = [];
@@ -86,6 +104,7 @@ export function createCelEvaluator(): (expression: string, entity: unknown) => b
     if (fatalFailure) throw fatalFailure;
   };
   const env = new Environment({
+    homogeneousAggregateLiterals: false,
     limits: {
       maxAstNodes: CEL_LIMITS.astNodes,
       maxDepth: CEL_LIMITS.astDepth,
@@ -123,8 +142,10 @@ export function createCelEvaluator(): (expression: string, entity: unknown) => b
     if (!program) {
       try {
         const original = env.parse(expression);
+        admitAst(original.ast);
         const routed = routeRegex(expression, original.ast);
         program = routed === expression ? original : env.parse(routed);
+        if (routed !== expression) admitAst(program.ast);
       } catch (error) {
         if (error instanceof CelError) throw error;
         throw new CelError('parse');

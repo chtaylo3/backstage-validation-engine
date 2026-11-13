@@ -1,8 +1,8 @@
 import type { Finding, ValidationRequest } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { reject } from '../core/errors.js';
-import { deepFreeze } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { reject } from '../base/errors.js';
+import { deepFreeze } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createFindingId } from '../core/results.js';
 import type { ParsingReport } from './types.js';
 

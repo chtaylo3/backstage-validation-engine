@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
 import { runVSCodeCommand } from './extension-test-cli.mjs';
+import { selectInstalledModules } from './extension-test-selection.mjs';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
 import { readable } from './extension-test-permissions.mjs';
@@ -13,6 +14,7 @@ import { debugPort, controlTrust, controlSearch } from './extension-test-ui.mjs'
 import { previousFixture } from './extension-test-upgrade.mjs';
 import { writeEvidence } from '../.artifacts/vscode/test/evidence.mjs';
 import { setTimeout as pause } from 'node:timers/promises';
+import { openEvidence } from '../test/integration/backstage/lib/evidence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const artifactRoot = path.join(root, '.artifacts/vscode');
@@ -55,20 +57,21 @@ assert(
   'Only the race suite can request 1–20 independent repetitions.',
 );
 assert(!focused || !process.env.CI, 'CI must run the complete installed-extension inventory.');
-const selectedModules = focused
-  ? modules.filter((name) => name === focused + '.case.cjs')
-  : racesOnly
-    ? modules.filter((name) => name.startsWith('race-') || name.startsWith('workspace-'))
-    : trustOnly
-      ? modules.filter((name) => name.startsWith('trust-'))
-      : compatibility
-        ? modules.filter((name) => name.startsWith('compat-'))
-        : endurance
-          ? modules.filter((name) => /^endurance-(100|1000|saturation)\./u.test(name))
-          : soak
-            ? modules.filter((name) => name.startsWith('endurance-soak.'))
-            : modules.filter((name) => !/^(compat-|endurance-|remote-)/u.test(name));
+const selectedModules = selectInstalledModules(modules, {
+  focused,
+  racesOnly,
+  trustOnly,
+  compatibility,
+  endurance,
+  soak,
+});
 assert(selectedModules.length > 0, 'Requested editor case was not discovered.');
+if (focused)
+  assert.equal(
+    selectedModules.length,
+    new Set(focused.split(',')).size,
+    'Every focused case must be discovered exactly once.',
+  );
 const versions = process.env.BVE_VSCODE_VERSIONS?.split(',') ?? ['1.106.3', '1.145.2'];
 // Older Electron CLIs can abort during shutdown after a successful install
 // (microsoft/vscode#279806). Use one pinned installer; execute every scenario
@@ -176,7 +179,7 @@ async function execute(spec, output, fault, peer) {
     trust ||
     lifecycle ||
     virtual ||
-    ['workspace-close-live', 'workspace-reload-live'].includes(spec.id);
+    ['workspace-close-live', 'workspace-reload-live', 'editor-search'].includes(spec.id);
   const additionalWorkspaces = [];
   let denied;
   let catalog;
@@ -187,11 +190,12 @@ async function execute(spec, output, fault, peer) {
       await mkdir(installed, { recursive: true });
     }
     const multi = spec.id === 'workspace-multi-root';
-    const fileCount = spec.id.startsWith('endurance-')
-      ? spec.id === 'endurance-100'
-        ? 100
-        : 1000
-      : 2;
+    const fileCount =
+      spec.id.startsWith('endurance-') && spec.id !== 'endurance-saturation'
+        ? spec.id === 'endurance-100'
+          ? 100
+          : 1000
+        : 2;
     const extraFiles =
       fileCount > 2
         ? Array.from({ length: fileCount - 2 }, (_, index) => ({
@@ -199,12 +203,14 @@ async function execute(spec, output, fault, peer) {
             entity: `entity-${index}`,
             lifecycle: spec.id === 'endurance-saturation' ? 'experimental' : 'production',
           }))
-        : multi
-          ? [
-              { name: 'other/catalog.yaml', entity: 'other' },
-              { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
-            ]
-          : [];
+        : spec.id === 'race-close-reopen'
+          ? [{ name: 'survivor.yaml', entity: 'survivor' }]
+          : multi
+            ? [
+                { name: 'other/catalog.yaml', entity: 'other' },
+                { name: 'other/catalog [a]{b}.yaml', entity: 'escaped' },
+              ]
+            : [];
     const config = await prepareFixture({
       session,
       workspace,
@@ -216,6 +222,21 @@ async function execute(spec, output, fault, peer) {
       autonomousSuite: autonomous ? path.join(testRoot, 'suite.cjs') : undefined,
       virtual,
     });
+    if (spec.id === 'editor-search') {
+      const { createSourceSnapshot } = await import('../dist/index.js');
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      const teamFile = path.join(workspace, 'team.yaml');
+      const text = await readFile(teamFile, 'utf8');
+      const expanded = text + '---\n' + text.replace('{name: team}', '{name: team-z}');
+      await writeFile(teamFile, expanded);
+      value.source = createSourceSnapshot({
+        ...value.source,
+        files: value.source.files.map((row) =>
+          row.uri.endsWith('/team.yaml') ? { ...row, text: expanded } : row,
+        ),
+      });
+      await writeFile(config, JSON.stringify(value));
+    }
     let workspaceArgument = workspace;
     if (multi) {
       workspaceArgument = path.join(session, 'multi.code-workspace');
@@ -227,14 +248,22 @@ async function execute(spec, output, fault, peer) {
         }),
       );
       await mkdir(path.join(workspace, 'unapproved'), { recursive: true });
-      await cp(
-        path.join(workspace, 'catalog.yaml'),
+      await writeFile(
         path.join(workspace, 'unapproved/catalog.yaml'),
+        (await readFile(path.join(workspace, 'catalog.yaml'), 'utf8')).replace(
+          '{name: service}',
+          '{name: unapproved-control}',
+        ),
       );
     }
     if (
       [
         'catalog-refresh',
+        'editor-credentials',
+        'versioned-fix',
+        'endurance-saturation',
+        'workspace-two-windows',
+        'trust-grant',
         'rule-contributions',
         'race-delayed-validation',
         'race-delayed-completion',
@@ -258,6 +287,13 @@ async function execute(spec, output, fault, peer) {
         maxAgeMs: ['catalog-refresh', 'rule-contributions'].includes(spec.id) ? 500 : 5000,
         tokenEnv: 'BVE_EDITOR_CATALOG_TOKEN',
       };
+      if (spec.id === 'editor-credentials') {
+        const tokenFile = path.join(session, 'catalog-token');
+        await writeFile(tokenFile, catalog.token, { mode: 0o600 });
+        delete value.catalog.tokenEnv;
+        value.catalog.tokenFile = tokenFile;
+        value.catalog.maxAgeMs = 0;
+      }
       if (spec.id === 'catalog-refresh') {
         const file = path.join(workspace, 'catalog.yaml');
         const text = (await readFile(file, 'utf8')).replace('owner: team', 'owner: remote-refresh');
@@ -331,6 +367,20 @@ async function execute(spec, output, fault, peer) {
         };
         value.editorArtifacts = [{ ...artifact, digest: digestJson(artifact) }];
       }
+      await writeFile(config, JSON.stringify(value));
+    }
+    if (
+      [
+        'race-dirty-watch',
+        'race-close-reopen',
+        'editor-intelligence',
+        'rule-contributions',
+        'editor-discovery',
+        'editor-credentials',
+      ].includes(spec.id)
+    ) {
+      const value = JSON.parse(await readFile(config, 'utf8'));
+      value.coverageObservation = true;
       await writeFile(config, JSON.stringify(value));
     }
     let launchConfig = config;
@@ -414,7 +464,18 @@ async function execute(spec, output, fault, peer) {
       '--disable-updates',
       '--no-cached-data',
     ];
-    if (['race-apply-delivery', 'save'].includes(spec.id)) {
+    if (
+      [
+        'race-apply-delivery',
+        'save',
+        'race-dirty-watch',
+        'workspace-multi-root',
+        'editor-intelligence',
+        'editor-discovery',
+        'performance-budget',
+        'rule-contributions',
+      ].includes(spec.id)
+    ) {
       args.push('--log', 'chtaylo3.backstage-validation-engine:trace');
       const settings = path.join(profile, 'User/settings.json');
       const value = JSON.parse(await readFile(settings, 'utf8'));
@@ -687,21 +748,41 @@ async function execute(spec, output, fault, peer) {
         if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
       }
     } else if (searchPort) {
-      const abort = new globalThis.AbortController();
-      let exited = false;
-      const editor = launch(args, {}, base, abort.signal).finally(() => {
-        exited = true;
-      });
-      const ui = controlSearch({ port: searchPort, base, isExited: () => exited }).catch(
-        (error) => {
-          abort.abort();
-          throw error;
-        },
-      );
-      const completed = await Promise.allSettled([editor, ui]);
-      const failed = completed.find((entry) => entry.status === 'rejected');
-      if (failed) throw failed.reason;
-      result = completed[0].value;
+      const sessions = [];
+      for (let stage = 0; stage < 2; stage++) {
+        await rm(path.join(base, 'search-control.json'), { force: true });
+        await rm(path.join(base, 'search-ack.json'), { force: true });
+        await rm(progressFile, { force: true });
+        const directory = path.join(base, 'activation-' + stage);
+        await mkdir(directory, { recursive: true });
+        const abort = new globalThis.AbortController();
+        let exited = false;
+        const editor = launch(
+          args,
+          { BVE_EXTENSION_TEST_SEARCH_STAGE: String(stage) },
+          directory,
+          abort.signal,
+        ).finally(() => {
+          exited = true;
+        });
+        const ui = controlSearch({ port: searchPort, base, isExited: () => exited }).catch(
+          (error) => {
+            abort.abort();
+            throw error;
+          },
+        );
+        const completed = await Promise.allSettled([editor, ui]);
+        const failed = completed.find((entry) => entry.status === 'rejected');
+        if (failed) throw failed.reason;
+        result = completed[0].value;
+        const progress = await readProgress(progressFile);
+        sessions.push({ stage, result, progress });
+        await atomic(
+          path.join(base, 'native-sessions.json'),
+          JSON.stringify(sessions, null, 2) + '\n',
+        );
+        if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
+      }
     } else result = await launch(args, {}, base);
     const progress = await readProgress(progressFile);
     if (closedCleanly && !result.error && progress) {
@@ -810,10 +891,74 @@ async function runGroup(name, specs, fault) {
   const directory = path.join(artifactRoot, name);
   await rm(directory, { recursive: true, force: true });
   await mkdir(directory, { recursive: true });
+  const hostEvidence =
+    fault === 'crash'
+      ? await openEvidence(
+          path.join(directory, 'scratch-host-accounting.json'),
+          specs.map((spec) => ({ id: spec.id, scope: 'runner' })),
+          { fixtureOnly: true },
+        )
+      : undefined;
   return runCases(
     specs,
     { ...metadata, fault: fault ?? null },
-    (spec) => execute(spec, directory, spec.id === 'startup' ? fault : undefined),
+    async (spec) => {
+      if (!hostEvidence) return execute(spec, directory, spec.id === 'startup' ? fault : undefined);
+      let outcome;
+      try {
+        await hostEvidence.run(spec.id, 'editor', async () => {
+          outcome = await execute(spec, directory, spec.id === 'startup' ? fault : undefined);
+          if (spec.id === 'startup') {
+            assert(outcome.error?.includes('Injected editor crash'));
+            assert.equal(outcome.progress?.phase, 'run');
+            assert(outcome.progress.serverPids.length > 0);
+            for (const pid of outcome.progress.serverPids) {
+              const end = Date.now() + 20_000;
+              while (true) {
+                let alive = true;
+                try {
+                  process.kill(pid, 0);
+                  if (process.platform === 'linux') {
+                    const status = await readFile(`/proc/${pid}/status`, 'utf8').catch(() => '');
+                    alive = !!status && !/^State:\s+Z/mu.test(status);
+                  }
+                } catch (error) {
+                  if (error.code !== 'ESRCH') throw error;
+                  alive = false;
+                }
+                if (!alive) break;
+                assert(
+                  Date.now() < end,
+                  'The crashed editor must release each owned packaged server.',
+                );
+                await pause(30);
+              }
+            }
+            await atomic(
+              path.join(directory, 'owned-crash-cleanup.json'),
+              JSON.stringify(
+                {
+                  fixtureOnly: true,
+                  enteredPhase: outcome.progress.phase,
+                  serverPids: outcome.progress.serverPids,
+                  observedDead: true,
+                },
+                null,
+                2,
+              ) + '\n',
+            );
+          }
+          if (outcome.exitCode !== 0 || outcome.error || outcome.progress?.status !== 'passed') {
+            const error = new Error('Entered editor process failed.');
+            error.name = 'EnteredEditorFailure';
+            throw error;
+          }
+        });
+      } catch (error) {
+        if (!outcome || error.name !== 'EnteredEditorFailure') throw error;
+      }
+      return outcome;
+    },
     async (report) => {
       await atomic(path.join(directory, 'results.json'), JSON.stringify(report, null, 2) + '\n');
       await atomic(path.join(directory, 'junit.xml'), junit(report));
@@ -834,6 +979,23 @@ try {
         fault,
       );
       const [failed, later] = report.cases;
+      if (fault === 'crash') {
+        const scratch = JSON.parse(
+          await readFile(
+            path.join(artifactRoot, 'verification-crash/scratch-host-accounting.json'),
+            'utf8',
+          ),
+        );
+        assert.deepEqual(scratch.counts, {
+          discovered: 2,
+          executed: 2,
+          passed: 1,
+          failed: 1,
+          unexecuted: 0,
+        });
+        assert.equal(scratch.cases[0].phase, 'editor');
+        assert.equal(scratch.cases[1].phase, 'complete');
+      }
       checks.push({
         fault,
         passed:

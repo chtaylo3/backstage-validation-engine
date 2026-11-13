@@ -10,6 +10,14 @@ export async function run(): Promise<void> {
   const progress: Progress = {
     id: process.env.BVE_EXTENSION_TEST_CASE!,
     editorVersion: vscode.version,
+    clientRuntime: {
+      node: process.version,
+      v8: process.versions.v8,
+      electron: process.versions.electron ?? null,
+      platform: process.platform,
+      arch: process.arch,
+      extensionHostPid: process.pid,
+    },
     phase: 'setup',
     status: 'running',
     serverPids: [],
@@ -44,7 +52,7 @@ export async function run(): Promise<void> {
         ? Number(process.env.BVE_SOAK_SECONDS) * 1000 + 90_000
         : progress.id.startsWith('endurance-')
           ? 240_000
-          : 60_000,
+          : 180_000,
     );
   } catch (error) {
     progress.status = 'failed';

@@ -5,11 +5,11 @@ import type {
   VersionedTextDocumentIdentifier,
 } from 'vscode-languageserver/node';
 import type { SourceSnapshot } from '../contracts/schemas.js';
-import { digestText } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { digestText } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
 import type { SourceInput } from '../core/snapshots.js';
-import { isCanonicalSourceUri } from '../core/source-uris.js';
+import { isCanonicalSourceUri } from '../base/source-uris.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { createLspRequest } from './config.js';
 import type { LspConfig } from './config.js';

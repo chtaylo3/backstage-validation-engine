@@ -5,17 +5,22 @@ import { resolve, dirname, basename } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parseContract } from '../contracts/validate.js';
 import type { ValidationRequest } from '../contracts/schemas.js';
-import { ContractError, reject } from '../core/errors.js';
-import { canonicalJson, digestJson } from '../core/json.js';
-import type { Immutable } from '../core/json.js';
+import { reject } from '../base/errors.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
+import { canonicalJson, digestJson } from '../base/json.js';
+import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { resultExitCode } from '../core/results.js';
-import { validatePolicySources } from '../core/policy-sources.js';
+import { validatePolicySources } from '../pipeline/policy-sources.js';
 import { verifyPolicyRelease } from '../policy/releases.js';
-import { createVerifiedPolicyResult } from '../policy/verified-result.js';
+import { createVerifiedPolicyResult } from '../pipeline/verified-result.js';
 import { closeSharedCelRuntime } from '../runtime/cel/index.js';
 import { createHostCatalog, parseCatalogSettings } from '../host/catalog-config.js';
-import { formatSarif, formatSarifError } from './sarif.js';
+import { formatInternalError, internalErrorDetail } from '../host/internal-errors.js';
+import type { InternalErrorReport } from '../core/internal-errors.js';
+import { duringValidation, failureLog, failureOutput } from './failure.js';
+import { formatSarif } from './sarif.js';
 
 const HELP = `Usage: bve validate --release RELEASE.json --trust HOST-TRUST.json
        (--source SNAPSHOT.json [--baseline SNAPSHOT.json] [--data DATA.json] | --request REQUEST.json)
@@ -28,6 +33,7 @@ Explicit requests retain their original deadline. Source mode starts a fresh CI
 budget after trusted configuration is loaded. Credentials use host environment.
 `;
 
+// Reads a local file; `readJson` in src/providers/transport.ts reads a bounded HTTP response body.
 async function readJson(path: string): Promise<unknown> {
   const handle = await open(path, 'r');
   try {
@@ -67,7 +73,12 @@ async function emit(value: unknown, path?: string) {
   }
 }
 
-async function main() {
+/** One standard-error line per contained internal error; details only on request. */
+function reportInternalError(report: InternalErrorReport): void {
+  process.stderr.write(`bve: ${formatInternalError(report, internalErrorDetail())}\n`);
+}
+
+async function main(clock: Clock = systemClock) {
   let format = 'json';
   let output: string | undefined;
   let catalog: Awaited<ReturnType<typeof createHostCatalog>>;
@@ -116,7 +127,7 @@ async function main() {
       values.data ? readJson(values.data) : undefined,
       values['catalog-config'] ? readJson(values['catalog-config']) : undefined,
     ]);
-    const context = verifyPolicyRelease(release, trust);
+    const context = verifyPolicyRelease(release, trust, clock.wall());
     const explicit = values.request ? parseContract('validation-request', input) : undefined;
     const source = explicit?.source ?? parseContract('source-snapshot', input);
     if (explicit && canonicalJson(explicit.identity) !== canonicalJson(context.identity))
@@ -139,9 +150,10 @@ async function main() {
           profileDigest: digestJson(context.profile),
         },
         process.env,
+        clock,
       );
     }
-    const startedAt = Date.now();
+    const startedAt = clock.wall();
     const request: Immutable<ValidationRequest> =
       explicit ??
       parseContract('validation-request', {
@@ -167,27 +179,21 @@ async function main() {
           generation: context.activation.generation,
         },
       });
-    const report = await validatePolicySources(request, context, {
-      ...(catalog ? { catalog } : {}),
-      signal: cancellation.signal,
+    const result = await duringValidation(async () => {
+      const report = await validatePolicySources(request, context, {
+        ...(catalog ? { catalog } : {}),
+        signal: cancellation.signal,
+        clock,
+        onInternalError: reportInternalError,
+      });
+      return createVerifiedPolicyResult(report, context, clock.wall());
     });
-    const result = createVerifiedPolicyResult(report, context);
     await emit(format === 'sarif' ? formatSarif(result) : result, output);
     return resultExitCode(result);
   } catch (error) {
-    const code = error instanceof ContractError ? error.code : 'input_error';
-    const value =
-      format === 'sarif'
-        ? formatSarifError(code)
-        : {
-            contractVersion: '0.2',
-            outcome: 'error',
-            enforcement: 'block',
-            error: {
-              code,
-              message: 'Validation input or trusted configuration could not be loaded.',
-            },
-          };
+    const line = failureLog(error, internalErrorDetail());
+    if (line) process.stderr.write(line + '\n');
+    const value = failureOutput(error, format);
     // If an output path itself fails, keep a machine-readable failure on stdout.
     await emit(value, output).catch(() => emit(value));
     return 2;
