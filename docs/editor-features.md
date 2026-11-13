@@ -7,8 +7,8 @@ Trusted launcher configuration selects schemas, policy authority, sources, and c
 The [rule and editor capability plan](plugin-capabilities-plan.md) specifies CEL, RE2, and plugin requirements.
 It defines the interfaces and conformance requirements for each function.
 Built-in providers now use the versioned [capability interfaces](capability-interfaces.md). Arbitrary executable plugin loading remains unavailable.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
-Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](lsp-editor-improvements-implementation-record.md).
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) defines implementation order and acceptance criteria.
+Phase 2 implements capability interfaces and adapts built-in providers. Its qualification and parent acceptance appear in the [phase record](history/lsp-editor-improvements-implementation-record.md).
 Phase 3 adds live catalog refresh. Phase 4 implements [declared CEL/RE2 contributions](rule-editor-contributions.md), with qualification and acceptance recorded separately.
 
 ## Completion and documentation
@@ -76,7 +76,7 @@ Explicit denied reads and remote failures retain unavailable or incomplete findi
 An authorized-view missing result cannot distinguish global deletion from permission-filtered absence when the backend returns the same response.
 Permission or credential revision changes replace the entire approved session and its caches.
 Polling uses bounded failure backoff. No Backstage event stream is assumed or implemented.
-The [phase record](lsp-editor-improvements-implementation-record.md) separates local qualification from parent acceptance.
+The [phase record](history/lsp-editor-improvements-implementation-record.md) separates local qualification from parent acceptance.
 
 ## File discovery
 
@@ -153,7 +153,7 @@ The user deferred JetBrains qualification, native Trust automation improvements,
 The ownership refactor completed phases 0 through 9 and merged in PR #2.
 Its tested head passed 989 source tests, 989 packaged tests, and 88 installed cases on each native operating system.
 Quick qualification also passed 36 desktop cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
-The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
+The [separation record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies the exact revision, digests, run links, and retained macOS rerun evidence.
 These results do not complete the deferred release work above.
 
 ## H5 installed observation scope

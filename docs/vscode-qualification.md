@@ -222,12 +222,12 @@ The LSP separation completed phases 0 through 9 and merged in [PR #2](https://gi
 Tested head `6938b8b85c1b5889af3fbe1119684de6577e5b45` passed the native source, packaged, installed-editor, and quick qualification lanes.
 Each operating system passed 989 source tests, 989 packaged tests, and 88 portable installed-editor cases.
 Quick qualification passed 36 desktop compatibility/load cases and 12 real remote disconnect/reconnect sessions.
-The [separation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies exact digests and successful workflow links.
+The [separation record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) supplies exact digests and successful workflow links.
 
 The first macOS qualification attempt passed 87/88 after a native `trust-persisted` UI timeout.
 The separate PR run passed. An isolated macOS rerun also passed 88/88 with unchanged assertions and bounds.
 The original failure evidence remains retained. This does not establish a fix for native Trust automation reliability.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) defers that reliability work, installed JetBrains qualification, and longer final-candidate release workloads to phase 5.
 
 ## Installed request and input controls
 

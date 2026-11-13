@@ -171,5 +171,5 @@ The user must select a repair explicitly.
 Client rejection consumes the selected token. A later selection can obtain a new current token.
 Successful edits pass through the normal document-change validation path.
 
-The [implementation record](lsp-editor-improvements-implementation-record.md) identifies executed qualification and its exact candidate.
+The [implementation record](history/lsp-editor-improvements-implementation-record.md) identifies executed qualification and its exact candidate.
 Phase 5 remains deferred. This feature does not add JetBrains qualification, a Trust automation redesign, long release workloads, or publication.

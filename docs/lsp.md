@@ -13,8 +13,8 @@ establish complete Backstage ingestion or verified policy authority.
 
 The LSP ownership separation completed phases 0 through 9 and merged in PR #2.
 Its native VS Code and real SSH, dev-container, and Windows WSL2 qualification passed for the recorded candidate.
-See the [current qualification record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
+See the [current qualification record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) for revisions, digests, counts, and retained failures.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) governs remaining editor work. Phase 5 is deferred.
 Later dated increment sections retain their historical qualification scope.
 
 ## Explicit catalog rules
@@ -127,7 +127,7 @@ The process configuration watch survives failed reloads. Each credential watch b
 
 Programmatic hosts retain responsibility for supplied provider/filesystem cleanup through their aggregate `dispose` callback.
 The stdio launcher supplies a callback that attempts both closes. Session replacement does not close its shared CEL runtime.
-See [the implementation record](lsp-separation-implementation-record.md) for qualification evidence.
+See [the implementation record](history/lsp-separation-implementation-record.md) for qualification evidence.
 
 ## Supported editor lifecycle
 

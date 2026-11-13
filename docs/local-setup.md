@@ -252,4 +252,4 @@ If the owner result does not change after a catalog mutation, wait for the seed 
 Then restart the language server to request fresh catalog data.
 Make sure that the owner line remains indented under `spec`.
 
-The [environment guide](test/integration/backstage/README.md) describes the shared runner, persistence, reset, and reports.
+The [environment guide](../test/integration/backstage/README.md) describes the shared runner, persistence, reset, and reports.

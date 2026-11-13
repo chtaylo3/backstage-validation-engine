@@ -36,7 +36,7 @@ access does not receive the same Dev Drive benefits. ReFS also lacks support for
 Linux-permission metadata mount option. No partition change or WSL distribution relocation is needed
 for the initial move.
 
-The full procedure is in [the transition plan](docs/wsl-development-transition-plan.md). Do not
+The full procedure is in [the transition plan](wsl-development-transition-plan.md). Do not
 automatically synchronize the old and new working copies.
 
 ## Git repositories and expected local changes
@@ -79,16 +79,16 @@ line-ending/whitespace differences. Do not normalize it. Both repositories curre
 
 ## Planning documents changed this session
 
-The main design is [Backstage and SQLite release tests](docs/backstage-release-test-plan.md). It
+The main design is [Backstage and SQLite release tests](../backstage-release-test-plan.md). It
 contains eight delivery steps, proposed paths and commands, and a JSON example. It also defines
 client scenarios, reporting requirements, and acceptance criteria.
 
-The [checkout transition plan](docs/wsl-development-transition-plan.md) documents preservation,
-copying, tool access and cutover checks. The [GitHub Actions documentation](docs/github-actions.md)
+The [checkout transition plan](wsl-development-transition-plan.md) documents preservation,
+copying, tool access and cutover checks. The [GitHub Actions documentation](../github-actions.md)
 links both documents from its increment 6 section and includes increment 6 in the delivery table.
 
 The nested
-[implementation plan](plan/BackstageValidationEngine-planning/Docs/implementation-plan.md) has an
+[implementation plan](../../plan/BackstageValidationEngine-planning/Docs/implementation-plan.md) has an
 appended section 8 that links the same design. This test increment is separate from phase 6 of the
 broader enterprise roadmap. The user sometimes calls this work phase 6. Preserve that distinction.
 
@@ -267,7 +267,7 @@ to proceed.
 On 2026-11-08, the user requested verification that increment 6 can pass to another agent for implementation.
 The primary agent and a separate review agent found enough detail to begin step 6.1.
 This means the real Backstage and SQLite test increment, separate from the enterprise roadmap's phase 6.
-The [detailed design](docs/backstage-release-test-plan.md) defines steps 6.1 through 6.8 and their acceptance criteria.
+The [detailed design](../backstage-release-test-plan.md) defines steps 6.1 through 6.8 and their acceptance criteria.
 No implementation began during this readiness review.
 
 The active checkout uses ext4 at `/home/developer/code/backstage-validation-engine`.

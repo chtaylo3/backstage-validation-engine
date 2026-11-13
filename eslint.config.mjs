@@ -50,6 +50,19 @@ export default tseslint.config(
     },
   },
   {
+    // Every exported name is a decision: barrels list their names instead of `export *`.
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message: 'Export names explicitly; `export *` makes every new export public by accident.',
+        },
+      ],
+    },
+  },
+  {
     // The real-time allowlist. Each file measures real elapsed time on purpose:
     // - src/base/clock.ts: the systemClock implementation.
     // - src/runtime/cel/pool.ts: worker supervision with real timers across the worker boundary.

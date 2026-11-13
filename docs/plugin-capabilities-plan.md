@@ -6,7 +6,7 @@ Phase 3 implements bounded host polling for live refresh. Phase 4 implements [de
 External executable plugin loading remains separate work.
 The current wire contract remains version 0.2. A capability is a function that the host permits a provider to supply.
 This plan covers rule execution and the editor functions that rules can support.
-The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) is the authoritative implementation order and defines phase acceptance criteria.
 This document supplies capability behavior and conformance requirements. The phase 1 checkpoint recorded these interfaces as unimplemented.
 
 ## Current implementation and required direction
@@ -383,9 +383,9 @@ Optional editor-provider failure must not suppress required validation findings 
 
 ## Delivery through the five-phase editor plan
 
-The [editor plan](lsp-editor-improvements-plan.md) replaces the earlier seven-increment delivery order.
+The [editor plan](history/lsp-editor-improvements-plan.md) replaces the earlier seven-increment delivery order.
 The table below maps these technical requirements to its five phases. Full phase gates remain in that plan.
-The [phase record](lsp-editor-improvements-implementation-record.md) distinguishes implementation from parent acceptance.
+The [phase record](history/lsp-editor-improvements-implementation-record.md) distinguishes implementation from parent acceptance.
 
 | Phase       | Capability work                                                                                                                                              | Required conformance                                                            |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |

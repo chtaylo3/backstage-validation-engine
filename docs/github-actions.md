@@ -492,7 +492,7 @@ locally and in GitHub Actions. A shared Linux test image runs the packaged CLI a
 beside Backstage on the Compose network. The Windows baseline uses Ubuntu 24.04 under WSL 2 and a
 checkout inside ext4.
 
-Follow the [checkout transition plan](wsl-development-transition-plan.md). Restart scenarios
+Follow the [checkout transition plan](history/wsl-development-transition-plan.md). Restart scenarios
 preserve SQLite state. Full reset recreates the database. The environment stays excluded from
 released CLI and extension packages.
 

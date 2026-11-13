@@ -138,7 +138,7 @@ Amendment: Child evidence persistence and cleanup errors have some direct contro
 
 Baseline: Open. Priority: 1. Original severity: High.
 
-Evidence: [test/lsp.test.ts](../test/lsp.test.ts) (line 368), [src/lsp/workspace-state.ts](../src/lsp/workspace-state.ts) (line 194).
+Evidence: [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 368), [src/lsp/workspace-state.ts](../src/lsp/workspace-state.ts) (line 194).
 
 Acceptance requirement: After sending stale changes, observe retained content through a request or a later incremental edit that does not overwrite the disputed field.
 
@@ -148,7 +148,7 @@ Amendment: Confirmed by mutation: the unchanged test passes with the stale/equal
 
 Baseline: Open. Priority: 1. Original severity: Med.
 
-Evidence: [test/lsp.test.ts](../test/lsp.test.ts) (line 319), [test/lsp-owners.test.ts](../test/lsp-owners.test.ts) (line 72).
+Evidence: [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 319), [test/lsp-owners.test.ts](../test/lsp/lsp-owners.test.ts) (line 72).
 
 Acceptance requirement: Assert every captured publication for the target URI has the permitted generation/version after entered/cancelled barriers.
 
@@ -158,7 +158,7 @@ Amendment: Publisher/coordinator tests are stronger now, but the cited wire test
 
 Baseline: Partial. Priority: 2. Original severity: Med.
 
-Evidence: [test/lsp.test.ts](../test/lsp.test.ts) (line 341), [extensions/vscode/test/cases/race-close-reopen.case.ts](../extensions/vscode/test/cases/race-close-reopen.case.ts) (line 12), [test/lsp-owners.test.ts](../test/lsp-owners.test.ts) (line 101).
+Evidence: [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 341), [extensions/vscode/test/cases/race-close-reopen.case.ts](../extensions/vscode/test/cases/race-close-reopen.case.ts) (line 12), [test/lsp-owners.test.ts](../test/lsp/lsp-owners.test.ts) (line 101).
 
 Acceptance requirement: Add a raw stdio control that first observes a nonempty finding and then the empty close notification for that same URI.
 
@@ -168,7 +168,7 @@ Amendment: The installed editor already tests close/reopen behavior and publishe
 
 Baseline: Partial. Priority: 2. Original severity: Med.
 
-Evidence: [test/lsp-completion.test.ts](../test/lsp-completion.test.ts) (line 219), [test/lsp-request-context.test.ts](../test/lsp-request-context.test.ts) (line 27).
+Evidence: [test/lsp-completion.test.ts](../test/lsp/lsp-completion.test.ts) (line 219), [test/lsp-request-context.test.ts](../test/lsp/lsp-request-context.test.ts) (line 27).
 
 Acceptance requirement: Assert the allowed cancellation response shape, including isIncomplete where used, over a child stdio server. Add hover and definition cancellation controls.
 
@@ -178,7 +178,7 @@ Amendment: An in-process real JSON-RPC cancellation already proves provider abor
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/lsp-completion.test.ts](../test/lsp-completion.test.ts) (line 321), [test/lsp-catalog-refresh.test.ts](../test/lsp-catalog-refresh.test.ts) (line 447).
+Evidence: [test/lsp-completion.test.ts](../test/lsp/lsp-completion.test.ts) (line 321), [test/lsp-catalog-refresh.test.ts](../test/lsp/lsp-catalog-refresh.test.ts) (line 447).
 
 Acceptance requirement: Delete or rename the watched local dependency and prove its formerly present completion disappears after an observable processing barrier.
 
@@ -188,7 +188,7 @@ Amendment: New remote catalog refresh tests do this for remote candidates. The c
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/completion.test.ts](../test/completion.test.ts) (line 133).
+Evidence: [test/completion.test.ts](../test/lsp/completion.test.ts) (line 133).
 
 Acceptance requirement: Compare each complete resulting source string, then independently parse it and inspect the owner value.
 
@@ -198,7 +198,7 @@ Amendment: Current checks accept any edit containing the reference and retained 
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/editor-intelligence.test.ts](../test/editor-intelligence.test.ts) (line 82).
+Evidence: [test/editor-intelligence.test.ts](../test/lsp/editor-intelligence.test.ts) (line 82).
 
 Acceptance requirement: Assert the inserted property/value, preserved existing members and valid JSON. Include insertion with members on both sides.
 
@@ -208,7 +208,7 @@ Amendment: JSON.parse success alone also accepts a no-op edit.
 
 Baseline: Partial. Priority: 2. Original severity: Med.
 
-Evidence: [test/scalar-fixes.test.ts](../test/scalar-fixes.test.ts) (line 17), [test/lsp-fixes-integration.test.ts](../test/lsp-fixes-integration.test.ts) (line 58).
+Evidence: [test/scalar-fixes.test.ts](../test/engine/scalar-fixes.test.ts) (line 17), [test/lsp-fixes-integration.test.ts](../test/lsp/lsp-fixes-integration.test.ts) (line 58).
 
 Acceptance requirement: Apply the direct scalar and included-payload edits with TextDocument.applyEdits or an independent offset oracle.
 
@@ -218,7 +218,7 @@ Amendment: Integration and new rule-repair cases already use an independent edit
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/scalar-fixes.test.ts](../test/scalar-fixes.test.ts) (line 110), [test/editor-credentials.test.ts](../test/editor-credentials.test.ts) (line 47), [test/lsp-fixes.test.ts](../test/lsp-fixes.test.ts) (line 7).
+Evidence: [test/scalar-fixes.test.ts](../test/engine/scalar-fixes.test.ts) (line 110), [test/editor-credentials.test.ts](../test/lsp/editor-credentials.test.ts) (line 47), [test/lsp-fixes.test.ts](../test/lsp/lsp-fixes.test.ts) (line 7).
 
 Acceptance requirement: Add exact-limit acceptance and limit-plus-one rejection using documented values. Include UTF-8 multibyte scalars and explicit constant-value assertions.
 
@@ -228,7 +228,7 @@ Amendment: Capability and array-index boundary tests added later do not replace 
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/editor-workspace.test.ts](../test/editor-workspace.test.ts) (line 83).
+Evidence: [test/editor-workspace.test.ts](../test/lsp/editor-workspace.test.ts) (line 83).
 
 Acceptance requirement: Assert the required diagnostic code/content, expected hover text and plaintext kind in this wire scenario.
 
@@ -238,7 +238,7 @@ Amendment: Other tests now assert plain descriptions, but this named syntax scen
 
 Baseline: Clarification. Priority: 3. Original severity: Low.
 
-Evidence: [test/lsp-fixes-integration.test.ts](../test/lsp-fixes-integration.test.ts) (line 190), [test/lsp-fixes-integration.test.ts](../test/lsp-fixes-integration.test.ts) (line 108), [extensions/vscode/test/cases/race-apply-delivery.case.ts](../extensions/vscode/test/cases/race-apply-delivery.case.ts) (line 13), [extensions/vscode/test/cases/race-before-apply.case.ts](../extensions/vscode/test/cases/race-before-apply.case.ts) (line 6).
+Evidence: [test/lsp-fixes-integration.test.ts](../test/lsp/lsp-fixes-integration.test.ts) (line 190), [test/lsp-fixes-integration.test.ts](../test/lsp/lsp-fixes-integration.test.ts) (line 108), [extensions/vscode/test/cases/race-apply-delivery.case.ts](../extensions/vscode/test/cases/race-apply-delivery.case.ts) (line 13), [extensions/vscode/test/cases/race-before-apply.case.ts](../extensions/vscode/test/cases/race-before-apply.case.ts) (line 6).
 
 Disposition requirement: Keep both orderings distinct. No replacement with a different race is needed. Optional test comments can clarify the client-delivery simulation.
 
@@ -248,7 +248,7 @@ Amendment: The cited test intentionally models client rejection after dispatch. 
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [test/lsp-completion.test.ts](../test/lsp-completion.test.ts) (line 73), [test/completion.test.ts](../test/completion.test.ts) (line 330).
+Evidence: [test/lsp-completion.test.ts](../test/lsp/lsp-completion.test.ts) (line 73), [test/completion.test.ts](../test/lsp/completion.test.ts) (line 330).
 
 Acceptance requirement: Gate index preparation and assert the exact early incomplete/empty response, then release it and assert the positive candidate.
 
@@ -258,7 +258,7 @@ Amendment: Eventually polling proves eventual readiness and can hide an incorrec
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/lsp-session-resources.test.ts](../test/lsp-session-resources.test.ts) (line 75), [test/lsp-coordinator.test.ts](../test/lsp-coordinator.test.ts) (line 51).
+Evidence: [test/lsp-session-resources.test.ts](../test/lsp/lsp-session-resources.test.ts) (line 75), [test/lsp-coordinator.test.ts](../test/lsp/lsp-coordinator.test.ts) (line 51).
 
 Acceptance requirement: Replace fixed event-loop-turn counts with explicit entered/disposed/activated signals where those events are under test.
 
@@ -268,7 +268,7 @@ Amendment: Many newer concurrency cases already use explicit gates. The cited li
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [test/lsp-fixes.test.ts](../test/lsp-fixes.test.ts) (line 290).
+Evidence: [test/lsp-fixes.test.ts](../test/lsp/lsp-fixes.test.ts) (line 290).
 
 Acceptance requirement: Prove the oldest token is evicted and the next-oldest remains usable at the exact documented capacity.
 
@@ -278,7 +278,7 @@ Amendment: A newest-token success does not establish the intended capacity.
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [test/lsp-fixes-integration.test.ts](../test/lsp-fixes-integration.test.ts) (line 243), [test/harness/lsp-client.ts](../test/harness/lsp-client.ts) (line 101).
+Evidence: [test/lsp-fixes-integration.test.ts](../test/lsp/lsp-fixes-integration.test.ts) (line 243), [test/harness/lsp-client.ts](../test/harness/lsp-client.ts) (line 101).
 
 Acceptance requirement: Omit each required edit/diagnostic/code-action capability independently and assert no edit dispatch.
 
@@ -288,7 +288,7 @@ Amendment: All-on and all-off cases do not detect a missing individual guard.
 
 Baseline: Clarification. Priority: 3. Original severity: Low.
 
-Evidence: [test/lsp.test.ts](../test/lsp.test.ts) (line 368), [test/lsp.test.ts](../test/lsp.test.ts) (line 71).
+Evidence: [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 368), [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 71).
 
 Disposition requirement: Treat fixed line/character positions as maintenance concerns. Derive incidental cursor locations where fixtures change, while retaining independent expected coordinate vectors.
 
@@ -358,7 +358,7 @@ Amendment: Request-context capacity is unit-tested through a different operation
 
 Baseline: Partial. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/completion.test.ts](../test/completion.test.ts) (line 419), [test/completion.test.ts](../test/completion.test.ts) (line 330), [src/lsp/completion.ts](../src/lsp/completion.ts) (line 35).
+Evidence: [test/completion.test.ts](../test/lsp/completion.test.ts) (line 419), [test/completion.test.ts](../test/lsp/completion.test.ts) (line 330), [src/lsp/completion.ts](../src/lsp/completion.ts) (line 35).
 
 Acceptance requirement: Add controlled timing for 50 ms completion and 500 ms search, one-character rejection/two-character admission, and cache-capacity/eviction controls.
 
@@ -368,7 +368,7 @@ Amendment: Cache freshness/rollback, held provider cancellation and responsivene
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [src/lsp/fixes.ts](../src/lsp/fixes.ts) (line 18), [test/lsp-fixes.test.ts](../test/lsp-fixes.test.ts) (line 290).
+Evidence: [src/lsp/fixes.ts](../src/lsp/fixes.ts) (line 18), [test/lsp-fixes.test.ts](../test/lsp/lsp-fixes.test.ts) (line 290).
 
 Acceptance requirement: Test exact actions/candidates capacity, truncation and selection at both edges.
 
@@ -378,7 +378,7 @@ Amendment: The newer 16-candidate evaluation limit is a different bound.
 
 Baseline: Partial. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/lsp-request-context.test.ts](../test/lsp-request-context.test.ts) (line 29), [test/harness/lsp-client.ts](../test/harness/lsp-client.ts) (line 95).
+Evidence: [test/lsp-request-context.test.ts](../test/lsp/lsp-request-context.test.ts) (line 29), [test/harness/lsp-client.ts](../test/harness/lsp-client.ts) (line 95).
 
 Acceptance requirement: Add actual JSON-RPC lifecycle/error-response tests around initialization and shutdown.
 
@@ -388,7 +388,7 @@ Amendment: RequestContexts now tests uninitialized/stopped admission. The raw pr
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/editor-intelligence.test.ts](../test/editor-intelligence.test.ts) (line 168), [src/lsp/editor.ts](../src/lsp/editor.ts) (line 937).
+Evidence: [test/editor-intelligence.test.ts](../test/lsp/editor-intelligence.test.ts) (line 168), [src/lsp/editor.ts](../src/lsp/editor.ts) (line 937).
 
 Acceptance requirement: Provide competing matching definitions and assert no navigation target while preserving a unique-target positive control.
 
@@ -398,7 +398,7 @@ Amendment: The branch exists in the host but the reported ambiguity control was 
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/editor-workspace.test.ts](../test/editor-workspace.test.ts) (line 20), [src/lsp/discovery.ts](../src/lsp/discovery.ts) (line 1).
+Evidence: [test/editor-workspace.test.ts](../test/lsp/editor-workspace.test.ts) (line 20), [src/lsp/discovery.ts](../src/lsp/discovery.ts) (line 1).
 
 Acceptance requirement: Test the documented 10000-entry, 32-level and 1000-file boundaries and failure/recovery behavior.
 
@@ -408,7 +408,7 @@ Amendment: Matching, exclusion and symlink rejection are already tested at small
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/editor-credentials.test.ts](../test/editor-credentials.test.ts) (line 47), [src/host/catalog-config.ts](../src/host/catalog-config.ts) (line 27).
+Evidence: [test/editor-credentials.test.ts](../test/lsp/editor-credentials.test.ts) (line 47), [src/host/catalog-config.ts](../src/host/catalog-config.ts) (line 27).
 
 Acceptance requirement: Add exact 16 KiB admission and over-limit rejection plus symlink and replacement controls.
 
@@ -418,7 +418,7 @@ Amendment: Rotation and the 16 KiB-plus-one rejection already exist. They do not
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/editor-intelligence.test.ts](../test/editor-intelligence.test.ts) (line 191).
+Evidence: [test/editor-intelligence.test.ts](../test/lsp/editor-intelligence.test.ts) (line 191).
 
 Acceptance requirement: Select an enum repair through the guarded command, independently apply its text edit, send didChange and assert the target rule passes.
 
@@ -430,7 +430,7 @@ Amendment: Proposal enumeration and other rule/const repair round trips do not p
 
 Baseline: Open. Priority: 1. Original severity: High.
 
-Evidence: [test/cel-rules.test.ts](../test/cel-rules.test.ts) (line 129), [src/core/cel-rules.ts](../src/core/cel-rules.ts) (line 77).
+Evidence: [test/cel-rules.test.ts](../test/engine/cel-rules.test.ts) (line 129), [src/core/cel-rules.ts](../src/pipeline/cel-rules.ts) (line 77).
 
 Acceptance requirement: Exercise each failure class through executePolicyRules and assert rule status, reason, coverage, interruption and result exit code.
 
@@ -440,7 +440,7 @@ Amendment: New worker/error tests do not assert the full rules-stage mapping.
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/cel-runtime.test.ts](../test/cel-runtime.test.ts) (line 56), [test/fixtures/cel-qualification.json](../test/fixtures/cel-qualification.json) (line 5).
+Evidence: [test/cel-runtime.test.ts](../test/engine/cel-runtime.test.ts) (line 56), [test/fixtures/cel-qualification.json](../test/fixtures/cel-qualification.json) (line 5).
 
 Acceptance requirement: Pin expected error codes in the corpus and assert them for every error case.
 
@@ -450,7 +450,7 @@ Amendment: Dedicated runtime tests already check some exact codes. The corpus st
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [src/runtime/cel/evaluator.ts](../src/runtime/cel/evaluator.ts) (line 90), [test/cel-runtime.test.ts](../test/cel-runtime.test.ts) (line 87).
+Evidence: [src/runtime/cel/evaluator.ts](../src/runtime/cel/evaluator.ts) (line 90), [test/cel-runtime.test.ts](../test/engine/cel-runtime.test.ts) (line 87).
 
 Acceptance requirement: Add attainable positive/negative controls for AST depth/nodes, literal entries and argument counts. State which earlier bound wins when limits overlap.
 
@@ -470,7 +470,7 @@ Amendment: The frozen 43-case corpus remains useful and must not be regenerated 
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/parsing.test.ts](../test/parsing.test.ts) (line 106), [test/parsing.test.ts](../test/parsing.test.ts) (line 161).
+Evidence: [test/parsing.test.ts](../test/engine/parsing.test.ts) (line 106), [test/parsing.test.ts](../test/engine/parsing.test.ts) (line 161).
 
 Acceptance requirement: Add explicit accepted core tags, YAML 1.2 directive, alias-key cases and a cited core-schema table.
 
@@ -480,7 +480,7 @@ Amendment: Several scalar cases already exist. The missing work is broader speci
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/parsing.test.ts](../test/parsing.test.ts) (line 280), [test/policy-releases.test.ts](../test/policy-releases.test.ts) (line 145).
+Evidence: [test/parsing.test.ts](../test/engine/parsing.test.ts) (line 280), [test/policy-releases.test.ts](../test/engine/policy-releases.test.ts) (line 145).
 
 Acceptance requirement: Add exact-default limit and limit-plus-one pairs for the reported parser/CEL/snapshot/release limits, including seven-day authority age and byte-sensitive inputs.
 
@@ -490,7 +490,7 @@ Amendment: New capability pattern and array-index boundaries cover different lim
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/schema-rules.test.ts](../test/schema-rules.test.ts) (line 18), [src/compatibility/custom-schemas.ts](../src/compatibility/custom-schemas.ts) (line 1).
+Evidence: [test/schema-rules.test.ts](../test/engine/schema-rules.test.ts) (line 18), [src/compatibility/custom-schemas.ts](../src/compatibility/custom-schemas.ts) (line 1).
 
 Acceptance requirement: Vendor a curated official draft-07 conformance subset and test each documented supported or excluded feature.
 
@@ -500,7 +500,7 @@ Amendment: Other schema/metadata tests cover more than type/required/const. Ther
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/cli.test.ts](../test/cli.test.ts) (line 239), [src/reporting/sarif.ts](../src/reporting/sarif.ts) (line 1).
+Evidence: [test/cli.test.ts](../test/cli/cli.test.ts) (line 239), [src/reporting/sarif.ts](../src/reporting/sarif.ts) (line 1).
 
 Acceptance requirement: Validate normal, incomplete and error SARIF outputs against a pinned OASIS 2.1.0 schema.
 
@@ -510,7 +510,7 @@ Amendment: Existing field-level assertions remain valuable but do not establish 
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/json.test.ts](../test/json.test.ts) (line 11), [src/core/json.ts](../src/core/json.ts) (line 23).
+Evidence: [test/json.test.ts](../test/engine/json.test.ts) (line 11), [src/core/json.ts](../src/base/json.ts) (line 23).
 
 Acceptance requirement: Add non-BMP key ordering and ECMAScript numeric representation vectors with independent expected strings.
 
@@ -520,7 +520,7 @@ Amendment: Fixed fixture coordinates and canonical vectors must remain independe
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [test/policy-releases.test.ts](../test/policy-releases.test.ts) (line 117).
+Evidence: [test/policy-releases.test.ts](../test/engine/policy-releases.test.ts) (line 117).
 
 Acceptance requirement: Assert the expected failure reason for each tampering variant and verify at least one signature independently with node:crypto.
 
@@ -530,7 +530,7 @@ Amendment: Do not replace every expected failure with a signature error when ear
 
 Baseline: Partial. Priority: 2. Original severity: Low.
 
-Evidence: [test/cel-rules.test.ts](../test/cel-rules.test.ts) (line 251), [test/rule-contributions.test.ts](../test/rule-contributions.test.ts) (line 182).
+Evidence: [test/cel-rules.test.ts](../test/engine/cel-rules.test.ts) (line 251), [test/rule-contributions.test.ts](../test/engine/rule-contributions.test.ts) (line 182).
 
 Acceptance requirement: Observe request-specific scheduling against a shared pool and assert blocked dependents after not_applicable and incomplete prerequisites.
 
@@ -540,7 +540,7 @@ Amendment: Shared-pool ceilings and several blocked-prerequisite paths are now t
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [test/cli.test.ts](../test/cli.test.ts) (line 105), [src/cli/main.ts](../src/cli/main.ts) (line 195).
+Evidence: [test/cli.test.ts](../test/cli/cli.test.ts) (line 105), [src/cli/main.ts](../src/cli/main.ts) (line 195).
 
 Acceptance requirement: Add subprocess controls for --baseline, --data, --help, SIGINT/SIGTERM and output-write failure exit 2.
 
@@ -550,7 +550,7 @@ Amendment: Current tests cover successful atomic output and several exit-2 paths
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [src/runtime/cel/evaluator.ts](../src/runtime/cel/evaluator.ts) (line 112), [test/cel-runtime.test.ts](../test/cel-runtime.test.ts) (line 35).
+Evidence: [src/runtime/cel/evaluator.ts](../src/runtime/cel/evaluator.ts) (line 112), [test/cel-runtime.test.ts](../test/engine/cel-runtime.test.ts) (line 35).
 
 Acceptance requirement: Exercise more than 256 distinct programs and patterns and observe bounded cache behavior plus correct recompilation.
 
@@ -562,7 +562,7 @@ Amendment: The implementation clears caches at the ceiling. An LRU policy must n
 
 Baseline: Partial. Priority: 1. Original severity: High (suspected).
 
-Evidence: [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 210), [test/catalog-api.test.ts](../test/catalog-api.test.ts) (line 140), [docs/lsp-editor-improvements-implementation-record.md](../docs/lsp-editor-improvements-implementation-record.md) (line 360).
+Evidence: [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 210), [test/catalog-api.test.ts](../test/tooling/catalog-api.test.ts) (line 140), [docs/lsp-editor-improvements-implementation-record.md](../docs/history/lsp-editor-improvements-implementation-record.md) (line 360).
 
 Acceptance requirement: Separate plugin-access rejection from permission-policy DENY in the fake, test filtered results end to end and add a real permission-policy control.
 
@@ -572,7 +572,7 @@ Amendment: Both pinned upstream authorization sources confirm filtered absence. 
 
 Baseline: Open. Priority: 2. Original severity: Med (suspected).
 
-Evidence: [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 343), [test/catalog-api.test.ts](../test/catalog-api.test.ts) (line 112).
+Evidence: [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 343), [test/catalog-api.test.ts](../test/tooling/catalog-api.test.ts) (line 112).
 
 Acceptance requirement: Make raw fake by-refs requests follow pinned request/parser/database behavior. Add canonical, shorthand, malformed and case variants.
 
@@ -592,7 +592,7 @@ Amendment: invalid-body faults currently return HTTP 200. A by-refs 404 control 
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [test/catalog-provider.test.ts](../test/catalog-provider.test.ts) (line 377), [test/catalog-provider.test.ts](../test/catalog-provider.test.ts) (line 396).
+Evidence: [test/catalog-provider.test.ts](../test/engine/catalog-provider.test.ts) (line 377), [test/catalog-provider.test.ts](../test/engine/catalog-provider.test.ts) (line 396).
 
 Acceptance requirement: Test retry timing with controlled time, date-form Retry-After, 503 Retry-After, POST retry, disconnect retry and abort during backoff.
 
@@ -602,7 +602,7 @@ Amendment: 503 retry count and connection-wide cooldown already have controls. T
 
 Baseline: Partial. Priority: 2. Original severity: Med (suspected).
 
-Evidence: [test/backstage-substitutions.test.ts](../test/backstage-substitutions.test.ts) (line 94), [test/backstage-substitutions.test.ts](../test/backstage-substitutions.test.ts) (line 166), [docs/substitutions.md](../docs/substitutions.md) (line 1).
+Evidence: [test/backstage-substitutions.test.ts](../test/engine/backstage-substitutions.test.ts) (line 94), [test/backstage-substitutions.test.ts](../test/engine/backstage-substitutions.test.ts) (line 166), [docs/substitutions.md](../docs/substitutions.md) (line 1).
 
 Acceptance requirement: Add pinned upstream-derived behavior tables and document mixed mappings, nested returned placeholders and stricter JSON/YAML handling as explicit profile choices.
 
@@ -612,7 +612,7 @@ Amendment: Both pinned PlaceholderProcessor versions reject non-string resolver 
 
 Baseline: Open. Priority: 2. Original severity: Low.
 
-Evidence: [src/policy/profile.ts](../src/policy/profile.ts) (line 23), [test/backstage-references.test.ts](../test/backstage-references.test.ts) (line 157), [docs/source-references.md](../docs/source-references.md) (line 8).
+Evidence: [src/policy/profile.ts](../src/policy/profile.ts) (line 23), [test/backstage-references.test.ts](../test/engine/backstage-references.test.ts) (line 157), [docs/source-references.md](../docs/source-references.md) (line 8).
 
 Acceptance requirement: Either scope default contexts by entity kind or document them as an intentional over-approximation. Add processor-derived relation/reference cases.
 
@@ -622,7 +622,7 @@ Amendment: Pinned BuiltinKindsEntityProcessor scopes relations by kind and emits
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/catalog-suggestions.test.ts](../test/catalog-suggestions.test.ts) (line 16), [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 256).
+Evidence: [test/catalog-suggestions.test.ts](../test/engine/catalog-suggestions.test.ts) (line 16), [test/harness/fake-backstage.ts](../test/harness/fake-backstage.ts) (line 256).
 
 Acceptance requirement: Send an intentionally unprojected response and assert client admission/projection, or narrow the claim to the normal projected response.
 
@@ -632,7 +632,7 @@ Amendment: The current absence assertion cannot independently demonstrate client
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/release-refresh.test.ts](../test/release-refresh.test.ts) (line 53).
+Evidence: [test/release-refresh.test.ts](../test/tooling/release-refresh.test.ts) (line 53).
 
 Acceptance requirement: Add lightweight tags, annotated chains and chain-depth rejection controls.
 
@@ -642,7 +642,7 @@ Amendment: The existing fake always returns an annotated tag.
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/backstage-environment.test.ts](../test/backstage-environment.test.ts) (line 66), [test/integration/backstage/data/baseline.json](../test/integration/backstage/data/baseline.json) (line 138).
+Evidence: [test/backstage-environment.test.ts](../test/tooling/backstage-environment.test.ts) (line 66), [test/integration/backstage/data/baseline.json](../test/integration/backstage/data/baseline.json) (line 138).
 
 Acceptance requirement: Compare explicit complete expected relation tuples, including inverse and defaulted relationships.
 
@@ -694,7 +694,7 @@ Amendment: The claim that none of these budgets can ever fail is too absolute: c
 
 Baseline: Open. Priority: 2. Original severity: Med.
 
-Evidence: [extensions/vscode/test/resources.ts](../extensions/vscode/test/resources.ts) (line 37), [extensions/vscode/test/endurance.ts](../extensions/vscode/test/endurance.ts) (line 58), [test/extension-resources.test.ts](../test/extension-resources.test.ts) (line 20).
+Evidence: [extensions/vscode/test/resources.ts](../extensions/vscode/test/resources.ts) (line 37), [extensions/vscode/test/endurance.ts](../extensions/vscode/test/endurance.ts) (line 58), [test/extension-resources.test.ts](../test/extension/extension-resources.test.ts) (line 20).
 
 Acceptance requirement: Document or remove the extra quarter-window exclusion. Test a leak inside the discarded interval and justify caps from requirements. State that short runs do not measure a 100-operation slope.
 
@@ -754,7 +754,7 @@ Amendment: Actual process death and recovery are already observed. The report ov
 
 Baseline: Open. Priority: 2. Original severity: Low-Med.
 
-Evidence: [extensions/vscode/test/cases/editor-intelligence.case.ts](../extensions/vscode/test/cases/editor-intelligence.case.ts) (line 47), [test/editor-workspace.test.ts](../test/editor-workspace.test.ts) (line 111).
+Evidence: [extensions/vscode/test/cases/editor-intelligence.case.ts](../extensions/vscode/test/cases/editor-intelligence.case.ts) (line 47), [test/editor-workspace.test.ts](../test/lsp/editor-workspace.test.ts) (line 111).
 
 Acceptance requirement: Change trusted policy or selected sources before installed reload, then assert changed suggestions/diagnostics with the same server.
 
@@ -784,7 +784,7 @@ Amendment: All observed runs can complete without entering the branch.
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [extensions/vscode/test/cases/editor-search.case.ts](../extensions/vscode/test/cases/editor-search.case.ts) (line 30), [test/extension-client.test.ts](../test/extension-client.test.ts) (line 1).
+Evidence: [extensions/vscode/test/cases/editor-search.case.ts](../extensions/vscode/test/cases/editor-search.case.ts) (line 30), [test/extension-client.test.ts](../test/extension/extension-client.test.ts) (line 1).
 
 Acceptance requirement: Test no-editor clipboard fallback and actual installed history ranking/persistence across a fresh client activation.
 
@@ -804,7 +804,7 @@ Amendment: Declared-rule descriptions/provenance and unique navigation now have 
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [extensions/vscode/test/cases/editor-intelligence.case.ts](../extensions/vscode/test/cases/editor-intelligence.case.ts) (line 47), [test/editor-workspace.test.ts](../test/editor-workspace.test.ts) (line 20).
+Evidence: [extensions/vscode/test/cases/editor-intelligence.case.ts](../extensions/vscode/test/cases/editor-intelligence.case.ts) (line 47), [test/editor-workspace.test.ts](../test/lsp/editor-workspace.test.ts) (line 20).
 
 Acceptance requirement: Exercise real installed include/exclude selection, discovery bounds and fail-closed configuration recovery.
 
@@ -814,7 +814,7 @@ Amendment: Source-level discovery/reload controls exist. They are not installed-
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/editor-credentials.test.ts](../test/editor-credentials.test.ts) (line 9), [extensions/vscode/test/cases/rule-contributions.case.ts](../extensions/vscode/test/cases/rule-contributions.case.ts) (line 12).
+Evidence: [test/editor-credentials.test.ts](../test/lsp/editor-credentials.test.ts) (line 9), [extensions/vscode/test/cases/rule-contributions.case.ts](../extensions/vscode/test/cases/rule-contributions.case.ts) (line 12).
 
 Acceptance requirement: Rotate the actual configured token file while the installed server remains alive, observe denial/recovery and reject old repairs.
 
@@ -824,7 +824,7 @@ Amendment: Source/provider rotation and protocol credential-revision replacement
 
 Baseline: Open. Priority: 2. Original severity: not separately assigned.
 
-Evidence: [test/lsp.test.ts](../test/lsp.test.ts) (line 288), [extensions/vscode/test/cases/catalog-refresh.case.ts](../extensions/vscode/test/cases/catalog-refresh.case.ts) (line 7).
+Evidence: [test/lsp.test.ts](../test/lsp/lsp.test.ts) (line 288), [extensions/vscode/test/cases/catalog-refresh.case.ts](../extensions/vscode/test/cases/catalog-refresh.case.ts) (line 7).
 
 Acceptance requirement: Assert both severities on actual installed client diagnostics with positive rule/category controls.
 
@@ -836,7 +836,7 @@ Amendment: Raw stdio severity assertions do not establish the installed represen
 
 Baseline: Partial. Priority: 3. Original severity: Med.
 
-Evidence: [docs/testing-harness.md](../docs/testing-harness.md) (line 156), [test/catalog-provider.test.ts](../test/catalog-provider.test.ts) (line 167), [docs/lsp-separation-implementation-record.md](../docs/lsp-separation-implementation-record.md) (line 128).
+Evidence: [docs/testing-harness.md](../docs/testing-harness.md) (line 156), [test/catalog-provider.test.ts](../test/engine/catalog-provider.test.ts) (line 167), [docs/lsp-separation-implementation-record.md](../docs/history/lsp-separation-implementation-record.md) (line 128).
 
 Acceptance requirement: Describe fake API-contract coverage accurately and distinguish the native-model pins from backend pins. Parameterize provider paths that need two-target evidence.
 
@@ -856,7 +856,7 @@ Amendment: Preserve dated historical evidence while correcting current claims.
 
 Baseline: Partial. Priority: 3. Original severity: Low (docs).
 
-Evidence: [docs/vscode-qualification.md](../docs/vscode-qualification.md) (line 9), [docs/lsp-editor-improvements-implementation-record.md](../docs/lsp-editor-improvements-implementation-record.md) (line 486).
+Evidence: [docs/vscode-qualification.md](../docs/vscode-qualification.md) (line 9), [docs/lsp-editor-improvements-implementation-record.md](../docs/history/lsp-editor-improvements-implementation-record.md) (line 486).
 
 Acceptance requirement: Label the 44-case cross-OS baseline explicitly and distinguish the current 46-case Linux inventory. Derive counts from versioned inventories where possible.
 
@@ -876,7 +876,7 @@ Amendment: The current screenshot function writes decoded bytes without validati
 
 Baseline: Partial. Priority: 3. Original severity: Low.
 
-Evidence: [test/backstage-release-workflow.test.ts](../test/backstage-release-workflow.test.ts) (line 48), [test/backstage-release-workflow.test.ts](../test/backstage-release-workflow.test.ts) (line 77), [docs/backstage-release-test-plan.md](../docs/backstage-release-test-plan.md) (line 333), [.github/workflows/backstage-release-qualification.yml](../.github/workflows/backstage-release-qualification.yml) (line 76).
+Evidence: [test/backstage-release-workflow.test.ts](../test/tooling/backstage-release-workflow.test.ts) (line 48), [test/backstage-release-workflow.test.ts](../test/tooling/backstage-release-workflow.test.ts) (line 77), [docs/backstage-release-test-plan.md](../docs/backstage-release-test-plan.md) (line 333), [.github/workflows/backstage-release-qualification.yml](../.github/workflows/backstage-release-qualification.yml) (line 76).
 
 Acceptance requirement: Explain the manually approved release path exposed through ci.yml and assert always() on evidence upload in the static test.
 
@@ -886,7 +886,7 @@ Amendment: Automated ordinary CI already avoids Docker. Manual exact-revision ga
 
 Baseline: Open. Priority: 3. Original severity: Low.
 
-Evidence: [test/backstage-release-evidence.test.ts](../test/backstage-release-evidence.test.ts) (line 95), [test/backstage-release-evidence.test.ts](../test/backstage-release-evidence.test.ts) (line 148).
+Evidence: [test/backstage-release-evidence.test.ts](../test/tooling/backstage-release-evidence.test.ts) (line 95), [test/backstage-release-evidence.test.ts](../test/tooling/backstage-release-evidence.test.ts) (line 148).
 
 Acceptance requirement: Add an independent recorded/golden valid fixture or independent inventory expectations plus mutations for wrong editor version, SQLite driver and empty targets.
 

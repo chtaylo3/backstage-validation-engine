@@ -30,6 +30,7 @@ Explicit requests retain their original deadline. Source mode starts a fresh CI
 budget after trusted configuration is loaded. Credentials use host environment.
 `;
 
+// Reads a local file; `readJson` in src/providers/transport.ts reads a bounded HTTP response body.
 async function readJson(path: string): Promise<unknown> {
   const handle = await open(path, 'r');
   try {

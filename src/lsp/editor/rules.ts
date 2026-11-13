@@ -1,12 +1,12 @@
-import type { TextEdit } from 'vscode-languageserver/node';
 import type { Immutable } from '../../base/json.js';
 import { digestText, immutableJson } from '../../base/json.js';
 import type { Finding, JsonValue } from '../../contracts/schemas.js';
 import type { PreparedRuleMetadata } from '../../host/rule-contributions.js';
-import { object, parts } from '../editor-schemas.js';
+import { parts } from '../editor-schemas.js';
 import type { FixDocument, SuggestedFix } from '../fixes.js';
-import { encoded, ruleSegments } from './state.js';
+import { ruleSegments } from './state.js';
 import type { EditorState } from './state.js';
+import { valueEdit } from './value-edits.js';
 
 /** Installs the rule contributions prepared for the indexed generation, and starts their clocks. */
 export function installRuleContributions(
@@ -124,50 +124,7 @@ export function renderRuleCandidate(
     return undefined;
   const { file: indexed, selected } = target;
   if (!ruleSegments(selected.schemaValue, path)) return undefined;
-  const node = selected.document.nodes.get(target.path);
-  let edit: TextEdit | undefined;
-  if (node && !node.blocked && !node.container) {
-    const raw = indexed.file.text.slice(node.start, node.end);
-    if (!/[\r\n]/u.test(raw))
-      edit = {
-        range: indexed.file.lines.range(node.start, node.end),
-        newText: encoded(value, raw, indexed.file.json),
-      };
-  } else if (!node && target.path) {
-    const parent = selected.document.nodes.get(target.path.slice(0, target.path.lastIndexOf('/')));
-    const name = parts(target.path).at(-1)!;
-    if (parent?.container === 'map' && !parent.blocked) {
-      if (parent.flow || indexed.file.json) {
-        const offset = parent.end - 1;
-        if (indexed.file.text[offset] === '}')
-          edit = {
-            range: indexed.file.lines.range(offset, offset),
-            newText: `${object(parent.value) && Object.keys(parent.value).length ? ', ' : ''}${JSON.stringify(name)}: ${JSON.stringify(value)}`,
-          };
-      } else {
-        const newline = indexed.file.text.includes('\r\n') ? '\r\n' : '\n';
-        const children = [...selected.document.nodes.values()].filter(
-          (child) =>
-            child.keyStart !== undefined &&
-            child.path.slice(0, child.path.lastIndexOf('/')) === parent.path,
-        );
-        const indent = children.length
-          ? indexed.file.lines.position(children[0]!.keyStart!).character
-          : parent.path
-            ? parent.indent + 2
-            : 0;
-        let offset = parent.end;
-        if (indexed.file.lines.position(offset).character > 0) {
-          const next = /\r\n|\r|\n/u.exec(indexed.file.text.slice(offset));
-          offset = next ? offset + next.index + next[0].length : indexed.file.text.length;
-        }
-        edit = {
-          range: indexed.file.lines.range(offset, offset),
-          newText: `${offset && !/[\r\n]/u.test(indexed.file.text[offset - 1]!) ? newline : ''}${' '.repeat(indent)}${JSON.stringify(name)}: ${JSON.stringify(value)}${newline}`,
-        };
-      }
-    }
-  }
+  const edit = valueEdit(indexed, selected, target.path, value);
   const finding = findings.find((row) => row.subjectId === subjectId && row.ruleId === ruleId);
   if (!edit) return undefined;
   const location = {

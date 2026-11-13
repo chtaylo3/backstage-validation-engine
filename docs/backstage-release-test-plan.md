@@ -218,7 +218,7 @@ optional Dev Container.
 The original `/mnt/example-drive/code/backstage-validation-engine` checkout accesses a Windows Dev Drive through
 a Windows filesystem mount. Dev Drive does not provide Linux filesystem semantics or the same
 benefits for WSL access. Keep that checkout as a migration backup and optional separate Windows test
-copy. Follow the [checkout transition plan](wsl-development-transition-plan.md) before switching.
+copy. Follow the [checkout transition plan](history/wsl-development-transition-plan.md) before switching.
 
 The optional Dev Container uses the shared test image for interactive tools. It is separate from the
 automated Linux VS Code instance under Xvfb. Launching the Windows editor through Remote WSL does
@@ -435,7 +435,7 @@ describes file Locations, processing intervals and orphan handling. The
 [external caller authentication guide](https://backstage.io/docs/auth/service-to-service-auth/)
 describes static credentials and access restrictions.
 
-The [WSL checkout transition plan](wsl-development-transition-plan.md) records current paths, Dev
+The [WSL checkout transition plan](history/wsl-development-transition-plan.md) records current paths, Dev
 Drive considerations, preservation steps and cutover gates. Docker documents
 [WSL filesystem recommendations](https://docs.docker.com/desktop/features/wsl/best-practices/).
 Microsoft documents

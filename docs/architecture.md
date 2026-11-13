@@ -20,33 +20,44 @@ These are logical boundaries. Start in one package and split packages when their
 or distribution requirements justify it. Developer installation does not require a broker, database,
 or central validation service.
 
+## Engine structure
+
+This section describes the source tree as it exists. `npm run architecture:check` and
+`npm run lint` enforce the rules it states.
+
 ### Engine layers
 
 Every top-level directory under `src/` is one layer. The layers are ordered, lowest first. A file
 may import its own layer and any lower layer, directly or through other files. Layers in the same
-row are peers and may not import each other.
+row are peers and may not import each other. A helper that several layers share lives in the lowest
+layer that all of its users may import.
 
-| Order | Layer           | Contents                                                                           |
-| ----- | --------------- | ---------------------------------------------------------------------------------- |
-| 1     | `protocol`      | Custom client/server method names, wire types, and guards. Imports nothing.        |
-| 2     | `base`          | Errors, canonical JSON and digests, source URIs. No internal imports.              |
-| 3     | `contracts`     | Schemas, `parseContract`, and the semantic invariants that `parseContract` applies |
-| 4     | `core`          | Snapshots, results, request bindings, processor coverage helpers                   |
-| 5     | `runtime`       | Request budget, failure evidence, managed CEL runtime                              |
-| 6     | `parsing`       | Source parser                                                                      |
-| 7     | `compatibility` | Native Backstage adapters, substitutions, custom schemas, source validation        |
-| 8     | `policy`        | Bundles, default profile, signed releases                                          |
-| 9     | `providers`     | Catalog provider and transport                                                     |
-| 10    | `capabilities`  | Capability contracts and sessions                                                  |
-| 11    | `pipeline`      | Reference preparation, rule execution, pipeline composition, verified result       |
-| 12    | `reporting`     | SARIF                                                                              |
-| 13    | `host`          | Host catalog configuration, built-in validation, rule contributions                |
-| 14    | `cli`, `lsp`    | Adapters. Peers: neither may import the other.                                     |
+| Order | Layer           | Contents                                                                                                      |
+| ----- | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| 1     | `protocol`      | Custom client/server method names, wire types, and guards. Imports nothing.                                   |
+| 2     | `base`          | Errors, canonical JSON and digests, source URIs, the clock, bounded waits, type helpers. No internal imports. |
+| 3     | `contracts`     | Schemas and their shared TypeBox builders, `parseContract` and its semantic invariants, kinds, rule order     |
+| 4     | `core`          | Snapshots, results, request bindings, processor coverage helpers, the stage report contract                   |
+| 5     | `runtime`       | Request budget, failure evidence, managed CEL runtime                                                         |
+| 6     | `parsing`       | Source parser                                                                                                 |
+| 7     | `compatibility` | Native Backstage adapters, substitutions, custom schemas, source validation stages                            |
+| 8     | `policy`        | Bundles, default profile, signed releases                                                                     |
+| 9     | `providers`     | Catalog provider and transport                                                                                |
+| 10    | `capabilities`  | Capability contracts and sessions                                                                             |
+| 11    | `pipeline`      | Reference preparation, rule execution, pipeline composition, verified result                                  |
+| 12    | `reporting`     | SARIF                                                                                                         |
+| 13    | `host`          | Host catalog configuration, built-in validation, rule contributions                                           |
+| 14    | `cli`, `lsp`    | Adapters. Peers: neither may import the other.                                                                |
 
 `src/index.ts` is the public barrel and may import layers 1 to 12 only. Nothing under `src/`
-imports it, directly or through another file. The VS Code client in `extensions/vscode/src` may
-import `src/protocol/` and nothing else under `src/`, may not import the package, and nothing
-imports the client.
+imports it, directly or through another file. It lists every exported name explicitly, grouped by
+layer, as do the other entry points (`src/contracts/index.ts`, `src/lsp/index.ts`,
+`src/capabilities/index.ts`, `src/protocol/index.ts`). `npm run lint` rejects `export *` in `src/`,
+so a new export becomes public only when an entry point names it, and
+`test/tooling/public-api.test.ts` compares the value and type names of each entry point with
+`test/fixtures/public-api.json`. The VS Code client in `extensions/vscode/src` may import
+`src/protocol/` and nothing else under `src/`, may not import the package, and nothing imports the
+client.
 
 `npm run architecture:check` runs `scripts/architecture-boundaries.mjs`, whose `LAYERS` list holds
 the same order as this table. Type-only imports, re-exports, `import()`, and `createRequire` loaders
@@ -64,13 +75,9 @@ count as imports. The check also enforces these rules:
   `extensions/vscode/src/` is longer than 150 lines. `scripts/function-size-allowlist.json` lists
   the older functions above the limit, each with its current length as a ceiling. An allowlisted
   function may not grow, and an entry fails once its function is within the limit or gone.
-- Only `src/index.ts`, `src/cli/main.ts`, `src/lsp/stdio.ts`, `src/runtime/cel/index.ts`, and
-  `src/pipeline/rules/context.ts` import `getSharedCelRuntime` or `closeSharedCelRuntime`. A
-  namespace import, `export *`, or `import()` of `src/runtime/cel/index.ts` counts as importing
-  them. Every other component receives a `CelRuntime` from its owner; `src/pipeline/rules/context.ts`
-  supplies the documented default of rule execution, `defaultRuleRuntime`, when a caller passes
-  none. Only that module and `src/lsp/editor/state.ts` import `defaultRuleRuntime`, by the same
-  rule: the editor falls back to it lazily when its owner supplies no runtime.
+- The shared CEL runtime rules in [Clock and runtime](#clock-and-runtime).
+
+### Clock and runtime
 
 Engine decisions read time through a `Clock` (`src/base/clock.ts`): `wall()` for epoch
 milliseconds that compare with contract deadlines, and `monotonic()` for elapsed time. Components
@@ -79,6 +86,14 @@ default at the parameter. Real timers stay real. `npm run lint` rejects `Date.no
 `performance.now` in `src/`, except in the files that measure real time on purpose:
 `src/base/clock.ts`, `src/runtime/cel/pool.ts` (worker supervision), and `src/parsing/budget.ts`
 and `src/compatibility/adapter.ts` (cooperative yielding).
+
+Every component receives a `CelRuntime` from its owner. Only `src/index.ts`, `src/cli/main.ts`,
+`src/lsp/stdio.ts`, `src/runtime/cel/index.ts`, and `src/pipeline/rules/context.ts` import
+`getSharedCelRuntime` or `closeSharedCelRuntime`. A namespace import, `export *`, or `import()` of
+`src/runtime/cel/index.ts` counts as importing them. `src/pipeline/rules/context.ts` supplies the
+documented default of rule execution, `defaultRuleRuntime`, when a caller passes none. Only that
+module and `src/lsp/editor/state.ts` import `defaultRuleRuntime`, by the same rule: the editor
+falls back to it lazily when its owner supplies no runtime.
 
 ### Shared protocol
 
@@ -105,7 +120,8 @@ protocol files that the extension bundles together with the extension sources.
 Source validation, rule execution, and their composition report through one contract in
 `src/core/stage-report.ts`: ordered findings, ordered coverage, and an interruption.
 `INTERRUPTION_PRIORITY` and `mergeInterruption` rank interruptions, and `mergeCoverage` keeps one
-row per stage and subject.
+row per stage and subject. `budgetInterruption` in `src/runtime/request-budget.ts` names why an
+interrupted request budget stopped (`timeout` or `cancelled`).
 
 - `src/compatibility/sources.ts` orchestrates the stage modules in `src/compatibility/stages/`:
   the processing gate, preparation, and per document substitution, native validation, admission,
@@ -114,16 +130,27 @@ row per stage and subject.
 - `src/pipeline/cel-rules.ts` schedules subjects on lanes (`src/pipeline/rules/lanes.ts`) and
   evaluates each rule through `RULE_EVALUATORS`, one evaluator module per rule kind. A rule kind
   without an evaluator does not compile.
+- `src/pipeline/policy-sources.ts` composes source validation, reference preparation, and rule
+  execution for one request.
 
-## Implemented editor and host ownership
+### Language server
 
 CLI and LSP use neutral catalog admission and construction from `src/host/catalog-config.ts`.
 The catalog file does not replace authority from a verified release or trusted editor launcher.
 The root SARIF export uses neutral reporting. The CLI module path remains a compatibility wrapper.
-The import policy enforces the engine layers above and rejects every file-level import cycle.
 
-The LSP composition root registers protocol handlers and negotiates client capabilities.
-Its owners separate mutable source state, scheduling, session resources, requests, and publication:
+`attachLspServer` (`src/lsp/server.ts`) is the composition root. It builds one server context
+(`src/lsp/server-context.ts`) that holds the owners below, the connection lifecycle, the client
+features accepted at `initialize`, and the latest coverage and filesystem observations. The handler
+modules in `src/lsp/handlers/` (`lifecycle.ts`, `documents.ts`, `language.ts`, and `custom.ts` for
+the `bve/` methods) register the protocol handlers over that context and keep no state of their
+own. `EditorService` (`src/lsp/editor.ts`) is a facade over the indexing, rule contribution,
+completion, navigation, and repair modules in `src/lsp/editor/`. [The language server
+guide](lsp.md#internal-state-and-resource-ownership) describes the same structure from the
+client's side.
+
+The owners separate mutable source state, scheduling, session resources, requests, and
+publication:
 
 | Owner                   | Responsibility                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------- |
@@ -142,7 +169,35 @@ Cleanup failure keeps the session unavailable and requires reconnection.
 
 Native validation and optional editor presentation metadata share exact native package identity.
 Missing presentation metadata cannot replace native validation or select a different installed version.
-See the [implementation record](lsp-separation-implementation-record.md) for executed qualification and remaining limits.
+See the [implementation record](history/lsp-separation-implementation-record.md) for executed qualification and remaining limits.
+
+### Tests
+
+Every `*.test.ts` file lives in one group directory: `test/engine/` (engine layers and
+`protocol`), `test/lsp/`, `test/cli/`, `test/extension/`, or `test/tooling/` (import policy,
+public API, documentation links, harness evidence, and script tests). `test/harness/`,
+`test/fixtures/`, and `test/integration/` hold support code and data. `scripts/test.mjs` discovers
+the compiled test files of each group; `--group <name>` selects groups. `npm test` runs the
+`engine` group in one parallel `node --test` invocation and every other file in a second, serial
+invocation. `node scripts/test-client.mjs` runs the VS Code client tests with coverage. [The test
+harness guide](testing-harness.md#test-layout-and-runner) holds the full runner rules, the serial
+list, and the report files.
+
+### Scalability limits
+
+The current design has these limits:
+
+- One process. The CLI and each language server session validate in a single Node process; there
+  is no shared service, queue, or cache across processes.
+- Whole-snapshot validation. Every request validates its whole source snapshot through every stage.
+  The language server overlays open buffers on its workspace snapshot and validates all of it after
+  each debounced change, with one active validation and one pending update.
+- Two CEL workers and 64 outstanding jobs. The shared managed CEL runtime runs at most two worker
+  threads and admits at most 64 outstanding evaluations (`CEL_LIMITS`); the default profile also
+  caps a request at 1,000 entities, 16 MiB, and five seconds.
+- No incremental validation. Each run parses and validates every file again, unchanged or not.
+  Catalog lookups (within `maxAgeMs`) and editor completion keep bounded caches; neither makes
+  validation incremental.
 
 ## Fixed decisions
 

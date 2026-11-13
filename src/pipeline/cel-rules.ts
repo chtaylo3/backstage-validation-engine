@@ -6,8 +6,7 @@ import type {
   ValidationRequest,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { CelError, cancellationError } from '../runtime/cel/errors.js';
-import { RequestBudget } from '../runtime/request-budget.js';
+import { budgetInterruption, RequestBudget } from '../runtime/request-budget.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { reject } from '../base/errors.js';
 import { deepFreeze, immutableJson } from '../base/json.js';
@@ -60,12 +59,7 @@ export async function executePolicyRules(
     const report = blockedProcessorRules(run, profile, policy, sorted);
     return deepFreeze({
       ...report,
-      interrupted: budget.interrupted
-        ? budget.signal.reason instanceof CelError &&
-          budget.signal.reason.code === 'request_timeout'
-          ? 'timeout'
-          : 'cancelled'
-        : 'none',
+      interrupted: budget.interrupted ? budgetInterruption(budget) : 'none',
     });
   }
   const prepared = await prepareRuleRun(
@@ -89,9 +83,7 @@ export async function executePolicyRules(
     return evaluateSubject(prepared.context, prepared.rules, subject);
   });
   const interrupted = budget.interrupted
-    ? cancellationError(budget.signal).code === 'request_timeout'
-      ? 'timeout'
-      : 'cancelled'
+    ? budgetInterruption(budget)
     : reports.reduce<Interruption>(
         (current, report) => mergeInterruption(current, report.interrupted),
         'none',

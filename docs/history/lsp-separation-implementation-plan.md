@@ -79,7 +79,7 @@ Preserve these invariants through every phase:
 
 Do not add plugin negotiation, a dependency injection framework, worker scheduling, package splitting, or a new public protocol in this refactor.
 Do not change native validation to use the editor's partial schema interpreter.
-Keep live catalog refresh as separate feature work under [the capability plan](plugin-capabilities-plan.md).
+Keep live catalog refresh as separate feature work under [the capability plan](../plugin-capabilities-plan.md).
 That plan already specifies dependency changes and future refresh behavior.
 Reserve a typed invalidation reason for dependency changes without implementing a new polling loop here.
 
@@ -486,7 +486,7 @@ Do not infer credential coverage from `test:lsp` alone. Include `editor-credenti
 
 For final packaging, use `npm run cli:package`, `npm run extension:package`, and `npm run test:packaged`.
 Use the existing extension, race, compatibility, and remote harnesses according to the changed surfaces and supported environment.
-Use [the Backstage environment guide](../test/integration/backstage/README.md) for development parity with newly built packages.
+Use [the Backstage environment guide](../../test/integration/backstage/README.md) for development parity with newly built packages.
 Use a fresh run ID and retain reports. Do not reuse an earlier VSIX as evidence for refactored sources.
 Development evidence does not qualify a release. Preserve the separate release requirements in the existing release plan.
 

@@ -9,6 +9,7 @@ import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import { CONTRACT_VERSION, ValidationRequestSchema } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
+import { text } from '../contracts/schema-kit.js';
 import type { SchemaArtifact, SourceSnapshot } from '../contracts/schemas.js';
 import { createCustomKindRegistry } from '../compatibility/custom-schemas.js';
 import { verifyRequestBindings } from '../core/bindings.js';
@@ -21,8 +22,8 @@ import { isCanonicalSourceUri } from '../base/source-uris.js';
 import { approvedFilesystemUri } from './filesystem-scope.js';
 import { parseEditorArtifacts } from '../capabilities/editor-artifacts.js';
 
-const text = Type.String({ minLength: 1, maxLength: 4096 });
-const schema = Type.Object(
+/** The trusted launcher configuration shape; exported for the schema equivalence test only. */
+export const LspConfigSchema = Type.Object(
   {
     profile: Type.Unknown(),
     policy: Type.Unknown(),
@@ -35,14 +36,14 @@ const schema = Type.Object(
     filesystem: Type.Optional(
       Type.Object(
         {
-          files: Type.Array(text, { maxItems: 1000, uniqueItems: true }),
-          entrypoints: Type.Optional(Type.Array(text, { maxItems: 1000, uniqueItems: true })),
+          files: Type.Array(text(4096), { maxItems: 1000, uniqueItems: true }),
+          entrypoints: Type.Optional(Type.Array(text(4096), { maxItems: 1000, uniqueItems: true })),
           discovery: Type.Optional(
             Type.Object(
               {
-                roots: Type.Array(text, { minItems: 1, maxItems: 16, uniqueItems: true }),
-                include: Type.Array(text, { minItems: 1, maxItems: 32, uniqueItems: true }),
-                exclude: Type.Optional(Type.Array(text, { maxItems: 32, uniqueItems: true })),
+                roots: Type.Array(text(4096), { minItems: 1, maxItems: 16, uniqueItems: true }),
+                include: Type.Array(text(4096), { minItems: 1, maxItems: 32, uniqueItems: true }),
+                exclude: Type.Optional(Type.Array(text(4096), { maxItems: 32, uniqueItems: true })),
               },
               { additionalProperties: false },
             ),
@@ -57,9 +58,9 @@ const schema = Type.Object(
   },
   { additionalProperties: false },
 );
-const validate = new Ajv({ strict: true, ownProperties: true }).compile<Static<typeof schema>>(
-  schema,
-);
+const validate = new Ajv({ strict: true, ownProperties: true }).compile<
+  Static<typeof LspConfigSchema>
+>(LspConfigSchema);
 
 /** Launcher-owned configuration; LSP initialization/settings never select authority or credentials. */
 export function parseLspConfig(input: unknown) {

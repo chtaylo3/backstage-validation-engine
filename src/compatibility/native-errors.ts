@@ -1,11 +1,8 @@
 import type { JsonValue } from '../contracts/schemas.js';
+import { isRecord } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { childPointer } from '../parsing/locations.js';
 import type { NativeStage } from './types.js';
-
-function record(value: unknown): value is Readonly<Record<string, unknown>> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 /** Extracts only a source path from known native error prefixes; never exposes text. */
 export function nativeErrorPath(
@@ -38,9 +35,9 @@ export function nativeErrorPath(
     if (indexed)
       return `/metadata/${indexed[1]}/${indexed[2]}${indexed[3] ? `/${indexed[3]}` : ''}`;
     // Dynamic key names may contain punctuation; exact candidate matching avoids splitting them.
-    if (record(entity) && 'metadata' in entity) {
+    if (isRecord(entity) && 'metadata' in entity) {
       const metadata = entity.metadata;
-      if (record(metadata)) {
+      if (isRecord(metadata)) {
         for (const collection of ['labels', 'annotations']) {
           const entries = metadata[collection];
           if (entries && typeof entries === 'object' && !Array.isArray(entries)) {

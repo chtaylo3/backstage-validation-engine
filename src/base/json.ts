@@ -157,6 +157,11 @@ export function digestJson(value: unknown): string {
   return digestText(canonicalJson(value));
 }
 
+/** A non-null object that is not an array. Plain, null-prototype and class instances all pass. */
+export function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function deepFreeze<T>(value: T): Immutable<T> {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) deepFreeze(child);

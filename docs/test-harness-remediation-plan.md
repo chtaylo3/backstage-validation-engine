@@ -26,7 +26,7 @@ These counts describe evidence gaps. They do not imply 67 application defects.
 Partial coverage does not prove when a test was added.
 
 The accepted LSP work uses source/test revision `54ce7a932c46b85e70f3fec0a68c15852af7e28b` for its final local qualification.
-The [LSP implementation record](lsp-editor-improvements-implementation-record.md#final-executed-qualification) states its scope and limits.
+The [LSP implementation record](history/lsp-editor-improvements-implementation-record.md#final-executed-qualification) states its scope and limits.
 That evidence remains historical. It does not qualify later remediation changes.
 
 ## Scope and approval

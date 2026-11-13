@@ -1,8 +1,8 @@
 # Move development work into the WSL filesystem
 
 Status: migration plan. The following state describes the checkout when this plan was written.
-[The session handoff](../SESSION_HANDOFF.md) records the completed move and later access results.
-This transition prepares the local baseline for [increment 6](backstage-release-test-plan.md). The
+[The session handoff](SESSION_HANDOFF.md) records the completed move and later access results.
+This transition prepares the local baseline for [increment 6](../backstage-release-test-plan.md). The
 procedure does not install the planned containers or change workflow triggers.
 
 ## 1. Current state and destination

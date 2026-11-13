@@ -7,7 +7,7 @@ import {
   processingFinding,
   PROCESSING_UNAVAILABLE,
 } from '../../core/processing.js';
-import { CelError } from '../../runtime/cel/errors.js';
+import { budgetInterruption } from '../../runtime/request-budget.js';
 import type { RequestBudget } from '../../runtime/request-budget.js';
 import type { BackstageCompatibilityReport } from '../types.js';
 
@@ -31,11 +31,7 @@ export function blockedProcessingReport(
   const selected = run.source.files
     .filter((file) => !uris || uris.includes(file.uri))
     .slice(0, profile.limits.entities);
-  const interrupted = budget.interrupted
-    ? budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
-      ? 'timeout'
-      : 'cancelled'
-    : 'none';
+  const interrupted = budget.interrupted ? budgetInterruption(budget) : 'none';
   return deepFreeze({
     adapterId: profile.adapterId,
     sourceDigest: run.source.digest,

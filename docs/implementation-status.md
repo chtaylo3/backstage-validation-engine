@@ -372,7 +372,7 @@ The process configuration watch remains live across invalid reloads. Credential 
 Each native operating system passed 989 source tests, 989 packaged tests, and 88 installed-editor cases.
 Quick qualification passed 36 desktop compatibility/load cases and 12 real SSH, dev-container, and Windows WSL2 sessions.
 The macOS qualification needed one isolated rerun after a native Trust UI timeout. Its original 87/88 result remains recorded.
-See [the implementation record](lsp-separation-implementation-record.md#hosted-qualification-and-merge) for exact candidate digests, hosted runs, and remaining release limits.
+See [the implementation record](history/lsp-separation-implementation-record.md#hosted-qualification-and-merge) for exact candidate digests, hosted runs, and remaining release limits.
 
 ## Editor authoring and workspace increment
 
@@ -421,8 +421,8 @@ Optional event adapters remain unimplemented. CLI runs retain their existing sin
 
 ## Current editor implementation sequence
 
-The [five-phase editor plan](lsp-editor-improvements-plan.md) is the authoritative delivery order.
-Its [implementation record](lsp-editor-improvements-implementation-record.md) records phase evidence and parent acceptance.
+The [five-phase editor plan](history/lsp-editor-improvements-plan.md) is the authoritative delivery order.
+Its [implementation record](history/lsp-editor-improvements-implementation-record.md) records phase evidence and parent acceptance.
 Phase 1 updates documentation. Phase 2 implements capability contracts and adapts built-in providers.
 Phase 3 adds live catalog refresh. Phase 4 adds CEL and RE2 editor contributions.
 Phase 5 covers native Trust reliability, installed JetBrains qualification, and longer final-candidate release workloads. The user deferred phase 5.

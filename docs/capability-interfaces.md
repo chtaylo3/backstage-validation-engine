@@ -9,7 +9,7 @@ The package exports the interfaces through `@chtaylo3/backstage-validation-engin
 The capability API is `bve-plugin/1`. Its JSON Schema resources use version 1 identifiers.
 The validation request and result contracts remain version 0.2.
 The [capability design](plugin-capabilities-plan.md) retains requirements for later rule contributions and executable providers.
-The [five-phase plan](lsp-editor-improvements-plan.md) defines implementation and acceptance order.
+The [five-phase plan](history/lsp-editor-improvements-plan.md) defines implementation and acceptance order.
 
 ## Contracts and host approval
 
@@ -148,5 +148,5 @@ CEL and RE2 execution remains unchanged in this phase.
 Arbitrary executable loading, process transport, permission brokers, and untrusted-code isolation require separate implementation and approval.
 Phase 5 remains deferred for native Trust automation, installed JetBrains qualification, and longer release workloads.
 
-The [implementation record](lsp-editor-improvements-implementation-record.md) records executed phase checks and parent acceptance.
+The [implementation record](history/lsp-editor-improvements-implementation-record.md) records executed phase checks and parent acceptance.
 Interface existence alone does not establish conformance or release qualification.

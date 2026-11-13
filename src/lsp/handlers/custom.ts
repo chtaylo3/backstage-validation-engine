@@ -10,8 +10,8 @@ import type {
 import type { CatalogSuggestionQuery } from '../../providers/types.js';
 import { createLspRequest } from '../config.js';
 import type { ServerContext } from '../server-context.js';
+import type { MutuallyAssignable } from '../../base/types.js';
 
-type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Compile-time checks that the engine types these handlers receive and answer with are the wire types.
 const searchMatchesProtocol: MutuallyAssignable<SearchReferencesParams, CatalogSuggestionQuery> =
   true;

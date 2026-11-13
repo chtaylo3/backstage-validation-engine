@@ -5,6 +5,7 @@ import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
 import { Ajv } from 'ajv';
 import type { DeploymentProfile, ValidationRequest } from '../contracts/schemas.js';
+import { text } from '../contracts/schema-kit.js';
 import { immutableJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { systemClock } from '../base/clock.js';
@@ -12,21 +13,20 @@ import type { Clock } from '../base/clock.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
 
-const text = Type.String({ minLength: 1, maxLength: 4096 });
 export const CatalogSettingsSchema = Type.Object(
   {
-    connectionId: text,
-    baseUrl: text,
+    connectionId: text(4096),
+    baseUrl: text(4096),
     allowInsecureHttp: Type.Optional(Type.Boolean()),
-    principalId: text,
-    credentialRevision: text,
+    principalId: text(4096),
+    credentialRevision: text(4096),
     scope: Type.Array(Type.String({ minLength: 1, maxLength: 128 }), {
       maxItems: 16,
       uniqueItems: true,
     }),
     maxAgeMs: Type.Integer({ minimum: 0, maximum: 30_000 }),
     tokenEnv: Type.Optional(Type.String({ pattern: '^[A-Za-z_][A-Za-z0-9_]{0,127}$' })),
-    tokenFile: Type.Optional(text),
+    tokenFile: Type.Optional(text(4096)),
   },
   { additionalProperties: false },
 );

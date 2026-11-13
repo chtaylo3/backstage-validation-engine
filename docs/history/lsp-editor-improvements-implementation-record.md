@@ -80,7 +80,7 @@ This phase implements version 1 capability records and built-in adapters. Local 
 
 The new `./capabilities` export supplies typed interfaces, 40 generated JSON Schemas, semantic admission, host approval, and negotiated provider sessions.
 The capability API is `bve-plugin/1`. Validation request and result contract 0.2 remains unchanged.
-The [interface guide](capability-interfaces.md) records exact function inputs, outputs, profiles, limits, and lifecycle behavior.
+The [interface guide](../capability-interfaces.md) records exact function inputs, outputs, profiles, limits, and lifecycle behavior.
 
 Field/value metadata, hover, reference identities, and logical schema repairs use neutral records in the capability domain.
 The LSP host retains protocol rendering, current source ranges, local target resolution, ranking, and guarded edit dispatch.
@@ -392,7 +392,7 @@ Phase 4 is admitted for implementation. Phase 5 remains deferred.
 ## Phase 4: declarative CEL and RE2 editor contributions
 
 Implementation date: 2026-11-10, America/New_York time.
-The [rule contribution guide](rule-editor-contributions.md) defines the independently versioned `bve-editor/1` artifacts and exact behavior.
+The [rule contribution guide](../rule-editor-contributions.md) defines the independently versioned `bve-editor/1` artifacts and exact behavior.
 Trusted launcher configuration can approve finite scalar choices, examples, defaults, descriptions, field paths, and repair enablement.
 The host binds each declaration to the exact policy/profile/rule digests, language profile, normalized stage, kind, API version, and path.
 Generated schemas and runtime admission preserve the frozen `0.2` policy contract.

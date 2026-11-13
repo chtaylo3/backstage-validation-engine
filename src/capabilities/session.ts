@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { bounded } from '../base/async.js';
 import { canonicalJson, digestJson, deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { RequestBudget } from '../runtime/request-budget.js';
@@ -65,19 +66,9 @@ export interface CapabilityInvocation {
   readonly current?: () => boolean;
 }
 const same = (left: unknown, right: unknown) => canonicalJson(left) === canonicalJson(right);
-async function bounded<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new CapabilityError('cleanup')), Math.max(0, ms));
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Capability cleanup rejects with `CapabilityError('cleanup')`; the LSP session uses `Error`. */
+const boundedCapabilityCleanup = <T>(work: Promise<T>, ms: number): Promise<T> =>
+  bounded(work, ms, () => new CapabilityError('cleanup'));
 /** Host approval is an independent argument. A manifest is never its own permission grant. */
 export class CapabilitySession {
   readonly manifest: Immutable<CapabilityManifest>;
@@ -179,7 +170,7 @@ export class CapabilitySession {
           () => this.owned.delete(result),
           () => this.owned.delete(result),
         );
-        this.ready = bounded(result, closeMs)
+        this.ready = boundedCapabilityCleanup(result, closeMs)
           .then(accept)
           .catch((error: unknown) => {
             this.failed = true;
@@ -189,7 +180,7 @@ export class CapabilitySession {
         void result
           .then(() => {
             if (this.stopped || this.failed) {
-              const cleanup = bounded(
+              const cleanup = boundedCapabilityCleanup(
                 Promise.resolve().then(() => endpoint.dispose()),
                 closeMs,
               );
@@ -478,7 +469,10 @@ export class CapabilitySession {
           },
         );
         try {
-          const outcomes = await bounded(Promise.allSettled([work, cancelling]), this.closeMs);
+          const outcomes = await boundedCapabilityCleanup(
+            Promise.allSettled([work, cancelling]),
+            this.closeMs,
+          );
           if (outcomes[1]?.status === 'rejected') {
             this.failed = true;
             this.cleanupFailed = true;
@@ -500,7 +494,7 @@ export class CapabilitySession {
       const deadline = this.clock.monotonic() + this.closeMs;
       const drain = async () => {
         while (this.invocations.size || this.owned.size) {
-          await bounded(
+          await boundedCapabilityCleanup(
             Promise.allSettled([...this.invocations, ...this.owned]),
             deadline - this.clock.monotonic(),
           );
@@ -514,7 +508,7 @@ export class CapabilitySession {
         ),
       );
       // Final disposal follows cancellation acknowledgement. It still runs after a failed drain.
-      const finalizing = bounded(
+      const finalizing = boundedCapabilityCleanup(
         this.ready.catch(() => undefined).then(() => this.endpoint.dispose()),
         deadline - this.clock.monotonic(),
       );

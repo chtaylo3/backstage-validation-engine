@@ -29,6 +29,7 @@ export function interruptionFailure(
   });
 }
 
+// Reads a bounded HTTP response body; `readJson` in src/cli/main.ts reads a local file.
 async function readJson(
   response: Response,
   signal: AbortSignal,

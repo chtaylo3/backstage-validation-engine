@@ -79,3 +79,13 @@ export class RequestBudget {
     this.dispose();
   }
 }
+
+/**
+ * Why an interrupted budget stopped: `timeout` when its own deadline (or an upstream deadline)
+ * aborted it with `request_timeout`, `cancelled` for every other abort reason.
+ */
+export function budgetInterruption(budget: RequestBudget): 'timeout' | 'cancelled' {
+  return budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
+    ? 'timeout'
+    : 'cancelled';
+}

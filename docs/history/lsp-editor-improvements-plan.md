@@ -6,7 +6,7 @@ Work branch: `feature/lsp-capabilities-refresh`.
 
 This plan defines five phases with separate implementation and acceptance gates.
 A capability is a function that an approved provider supplies through a host interface.
-The [capability design](plugin-capabilities-plan.md) supplies the detailed behavior requirements.
+The [capability design](../plugin-capabilities-plan.md) supplies the detailed behavior requirements.
 The [separation record](lsp-separation-implementation-record.md) records the completed LSP ownership refactor.
 
 ## Scope and sequence

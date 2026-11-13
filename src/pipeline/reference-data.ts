@@ -21,7 +21,7 @@ import type {
 } from '../providers/types.js';
 import { FailureTimer, failureCause } from '../runtime/failure-evidence.js';
 import type { FailureEvidence } from '../runtime/failure-evidence.js';
-import { RequestBudget } from '../runtime/request-budget.js';
+import { budgetInterruption, RequestBudget } from '../runtime/request-budget.js';
 import { CelError } from '../runtime/cel/errors.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { ContractError, reject } from '../base/errors.js';
@@ -81,11 +81,6 @@ interface Collection {
   readonly timer: FailureTimer;
   readonly failureEvidence: FailureEvidence[];
   interruption: Interruption;
-}
-function interrupted(budget: RequestBudget): 'timeout' | 'cancelled' {
-  return budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
-    ? 'timeout'
-    : 'cancelled';
 }
 
 /** The selected reference contexts, which must be distinct declared contexts, sorted. */
@@ -162,7 +157,10 @@ async function qualifySources(
       proposed = await buildProposedCatalog(run, compatibility, baseline, budget);
   } catch (error) {
     if (!(error instanceof CelError)) throw error;
-    collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+    collection.interruption = mergeInterruption(
+      collection.interruption,
+      budgetInterruption(budget),
+    );
   }
   return { compatibility, baseline, proposed };
 }
@@ -252,7 +250,10 @@ async function lookupCatalog(
       ),
     );
     if (budget.interrupted)
-      collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+      collection.interruption = mergeInterruption(
+        collection.interruption,
+        budgetInterruption(budget),
+      );
     else if (error instanceof CatalogProviderError && error.code === 'input_limit')
       collection.interruption = mergeInterruption(collection.interruption, 'resource_limit');
     for (const ref of eligible) blocked.set(ref, 'provider_failure');
@@ -339,7 +340,7 @@ function pinEvaluationRequest(
     pinFailure = 'interrupted';
     collection.interruption = mergeInterruption(
       collection.interruption,
-      budget.interrupted ? interrupted(budget) : 'timeout',
+      budget.interrupted ? budgetInterruption(budget) : 'timeout',
     );
   } else if (
     !pinFailure &&
@@ -367,7 +368,10 @@ function pinEvaluationRequest(
   if (budget.interrupted) {
     evaluationRequest = undefined;
     pinFailure = 'interrupted';
-    collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+    collection.interruption = mergeInterruption(
+      collection.interruption,
+      budgetInterruption(budget),
+    );
   }
   if (pinFailure)
     collection.failureEvidence.push(

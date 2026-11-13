@@ -145,7 +145,7 @@ For declared CEL and RE2 editor hints and guarded repairs, see [rule contributio
 For plugin conformance requirements, see the
 [rule and editor capability plan](docs/plugin-capabilities-plan.md). It defines required interfaces,
 execution controls, and conformance tests for each supported function.
-The [five-phase editor plan](docs/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.
+The [five-phase editor plan](docs/history/lsp-editor-improvements-plan.md) defines the implementation sequence and acceptance criteria.
 Its client reliability and release qualification phase is deferred.
 
 For safe local includes, file Locations, source roots and catalog entrypoints, see

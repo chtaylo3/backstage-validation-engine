@@ -1,5 +1,6 @@
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
+import { bounded } from '../base/async.js';
 import { systemClock } from '../base/clock.js';
 import type { Clock } from '../base/clock.js';
 import { abortable } from '../providers/async.js';
@@ -29,22 +30,9 @@ export interface LspServerResources {
   /** The host owns provider/filesystem cleanup through this aggregate finalizer. */
   readonly dispose?: () => Promise<void>;
 }
-async function bounded<T>(work: Promise<T>, remaining: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Session cleanup deadline exceeded.')),
-          Math.max(0, remaining),
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Session cleanup rejects with a plain `Error`; capability cleanup uses `CapabilityError`. */
+const boundedSessionCleanup = <T>(work: Promise<T>, remaining: number): Promise<T> =>
+  bounded(work, remaining, () => new Error('Session cleanup deadline exceeded.'));
 /** A complete resource generation. Provider cleanup remains with its supplied host owner. */
 export class SessionGeneration {
   readonly operations = new SessionOperations();
@@ -144,7 +132,7 @@ export class SessionGeneration {
     this.completion.invalidate();
     this.disposal = (async () => {
       const deadline = this.clock.monotonic() + this.closeMs;
-      const draining = await bounded(
+      const draining = await boundedSessionCleanup(
         Promise.allSettled([
           this.operations.drain(),
           this.refresh?.close(),
@@ -164,7 +152,7 @@ export class SessionGeneration {
       cleanup.push(Promise.resolve().then(() => this.resources.dispose?.()));
       const outcomes = await Promise.all(
         cleanup.map((work) =>
-          bounded(work, deadline - this.clock.monotonic()).then(
+          boundedSessionCleanup(work, deadline - this.clock.monotonic()).then(
             () => true,
             () => false,
           ),
@@ -290,7 +278,7 @@ export class SessionResources {
       candidate = this.createGeneration(replacement);
       this.prepared = candidate;
       replacement = undefined;
-      await bounded(pausing, this.closeMs);
+      await boundedSessionCleanup(pausing, this.closeMs);
       await previous.close().catch(() => {
         this.failed = true;
         throw new Error('Retired resource cleanup failed.');
@@ -335,7 +323,7 @@ export class SessionResources {
     }
   }
   private async disposeAbandoned(resources: LspServerResources): Promise<void> {
-    await bounded(
+    await boundedSessionCleanup(
       Promise.resolve().then(() => resources.dispose?.()),
       this.closeMs,
     ).catch(() => {
@@ -352,7 +340,7 @@ export class SessionResources {
     this.active.editor.invalidate();
     this.active.completion.invalidate();
     this.disposal = (async () => {
-      const outcomes = await bounded(
+      const outcomes = await boundedSessionCleanup(
         Promise.allSettled([Promise.resolve().then(() => this.ports.pause()), this.reloading]),
         this.closeMs,
       ).catch(() => [
