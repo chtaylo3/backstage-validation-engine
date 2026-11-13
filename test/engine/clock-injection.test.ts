@@ -140,7 +140,7 @@ function catalogRecord(): RuleRecord {
     required: true,
     status: 'verified',
   };
-  return { state, coverage, findings: [], failures: [] };
+  return { state, coverage, findings: [], failures: [], candidates: [] };
 }
 
 void test('catalog rule facts are available strictly before their expiry by the run clock', async (t) => {
@@ -175,7 +175,6 @@ void test('catalog rule facts are available strictly before their expiry by the 
       documents: new Map(),
       substitutions: new Map(),
       catalogBindings: new Map([[subject.id, new Map([['/spec/owner', [fact(expiresAt)]]])]]),
-      fixes: { generated: 0, indexes: new Map() },
     };
     const record = catalogRecord();
     await evaluateCatalogRule(context, catalogRule, subject, record);

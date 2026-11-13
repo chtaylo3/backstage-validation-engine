@@ -1,5 +1,11 @@
 import type { Connection, Diagnostic, Disposable } from 'vscode-languageserver/node';
 import { BVE_METHODS } from '../protocol/index.js';
+import type { InternalErrorReport } from '../core/internal-errors.js';
+import {
+  formatEscapedError,
+  formatInternalError,
+  internalErrorDetail,
+} from '../host/internal-errors.js';
 import type { LspConfig } from './config.js';
 import type { CoverageObservation } from './coverage-observation.js';
 import { registerCustomHandlers } from './handlers/custom.js';
@@ -63,6 +69,10 @@ function validate(context: ServerContext, run: ValidationRun): Promise<void> {
       if (run.current() && sessions.current === session && sessions.available)
         observations.recordCoverage(value);
     },
+    onInternalError: (report: InternalErrorReport) =>
+      context.connection.console.error(formatInternalError(report, internalErrorDetail())),
+    onUnexpectedError: (error: unknown) =>
+      context.connection.console.error(formatEscapedError(error, internalErrorDetail())),
     refreshQueries: (deadlineAt: number, signal: AbortSignal) =>
       session.refresh?.refreshQueries({ deadlineAt, signal }) ?? Promise.resolve(),
     config: session.config,

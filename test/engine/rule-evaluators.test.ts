@@ -81,7 +81,6 @@ function context(
     documents: new Map(),
     substitutions: new Map(),
     catalogBindings: new Map(),
-    fixes: { generated: 0, indexes: new Map() },
     ...patch,
   };
 }
@@ -98,7 +97,7 @@ function record(rule: Rule): RuleRecord {
     required: rule.mandatory,
     status: 'verified',
   };
-  return { state, coverage, findings: [], failures: [] };
+  return { state, coverage, findings: [], failures: [], candidates: [] };
 }
 async function run<R extends Rule>(
   evaluator: RuleEvaluator<R>,

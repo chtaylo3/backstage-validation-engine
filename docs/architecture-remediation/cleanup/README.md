@@ -27,6 +27,24 @@ structural. This phase fixes them. Each defect has its own plan:
   observer; defect 3 defines the internal-error finding and uses that step; defect 9 applies the
   same finding to the source stage.
 
+## Outcome
+
+All nine defects are implemented and reviewed. At the end of the phase the verification gate
+passes with 1696 tests in `npm test`, none skipped, and 48 client tests. The pipeline golden, the
+handler and lifecycle goldens, the public API snapshot, and the generated schemas are unchanged.
+The capabilities golden changed only in the three entries that defect 4 names.
+
+Two points were added during review and are part of the implemented behavior:
+
+- An internal error while the baseline snapshot is validated adds a required, blocked coverage
+  row (`overlay` / `baseline-sources`), so the run ends `incomplete`. It adds no finding, because
+  a baseline document may not exist in the proposed snapshot.
+- An unknown error that still escapes validation is logged for the operator by the CLI and the
+  language server as `internal_error stage=validation`, with the same redaction and the same
+  `BVE_INTERNAL_ERROR_DETAIL` switch as a contained internal error.
+
+The VS Code Electron, SSH/remote, and Backstage container suites were not run in this phase.
+
 ## Baseline
 
 At the start of this phase the verification gate passes with 1587 tests in `npm test`, none

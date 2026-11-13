@@ -5,7 +5,7 @@ import { resolve, dirname, basename } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parseContract } from '../contracts/validate.js';
 import type { ValidationRequest } from '../contracts/schemas.js';
-import { ContractError, reject } from '../base/errors.js';
+import { reject } from '../base/errors.js';
 import { systemClock } from '../base/clock.js';
 import type { Clock } from '../base/clock.js';
 import { canonicalJson, digestJson } from '../base/json.js';
@@ -17,7 +17,10 @@ import { verifyPolicyRelease } from '../policy/releases.js';
 import { createVerifiedPolicyResult } from '../pipeline/verified-result.js';
 import { closeSharedCelRuntime } from '../runtime/cel/index.js';
 import { createHostCatalog, parseCatalogSettings } from '../host/catalog-config.js';
-import { formatSarif, formatSarifError } from './sarif.js';
+import { formatInternalError, internalErrorDetail } from '../host/internal-errors.js';
+import type { InternalErrorReport } from '../core/internal-errors.js';
+import { duringValidation, failureLog, failureOutput } from './failure.js';
+import { formatSarif } from './sarif.js';
 
 const HELP = `Usage: bve validate --release RELEASE.json --trust HOST-TRUST.json
        (--source SNAPSHOT.json [--baseline SNAPSHOT.json] [--data DATA.json] | --request REQUEST.json)
@@ -68,6 +71,11 @@ async function emit(value: unknown, path?: string) {
   } finally {
     await unlink(temporary).catch(() => undefined);
   }
+}
+
+/** One standard-error line per contained internal error; details only on request. */
+function reportInternalError(report: InternalErrorReport): void {
+  process.stderr.write(`bve: ${formatInternalError(report, internalErrorDetail())}\n`);
 }
 
 async function main(clock: Clock = systemClock) {
@@ -171,28 +179,21 @@ async function main(clock: Clock = systemClock) {
           generation: context.activation.generation,
         },
       });
-    const report = await validatePolicySources(request, context, {
-      ...(catalog ? { catalog } : {}),
-      signal: cancellation.signal,
-      clock,
+    const result = await duringValidation(async () => {
+      const report = await validatePolicySources(request, context, {
+        ...(catalog ? { catalog } : {}),
+        signal: cancellation.signal,
+        clock,
+        onInternalError: reportInternalError,
+      });
+      return createVerifiedPolicyResult(report, context, clock.wall());
     });
-    const result = createVerifiedPolicyResult(report, context, clock.wall());
     await emit(format === 'sarif' ? formatSarif(result) : result, output);
     return resultExitCode(result);
   } catch (error) {
-    const code = error instanceof ContractError ? error.code : 'input_error';
-    const value =
-      format === 'sarif'
-        ? formatSarifError(code)
-        : {
-            contractVersion: '0.2',
-            outcome: 'error',
-            enforcement: 'block',
-            error: {
-              code,
-              message: 'Validation input or trusted configuration could not be loaded.',
-            },
-          };
+    const line = failureLog(error, internalErrorDetail());
+    if (line) process.stderr.write(line + '\n');
+    const value = failureOutput(error, format);
     // If an output path itself fails, keep a machine-readable failure on stdout.
     await emit(value, output).catch(() => emit(value));
     return 2;

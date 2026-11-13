@@ -9,6 +9,7 @@ import { compileReferenceContexts } from '../../contracts/reference-contexts.js'
 import type { ReferencePattern } from '../../contracts/reference-contexts.js';
 import type { Immutable } from '../../base/json.js';
 import { createFindingId } from '../../core/results.js';
+import type { InternalErrorObserver } from '../../core/internal-errors.js';
 import type { Interruption } from '../../core/stage-report.js';
 import { locateParsedPath, parseSourceSnapshot, parsingFindings } from '../../parsing/index.js';
 import type { ParsedSourceDocument, ParsingReport } from '../../parsing/index.js';
@@ -40,6 +41,8 @@ export const MESSAGES = Object.freeze({
   disallowed_kind: 'Entity kind is not allowed by the configured global or source admission rules.',
   invalid_custom_kind: 'Entity does not satisfy the pinned custom kind schema.',
   unsupported_custom_schema: 'The schema artifact required by this custom kind is unavailable.',
+  internal_error:
+    'The document could not be validated because of a fault in the validation engine.',
   ...SUBSTITUTION_MESSAGES,
 });
 export type SourceMessageCode = keyof typeof MESSAGES;
@@ -75,6 +78,10 @@ export interface SourceRunState {
   unresolvedIncludes: boolean;
   adapter: BackstageAdapter | undefined;
   customKinds: CustomKindRegistry | undefined;
+  /** Receives each contained internal error, up to `INTERNAL_ERROR_FINDING_LIMIT`. */
+  readonly onInternalError: InternalErrorObserver | undefined;
+  /** Internal errors contained so far; only the first ones receive a finding. */
+  internalErrors: number;
 }
 
 /** The stage that is running for one document; the error mapping reads `phase`. */
@@ -96,6 +103,7 @@ export async function openSourceRun(
   profile: Immutable<DeploymentProfile>,
   budget: RequestBudget,
   uris: readonly string[] | undefined,
+  onInternalError?: InternalErrorObserver,
 ): Promise<SourceRunState> {
   const referencePatterns = compileReferenceContexts(profile.referenceContexts);
   const parsed = await parseSourceSnapshot(run.source, {
@@ -140,6 +148,8 @@ export async function openSourceRun(
     unresolvedIncludes: false,
     adapter: undefined,
     customKinds: undefined,
+    onInternalError,
+    internalErrors: 0,
   };
   for (const file of parsed.files) {
     if (file.status !== 'parsed')
@@ -159,7 +169,8 @@ export async function openSourceRun(
 
 /**
  * Appends a source finding. A dependency finding is a warning in the IDE; every source finding
- * blocks CI. `override` supplies the resolution error's own location and related locations.
+ * blocks CI. `override` supplies the resolution error's own location and related locations;
+ * `message` replaces the code's message text.
  */
 export function sourceFinding(
   state: SourceRunState,
@@ -169,6 +180,7 @@ export function sourceFinding(
   category: Finding['category'],
   stage: string = code,
   override?: SourceResolutionError,
+  message: string = MESSAGES[code],
 ): void {
   const { run, profile } = state;
   const ruleId = `backstage/${stage}`;
@@ -188,7 +200,7 @@ export function sourceFinding(
     ruleId,
     ruleVersion: profile.adapterId,
     subjectId: JSON.stringify([document.uri, document.document]),
-    message: MESSAGES[code],
+    message,
     category,
     severity: category === 'dependency' && run.execution.mode === 'ide' ? 'warning' : 'error',
     enforcement: run.execution.mode === 'ci' ? 'blocking' : 'advisory',

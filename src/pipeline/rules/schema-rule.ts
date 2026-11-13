@@ -1,16 +1,18 @@
 import { locateParsedPath } from '../../parsing/locations.js';
-import { scalarConstEdit, SCALAR_FIX_LIMITS } from '../scalar-fixes.js';
 import { ruleFinding } from './findings.js';
 import type { RuleEvaluator, RuleOfKind } from './types.js';
 
-/** Validates the subject against the rule's pinned schema artifact. */
+/**
+ * Validates the subject against the rule's pinned schema artifact. A failed finding is recorded
+ * without an edit, beside a fix candidate; the step after the lanes assigns generated fixes.
+ */
 export const evaluateSchemaRule: RuleEvaluator<RuleOfKind<'schema'>> = (
   context,
   rule,
   subject,
   record,
 ): undefined => {
-  const { budget, fixes, run } = context;
+  const { budget, run } = context;
   const validate = context.schemaValidators.get(rule.id);
   const issue = validate?.issue(subject.value);
   const path = validate ? issue?.path : '';
@@ -32,30 +34,25 @@ export const evaluateSchemaRule: RuleEvaluator<RuleOfKind<'schema'>> = (
   const location = document
     ? locateParsedPath(document, pointer)
     : { ...subject.location, path: pointer };
-  // Lanes share one generation budget, so a fix is counted before the interruption check.
-  const edit =
-    !dependency && fixes.generated < SCALAR_FIX_LIMITS.generated
-      ? scalarConstEdit(
-          run,
-          document,
-          subject.value,
-          issue,
-          context.substitutions.get(subject.id) ?? [],
-          fixes.indexes,
-        )
-      : undefined;
-  if (edit) fixes.generated++;
   budget.throwIfInterrupted();
-  record.findings.push(
-    ruleFinding(run, rule, subject, {
-      path: pointer,
-      message: dependency
-        ? 'The pinned policy schema artifact is unavailable.'
-        : 'Entity does not satisfy the policy schema.',
-      dependency,
-      location,
-      relatedLocations: document?.locations[nearest]?.relatedLocations ?? [],
-      edits: edit ? [edit] : [],
-    }),
-  );
+  const finding = ruleFinding(run, rule, subject, {
+    path: pointer,
+    message: dependency
+      ? 'The pinned policy schema artifact is unavailable.'
+      : 'Entity does not satisfy the policy schema.',
+    dependency,
+    location,
+    relatedLocations: document?.locations[nearest]?.relatedLocations ?? [],
+    edits: [],
+  });
+  record.findings.push(finding);
+  if (!dependency)
+    record.candidates.push({
+      rule,
+      subject,
+      finding,
+      issue,
+      document,
+      substitutions: context.substitutions.get(subject.id) ?? [],
+    });
 };

@@ -15,6 +15,10 @@ export interface RuleExecutionReport extends StageReport {
     readonly subjectId: string;
     readonly ruleId: string;
     readonly code:
-      CelErrorCode | 'unsupported_rule' | 'unsupported_processor' | 'catalog_unavailable';
+      | CelErrorCode
+      | 'unsupported_rule'
+      | 'unsupported_processor'
+      | 'catalog_unavailable'
+      | 'internal_error';
   }[];
 }

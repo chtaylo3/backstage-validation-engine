@@ -14,14 +14,6 @@ import type { SourceSnapshot } from '../contracts/schemas.js';
 
 export { approvedFilesystemUri } from './filesystem-scope.js';
 
-export function filesystemEvent(config: LspConfig, uri: string): boolean {
-  return (
-    approvedFilesystemUri(config, uri) ||
-    !!config.filesystem?.discovery?.roots.some(
-      (root) => uri.startsWith(root) || root.startsWith(uri.endsWith('/') ? uri : uri + '/'),
-    )
-  );
-}
 /** Discovery only enumerates host-selected roots. The reader still checks each file before use. */
 async function scanApprovedFiles(
   config: LspConfig,

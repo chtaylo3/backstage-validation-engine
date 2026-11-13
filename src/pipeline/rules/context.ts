@@ -8,7 +8,6 @@ import { orderRules } from '../../contracts/rule-graph.js';
 import { reject } from '../../base/errors.js';
 import type { Immutable } from '../../base/json.js';
 import { createSchemaRegistry } from '../../compatibility/custom-schemas.js';
-import type { SourceLineIndex } from '../../parsing/locations.js';
 import type { ParsedSourceDocument } from '../../parsing/types.js';
 import { getSharedCelRuntime } from '../../runtime/cel/index.js';
 import type { CelRuntime } from '../../runtime/cel/index.js';
@@ -58,7 +57,6 @@ export async function prepareRuleRun(
   const substitutions = new Map(
     options.sourceSubstitutions?.map((row) => [row.subjectId, row.substitutions]),
   );
-  const fixes = { generated: 0, indexes: new Map<string, SourceLineIndex>() };
   const rulesById = new Map(policy.rules.map((rule) => [rule.id, rule]));
   const rules = orderRules(policy.rules, profile.limits.graphDepth).map((id) => {
     const rule = rulesById.get(id);
@@ -107,7 +105,6 @@ export async function prepareRuleRun(
       documents,
       substitutions,
       catalogBindings,
-      fixes,
     },
     rules,
   };

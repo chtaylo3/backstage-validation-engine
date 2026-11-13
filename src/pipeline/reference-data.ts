@@ -11,6 +11,8 @@ import { parseContract } from '../contracts/validate.js';
 import { systemClock } from '../base/clock.js';
 import type { Clock } from '../base/clock.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
+import { SOURCE_INTERNAL_ERROR_RULE } from '../compatibility/stages/internal-error.js';
+import { MESSAGES } from '../compatibility/stages/state.js';
 import type { BackstageCompatibilityReport } from '../compatibility/types.js';
 import { catalogEntityKey, normalizeCatalogAccess } from '../providers/catalog.js';
 import { CatalogProviderError } from '../providers/types.js';
@@ -27,6 +29,7 @@ import { verifyRequestBindings } from '../core/bindings.js';
 import { ContractError, reject } from '../base/errors.js';
 import { deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
+import type { InternalErrorObserver } from '../core/internal-errors.js';
 import { createDataSnapshot } from '../core/snapshots.js';
 import { mergeInterruption } from '../core/stage-report.js';
 import type { Interruption } from '../core/stage-report.js';
@@ -81,6 +84,8 @@ interface Collection {
   readonly timer: FailureTimer;
   readonly failureEvidence: FailureEvidence[];
   interruption: Interruption;
+  readonly onInternalError: InternalErrorObserver | undefined;
+  readonly sourceStage: typeof validateBackstageSources;
 }
 
 /** The selected reference contexts, which must be distinct declared contexts, sorted. */
@@ -135,18 +140,22 @@ async function qualifySources(
   onLocalSources: ((sources: LocalCatalogSources) => void) | undefined,
 ) {
   const { run, budget, clock } = collection;
-  const compatibility = await validateBackstageSources(run, context, {
+  const observer = collection.onInternalError
+    ? { onInternalError: collection.onInternalError }
+    : {};
+  const compatibility = await collection.sourceStage(run, context, {
     signal: budget.signal,
     clock,
+    ...observer,
   });
   collection.interruption = compatibility.interrupted;
   let baseline: BackstageCompatibilityReport | undefined;
   if (run.baseline && collection.interruption === 'none' && !budget.interrupted) {
     const { baseline: sourceBaseline, ...withoutBaseline } = run;
-    baseline = await validateBackstageSources(
+    baseline = await collection.sourceStage(
       parseContract('validation-request', { ...withoutBaseline, source: sourceBaseline }),
       context,
-      { signal: budget.signal, clock },
+      { signal: budget.signal, clock, ...observer },
     );
     collection.interruption = mergeInterruption(collection.interruption, baseline.interrupted);
   }
@@ -172,10 +181,10 @@ async function qualifySources(
 function classifyTargets(
   collection: Collection,
   context: SourceContext,
-  compatibility: BackstageCompatibilityReport,
-  proposed: ProposedCatalog | undefined,
+  sources: Awaited<ReturnType<typeof qualifySources>>,
   referencePaths: readonly string[],
 ) {
+  const { compatibility, baseline, proposed } = sources;
   const { run, budget } = collection;
   const targets = [
     ...new Set(
@@ -209,6 +218,19 @@ function classifyTargets(
             ? 'blocked'
             : 'verified',
       },
+      // Baseline findings are not part of the result; a contained internal error there still
+      // leaves required work undone, so the run cannot complete.
+      ...(baseline?.findings.some((finding) => finding.ruleId === SOURCE_INTERNAL_ERROR_RULE)
+        ? [
+            {
+              stage: 'overlay' as const,
+              subject: 'baseline-sources',
+              required: true,
+              status: 'blocked' as const,
+              reason: MESSAGES.internal_error,
+            },
+          ]
+        : []),
     ],
   };
   return { compatibility: covered, targets, blocked, received };
@@ -401,26 +423,47 @@ function pinEvaluationRequest(
 /**
  * Qualify the proposed source overlay before collecting eligible external observations.
  */
+/** The context of reference preparation. */
+interface ReferenceDataContext {
+  readonly profile: Immutable<DeploymentProfile>;
+  readonly policy: Immutable<PolicyBundle>;
+  readonly activation: Immutable<ActivationManifest>;
+  readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
+}
+
+/** The options of reference preparation. */
+interface ReferenceDataOptions {
+  readonly provider: CatalogProvider;
+  readonly access: CatalogAccessContext;
+  readonly signal?: AbortSignal;
+  readonly referencePaths?: readonly string[];
+  readonly onLocalSources?: (sources: LocalCatalogSources) => void;
+  /**
+   * Decides the collection and source-stage deadlines and the pin time. Catalog lookups read the
+   * provider's clock.
+   */
+  readonly clock?: Clock;
+  /** Passed to the source stage; see `validateBackstageSources`. */
+  readonly onInternalError?: InternalErrorObserver;
+}
+
 export async function prepareBackstageReferenceData(
   request: Immutable<ValidationRequest>,
-  context: {
-    readonly profile: Immutable<DeploymentProfile>;
-    readonly policy: Immutable<PolicyBundle>;
-    readonly activation: Immutable<ActivationManifest>;
-    readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
-  },
-  options: {
-    readonly provider: CatalogProvider;
-    readonly access: CatalogAccessContext;
-    readonly signal?: AbortSignal;
-    readonly referencePaths?: readonly string[];
-    readonly onLocalSources?: (sources: LocalCatalogSources) => void;
-    /**
-     * Decides the collection and source-stage deadlines and the pin time. Catalog lookups read the
-     * provider's clock.
-     */
-    readonly clock?: Clock;
-  },
+  context: ReferenceDataContext,
+  options: ReferenceDataOptions,
+): Promise<ReferenceDataPreparation> {
+  return runReferenceDataPreparation(request, context, options, validateBackstageSources);
+}
+
+/**
+ * `prepareBackstageReferenceData` with the source stage injected, for the proposed and the
+ * baseline run. Internal: the package does not export it; tests use it to run a stub adapter.
+ */
+export async function runReferenceDataPreparation(
+  request: Immutable<ValidationRequest>,
+  context: ReferenceDataContext,
+  options: ReferenceDataOptions,
+  sourceStage: typeof validateBackstageSources,
 ): Promise<ReferenceDataPreparation> {
   const clock = options.clock ?? systemClock;
   const timer = new FailureTimer(clock);
@@ -438,14 +481,15 @@ export async function prepareBackstageReferenceData(
     timer,
     failureEvidence,
     interruption: 'none',
+    onInternalError: options.onInternalError,
+    sourceStage,
   };
   const sources = await qualifySources(collection, context, options.onLocalSources);
   const { baseline } = sources;
   const { compatibility, targets, blocked, received } = classifyTargets(
     collection,
     context,
-    sources.compatibility,
-    sources.proposed,
+    sources,
     referencePaths,
   );
   const eligible = targets.filter((target) => !blocked.has(target) && !received.has(target));

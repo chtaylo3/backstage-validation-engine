@@ -14,6 +14,9 @@ import type { Immutable } from '../base/json.js';
 import { mergeInterruption } from '../core/stage-report.js';
 import type { Interruption } from '../core/stage-report.js';
 import { blockedProcessorRules } from './blocked-rules.js';
+import { scalarConstEdit } from './scalar-fixes.js';
+import { settleSubjects } from './rules/after-lanes.js';
+import type { EditBuilder } from './rules/after-lanes.js';
 import { prepareRuleRun } from './rules/context.js';
 import { scheduleLanes } from './rules/lanes.js';
 import { evaluateSubject } from './rules/subject.js';
@@ -29,14 +32,30 @@ export type { RuleSubject, RuleExecutionReport } from './types.js';
  */
 export async function executePolicyRules(
   request: Immutable<ValidationRequest>,
-  context: {
-    readonly profile: Immutable<DeploymentProfile>;
-    readonly policy: Immutable<PolicyBundle>;
-    readonly activation: Immutable<ActivationManifest>;
-    readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
-  },
+  context: RuleStageContext,
   subjects: readonly RuleSubject[],
   options: RuleExecutionOptions = {},
+): Promise<RuleExecutionReport> {
+  return runPolicyRules(request, context, subjects, options, scalarConstEdit);
+}
+
+interface RuleStageContext {
+  readonly profile: Immutable<DeploymentProfile>;
+  readonly policy: Immutable<PolicyBundle>;
+  readonly activation: Immutable<ActivationManifest>;
+  readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
+}
+
+/**
+ * `executePolicyRules` with the fix builder of the step after the lanes injected. Internal: the
+ * package does not export it; tests use it to make fix construction fail.
+ */
+export async function runPolicyRules(
+  request: Immutable<ValidationRequest>,
+  context: RuleStageContext,
+  subjects: readonly RuleSubject[],
+  options: RuleExecutionOptions,
+  buildEdit: EditBuilder,
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal, options.clock);
@@ -76,11 +95,19 @@ export async function executePolicyRules(
     profile.limits.celOutstandingJobs,
     sorted.length,
   );
-  // Reports are indexed by sorted subject ID; lanes share the run context's fix budget.
-  const reports = await scheduleLanes(sorted.length, concurrency, (index) => {
+  // Reports are indexed by sorted subject ID. Lanes share no budget; fixes and internal-error
+  // findings are assigned after every lane finished, in sorted subject and rule order.
+  // A propagating error stops every lane before its next rule; work in flight is awaited first.
+  const evaluated = await scheduleLanes(sorted.length, concurrency, (index, stopped) => {
     const subject = sorted[index];
     if (!subject) throw new Error('Subject scheduling invariant violated');
-    return evaluateSubject(prepared.context, prepared.rules, subject);
+    return evaluateSubject(prepared.context, prepared.rules, subject, stopped);
+  });
+  const reports = settleSubjects(evaluated, {
+    run,
+    budget,
+    onInternalError: options.onInternalError,
+    buildEdit,
   });
   const interrupted = budget.interrupted
     ? budgetInterruption(budget)

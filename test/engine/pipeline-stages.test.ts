@@ -268,7 +268,8 @@ void test('the document driver maps each phase failure to its coverage stage, su
     timeout: [() => new CelError('request_timeout'), 'timeout', 'resource'],
     cancellation: [() => new CelError('cancelled'), 'cancelled', 'resource'],
     resource: [() => new BackstageRuntimeError('resource_limit'), 'resource_limit', 'resource'],
-    unknown: [() => new Error('unexpected'), 'none', 'dependency'],
+    // An unexpected error is an internal error of that document; the run stays available.
+    unknown: [() => new Error('unexpected'), 'none', 'execution'],
   } as const;
   const location = stringify({
     apiVersion: 'backstage.io/v1alpha1',
@@ -313,6 +314,7 @@ void test('the document driver maps each phase failure to its coverage stage, su
               : adapter;
         const state: SourceRunState = { ...source, resolver, adapter: stub };
         const coverage = state.coverage.length;
+        const blockedBefore = state.blockedReason;
         await validateSourceDocument(state, state.documents[0]!);
         const subject =
           phase === 'locations' || phase === 'references'
@@ -328,10 +330,10 @@ void test('the document driver maps each phase failure to its coverage stage, su
           ],
         );
         assert.equal(state.interrupted, interrupted);
-        assert.equal(state.unavailable, true);
+        assert.equal(state.unavailable, name !== 'unknown');
         assert.equal(state.unresolvedIncludes, phase === 'locations');
         assert.equal(state.findings.at(-1)?.category, category);
-        assert.equal(state.blockedReason, blocked?.reason);
+        assert.equal(state.blockedReason, name === 'unknown' ? blockedBefore : blocked?.reason);
       });
 });
 

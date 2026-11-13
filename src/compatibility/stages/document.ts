@@ -6,6 +6,7 @@ import { CelError } from '../../runtime/cel/errors.js';
 import { SourceResolutionError } from '../substitutions.js';
 import { BackstageRuntimeError } from '../types.js';
 import type { SourceIdentityClaim } from '../types.js';
+import { failedCoverage, recordInternalError } from './internal-error.js';
 import { discoverIncludedSources } from './locations.js';
 import { validateNativeEntity } from './native.js';
 import { qualifyEntityReferences } from './references.js';
@@ -17,7 +18,8 @@ import { resolveDocumentSources } from './substitution.js';
  * Validates one source document through substitution, native validation and admission, reference
  * qualification and Location discovery. Every document first records its identity claim; once the
  * run is unavailable a document receives only one blocked row. A contract error propagates; any
- * other failure maps to a finding and blocked coverage for the stage that was running.
+ * other failure maps to a finding and blocked coverage for the stage that was running, and an
+ * unexpected error is contained as an internal error of this document alone.
  */
 export async function validateSourceDocument(
   state: SourceRunState,
@@ -79,7 +81,10 @@ export async function validateSourceDocument(
   }
 }
 
-/** Maps a document failure to a finding, blocked coverage and the run's merged interruption. */
+/**
+ * Maps a document failure to a finding, blocked coverage and the run's merged interruption. A
+ * typed failure makes the rest of the run unavailable as before; an unexpected error does not.
+ */
 function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress, error: unknown) {
   const { document, phase, subject } = progress;
   if (error instanceof SourceResolutionError) {
@@ -114,14 +119,17 @@ function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress
     }
     return;
   }
+  if (!(error instanceof CelError) && !(error instanceof BackstageRuntimeError)) {
+    // An unexpected error is an engine fault in this document; the run stays available.
+    recordInternalError(state, progress, error);
+    return;
+  }
   const code =
     error instanceof CelError
       ? error.code === 'request_timeout'
         ? 'timeout'
         : 'cancelled'
-      : error instanceof BackstageRuntimeError
-        ? error.code
-        : 'adapter_unavailable';
+      : error.code;
   sourceFinding(
     state,
     document,
@@ -130,13 +138,7 @@ function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress
     code === 'adapter_unavailable' ? 'dependency' : 'resource',
   );
   state.coverage.push({
-    stage: phase === 'substitution' || phase === 'locations' ? 'substitution' : 'compatibility',
-    subject:
-      phase === 'locations'
-        ? JSON.stringify(['locations', document.uri, document.document])
-        : phase === 'references'
-          ? JSON.stringify(['references', document.uri, document.document])
-          : subject,
+    ...failedCoverage(progress),
     required: true,
     status: 'blocked',
     reason: MESSAGES[code],

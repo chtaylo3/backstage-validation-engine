@@ -8,6 +8,7 @@ import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { BuiltinValidationService } from '../host/builtin-validation.js';
 import type { CoverageObservation } from './coverage-observation.js';
+import type { InternalErrorObserver } from '../core/internal-errors.js';
 import { CapabilityError } from '../capabilities/admission.js';
 import type { LocalCatalogSources } from '../pipeline/reference-data.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
@@ -61,6 +62,10 @@ interface ValidationInputs {
   readonly fixesEnabled: boolean;
   readonly configurationUnavailable: boolean;
   readonly observeCoverage?: (value: CoverageObservation) => void;
+  /** Receives each internal error that validation contained; the report never holds the error. */
+  readonly onInternalError?: InternalErrorObserver;
+  /** Receives an unexpected error that escaped the run; diagnostics stay redacted. */
+  readonly onUnexpectedError?: (error: unknown) => void;
   readonly publish: (uri: string, version: number, diagnostics: Diagnostic[]) => Promise<void>;
 }
 type Report = Awaited<ReturnType<BuiltinValidationService['run']>>;
@@ -180,6 +185,7 @@ async function execute(
         onFailure: (row) => {
           if (evidence.length < FAILURE_EVIDENCE_LIMIT) evidence.push(row);
         },
+        ...(input.onInternalError ? { onInternalError: input.onInternalError } : {}),
         signal: context.signal,
         ...(catalog ? { catalog: catalog } : {}),
       },
@@ -326,6 +332,23 @@ async function prepareRuleHints(
     // Admission pressure, cancellation and worker failure affect hints only.
   }
 }
+/**
+ * Tells the operator about an error that is none of the typed failures the run understands. The
+ * observer receives the thrown value; an observer that throws is ignored.
+ */
+function reportUnexpected(input: ValidationInputs, error: unknown): void {
+  if (
+    error instanceof FilesystemSnapshotError ||
+    error instanceof CapabilityError ||
+    failureCause(error) !== 'unknown'
+  )
+    return;
+  try {
+    input.onUnexpectedError?.(error);
+  } catch {
+    // Telemetry must not change the published failure.
+  }
+}
 /** Publishes an incomplete diagnostic with the failure evidence for each buffer. */
 async function publishFailure(
   context: ValidationRun,
@@ -336,6 +359,7 @@ async function publishFailure(
   const { evidence } = record;
   const { current } = context;
   input.fixes.invalidate();
+  reportUnexpected(input, error);
   if (!evidence.length)
     evidence.push(
       record.timing.capture(

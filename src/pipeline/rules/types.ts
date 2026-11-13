@@ -7,23 +7,26 @@ import type {
 } from '../../contracts/schemas.js';
 import type { Clock } from '../../base/clock.js';
 import type { Immutable } from '../../base/json.js';
-import type { PolicySchemaValidator } from '../../compatibility/custom-schemas.js';
+import type {
+  PolicySchemaValidator,
+  SchemaValidationIssue,
+} from '../../compatibility/custom-schemas.js';
 import type { SourceSubstitution } from '../../compatibility/types.js';
-import type { SourceLineIndex } from '../../parsing/locations.js';
+import type { InternalErrorObserver } from '../../core/internal-errors.js';
 import type { ParsedSourceDocument } from '../../parsing/types.js';
 import type { CelRuntime } from '../../runtime/cel/index.js';
 import type { CelErrorCode } from '../../runtime/cel/errors.js';
 import type { EvaluationContext, RequestBudget } from '../../runtime/request-budget.js';
 import type { CatalogBindings } from '../catalog-bindings.js';
 import type { ReferenceDataPreparation } from '../reference-data.js';
-import type { RuleSubject } from '../types.js';
+import type { RuleExecutionReport, RuleSubject } from '../types.js';
 
 export type Rule = Immutable<PolicyBundle['rules'][number]>;
 export type RuleOfKind<K extends Rule['kind']> = Extract<Rule, { readonly kind: K }>;
 export interface RuleFailure {
   subjectId: string;
   ruleId: string;
-  code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable';
+  code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable' | 'internal_error';
 }
 
 export interface RuleExecutionOptions {
@@ -37,12 +40,15 @@ export interface RuleExecutionOptions {
     readonly subjectId: string;
     readonly substitutions: readonly SourceSubstitution[];
   }[];
+  /**
+   * Unexpected-error observer, called after the lanes in sorted subject and rule order, at most
+   * `INTERNAL_ERROR_FINDING_LIMIT` times per run. It receives the thrown value, which the report
+   * never contains. An observer that throws is ignored.
+   */
+  readonly onInternalError?: InternalErrorObserver;
 }
 
-/**
- * Run-level inputs shared by every lane. Only `fixes` is mutable: all lanes draw generated scalar
- * fixes from one budget and share one line index per source file.
- */
+/** Run-level inputs shared by every lane. Lanes share no mutable state through it. */
 export interface RuleRunContext {
   readonly run: Immutable<ValidationRequest>;
   /** The run's budget. Its `clock` decides the deadline and catalog fact expiry. */
@@ -53,7 +59,42 @@ export interface RuleRunContext {
   readonly documents: ReadonlyMap<string, ParsedSourceDocument>;
   readonly substitutions: ReadonlyMap<string, readonly SourceSubstitution[]>;
   readonly catalogBindings: CatalogBindings;
-  readonly fixes: { generated: number; readonly indexes: Map<string, SourceLineIndex> };
+}
+
+/**
+ * A failed schema finding that may receive a generated scalar fix. Fixes are assigned after the
+ * lanes finish, in sorted subject order and rule order, so that the limit does not depend on the
+ * order in which evaluations complete.
+ */
+export interface FixCandidate {
+  readonly rule: Rule;
+  readonly subject: RuleSubject;
+  readonly finding: Finding;
+  readonly issue: SchemaValidationIssue | undefined;
+  readonly document: ParsedSourceDocument | undefined;
+  readonly substitutions: readonly SourceSubstitution[];
+}
+
+/**
+ * Work that the step after the lanes completes for one subject, in rule order: a fix candidate,
+ * with the subject's failure count after its rule, or an unknown error thrown while a rule was
+ * evaluated, with the subject's finding count at that point.
+ */
+export type DeferredWork =
+  | { readonly kind: 'fix'; readonly candidate: FixCandidate; readonly failuresAt: number }
+  | {
+      readonly kind: 'fault';
+      readonly rule: Rule;
+      readonly subject: RuleSubject;
+      readonly error: unknown;
+      readonly findingsAt: number;
+    };
+
+/** One subject's results, before the step after the lanes. */
+export interface SubjectReport extends RuleExecutionReport {
+  readonly findings: Finding[];
+  readonly failures: RuleFailure[];
+  readonly deferred: readonly DeferredWork[];
 }
 
 /**
@@ -66,6 +107,8 @@ export interface RuleRecord {
   readonly coverage: Coverage;
   readonly findings: Finding[];
   readonly failures: RuleFailure[];
+  /** Findings that may receive a generated fix after the lanes finish. */
+  readonly candidates: FixCandidate[];
 }
 
 /**
