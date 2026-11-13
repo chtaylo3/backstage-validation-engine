@@ -121,8 +121,8 @@ asynchronous wrappers.
 Limits take effect at checkpoints. They do not provide CPU or RSS confinement or preemptive
 timeouts. Untrusted programmable processors remain disabled.
 
-The [native comparisons](../test/backstage-native.test.ts) and
-[source integration checks](../test/backstage-sources.test.ts) add 130 checks to the existing 138,
+The [native comparisons](../test/engine/backstage-native.test.ts) and
+[source integration checks](../test/engine/backstage-sources.test.ts) add 130 checks to the existing 138,
 for 268 local checks overall. They cover both pins, all eight kinds, exact normalization, preserved
 authorship, source paths, optional policies, group roots/defaults, unsupported transformations,
 cancellation and resource limits. The historical 331-check comparison does not establish a completed

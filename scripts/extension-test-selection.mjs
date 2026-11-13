@@ -1,4 +1,16 @@
-/** Select compiled installed-editor modules. Selection alone proves no execution. */
+/**
+ * Select compiled installed-editor modules. Selection alone proves no execution.
+ *
+ * @param {readonly string[]} modules
+ * @param {{
+ *   focused?: string | undefined,
+ *   racesOnly?: boolean | undefined,
+ *   trustOnly?: boolean | undefined,
+ *   compatibility?: boolean | undefined,
+ *   endurance?: boolean | undefined,
+ *   soak?: boolean | undefined,
+ * }} [options]
+ */
 export function selectInstalledModules(
   modules,
   { focused, racesOnly, trustOnly, compatibility, endurance, soak } = {},

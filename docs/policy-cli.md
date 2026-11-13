@@ -169,7 +169,7 @@ preserve the current deadline and freshness behavior. The historical cause remai
 
 ## H3 subprocess and schema controls
 
-The [CLI subprocess tests](../test/cli.test.ts) exercise `--help`, `--baseline`, and `--data`.
+The [CLI subprocess tests](../test/cli/cli.test.ts) exercise `--help`, `--baseline`, and `--data`.
 Normal results retain the selected baseline and data digests.
 Foreign baselines and invalid data digests fail their existing admission rules with exit 2.
 An output rename failure returns exit 2 and a redacted error envelope on stdout.

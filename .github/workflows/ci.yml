@@ -225,7 +225,8 @@ jobs:
           $directory = '.artifacts/tests/worker-lifecycle'
           New-Item -ItemType Directory -Force $directory | Out-Null
           $env:BVE_TEST_LSP_ENTRY = Join-Path $PWD '.artifacts/vscode/stage/server/dist/lsp/stdio.js'
-          $files = @('.test-dist/test/cel-runtime.test.js', '.test-dist/test/lsp-completion.test.js')
+          $files = @(node scripts/test-selection.mjs --set worker-lifecycle)
+          if ($LASTEXITCODE -ne 0 -or $files.Count -eq 0) { throw 'The worker-lifecycle test set could not be resolved.' }
           $completed = @()
           foreach ($iteration in 1..20) {
             & ./.artifacts/vscode/stage/runtime/node.exe --test --test-concurrency=1 --test-timeout=30000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit "--test-reporter-destination=$directory/iteration-$iteration.xml" @files

@@ -26,9 +26,9 @@ selectors. No selected rule is treated as verified empty work. `validatePolicySo
 source/baseline preparation and the stdio LSP propagate this evidence without starting catalog
 requests.
 
-The [processor acceptance tests](../test/backstage-processors.test.ts) exercise both model pins,
+The [processor acceptance tests](../test/engine/backstage-processors.test.ts) exercise both model pins,
 declared/unknown stages, empty input, rules-only execution, redaction, cancellation and both fake
-API contracts. [Stdio tests](../test/lsp.test.ts) verify versioned dependency warnings and no
+API contracts. [Stdio tests](../test/lsp/lsp.test.ts) verify versioned dependency warnings and no
 speculative parsing/HTTP. These tests complete the declared BC-07 blocking requirements. Executable
 deployment integrations and real organization inventories remain separate integration work.
 

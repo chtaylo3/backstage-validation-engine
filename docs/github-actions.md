@@ -7,7 +7,7 @@ jobs run independently:
 
 | Job                                  | Scope                                                                                                                     |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Full harness, Linux/Windows/macOS    | Typecheck, lint, formatting, generated schema/build checks and every production `test/*.test.ts` file                     |
+| Full harness, Linux/Windows/macOS    | Typecheck, lint, formatting, generated schema/build checks and every production `test/<group>/*.test.ts` file             |
 | Dependency audits                    | Full and production dependency audits. Both must pass                                                                     |
 | Authenticated SSH fixture networking | Real key authentication over native host networking and published loopback ports; setup evidence only                     |
 | Full harness coverage                | Entire suite with JUnit, machine-readable counts and LCOV                                                                 |
@@ -25,9 +25,15 @@ The SSH networking job uses an isolated fixture and fresh keys. It checks both t
 The remote qualification workflow also checks both transports before its full SSH lane, which explicitly selects host networking.
 These preflights do not count as installed remote-editor sessions. See [SSH fixture networking](vscode-qualification.md#ssh-fixture-networking) for local development.
 
-The test runner discovers the complete compiled suite and records an inventory. It runs one test
-file at a time and retains the 30-second limit for each test. HTTP fixtures use temporary loopback
-ports. Tests need no deployed Backstage instance or production credentials.
+The test runner discovers the complete compiled suite in its five group directories and records an
+inventory. It runs the proven parallel-safe `engine` group four files at a time (fewer on hosts
+with less parallelism), then every other file one at a time, and retains the 30-second limit for
+each test. See [test layout and runner](testing-harness.md#test-layout-and-runner). Concurrency
+was proven on Linux only; set `BVE_TEST_CONCURRENCY=1` to run every file serially. HTTP fixtures
+use temporary loopback ports. Tests need no deployed Backstage instance or production credentials.
+
+The Windows packaged lane repeats the CEL worker and completion lifecycle files 20 times. It reads
+that file list from the validated `worker-lifecycle` set in `scripts/test-selection.mjs`.
 
 Any skipped test fails CI. An OS limitation cannot silently reduce the passing suite. Production
 workers run the frozen CEL corpus as part of the suite.

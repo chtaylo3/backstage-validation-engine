@@ -23,7 +23,7 @@ const exit = await new Promise((resolve, reject) => {
       `--test-reporter-destination=${directory}/lcov.info`,
       '--test-reporter=./scripts/ci-test-reporter.mjs',
       `--test-reporter-destination=${directory}/summary.jsonl`,
-      '.test-dist/test/extension-client.test.js',
+      '.test-dist/test/extension/extension-client.test.js',
     ],
     { stdio: 'inherit', windowsHide: true },
   );

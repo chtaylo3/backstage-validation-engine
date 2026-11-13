@@ -17,6 +17,56 @@ and a SemVer policy with exceptions. See the upstream
 umbrella patches. It does not derive backend or model package versions from those numbers. Each
 inventory entry records both packages exactly.
 
+## Test layout and runner
+
+Every `*.test.ts` file lives in exactly one group directory, chosen by what the file mainly
+exercises:
+
+| Group             | Contents                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `test/engine/`    | Engine layers from `base` to `host`, and `protocol`                                            |
+| `test/lsp/`       | Language server and editor service                                                             |
+| `test/cli/`       | CLI and CLI candidate                                                                          |
+| `test/extension/` | VS Code client and extension tooling                                                           |
+| `test/tooling/`   | Import policy, public API, harness evidence, fixture refresh, release harness and script tests |
+
+`test/harness/`, `test/fixtures/`, and `test/integration/` hold support code and data, not test
+files. `scripts/test.mjs` discovers the compiled `*.test.js` files recursively under
+`.test-dist/test/<group>/`. `--group <name>` (repeatable) runs only the named groups; without it,
+every group runs. An unknown group, a group without test files, or a test file outside the group
+directories is an error. `npm run test:lsp` runs `engine` and `lsp`; `npm run test:harness` runs
+`engine`, `lsp`, and `tooling`.
+
+The `engine` group runs in one `node --test` invocation with `--test-concurrency` set to the smaller
+of 4 and the available parallelism. Every other file runs in a second invocation, one file at a time.
+The serial list in `scripts/test-selection.mjs` keeps named files serial even when their group runs
+in parallel, each with its reason; an entry that names a missing file fails the run, and an entry
+whose group is not parallel in the current run changes nothing. The engine group passed five
+consecutive parallel runs on Linux with that list (WSL2, 20 logical CPUs, Node 24). Windows and
+macOS concurrency is not separately proven.
+
+`BVE_TEST_PARALLEL_GROUPS` (comma-separated group names) replaces the default parallel groups for
+one run; an unknown name is an error, and an empty value means the default. With
+`BVE_TEST_PARALLEL_GROUPS=engine,lsp`, the full `npm test` passed five consecutive runs on the same
+Linux host, with `lsp-catalog-refresh` and `lsp-rule-contributions` in the serial list for their
+250 ms freshness windows: 85.7, 81.0, 86.0, 85.4 and 83.7 seconds wall time, against about 124
+seconds with the default (`engine` only) and 142 seconds with every file serial. This switch is an
+opt-in and is proven on Linux only; CI does not set it. Enabling it in CI is a deliberate later
+step that needs the same proof on the Windows and macOS runners. `BVE_TEST_CONCURRENCY=1` runs every
+file in one serial
+invocation; another positive integer sets the parallel concurrency. `--coverage` always runs one
+serial invocation, so that `lcov.info` comes from a single run.
+
+A run of every group, with or without explicit `--group` flags, writes its reports to
+`.artifacts/tests/<source|packaged|coverage>/`. A run of a strict subset of the groups writes to a
+directory named after the mode and the groups in group order, for example
+`.artifacts/tests/source--engine+lsp/` for `npm run test:lsp`, so a partial run never replaces the
+full-run evidence that CI uploads. `summary.jsonl` holds the per-file
+summaries of both invocations followed by one merged total. `junit.xml` holds one `<testsuites>`
+element with the merged counts. `inventory.json` keeps its fields; `files` lists every file that
+ran, and `invocations` lists the files and concurrency of each invocation. With `CI` set, a skipped
+test fails the run.
+
 ## Implemented plumbing
 
 - `test/harness/version-matrix.ts`: `createFixtureMatrix` selects one target per supported minor,

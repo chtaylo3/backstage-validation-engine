@@ -6,6 +6,7 @@ const modules = (await readdir('extensions/vscode/test/cases'))
   .filter((name) => name.endsWith('.case.ts'))
   .map((name) => name.replace(/\.ts$/u, '.cjs'))
   .sort();
+/** @type {{ cases: { scope: string }[], editorVersions: string[] }} */
 const backstage = JSON.parse(await readFile('test/integration/backstage/cases.json', 'utf8'));
 const targets = Object.keys(
   JSON.parse(await readFile('test/integration/backstage/targets.json', 'utf8')).targets,

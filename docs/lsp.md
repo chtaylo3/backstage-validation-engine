@@ -169,8 +169,9 @@ bytes and revalidate dependents. See [overlay/editor scope](proposed-overlays.md
 
 ## Acceptance
 
-`npm run test:lsp` compiles and runs catalog-rule and real subprocess/stdio tests.
-`npm run test:harness` includes them with the provider and versioned API fixtures. Tests initialize
+`npm run test:lsp` compiles and runs the `engine` and `lsp` test groups, which hold the catalog-rule
+and real subprocess/stdio tests. `npm run test:harness` adds the `tooling` group with the versioned
+API fixture tests. Tests initialize
 the production launcher, exchange standard LSP messages, inspect published diagnostics and shut it
 down. HTTP response gates synchronize race and cancellation scenarios.
 

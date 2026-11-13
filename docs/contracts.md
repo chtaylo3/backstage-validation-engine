@@ -160,7 +160,7 @@ validity window. Expiry adds incomplete required coverage. See
 
 ## Independent boundary and signature evidence
 
-The [H3 controls](../test/default-boundaries.test.ts) admit equality at each exercised count or byte ceiling.
+The [H3 controls](../test/engine/default-boundaries.test.ts) admit equality at each exercised count or byte ceiling.
 They reject the first excess unit. UTF-8 bytes and UTF-16 character counts remain distinct.
 Canonical JSON admits 32 MiB serialized UTF-8, 100,000 values, and depth 64.
 The root is depth zero. Quotation marks count toward serialized string bytes.

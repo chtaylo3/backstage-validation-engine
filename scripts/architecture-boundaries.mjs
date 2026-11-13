@@ -91,9 +91,17 @@ const RUNTIME_RULES = Object.freeze([
  * any module, and whole-module access to `rule.module`, which `resolve` identifies from a module
  * specifier.
  */
+/**
+ * @param {ts.SourceFile} source
+ * @param {(specifier: string) => string | undefined} resolve
+ * @param {{ readonly names: readonly string[], readonly module: string }} rule
+ */
 function runtimeAccess(source, resolve, rule) {
+  /** @type {string[]} */
   const found = [];
+  /** @param {string} specifier */
   const whole = (specifier) => resolve(specifier) === rule.module;
+  /** @param {ts.Node} node */
   function visit(node) {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -130,18 +138,29 @@ const VSCODE_PACKAGES =
 /** The directory of the dependency-free protocol layer. */
 const PROTOCOL = 'src/protocol/';
 const ranks = new Map(LAYERS.flatMap((names, rank) => names.map((name) => [name, rank])));
+/** @param {string} value */
 const normalize = (value) => value.replaceAll('\\', '/');
+/** @param {string} file */
 function category(file) {
   if (file.startsWith('extensions/vscode/src/')) return 'client';
   if (file === 'src/index.ts') return 'public';
   const parts = file.split('/');
   if (parts[0] !== 'src') return 'external';
-  return parts.length > 2 && ranks.has(parts[1]) ? parts[1] : 'unlisted';
+  return parts.length > 2 && ranks.has(/** @type {string} */ (parts[1]))
+    ? /** @type {string} */ (parts[1])
+    : 'unlisted';
 }
+/** @param {string} name */
 function rank(name) {
-  return name === 'public' ? ranks.get(PUBLIC_CEILING) + 0.5 : ranks.get(name);
+  return name === 'public'
+    ? /** @type {number} */ (ranks.get(PUBLIC_CEILING)) + 0.5
+    : /** @type {number} */ (ranks.get(name));
 }
 /** Returns why an import from `origin` to `target` is forbidden, or undefined when it is allowed. */
+/**
+ * @param {string} origin
+ * @param {string} target
+ */
 function forbidden(origin, target) {
   const from = category(origin);
   const to = category(target);
@@ -157,16 +176,27 @@ function forbidden(origin, target) {
   if (rank(to) > rank(from)) return `upward import from ${from} to ${to}`;
   return undefined;
 }
+/** @param {string} specifier */
 const packageName = (specifier) =>
   specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
 /** One readable chain per strongly connected component of the file graph. */
+/**
+ * @param {Map<string, readonly string[]>} graph
+ * @returns {string[][]}
+ */
 function cycles(graph) {
+  /** @type {Map<string, number>} */
   const index = new Map();
+  /** @type {Map<string, number>} */
   const low = new Map();
+  /** @type {string[]} */
   const stack = [];
+  /** @type {Set<string>} */
   const onStack = new Set();
+  /** @type {Set<string>[]} */
   const components = [];
   let counter = 0;
+  /** @param {string} file */
   function connect(file) {
     index.set(file, counter);
     low.set(file, counter++);
@@ -176,14 +206,26 @@ function cycles(graph) {
       if (!graph.has(target)) continue;
       if (!index.has(target)) {
         connect(target);
-        low.set(file, Math.min(low.get(file), low.get(target)));
-      } else if (onStack.has(target)) low.set(file, Math.min(low.get(file), index.get(target)));
+        low.set(
+          file,
+          Math.min(/** @type {number} */ (low.get(file)), /** @type {number} */ (low.get(target))),
+        );
+      } else if (onStack.has(target))
+        low.set(
+          file,
+          Math.min(
+            /** @type {number} */ (low.get(file)),
+            /** @type {number} */ (index.get(target)),
+          ),
+        );
     }
     if (low.get(file) !== index.get(file)) return;
+    /** @type {string[]} */
     const component = [];
+    /** @type {string} */
     let member;
     do {
-      member = stack.pop();
+      member = /** @type {string} */ (stack.pop());
       onStack.delete(member);
       component.push(member);
     } while (member !== file);
@@ -192,15 +234,17 @@ function cycles(graph) {
   }
   for (const file of [...graph.keys()].sort()) if (!index.has(file)) connect(file);
   return components.map((component) => {
-    const start = [...component].sort()[0];
+    const start = /** @type {string} */ ([...component].sort()[0]);
+    /** @type {Map<string, string | undefined>} */
     const previous = new Map([[start, undefined]]);
     const queue = [start];
     while (queue.length) {
-      const file = queue.shift();
+      const file = /** @type {string} */ (queue.shift());
       for (const target of [...(graph.get(file) ?? [])].sort()) {
         if (target === start) {
           const chain = [start];
-          for (let step = file; step !== start; step = previous.get(step)) chain.splice(1, 0, step);
+          for (let step = file; step !== start; step = /** @type {string} */ (previous.get(step)))
+            chain.splice(1, 0, step);
           return [...chain, start];
         }
         if (component.has(target) && !previous.has(target)) {
@@ -212,10 +256,13 @@ function cycles(graph) {
     return [start, start];
   });
 }
+/** @param {ts.SourceFile} source */
 function dependencies(source) {
+  /** @type {string[]} */
   const result = [];
   const loaders = new Set(['require']);
   const factories = new Set(['createRequire']);
+  /** @type {Set<string>} */
   const namespaces = new Set();
   for (const statement of source.statements) {
     if (
@@ -233,12 +280,14 @@ function dependencies(source) {
         if ((binding.propertyName ?? binding.name).text === 'createRequire')
           factories.add(binding.name.text);
   }
+  /** @param {ts.Expression} expression */
   const factory = (expression) =>
     (ts.isIdentifier(expression) && factories.has(expression.text)) ||
     (ts.isPropertyAccessExpression(expression) &&
       ts.isIdentifier(expression.expression) &&
       namespaces.has(expression.expression.text) &&
       expression.name.text === 'createRequire');
+  /** @param {ts.Node} node */
   function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
@@ -282,6 +331,7 @@ const FUNCTION_KINDS = new Set([
   ts.SyntaxKind.GetAccessor,
   ts.SyntaxKind.SetAccessor,
 ]);
+/** @param {ts.FunctionLikeDeclaration} node */
 function segment(node) {
   if (ts.isConstructorDeclaration(node)) return 'constructor';
   if (node.name && !ts.isComputedPropertyName(node.name)) return node.name.getText();
@@ -302,14 +352,27 @@ function segment(node) {
  * Every function-like node with a body, named by its enclosing classes and functions
  * (`outer.inner`); repeated names in one file take a `#2`, `#3` suffix in source order.
  */
+/**
+ * @param {ts.SourceFile} source
+ * @returns {{ name: string, lines: number }[]}
+ */
 export function measureFunctions(source) {
+  /** @type {{ name: string, lines: number }[]} */
   const measured = [];
+  /** @type {Map<string, number>} */
   const seen = new Map();
+  /**
+   * @param {ts.Node} node
+   * @param {string[]} scope
+   */
   function visit(node, scope) {
     let inner = scope;
     if (ts.isClassLike(node)) inner = [...scope, node.name?.text ?? '<anonymous>'];
-    else if (FUNCTION_KINDS.has(node.kind) && node.body) {
-      inner = [...scope, segment(node)];
+    else if (
+      FUNCTION_KINDS.has(node.kind) &&
+      /** @type {ts.FunctionLikeDeclaration} */ (node).body
+    ) {
+      inner = [...scope, segment(/** @type {ts.FunctionLikeDeclaration} */ (node))];
       const base = inner.join('.');
       const count = (seen.get(base) ?? 0) + 1;
       seen.set(base, count);
@@ -322,8 +385,15 @@ export function measureFunctions(source) {
   visit(source, []);
   return measured;
 }
-/** Failures of the function length rule for `{ file, name, lines }` rows against an allowlist. */
+/**
+ * Failures of the function length rule for `{ file, name, lines }` rows against an allowlist.
+ *
+ * @param {readonly { file: string, name: string, lines: number }[]} rows
+ * @param {Readonly<Record<string, Readonly<Record<string, number>>>>} [allowlist]
+ * @param {number} [limit]
+ */
 export function functionSizeFailures(rows, allowlist = {}, limit = FUNCTION_LINE_LIMIT) {
+  /** @type {string[]} */
   const failures = [];
   const found = new Set();
   for (const { file, name, lines } of rows) {
@@ -348,16 +418,23 @@ export function functionSizeFailures(rows, allowlist = {}, limit = FUNCTION_LINE
         );
   return failures;
 }
+/**
+ * @param {string} root
+ * @returns {Promise<Record<string, Record<string, number>>>}
+ */
 async function readAllowlist(root) {
   try {
     return JSON.parse(await readFile(path.join(root, FUNCTION_ALLOWLIST), 'utf8'));
   } catch (error) {
-    if (error?.code === 'ENOENT') return {};
+    if (/** @type {{ code?: unknown } | undefined} */ (error)?.code === 'ENOENT') return {};
     throw error;
   }
 }
+/** @param {string} root */
 export async function checkArchitecture(root) {
+  /** @type {string[]} */
   const files = [];
+  /** @param {string} directory */
   async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
       const filename = path.join(directory, entry.name);
@@ -369,9 +446,13 @@ export async function checkArchitecture(root) {
   await walk(path.join(root, 'extensions/vscode/src'));
   const configFile = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile);
   const options = ts.parseJsonConfigFileContent(configFile.config ?? {}, ts.sys, root).options;
+  /** @type {Map<string, string[]>} */
   const graph = new Map();
+  /** @type {Map<string, string[]>} */
   const externals = new Map();
+  /** @type {{ file: string, name: string, lines: number }[]} */
   const functions = [];
+  /** @type {string[]} */
   const runtimeImports = [];
   for (const filename of files) {
     const relative = normalize(path.relative(root, filename));
@@ -381,7 +462,9 @@ export async function checkArchitecture(root) {
       ts.ScriptTarget.Latest,
       true,
     );
+    /** @type {string[]} */
     const edges = [];
+    /** @type {string[]} */
     const packages = [];
     for (const specifier of dependencies(source)) {
       const resolved = ts.resolveModuleName(specifier, filename, options, ts.sys).resolvedModule;
@@ -391,6 +474,7 @@ export async function checkArchitecture(root) {
     }
     graph.set(relative, edges);
     externals.set(relative, packages);
+    /** @param {string} specifier */
     const resolveFile = (specifier) => {
       const target = ts.resolveModuleName(specifier, filename, options, ts.sys).resolvedModule;
       return target && !target.isExternalLibraryImport
@@ -406,6 +490,7 @@ export async function checkArchitecture(root) {
             );
     for (const row of measureFunctions(source)) functions.push({ file: relative, ...row });
   }
+  /** @type {Set<string>} */
   const failures = new Set();
   for (const file of graph.keys()) {
     if (category(file) === 'unlisted')
@@ -424,13 +509,20 @@ export async function checkArchitecture(root) {
         );
     }
     for (const pkg of externals.get(file) ?? []) {
-      const allowed = PACKAGE_LAYERS[packageName(pkg)];
+      const allowed = /** @type {Readonly<Record<string, readonly string[] | undefined>>} */ (
+        PACKAGE_LAYERS
+      )[/** @type {string} */ (packageName(pkg))];
       if (allowed && file.startsWith('src/') && !allowed.includes(category(file)))
         failures.add(`${file} -> ${pkg}: package may only be imported from ${allowed.join(', ')}`);
     }
   }
   for (const origin of graph.keys()) {
+    /** @type {Set<string>} */
     const visited = new Set();
+    /**
+     * @param {string} file
+     * @param {string[]} chain
+     */
     function visit(file, chain) {
       if (visited.has(file)) return;
       visited.add(file);

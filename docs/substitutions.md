@@ -99,9 +99,9 @@ and patterns produce required incomplete coverage. Resource exhaustion, timeout 
 also remain incomplete. CI aggregation distinguishes violations (exit 1) from incomplete work (exit
 2). Required unavailable processors still block native work before substitutions.
 
-The [substitution tests](../test/backstage-substitutions.test.ts) cover both native pins, nested
+The [substitution tests](../test/engine/backstage-substitutions.test.ts) cover both native pins, nested
 ranges, malformed data, cycles, path escapes, disk/symlink isolation, resource limits, Locations,
-catalog rules and cancellation. The [stdio tests](../test/lsp.test.ts) exercise included-buffer
+catalog rules and cancellation. The [stdio tests](../test/lsp/lsp.test.ts) exercise included-buffer
 revalidation, projected diagnostics, repair, close restoration and stale HTTP suppression against
 the pinned fake APIs. Actual editor/backend and filesystem-capture qualification remain open.
 

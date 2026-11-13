@@ -19,7 +19,7 @@ Passing parsing does not attest native Backstage compatibility, resolve source s
 authorize admission, or execute organization policy. This parsing increment alone does not complete
 BC-01 through BC-07. Each case requires its corresponding pipeline stage.
 
-The [48 parser acceptance checks](../test/parsing.test.ts) exercise this register. The parsing
+The [48 parser acceptance checks](../test/engine/parsing.test.ts) exercise this register. The parsing
 increment brought the local suite to 138 checks, including contracts and managed CEL qualification.
 Subsequent totals are tracked in the [implementation status](implementation-status.md). Native
 IDE/OS and hosted scale qualification remain release work.
@@ -140,7 +140,7 @@ Authored alias keys remain excluded. Non-finite scalars and timestamp tags retai
 
 Byte limits count UTF-8 bytes. Depth counts edges from the root at depth zero.
 All count and byte ceilings admit equality and reject the first excess unit.
-The [default controls](../test/default-boundaries.test.ts) retain multibyte byte fixtures and exact quotas.
+The [default controls](../test/engine/default-boundaries.test.ts) retain multibyte byte fixtures and exact quotas.
 Quoted scalar sequences reach 100,000 syntax nodes and 100,000 expanded values at 200,000 lexical tokens.
 An extra scalar crosses the token ceiling before syntax admission.
 The tests separately cross the expanded-value ceiling with 48 aliases and fewer authored nodes.
