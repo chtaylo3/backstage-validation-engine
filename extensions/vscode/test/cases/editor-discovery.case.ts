@@ -16,13 +16,7 @@ export async function run(fixture: Fixture): Promise<void> {
       main.uri,
       new vscode.Position(5, 13),
     );
-  // The server marks every completion list incomplete, so a client asks again, and one list is
-  // not a readiness signal: the first request after the first diagnostic has returned an empty
-  // list from a cold server. The control is that the value is offered, within the bound of every
-  // other readiness wait. Completion latency has its own case, performance-budget.
-  const offered = (label: string) =>
-    until(async () => (await choices()).items.some((item) => item.label === 'production'), label);
-  await offered('rule choice offered before the discovery configuration changes');
+  assert((await choices()).items.some((item) => item.label === 'production'));
   const initial = await configuration();
   const root = process.env.BVE_EXTENSION_TEST_WORKSPACE!;
   const discovered = vscode.Uri.file(path.join(root, 'selected/catalog-info.yaml'));
@@ -180,7 +174,7 @@ export async function run(fixture: Fixture): Promise<void> {
   await fixture.alive(pid, main);
   await fixture.observed(main);
   await fixture.fix();
-  await offered('rule choice offered again after same-PID recovery');
+  assert((await choices()).items.some((item) => item.label === 'production'));
   assert.equal(fixture.has('validation/incomplete'), false);
   fixture.note(
     'installed include/exclude, discovery depth cap, fail-closed reload and same-PID recovery',

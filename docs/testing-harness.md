@@ -47,10 +47,9 @@ macOS concurrency is not separately proven.
 
 A test that does real work against a real-time deadline belongs in the serial list, because the
 deadline is part of what the test proves. The first parallel CI run on the 4-CPU Windows runners
-showed two such files, and both are now in the list: `default-boundaries` parses the largest
-admitted documents inside the 5-second default request deadline, and `rule-contributions` needs a
-completion answer inside the 50 ms synchronous editor budget. Their deadlines and assertions are
-unchanged. Both failures reproduce on Linux when every CPU is busy.
+showed one such file, and it is now in the list: `default-boundaries` parses the largest admitted
+documents inside the 5-second default request deadline. Its deadline and assertions are unchanged,
+and the failure reproduces on Linux when every CPU is busy.
 
 `BVE_TEST_PARALLEL_GROUPS` (comma-separated group names) replaces the default parallel groups for
 one run; an unknown name is an error, and an empty value means the default. With
