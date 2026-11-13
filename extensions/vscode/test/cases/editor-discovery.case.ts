@@ -3,7 +3,8 @@ import { mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { configuration, reload } from '../configuration.js';
-import { until, guardedCommand, documentRange } from '../fixture.js';
+import { watchedFileUris } from '../diagnostic-trace.js';
+import { belowDirectory, sameFile, until, guardedCommand, documentRange } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   const main = await fixture.document();
@@ -15,7 +16,13 @@ export async function run(fixture: Fixture): Promise<void> {
       main.uri,
       new vscode.Position(5, 13),
     );
-  assert((await choices()).items.some((item) => item.label === 'production'));
+  // The server marks every completion list incomplete, so a client asks again, and one list is
+  // not a readiness signal: the first request after the first diagnostic has returned an empty
+  // list from a cold server. The control is that the value is offered, within the bound of every
+  // other readiness wait. Completion latency has its own case, performance-budget.
+  const offered = (label: string) =>
+    until(async () => (await choices()).items.some((item) => item.label === 'production'), label);
+  await offered('rule choice offered before the discovery configuration changes');
   const initial = await configuration();
   const root = process.env.BVE_EXTENSION_TEST_WORKSPACE!;
   const discovered = vscode.Uri.file(path.join(root, 'selected/catalog-info.yaml'));
@@ -76,10 +83,9 @@ export async function run(fixture: Fixture): Promise<void> {
   // Older native watchers coalesce newly created deep subtrees into directory
   // events. Use an existing approved file for a precise second rescan pulse.
   await until(async () => {
-    const trace = (await fixture.trace()).slice(traceOffset);
-    return (
-      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
-      trace.includes(vscode.Uri.file(path.join(root, 'depth')).toString())
+    const depth = vscode.Uri.file(path.join(root, 'depth'));
+    return watchedFileUris((await fixture.trace()).slice(traceOffset)).some((uri) =>
+      belowDirectory(uri, depth),
     );
   }, 'native creation notification for the discovered subtree');
   const firstReceipt = await fixture.api!.filesystemObservation();
@@ -90,17 +96,15 @@ export async function run(fixture: Fixture): Promise<void> {
     Buffer.from((await readFile(fixture.teamUri.fsPath, 'utf8')) + '# discovery rescan pulse\n'),
   );
   await until(async () => {
-    const trace = (await fixture.trace()).slice(pulseOffset);
-    return (
-      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
-      trace.includes(fixture.teamUri.toString())
+    return watchedFileUris((await fixture.trace()).slice(pulseOffset)).some((uri) =>
+      sameFile(uri, fixture.teamUri),
     );
   }, 'precise native rescan pulse after complete subtree creation');
   const depthReceipt = await fixture.api!.filesystemObservation();
   assert(
     depthReceipt &&
       depthReceipt.generation > firstReceipt.generation &&
-      depthReceipt.uris.includes(fixture.teamUri.toString()),
+      depthReceipt.uris.some((uri) => sameFile(uri, fixture.teamUri)),
     'The server must admit the exact rescan pulse after the complete deep fixture exists.',
   );
   await fixture.replace(main, main.getText() + '# depth-bound processing after admitted watcher\n');
@@ -176,7 +180,7 @@ export async function run(fixture: Fixture): Promise<void> {
   await fixture.alive(pid, main);
   await fixture.observed(main);
   await fixture.fix();
-  assert((await choices()).items.some((item) => item.label === 'production'));
+  await offered('rule choice offered again after same-PID recovery');
   assert.equal(fixture.has('validation/incomplete'), false);
   fixture.note(
     'installed include/exclude, discovery depth cap, fail-closed reload and same-PID recovery',

@@ -54,6 +54,28 @@ export function guardedCommand(
   const command = typeof action.command === 'string' ? (action as vscode.Command) : action.command;
   return command?.command === 'bve.applyFix' ? command : undefined;
 }
+/**
+ * Whether a URI in the server's spelling names the same local file as an editor URI. The two
+ * spell one Windows file differently: the editor lower-cases the drive letter and escapes its
+ * colon, and the server keeps the spelling of the trusted configuration. On other platforms the
+ * spellings are equal, so this is string equality there.
+ */
+export function sameFile(wire: string, uri: vscode.Uri): boolean {
+  try {
+    return vscode.Uri.parse(wire, true).toString() === uri.toString();
+  } catch {
+    return false;
+  }
+}
+/** Whether a URI in the server's spelling names a local file at or below an editor directory. */
+export function belowDirectory(wire: string, directory: vscode.Uri): boolean {
+  try {
+    const spelled = vscode.Uri.parse(wire, true).toString();
+    return spelled === directory.toString() || spelled.startsWith(directory.toString() + '/');
+  } catch {
+    return false;
+  }
+}
 export class Fixture {
   api: Api | undefined;
   readonly pids = new Set<number>();

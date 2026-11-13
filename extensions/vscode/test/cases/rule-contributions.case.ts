@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
-import { until, guardedCommand } from '../fixture.js';
+import { sameFile, until, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 import { configuration, reload } from '../configuration.js';
 import { digestJson } from '../../../../src/base/json.js';
@@ -141,11 +141,13 @@ export async function run(fixture: Fixture): Promise<void> {
       );
       const observation = await fixture.observed(document, before.generation);
       assert.equal(observation.policyDigest, digestJson(policy));
+      // A rule subject names its document in the server's spelling of the URI.
+      const observed = observation.documents.find((row) => sameFile(row.uri, document.uri));
+      assert(observed);
       const coverage = observation.coverage.find(
         (row) =>
           row.stage === 'rules' &&
-          row.subject ===
-            JSON.stringify([JSON.stringify([document.uri.toString(), 0]), 'map-keys']),
+          row.subject === JSON.stringify([JSON.stringify([observed.uri, 0]), 'map-keys']),
       );
       assert(coverage?.required);
       assert.equal(coverage.status, blocked ? 'blocked' : 'verified');

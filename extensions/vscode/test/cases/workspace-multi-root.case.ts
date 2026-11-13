@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 import { writeEvidence } from '../evidence.js';
 import { diagnosticPublications } from '../diagnostic-trace.js';
-import { until, documentRange, guardedCommand } from '../fixture.js';
+import { sameFile, until, documentRange, guardedCommand } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   assert.equal(vscode.workspace.workspaceFolders?.length, 2);
@@ -37,7 +37,7 @@ export async function run(fixture: Fixture): Promise<void> {
     async () =>
       diagnosticPublications((await fixture.trace()).slice(offset)).some(
         (row) =>
-          row.uri === main.uri.toString() &&
+          sameFile(row.uri, main.uri) &&
           row.version === main.version &&
           row.diagnostics.some((diagnostic) => diagnostic.code === 'production-only'),
       ),
@@ -53,7 +53,7 @@ export async function run(fixture: Fixture): Promise<void> {
     JSON.stringify(publications, null, 2) + '\n',
   );
   assert(
-    !publications.some((row) => row.uri === unapproved.toString() && row.diagnostics.length),
+    !publications.some((row) => sameFile(row.uri, unapproved) && row.diagnostics.length),
     'No intermediate publication can admit an unapproved document.',
   );
   assert.equal(

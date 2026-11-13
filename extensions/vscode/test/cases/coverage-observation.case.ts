@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import type { Fixture } from '../fixture.js';
-import { until } from '../fixture.js';
+import { sameFile, until } from '../fixture.js';
 import { writeEvidence } from '../evidence.js';
 import type { CoverageObservation } from '../../../../src/lsp/coverage-observation.js';
 // Independent canonical encoding for this plain JSON fixture.
@@ -50,19 +50,19 @@ export async function run(fixture: Fixture): Promise<void> {
     assert.equal(actual.policyDigest, digest(canonical(config.policy)));
     assert.equal(actual.profileDigest, digest(canonical(config.profile)));
     assert.equal(actual.activationDigest, digest(canonical(config.activation)));
-    assert(
-      actual.documents.some(
-        (row) =>
-          row.uri === document.uri.toString() &&
-          row.version === document.version &&
-          row.digest === digest(document.getText()),
-      ),
+    // The observation names the document in the server's spelling of its URI.
+    const observed = actual.documents.find(
+      (row) =>
+        sameFile(row.uri, document.uri) &&
+        row.version === document.version &&
+        row.digest === digest(document.getText()),
     );
+    assert(observed);
     assert(
       actual.coverage.some(
         (row) =>
           row.stage === 'parse' &&
-          row.subject === document.uri.toString() &&
+          row.subject === observed.uri &&
           row.required &&
           row.status === 'verified',
       ),

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
 import { writeFile } from 'node:fs/promises';
 import { configuration, reload, lifecycleConfiguration } from '../configuration.js';
-import { until } from '../fixture.js';
+import { sameFile, until } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 
 export async function run(fixture: Fixture): Promise<void> {
@@ -62,7 +62,7 @@ export async function run(fixture: Fixture): Promise<void> {
   const previous = await fixture.observed(document, settled.generation);
   assert(
     previous.documents.some(
-      (row) => row.uri === fixture.teamUri.toString() && row.version === teamDocument.version,
+      (row) => sameFile(row.uri, fixture.teamUri) && row.version === teamDocument.version,
     ),
   );
   const ambiguous = await vscode.commands.executeCommand<vscode.Location[]>(

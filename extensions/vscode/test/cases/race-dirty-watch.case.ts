@@ -2,8 +2,12 @@ import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
 import path from 'node:path';
 import { writeEvidence } from '../evidence.js';
-import { diagnosticPublications, diagnosticGeneration } from '../diagnostic-trace.js';
-import { invalidTeam, team, until } from '../fixture.js';
+import {
+  diagnosticPublications,
+  diagnosticGeneration,
+  watchedFileUris,
+} from '../diagnostic-trace.js';
+import { invalidTeam, sameFile, team, until } from '../fixture.js';
 import type { Fixture } from '../fixture.js';
 export async function run(fixture: Fixture): Promise<void> {
   const main = await fixture.document();
@@ -20,16 +24,14 @@ export async function run(fixture: Fixture): Promise<void> {
   const offset = (await fixture.trace()).length;
   await vscode.workspace.fs.writeFile(fixture.teamUri, Buffer.from(invalidTeam));
   await until(async () => {
-    const trace = (await fixture.trace()).slice(offset);
-    return (
-      trace.includes("Sending notification 'workspace/didChangeWatchedFiles'") &&
-      trace.includes(fixture.teamUri.toString())
+    return watchedFileUris((await fixture.trace()).slice(offset)).some((uri) =>
+      sameFile(uri, fixture.teamUri),
     );
   }, 'exact native dependency watcher notification');
   const receipt = await fixture.api!.filesystemObservation();
   assert(receipt, 'The ordered projection must observe an admitted watcher event.');
   assert(
-    receipt.uris.includes(fixture.teamUri.toString()),
+    receipt.uris.some((uri) => sameFile(uri, fixture.teamUri)),
     'The server must admit this exact dirty dependency watcher event.',
   );
   assert(
@@ -48,7 +50,7 @@ export async function run(fixture: Fixture): Promise<void> {
     async () =>
       diagnosticPublications((await fixture.trace()).slice(offset)).some(
         (row) =>
-          row.uri === main.uri.toString() &&
+          sameFile(row.uri, main.uri) &&
           row.diagnostics.some(
             (diagnostic) =>
               diagnostic.code === 'production-only' &&
@@ -69,7 +71,7 @@ export async function run(fixture: Fixture): Promise<void> {
   assert(
     !publications.some(
       (row) =>
-        row.uri === main.uri.toString() &&
+        sameFile(row.uri, main.uri) &&
         row.diagnostics.some((diagnostic) => diagnostic.code === 'owner-exists'),
     ),
     'No intermediate dirty-watch publication can use invalid disk content.',
