@@ -4,17 +4,18 @@ import type {
   PolicyBundle,
   SchemaArtifact,
   ValidationRequest,
-  Coverage,
 } from '../contracts/schemas.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { CatalogProviderError } from '../providers/types.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
 import { executePolicyRules } from './cel-rules.js';
-import { canonicalJson, deepFreeze } from '../base/json.js';
+import { deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { prepareBackstageReferenceData } from './reference-data.js';
-import type { LocalCatalogSources } from './reference-data.js';
+import type { LocalCatalogSources, ReferenceDataPreparation } from './reference-data.js';
+import type { BackstageCompatibilityReport } from '../compatibility/types.js';
+import type { RuleExecutionReport } from './types.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import {
   FAILURE_EVIDENCE_LIMIT,
@@ -24,12 +25,89 @@ import {
 } from '../runtime/failure-evidence.js';
 import type { FailureEvidence, FailureStage } from '../runtime/failure-evidence.js';
 import { reject } from '../base/errors.js';
+import { mergeCoverage, mergeInterruption } from '../core/stage-report.js';
 
 export interface PolicySourceContext {
   readonly profile: Immutable<DeploymentProfile>;
   readonly policy: Immutable<PolicyBundle>;
   readonly activation: Immutable<ActivationManifest>;
   readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
+}
+
+/** An unconfigured dependency still produces reference locations and incomplete rule coverage. */
+function unconfiguredCatalog(
+  request: Immutable<ValidationRequest>,
+  context: PolicySourceContext,
+): { readonly provider: CatalogProvider; readonly access: CatalogAccessContext } {
+  const unavailable: CatalogProvider = {
+    connectionId: 'unconfigured',
+    adapterId: context.profile.adapterId,
+    lookup: () => Promise.reject(new CatalogProviderError('closed')),
+    stats: () => ({ active: 0, queued: 0, cacheEntries: 0, cacheBytes: 0 }),
+    close: () => Promise.resolve(),
+  };
+  return {
+    provider: unavailable,
+    access: {
+      installationId: request.identity.installationId,
+      principalId: 'unconfigured',
+      permissionRevision: request.identity.permissionRevision,
+      credentialRevision: 'unconfigured',
+      scope: [],
+      policyDigest: request.policy.digest,
+      profileDigest: request.profile.digest,
+      maxAgeMs: 0,
+    },
+  };
+}
+
+/**
+ * Structured failure evidence of a completed composition, in stage order: reference preparation,
+ * catalog lookups, an interrupted source stage, an interrupted rule stage, and rule failures.
+ * Sanitized and bounded by `FAILURE_EVIDENCE_LIMIT`.
+ */
+function collectFailureEvidence(
+  timer: FailureTimer,
+  request: Immutable<ValidationRequest>,
+  preparation: ReferenceDataPreparation | undefined,
+  compatibility: BackstageCompatibilityReport,
+  rules: RuleExecutionReport,
+): FailureEvidence[] {
+  const ruleTimeoutCause =
+    rules.failures.some(({ code }) => code === 'request_timeout' || code === 'queue_timeout') ||
+    !rules.failures.some(({ code }) => code === 'execution_timeout')
+      ? 'request_timeout'
+      : 'attempt_timeout';
+  return [
+    ...(preparation?.failureEvidence ?? []),
+    ...(preparation?.catalog?.failures.flatMap((failure) =>
+      failure.evidence ? [failure.evidence] : [],
+    ) ?? []),
+    ...(compatibility.interrupted !== 'none'
+      ? [
+          timer.capture(
+            'sources',
+            compatibility.interrupted === 'timeout' ? 'request_timeout' : compatibility.interrupted,
+            request.execution.deadlineAt,
+          ),
+        ]
+      : []),
+    ...(rules.interrupted !== 'none'
+      ? [
+          timer.capture(
+            'rules',
+            rules.interrupted === 'timeout' ? ruleTimeoutCause : rules.interrupted,
+            request.execution.deadlineAt,
+          ),
+        ]
+      : []),
+    ...(rules.failures.length && rules.interrupted === 'none'
+      ? [timer.capture('rules', 'rule_failure', request.execution.deadlineAt)]
+      : []),
+  ]
+    .map(sanitizeFailureEvidence)
+    .filter((row) => row !== undefined)
+    .slice(0, FAILURE_EVIDENCE_LIMIT);
 }
 
 /** Scoped native/source/rules composition; this does not qualify Backstage ingestion or authority. */
@@ -62,27 +140,7 @@ export async function validatePolicySources(
           .map((rule) => rule.referencePath),
       ),
     ];
-    // An unconfigured dependency still produces reference locations and incomplete rule coverage.
-    const unavailable: CatalogProvider = {
-      connectionId: 'unconfigured',
-      adapterId: context.profile.adapterId,
-      lookup: () => Promise.reject(new CatalogProviderError('closed')),
-      stats: () => ({ active: 0, queued: 0, cacheEntries: 0, cacheBytes: 0 }),
-      close: () => Promise.resolve(),
-    };
-    const catalog = options.catalog ?? {
-      provider: unavailable,
-      access: {
-        installationId: request.identity.installationId,
-        principalId: 'unconfigured',
-        permissionRevision: request.identity.permissionRevision,
-        credentialRevision: 'unconfigured',
-        scope: [],
-        policyDigest: request.policy.digest,
-        profileDigest: request.profile.digest,
-        maxAgeMs: 0,
-      },
-    };
+    const catalog = options.catalog ?? unconfiguredCatalog(request, context);
     stage = 'sources';
     const preparation = paths.length
       ? await prepareBackstageReferenceData(request, context, {
@@ -120,66 +178,27 @@ export async function validatePolicySources(
         ...(preparation ? { referenceData: preparation } : {}),
       },
     );
-    const priority = { none: 0, resource_limit: 1, worker_failure: 2, cancelled: 3, timeout: 4 };
     const interrupted = [
       preparation?.interrupted ?? 'none',
       compatibility.interrupted,
       rules.interrupted,
-    ].reduce((a, b) => (priority[a] >= priority[b] ? a : b));
-    const ruleTimeoutCause =
-      rules.failures.some(({ code }) => code === 'request_timeout' || code === 'queue_timeout') ||
-      !rules.failures.some(({ code }) => code === 'execution_timeout')
-        ? 'request_timeout'
-        : 'attempt_timeout';
-    const failureEvidence = [
-      ...(preparation?.failureEvidence ?? []),
-      ...(preparation?.catalog?.failures.flatMap((failure) =>
-        failure.evidence ? [failure.evidence] : [],
-      ) ?? []),
-      ...(compatibility.interrupted !== 'none'
-        ? [
-            timer.capture(
-              'sources',
-              compatibility.interrupted === 'timeout'
-                ? 'request_timeout'
-                : compatibility.interrupted,
-              request.execution.deadlineAt,
-            ),
-          ]
-        : []),
-      ...(rules.interrupted !== 'none'
-        ? [
-            timer.capture(
-              'rules',
-              rules.interrupted === 'timeout' ? ruleTimeoutCause : rules.interrupted,
-              request.execution.deadlineAt,
-            ),
-          ]
-        : []),
-      ...(rules.failures.length && rules.interrupted === 'none'
-        ? [timer.capture('rules', 'rule_failure', request.execution.deadlineAt)]
-        : []),
-    ]
-      .map(sanitizeFailureEvidence)
-      .filter((row) => row !== undefined)
-      .slice(0, FAILURE_EVIDENCE_LIMIT);
-    // Source and rule gates both report a required unavailable processor. Retain
-    // one identical observation per stage/subject without hiding disagreements.
-    const coverage = new Map<string, Immutable<Coverage>>();
-    for (const row of [...compatibility.coverage, ...rules.coverage]) {
-      const key = JSON.stringify([row.stage, row.subject]);
-      const previous = coverage.get(key);
-      if (previous && canonicalJson(previous) !== canonicalJson(row))
-        reject('integrity', '/coverage', 'pipeline stages reported conflicting coverage');
-      coverage.set(key, row);
-    }
+    ].reduce(mergeInterruption);
+    const failureEvidence = collectFailureEvidence(
+      timer,
+      request,
+      preparation,
+      compatibility,
+      rules,
+    );
+    // Source and rule gates both report a required unavailable processor.
+    const coverage = mergeCoverage([...compatibility.coverage, ...rules.coverage]);
     return deepFreeze({
       request: pinned,
       failureEvidence,
       compatibility,
       rules,
       findings: [...compatibility.findings, ...rules.findings],
-      coverage: [...coverage.values()],
+      coverage,
       ruleStates: rules.ruleStates,
       interrupted,
       ...(preparation ? { preparation } : {}),

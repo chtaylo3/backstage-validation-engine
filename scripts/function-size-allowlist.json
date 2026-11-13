@@ -1,0 +1,31 @@
+{
+  "src/compatibility/adapter.ts": {
+    "createAdapter": 205
+  },
+  "src/compatibility/substitutions.ts": {
+    "SnapshotSourceResolver.resolve": 186,
+    "SnapshotSourceResolver.resolve.visit": 168
+  },
+  "src/host/rule-contributions.ts": {
+    "prepareRuleContributions": 168
+  },
+  "src/lsp/editor-documents.ts": {
+    "editorTarget": 151
+  },
+  "src/lsp/filesystem.ts": {
+    "createFilesystemSource": 207
+  },
+  "src/lsp/server.ts": {
+    "attachLspServer": 597
+  },
+  "src/lsp/validation-run.ts": {
+    "runValidation": 268
+  },
+  "src/parsing/parser.ts": {
+    "parseSourceSnapshot": 182
+  },
+  "src/providers/catalog.ts": {
+    "createCatalogProvider": 429,
+    "createCatalogProvider.lookup": 271
+  }
+}

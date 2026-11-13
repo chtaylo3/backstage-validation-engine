@@ -5,6 +5,7 @@ import type {
   ValidationResult,
 } from '../contracts/schemas.js';
 import type { Immutable } from '../base/json.js';
+import type { StageReport } from '../core/stage-report.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
 
 export { BUILTIN_KINDS } from '../contracts/kinds.js';
@@ -104,7 +105,7 @@ export interface CompatibleSourceEntity {
   })[];
 }
 
-export interface BackstageCompatibilityReport {
+export interface BackstageCompatibilityReport extends StageReport {
   readonly adapterId: BackstageAdapterId;
   readonly sourceDigest: string;
   readonly profileDigest: string;
@@ -113,10 +114,7 @@ export interface BackstageCompatibilityReport {
   readonly sourceClaims: readonly SourceIdentityClaim[];
   /** Some proposed sources cannot yet be assigned a safe canonical identity. */
   readonly unresolvedSourceIdentities: boolean;
-  readonly findings: readonly Immutable<Finding>[];
-  readonly coverage: readonly Immutable<ValidationResult['coverage'][number]>[];
   readonly artifacts: Immutable<ValidationResult['artifacts']>;
-  readonly interrupted: ValidationResult['resources']['interrupted'];
 }
 
 export interface BackstageSourceReference {

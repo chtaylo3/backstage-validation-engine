@@ -37,6 +37,14 @@ export const PACKAGE_LAYERS = Object.freeze({
  * file under `src/` may import it, directly or transitively.
  */
 const PUBLIC_CEILING = 'reporting';
+/** No function, method, constructor, accessor or arrow function may be longer than this. */
+export const FUNCTION_LINE_LIMIT = 150;
+/**
+ * Existing functions above the limit, by file and qualified name, with their length as a ceiling.
+ * An entry may not grow, and an entry whose function is back within the limit or gone fails, so
+ * the list only shrinks.
+ */
+export const FUNCTION_ALLOWLIST = 'scripts/function-size-allowlist.json';
 const VSCODE_PACKAGES =
   /^(?:vscode|vscode-languageserver|vscode-languageclient|vscode-jsonrpc)(?:$|[/-])/u;
 const ranks = new Map(LAYERS.flatMap((names, rank) => names.map((name) => [name, rank])));
@@ -180,6 +188,89 @@ function dependencies(source) {
   visit(source);
   return result;
 }
+const FUNCTION_KINDS = new Set([
+  ts.SyntaxKind.FunctionDeclaration,
+  ts.SyntaxKind.FunctionExpression,
+  ts.SyntaxKind.ArrowFunction,
+  ts.SyntaxKind.MethodDeclaration,
+  ts.SyntaxKind.Constructor,
+  ts.SyntaxKind.GetAccessor,
+  ts.SyntaxKind.SetAccessor,
+]);
+function segment(node) {
+  if (ts.isConstructorDeclaration(node)) return 'constructor';
+  if (node.name && !ts.isComputedPropertyName(node.name)) return node.name.getText();
+  const parent = node.parent;
+  if (
+    (ts.isVariableDeclaration(parent) ||
+      ts.isPropertyAssignment(parent) ||
+      ts.isPropertyDeclaration(parent)) &&
+    parent.name &&
+    !ts.isComputedPropertyName(parent.name) &&
+    !ts.isObjectBindingPattern(parent.name) &&
+    !ts.isArrayBindingPattern(parent.name)
+  )
+    return parent.name.getText();
+  return '<anonymous>';
+}
+/**
+ * Every function-like node with a body, named by its enclosing classes and functions
+ * (`outer.inner`); repeated names in one file take a `#2`, `#3` suffix in source order.
+ */
+export function measureFunctions(source) {
+  const measured = [];
+  const seen = new Map();
+  function visit(node, scope) {
+    let inner = scope;
+    if (ts.isClassLike(node)) inner = [...scope, node.name?.text ?? '<anonymous>'];
+    else if (FUNCTION_KINDS.has(node.kind) && node.body) {
+      inner = [...scope, segment(node)];
+      const base = inner.join('.');
+      const count = (seen.get(base) ?? 0) + 1;
+      seen.set(base, count);
+      const start = source.getLineAndCharacterOfPosition(node.getStart(source)).line;
+      const end = source.getLineAndCharacterOfPosition(node.getEnd()).line;
+      measured.push({ name: count === 1 ? base : `${base}#${count}`, lines: end - start + 1 });
+    }
+    ts.forEachChild(node, (child) => visit(child, inner));
+  }
+  visit(source, []);
+  return measured;
+}
+/** Failures of the function length rule for `{ file, name, lines }` rows against an allowlist. */
+export function functionSizeFailures(rows, allowlist = {}, limit = FUNCTION_LINE_LIMIT) {
+  const failures = [];
+  const found = new Set();
+  for (const { file, name, lines } of rows) {
+    const ceiling = allowlist[file]?.[name];
+    if (ceiling !== undefined) found.add(JSON.stringify([file, name]));
+    if (ceiling !== undefined && lines <= limit)
+      failures.push(
+        `${file} ${name} is ${lines} lines, within the ${limit}-line limit: remove its function size allowlist entry`,
+      );
+    else if (ceiling !== undefined && lines > ceiling)
+      failures.push(
+        `${file} ${name} is ${lines} lines, above its function size allowlist ceiling of ${ceiling}`,
+      );
+    else if (ceiling === undefined && lines > limit)
+      failures.push(`${file} ${name} is ${lines} lines: functions may have at most ${limit}`);
+  }
+  for (const [file, names] of Object.entries(allowlist))
+    for (const name of Object.keys(names))
+      if (!found.has(JSON.stringify([file, name])))
+        failures.push(
+          `${file} ${name} is in the function size allowlist but does not exist: remove its entry`,
+        );
+  return failures;
+}
+async function readAllowlist(root) {
+  try {
+    return JSON.parse(await readFile(path.join(root, FUNCTION_ALLOWLIST), 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return {};
+    throw error;
+  }
+}
 export async function checkArchitecture(root) {
   const files = [];
   async function walk(directory) {
@@ -195,6 +286,7 @@ export async function checkArchitecture(root) {
   const options = ts.parseJsonConfigFileContent(configFile.config ?? {}, ts.sys, root).options;
   const graph = new Map();
   const externals = new Map();
+  const functions = [];
   for (const filename of files) {
     const relative = normalize(path.relative(root, filename));
     const source = ts.createSourceFile(
@@ -213,6 +305,7 @@ export async function checkArchitecture(root) {
     }
     graph.set(relative, edges);
     externals.set(relative, packages);
+    for (const row of measureFunctions(source)) functions.push({ file: relative, ...row });
   }
   const failures = new Set();
   for (const file of graph.keys()) {
@@ -253,6 +346,8 @@ export async function checkArchitecture(root) {
   }
   const sources = new Map([...graph].filter(([file]) => file.startsWith('src/')));
   for (const chain of cycles(sources)) failures.add(`Import cycle: ${chain.join(' -> ')}`);
+  for (const failure of functionSizeFailures(functions, await readAllowlist(root)))
+    failures.add(failure);
   return [...failures].sort();
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,11 +1,6 @@
-import type {
-  Coverage,
-  Finding,
-  JsonValue,
-  RuleState,
-  ValidationResult,
-} from '../contracts/schemas.js';
+import type { Finding, JsonValue, RuleState } from '../contracts/schemas.js';
 import type { Immutable } from '../base/json.js';
+import type { StageReport } from '../core/stage-report.js';
 import type { CelErrorCode } from '../runtime/cel/errors.js';
 
 export interface RuleSubject {
@@ -14,9 +9,7 @@ export interface RuleSubject {
   readonly location: Immutable<Finding['location']>;
 }
 
-export interface RuleExecutionReport {
-  readonly findings: readonly Immutable<Finding>[];
-  readonly coverage: readonly Immutable<Coverage>[];
+export interface RuleExecutionReport extends StageReport {
   readonly ruleStates: readonly Immutable<RuleState>[];
   readonly failures: readonly {
     readonly subjectId: string;
@@ -24,5 +17,4 @@ export interface RuleExecutionReport {
     readonly code:
       CelErrorCode | 'unsupported_rule' | 'unsupported_processor' | 'catalog_unavailable';
   }[];
-  readonly interrupted: ValidationResult['resources']['interrupted'];
 }

@@ -38,6 +38,56 @@ const frame = (run: Immutable<ValidationRequest>) =>
     activation: run.activation,
   });
 
+type Observation = Exclude<
+  ReferenceDataPreparation['observations'][number],
+  { readonly status: 'blocked' }
+>;
+/**
+ * The pinned data entry of an observation. A proposed-catalog observation must equal the fact
+ * that the qualified sources derive; a backend observation must not bypass a proposed fact and
+ * must equal its pinned entry.
+ */
+function verifyObservation(
+  run: Immutable<ValidationRequest>,
+  preparation: ReferenceDataPreparation,
+  proposed: Awaited<ReturnType<typeof buildProposedCatalog>>,
+  data: ReadonlyMap<string, Immutable<DataEntry>>,
+  targetRef: string,
+  observation: Observation,
+): Immutable<DataEntry> | undefined {
+  const pinned = data.get(observation.key);
+  const { targetRef: ignored, ...entry } = observation;
+  if (observation.provenance.providerId === PROPOSED_CATALOG_PROVIDER) {
+    const fact = proposed.get(targetRef);
+    if (
+      !fact ||
+      fact.status === 'blocked' ||
+      !pinned ||
+      digestJson(proposedCatalogEntry(run, targetRef, fact, preparation.collectionStartedAt)) !==
+        digestJson(entry) ||
+      digestJson(pinned) !== digestJson(entry)
+    )
+      reject(
+        'integrity',
+        '/overlay',
+        'proposed catalog observation differs from the qualified source state',
+      );
+    return pinned;
+  }
+  if (proposed.get(targetRef))
+    reject('integrity', '/overlay', 'catalog observation bypasses proposed source precedence');
+  if (
+    ignored !== targetRef ||
+    observation.key !== catalogEntityKey(observation.provenance.connectionId, ignored) ||
+    observation.provenance.providerId !== 'backstage-catalog' ||
+    !pinned ||
+    digestJson(pinned) !== digestJson(entry)
+  ) {
+    reject('integrity', '/catalog', 'catalog observation differs from pinned data');
+  }
+  return pinned;
+}
+
 /** Bind only qualified source subjects and observations present in the exact pinned request. */
 export async function bindCatalogReferences(
   run: Immutable<ValidationRequest>,
@@ -106,50 +156,11 @@ export async function bindCatalogReferences(
       let expiresAt: number | undefined;
       if (observation?.status === 'blocked') status = 'blocked';
       else if (observation) {
-        if (!checked.has(observation.key)) {
-          const pinned = data.get(observation.key);
-          const { targetRef: ignored, ...entry } = observation;
-          if (observation.provenance.providerId === PROPOSED_CATALOG_PROVIDER) {
-            const fact = proposed.get(reference.targetRef);
-            if (
-              !fact ||
-              fact.status === 'blocked' ||
-              !pinned ||
-              digestJson(
-                proposedCatalogEntry(
-                  run,
-                  reference.targetRef,
-                  fact,
-                  preparation.collectionStartedAt,
-                ),
-              ) !== digestJson(entry) ||
-              digestJson(pinned) !== digestJson(entry)
-            )
-              reject(
-                'integrity',
-                '/overlay',
-                'proposed catalog observation differs from the qualified source state',
-              );
-            checked.set(observation.key, pinned);
-          } else {
-            if (proposed.get(reference.targetRef))
-              reject(
-                'integrity',
-                '/overlay',
-                'catalog observation bypasses proposed source precedence',
-              );
-            if (
-              ignored !== reference.targetRef ||
-              observation.key !== catalogEntityKey(observation.provenance.connectionId, ignored) ||
-              observation.provenance.providerId !== 'backstage-catalog' ||
-              !pinned ||
-              digestJson(pinned) !== digestJson(entry)
-            ) {
-              reject('integrity', '/catalog', 'catalog observation differs from pinned data');
-            }
-            checked.set(observation.key, pinned);
-          }
-        }
+        if (!checked.has(observation.key))
+          checked.set(
+            observation.key,
+            verifyObservation(run, preparation, proposed, data, reference.targetRef, observation),
+          );
         const pinned = checked.get(observation.key)!;
         status = pinned.status;
         expiresAt = pinned.provenance.expiresAt;

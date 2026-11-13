@@ -6,7 +6,6 @@ import type {
   PolicyBundle,
   SchemaArtifact,
   ValidationRequest,
-  ValidationResult,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
@@ -27,6 +26,8 @@ import { ContractError, reject } from '../base/errors.js';
 import { deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
+import { mergeInterruption } from '../core/stage-report.js';
+import type { Interruption } from '../core/stage-report.js';
 import {
   buildProposedCatalog,
   proposedCatalogEntry,
@@ -57,31 +58,328 @@ export interface ReferenceDataPreparation {
   /** Present only when data and the remaining original deadline can be pinned for evaluation. */
   readonly evaluationRequest?: Immutable<ValidationRequest>;
   readonly pinFailure?: 'interrupted' | 'stale_data' | 'resource_limit';
-  readonly interrupted: ValidationResult['resources']['interrupted'];
+  readonly interrupted: Interruption;
   readonly collectionStartedAt: number;
   readonly referencePaths: readonly string[];
   readonly failureEvidence?: readonly FailureEvidence[];
 }
-type Interruption = ReferenceDataPreparation['interrupted'];
 /** Immutable local work that advisory completion may reuse before catalog HTTP. */
 export interface LocalCatalogSources {
   readonly compatibility: BackstageCompatibilityReport;
   readonly baseline?: BackstageCompatibilityReport;
 }
-const priority: Record<Interruption, number> = {
-  none: 0,
-  resource_limit: 1,
-  worker_failure: 2,
-  cancelled: 3,
-  timeout: 4,
-};
-function merge(a: Interruption, b: Interruption): Interruption {
-  return priority[a] >= priority[b] ? a : b;
+type SourceContext = Parameters<typeof validateBackstageSources>[1];
+type ProposedCatalog = Awaited<ReturnType<typeof buildProposedCatalog>>;
+type PinFailure = ReferenceDataPreparation['pinFailure'];
+/** Shared by the collection steps; each step merges the interruption it observes. */
+interface Collection {
+  readonly run: Immutable<ValidationRequest>;
+  readonly budget: RequestBudget;
+  readonly timer: FailureTimer;
+  readonly failureEvidence: FailureEvidence[];
+  interruption: Interruption;
 }
 function interrupted(budget: RequestBudget): 'timeout' | 'cancelled' {
   return budget.signal.reason instanceof CelError && budget.signal.reason.code === 'request_timeout'
     ? 'timeout'
     : 'cancelled';
+}
+
+/** The selected reference contexts, which must be distinct declared contexts, sorted. */
+function selectReferencePaths(
+  context: SourceContext,
+  requested: readonly string[] | undefined,
+): string[] {
+  const referencePaths =
+    requested === undefined
+      ? context.profile.referenceContexts.map((row) => row.path)
+      : [...requested];
+  if (
+    referencePaths.length > 256 ||
+    new Set(referencePaths).size !== referencePaths.length ||
+    referencePaths.some(
+      (path) => !context.profile.referenceContexts.some((row) => row.path === path),
+    )
+  ) {
+    reject(
+      'invalid_contract',
+      '/referencePaths',
+      'reference collection must select declared contexts',
+    );
+  }
+  return referencePaths.sort();
+}
+
+/** The catalog access, which must bind this request's identity, pins and adapter. */
+function bindCatalogAccess(
+  run: Immutable<ValidationRequest>,
+  context: SourceContext,
+  provider: CatalogProvider,
+  requested: CatalogAccessContext,
+): CatalogAccessContext {
+  const access = normalizeCatalogAccess(requested);
+  if (
+    access.installationId !== run.identity.installationId ||
+    access.permissionRevision !== run.identity.permissionRevision ||
+    access.profileDigest !== run.profile.digest ||
+    access.policyDigest !== run.policy.digest ||
+    provider.adapterId !== context.profile.adapterId
+  ) {
+    reject('integrity', '/catalog', 'catalog context does not bind this validation request');
+  }
+  return access;
+}
+
+/** Validates the proposed and baseline sources and derives the proposed catalog from them. */
+async function qualifySources(
+  collection: Collection,
+  context: SourceContext,
+  onLocalSources: ((sources: LocalCatalogSources) => void) | undefined,
+) {
+  const { run, budget } = collection;
+  const compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
+  collection.interruption = compatibility.interrupted;
+  let baseline: BackstageCompatibilityReport | undefined;
+  if (run.baseline && collection.interruption === 'none' && !budget.interrupted) {
+    const { baseline: sourceBaseline, ...withoutBaseline } = run;
+    baseline = await validateBackstageSources(
+      parseContract('validation-request', { ...withoutBaseline, source: sourceBaseline }),
+      context,
+      { signal: budget.signal },
+    );
+    collection.interruption = mergeInterruption(collection.interruption, baseline.interrupted);
+  }
+  onLocalSources?.(Object.freeze({ compatibility, ...(baseline ? { baseline } : {}) }));
+  let proposed: ProposedCatalog | undefined;
+  try {
+    if (!run.baseline || baseline)
+      proposed = await buildProposedCatalog(run, compatibility, baseline, budget);
+  } catch (error) {
+    if (!(error instanceof CelError)) throw error;
+    collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+  }
+  return { compatibility, baseline, proposed };
+}
+
+/**
+ * Sorts the referenced targets into blocked targets and proposed-catalog facts, and records the
+ * proposed-catalog coverage on the compatibility report.
+ */
+function classifyTargets(
+  collection: Collection,
+  context: SourceContext,
+  compatibility: BackstageCompatibilityReport,
+  proposed: ProposedCatalog | undefined,
+  referencePaths: readonly string[],
+) {
+  const { run, budget } = collection;
+  const targets = [
+    ...new Set(
+      compatibility.references
+        .filter((reference) => referencePaths.includes(reference.contextPath))
+        .map((reference) => reference.targetRef),
+    ),
+  ].sort();
+  const blocked = new Map<string, ReferenceBlockReason>();
+  const received = new Map<string, Immutable<DataEntry>>();
+  for (const target of targets) {
+    if (collection.interruption !== 'none' || budget.interrupted || !proposed)
+      blocked.set(target, 'source_incomplete');
+    else {
+      const fact = proposed.get(target);
+      if (fact?.status === 'blocked') blocked.set(target, fact.reason);
+      else if (fact)
+        received.set(target, proposedCatalogEntry(run, target, fact, run.execution.startedAt));
+    }
+  }
+  const covered: BackstageCompatibilityReport = {
+    ...compatibility,
+    coverage: [
+      ...compatibility.coverage,
+      {
+        stage: 'overlay',
+        subject: 'proposed-catalog',
+        required: targets.length > 0,
+        status:
+          blocked.size || !proposed || context.profile.requiredProcessors.length
+            ? 'blocked'
+            : 'verified',
+      },
+    ],
+  };
+  return { compatibility: covered, targets, blocked, received };
+}
+
+/**
+ * Looks up the targets that neither the sources nor a block decided. A failed lookup blocks
+ * them as `provider_failure`; a returned snapshot must answer exactly them, with the request's
+ * authority.
+ */
+async function lookupCatalog(
+  collection: Collection,
+  provider: CatalogProvider,
+  access: CatalogAccessContext,
+  eligible: readonly string[],
+  blocked: Map<string, ReferenceBlockReason>,
+  received: Map<string, Immutable<DataEntry>>,
+): Promise<CatalogLookupReport | undefined> {
+  const { run, budget } = collection;
+  if (!eligible.length) return undefined;
+  let catalog: CatalogLookupReport;
+  try {
+    catalog = await provider.lookup(eligible, access, {
+      deadlineAt: run.execution.deadlineAt,
+      signal: budget.signal,
+    });
+  } catch (error) {
+    collection.failureEvidence.push(
+      collection.timer.capture(
+        'catalog_admission',
+        error instanceof CatalogProviderError
+          ? error.code === 'input_limit'
+            ? 'resource_limit'
+            : error.code === 'closed'
+              ? 'provider_error'
+              : 'invalid_contract'
+          : failureCause(error),
+        run.execution.deadlineAt,
+      ),
+    );
+    if (budget.interrupted)
+      collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+    else if (error instanceof CatalogProviderError && error.code === 'input_limit')
+      collection.interruption = mergeInterruption(collection.interruption, 'resource_limit');
+    for (const ref of eligible) blocked.set(ref, 'provider_failure');
+    return undefined;
+  }
+  const snapshot = parseContract('data-snapshot', catalog.data);
+  const expected = new Map(
+    eligible.map((ref) => [catalogEntityKey(provider.connectionId, ref), ref]),
+  );
+  if (snapshot.entries.length !== eligible.length)
+    reject('integrity', '/catalog', 'catalog observation set differs from request');
+  for (const entry of snapshot.entries) {
+    const ref = expected.get(entry.key);
+    const provenance = entry.provenance;
+    if (
+      !ref ||
+      provenance.providerId !== 'backstage-catalog' ||
+      provenance.connectionId !== provider.connectionId ||
+      provenance.installationId !== access.installationId ||
+      provenance.principalId !== access.principalId ||
+      provenance.permissionRevision !== access.permissionRevision ||
+      JSON.stringify([...provenance.scope].sort()) !== JSON.stringify(access.scope)
+    ) {
+      reject('integrity', '/catalog', 'catalog observation authority differs from request');
+    }
+    received.set(ref, entry);
+  }
+  collection.interruption = mergeInterruption(collection.interruption, catalog.interrupted);
+  return catalog;
+}
+
+/** One observation per target, in target order: its block reason or its received entry. */
+function observeTargets(
+  targets: readonly string[],
+  blocked: ReadonlyMap<string, ReferenceBlockReason>,
+  received: ReadonlyMap<string, Immutable<DataEntry>>,
+): BackstageReferenceObservation[] {
+  return targets.map((targetRef): BackstageReferenceObservation => {
+    const reason = blocked.get(targetRef);
+    if (reason !== undefined) return { targetRef, status: 'blocked', reason };
+    const entry = received.get(targetRef);
+    if (!entry) reject('integrity', '/catalog', 'catalog observation is missing');
+    return { ...entry, targetRef };
+  });
+}
+
+/**
+ * Merges the received observations into the request's retained data and pins the evaluation
+ * request at the current time, unless the data exceeds its limits, is not fresh, or the request
+ * was interrupted. A pin failure is recorded as failure evidence.
+ */
+function pinEvaluationRequest(
+  collection: Collection,
+  context: SourceContext,
+  provider: CatalogProvider,
+  received: ReadonlyMap<string, Immutable<DataEntry>>,
+) {
+  const { run, budget } = collection;
+  const retained = run.data.entries.filter(
+    (entry) =>
+      !(
+        entry.provenance.providerId === PROPOSED_CATALOG_PROVIDER ||
+        (entry.provenance.providerId === 'backstage-catalog' &&
+          entry.provenance.connectionId === provider.connectionId)
+      ),
+  );
+  const retainedKeys = new Set(retained.map((entry) => entry.key));
+  for (const entry of received.values())
+    if (retainedKeys.has(entry.key))
+      reject('integrity', '/data', 'catalog observation conflicts with retained data');
+  let data: Immutable<DataSnapshot>;
+  let pinFailure: PinFailure;
+  let evaluationRequest: Immutable<ValidationRequest> | undefined;
+  try {
+    data = createDataSnapshot([...retained, ...received.values()]);
+  } catch (error) {
+    if (!(error instanceof ContractError) || error.code !== 'limit') throw error;
+    data = createDataSnapshot([]);
+    pinFailure = 'resource_limit';
+    collection.interruption = mergeInterruption(collection.interruption, 'resource_limit');
+  }
+  const pinnedAt = Date.now();
+  if (budget.interrupted || pinnedAt >= run.execution.deadlineAt) {
+    pinFailure = 'interrupted';
+    collection.interruption = mergeInterruption(
+      collection.interruption,
+      budget.interrupted ? interrupted(budget) : 'timeout',
+    );
+  } else if (
+    !pinFailure &&
+    data.entries.some(
+      (entry) => entry.provenance.fetchedAt > pinnedAt || entry.provenance.expiresAt <= pinnedAt,
+    )
+  ) {
+    pinFailure = 'stale_data';
+    collection.interruption = mergeInterruption(collection.interruption, 'timeout');
+  } else if (!pinFailure) {
+    try {
+      evaluationRequest = parseContract('validation-request', {
+        ...run,
+        execution: { ...run.execution, startedAt: pinnedAt },
+        data,
+      });
+      verifyRequestBindings(evaluationRequest, context);
+    } catch (error) {
+      if (!(error instanceof ContractError) || error.code !== 'limit') throw error;
+      evaluationRequest = undefined;
+      pinFailure = 'resource_limit';
+      collection.interruption = mergeInterruption(collection.interruption, 'resource_limit');
+    }
+  }
+  if (budget.interrupted) {
+    evaluationRequest = undefined;
+    pinFailure = 'interrupted';
+    collection.interruption = mergeInterruption(collection.interruption, interrupted(budget));
+  }
+  if (pinFailure)
+    collection.failureEvidence.push(
+      collection.timer.capture(
+        'catalog_snapshot',
+        pinFailure === 'resource_limit'
+          ? 'aggregate_limit'
+          : pinFailure === 'stale_data'
+            ? data.entries.some((entry) => entry.provenance.fetchedAt > pinnedAt)
+              ? 'future_observation'
+              : 'observation_expired'
+            : collection.interruption === 'cancelled'
+              ? 'cancelled'
+              : 'request_timeout',
+        run.execution.deadlineAt,
+      ),
+    );
+  return { data, pinFailure, evaluationRequest };
 }
 
 /**
@@ -108,230 +406,32 @@ export async function prepareBackstageReferenceData(
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
   verifyRequestBindings(run, context);
-  const referencePaths =
-    options.referencePaths === undefined
-      ? context.profile.referenceContexts.map((row) => row.path)
-      : [...options.referencePaths];
-  if (
-    referencePaths.length > 256 ||
-    new Set(referencePaths).size !== referencePaths.length ||
-    referencePaths.some(
-      (path) => !context.profile.referenceContexts.some((row) => row.path === path),
-    )
-  ) {
-    reject(
-      'invalid_contract',
-      '/referencePaths',
-      'reference collection must select declared contexts',
-    );
-  }
-  referencePaths.sort();
-  const access = normalizeCatalogAccess(options.access);
+  const referencePaths = selectReferencePaths(context, options.referencePaths);
   const provider = options.provider;
-  if (
-    access.installationId !== run.identity.installationId ||
-    access.permissionRevision !== run.identity.permissionRevision ||
-    access.profileDigest !== run.profile.digest ||
-    access.policyDigest !== run.policy.digest ||
-    provider.adapterId !== context.profile.adapterId
-  ) {
-    reject('integrity', '/catalog', 'catalog context does not bind this validation request');
-  }
-  let compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
-  let interruption: Interruption = compatibility.interrupted;
-  let baseline: BackstageCompatibilityReport | undefined;
-  if (run.baseline && interruption === 'none' && !budget.interrupted) {
-    const { baseline: sourceBaseline, ...withoutBaseline } = run;
-    baseline = await validateBackstageSources(
-      parseContract('validation-request', { ...withoutBaseline, source: sourceBaseline }),
-      context,
-      { signal: budget.signal },
-    );
-    interruption = merge(interruption, baseline.interrupted);
-  }
-  options.onLocalSources?.(Object.freeze({ compatibility, ...(baseline ? { baseline } : {}) }));
-  let proposed: Awaited<ReturnType<typeof buildProposedCatalog>> | undefined;
-  try {
-    if (!run.baseline || baseline)
-      proposed = await buildProposedCatalog(run, compatibility, baseline, budget);
-  } catch (error) {
-    if (!(error instanceof CelError)) throw error;
-    interruption = merge(interruption, interrupted(budget));
-  }
-  const targets = [
-    ...new Set(
-      compatibility.references
-        .filter((reference) => referencePaths.includes(reference.contextPath))
-        .map((reference) => reference.targetRef),
-    ),
-  ].sort();
-  const blocked = new Map<string, ReferenceBlockReason>();
-  const received = new Map<string, Immutable<DataEntry>>();
-  for (const target of targets) {
-    if (interruption !== 'none' || budget.interrupted || !proposed)
-      blocked.set(target, 'source_incomplete');
-    else {
-      const fact = proposed.get(target);
-      if (fact?.status === 'blocked') blocked.set(target, fact.reason);
-      else if (fact)
-        received.set(target, proposedCatalogEntry(run, target, fact, run.execution.startedAt));
-    }
-  }
-  compatibility = {
-    ...compatibility,
-    coverage: [
-      ...compatibility.coverage,
-      {
-        stage: 'overlay',
-        subject: 'proposed-catalog',
-        required: targets.length > 0,
-        status:
-          blocked.size || !proposed || context.profile.requiredProcessors.length
-            ? 'blocked'
-            : 'verified',
-      },
-    ],
-  };
-  const eligible = targets.filter((target) => !blocked.has(target) && !received.has(target));
-  let catalog: CatalogLookupReport | undefined;
-  if (eligible.length) {
-    try {
-      catalog = await provider.lookup(eligible, access, {
-        deadlineAt: run.execution.deadlineAt,
-        signal: budget.signal,
-      });
-    } catch (error) {
-      failureEvidence.push(
-        timer.capture(
-          'catalog_admission',
-          error instanceof CatalogProviderError
-            ? error.code === 'input_limit'
-              ? 'resource_limit'
-              : error.code === 'closed'
-                ? 'provider_error'
-                : 'invalid_contract'
-            : failureCause(error),
-          run.execution.deadlineAt,
-        ),
-      );
-      if (budget.interrupted) interruption = merge(interruption, interrupted(budget));
-      else if (error instanceof CatalogProviderError && error.code === 'input_limit')
-        interruption = merge(interruption, 'resource_limit');
-      for (const ref of eligible) blocked.set(ref, 'provider_failure');
-    }
-  }
-  if (catalog) {
-    const snapshot = parseContract('data-snapshot', catalog.data);
-    const expected = new Map(
-      eligible.map((ref) => [catalogEntityKey(provider.connectionId, ref), ref]),
-    );
-    if (snapshot.entries.length !== eligible.length)
-      reject('integrity', '/catalog', 'catalog observation set differs from request');
-    for (const entry of snapshot.entries) {
-      const ref = expected.get(entry.key);
-      const provenance = entry.provenance;
-      if (
-        !ref ||
-        provenance.providerId !== 'backstage-catalog' ||
-        provenance.connectionId !== provider.connectionId ||
-        provenance.installationId !== access.installationId ||
-        provenance.principalId !== access.principalId ||
-        provenance.permissionRevision !== access.permissionRevision ||
-        JSON.stringify([...provenance.scope].sort()) !== JSON.stringify(access.scope)
-      ) {
-        reject('integrity', '/catalog', 'catalog observation authority differs from request');
-      }
-      received.set(ref, entry);
-    }
-    interruption = merge(interruption, catalog.interrupted);
-  }
-  const observations = targets.map((targetRef): BackstageReferenceObservation => {
-    const reason = blocked.get(targetRef);
-    if (reason !== undefined) return { targetRef, status: 'blocked', reason };
-    const entry = received.get(targetRef);
-    if (!entry) reject('integrity', '/catalog', 'catalog observation is missing');
-    return { ...entry, targetRef };
-  });
-  const retained = run.data.entries.filter(
-    (entry) =>
-      !(
-        entry.provenance.providerId === PROPOSED_CATALOG_PROVIDER ||
-        (entry.provenance.providerId === 'backstage-catalog' &&
-          entry.provenance.connectionId === provider.connectionId)
-      ),
+  const access = bindCatalogAccess(run, context, provider, options.access);
+  const collection: Collection = { run, budget, timer, failureEvidence, interruption: 'none' };
+  const sources = await qualifySources(collection, context, options.onLocalSources);
+  const { baseline } = sources;
+  const { compatibility, targets, blocked, received } = classifyTargets(
+    collection,
+    context,
+    sources.compatibility,
+    sources.proposed,
+    referencePaths,
   );
-  const retainedKeys = new Set(retained.map((entry) => entry.key));
-  for (const entry of received.values())
-    if (retainedKeys.has(entry.key))
-      reject('integrity', '/data', 'catalog observation conflicts with retained data');
-  let data: Immutable<DataSnapshot>;
-  let pinFailure: ReferenceDataPreparation['pinFailure'];
-  let evaluationRequest: Immutable<ValidationRequest> | undefined;
-  try {
-    data = createDataSnapshot([...retained, ...received.values()]);
-  } catch (error) {
-    if (!(error instanceof ContractError) || error.code !== 'limit') throw error;
-    data = createDataSnapshot([]);
-    pinFailure = 'resource_limit';
-    interruption = merge(interruption, 'resource_limit');
-  }
-  const pinnedAt = Date.now();
-  if (budget.interrupted || pinnedAt >= run.execution.deadlineAt) {
-    pinFailure = 'interrupted';
-    interruption = merge(interruption, budget.interrupted ? interrupted(budget) : 'timeout');
-  } else if (
-    !pinFailure &&
-    data.entries.some(
-      (entry) => entry.provenance.fetchedAt > pinnedAt || entry.provenance.expiresAt <= pinnedAt,
-    )
-  ) {
-    pinFailure = 'stale_data';
-    interruption = merge(interruption, 'timeout');
-  } else if (!pinFailure) {
-    try {
-      evaluationRequest = parseContract('validation-request', {
-        ...run,
-        execution: { ...run.execution, startedAt: pinnedAt },
-        data,
-      });
-      verifyRequestBindings(evaluationRequest, context);
-    } catch (error) {
-      if (!(error instanceof ContractError) || error.code !== 'limit') throw error;
-      evaluationRequest = undefined;
-      pinFailure = 'resource_limit';
-      interruption = merge(interruption, 'resource_limit');
-    }
-  }
-  if (budget.interrupted) {
-    evaluationRequest = undefined;
-    pinFailure = 'interrupted';
-    interruption = merge(interruption, interrupted(budget));
-  }
-  if (pinFailure)
-    failureEvidence.push(
-      timer.capture(
-        'catalog_snapshot',
-        pinFailure === 'resource_limit'
-          ? 'aggregate_limit'
-          : pinFailure === 'stale_data'
-            ? data.entries.some((entry) => entry.provenance.fetchedAt > pinnedAt)
-              ? 'future_observation'
-              : 'observation_expired'
-            : interruption === 'cancelled'
-              ? 'cancelled'
-              : 'request_timeout',
-        run.execution.deadlineAt,
-      ),
-    );
+  const eligible = targets.filter((target) => !blocked.has(target) && !received.has(target));
+  const catalog = await lookupCatalog(collection, provider, access, eligible, blocked, received);
+  const observations = observeTargets(targets, blocked, received);
+  const pinned = pinEvaluationRequest(collection, context, provider, received);
   return deepFreeze({
     compatibility,
     ...(baseline ? { baseline } : {}),
     observations,
-    data,
+    data: pinned.data,
     ...(catalog ? { catalog } : {}),
-    ...(evaluationRequest ? { evaluationRequest } : {}),
-    ...(pinFailure ? { pinFailure } : {}),
-    interrupted: interruption,
+    ...(pinned.evaluationRequest ? { evaluationRequest: pinned.evaluationRequest } : {}),
+    ...(pinned.pinFailure ? { pinFailure: pinned.pinFailure } : {}),
+    interrupted: collection.interruption,
     collectionStartedAt: run.execution.startedAt,
     referencePaths,
     failureEvidence,

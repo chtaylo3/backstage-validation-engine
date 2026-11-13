@@ -56,6 +56,25 @@ count as imports. The check also enforces these rules:
 - `@backstage/catalog-model` and `backstage-catalog-model-older` are imported only from
   `compatibility`, `@marcbachmann/cel-js` only from `runtime`, and `yaml` only from `parsing` and
   `lsp`.
+- No function, method, constructor, accessor, or arrow function in `src/` or
+  `extensions/vscode/src/` is longer than 150 lines. `scripts/function-size-allowlist.json` lists
+  the older functions above the limit, each with its current length as a ceiling. An allowlisted
+  function may not grow, and an entry fails once its function is within the limit or gone.
+
+### Pipeline stages
+
+Source validation, rule execution, and their composition report through one contract in
+`src/core/stage-report.ts`: ordered findings, ordered coverage, and an interruption.
+`INTERRUPTION_PRIORITY` and `mergeInterruption` rank interruptions, and `mergeCoverage` keeps one
+row per stage and subject.
+
+- `src/compatibility/sources.ts` orchestrates the stage modules in `src/compatibility/stages/`:
+  the processing gate, preparation, and per document substitution, native validation, admission,
+  references, and Location discovery, followed by identity conflicts. The stages share one run
+  state object. Source stages assign the interruption instead of merging it.
+- `src/pipeline/cel-rules.ts` schedules subjects on lanes (`src/pipeline/rules/lanes.ts`) and
+  evaluates each rule through `RULE_EVALUATORS`, one evaluator module per rule kind. A rule kind
+  without an evaluator does not compile.
 
 ## Implemented editor and host ownership
 

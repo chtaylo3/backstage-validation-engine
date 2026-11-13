@@ -1,89 +1,27 @@
 import type {
   ActivationManifest,
-  Coverage,
   DeploymentProfile,
-  Finding,
   PolicyBundle,
-  RuleState,
   SchemaArtifact,
   ValidationRequest,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
-import { orderRules } from '../contracts/rule-graph.js';
-import { getSharedCelRuntime } from '../runtime/cel/index.js';
-import type { CelRuntime } from '../runtime/cel/index.js';
 import { CelError, cancellationError } from '../runtime/cel/errors.js';
-import type { CelErrorCode } from '../runtime/cel/errors.js';
 import { RequestBudget } from '../runtime/request-budget.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { reject } from '../base/errors.js';
 import { deepFreeze, immutableJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
-import { createFindingId } from '../core/results.js';
-import { bindCatalogReferences } from './catalog-bindings.js';
-import type { CatalogBindings } from './catalog-bindings.js';
-import type { ReferenceDataPreparation } from './reference-data.js';
+import { mergeInterruption } from '../core/stage-report.js';
+import type { Interruption } from '../core/stage-report.js';
 import { blockedProcessorRules } from './blocked-rules.js';
-import { createSchemaRegistry } from '../compatibility/custom-schemas.js';
-import { scalarConstEdit, SCALAR_FIX_LIMITS } from './scalar-fixes.js';
-import type { SourceSubstitution } from '../compatibility/types.js';
-import { locateParsedPath } from '../parsing/locations.js';
-import type { SourceLineIndex } from '../parsing/locations.js';
-import type { ParsedSourceDocument } from '../parsing/types.js';
+import { prepareRuleRun } from './rules/context.js';
+import { scheduleLanes } from './rules/lanes.js';
+import { evaluateSubject } from './rules/subject.js';
+import type { RuleExecutionOptions } from './rules/types.js';
 import type { RuleExecutionReport, RuleSubject } from './types.js';
 
 export type { RuleSubject, RuleExecutionReport } from './types.js';
-
-type StateFailure = Pick<RuleState, 'status' | 'reason'>;
-type Interruption = RuleExecutionReport['interrupted'];
-const INTERRUPTION_PRIORITY: Record<Interruption, number> = {
-  none: 0,
-  resource_limit: 1,
-  worker_failure: 2,
-  cancelled: 3,
-  timeout: 4,
-};
-
-function mergeInterruption(current: Interruption, next: Interruption): Interruption {
-  return INTERRUPTION_PRIORITY[next] > INTERRUPTION_PRIORITY[current] ? next : current;
-}
-
-function stateInterruption(reason: RuleState['reason']): Interruption {
-  if (reason === 'timeout') return 'timeout';
-  if (reason === 'cancelled') return 'cancelled';
-  if (reason === 'worker_failure') return 'worker_failure';
-  if (reason === 'resource_limit' || reason === 'queue_exhausted') return 'resource_limit';
-  return 'none';
-}
-
-function failureState(code: CelErrorCode): StateFailure {
-  switch (code) {
-    case 'parse':
-    case 'profile':
-    case 'regex':
-    case 'result_type':
-      return { status: 'invalid_policy', reason: 'invalid_expression' };
-    case 'evaluation':
-    case 'input_type':
-      return { status: 'error' };
-    case 'input_limit':
-    case 'regex_limit':
-      return { status: 'incomplete', reason: 'resource_limit' };
-    case 'queue_limit':
-      return { status: 'incomplete', reason: 'queue_exhausted' };
-    case 'cancelled':
-      return { status: 'incomplete', reason: 'cancelled' };
-    case 'queue_timeout':
-    case 'request_timeout':
-    case 'execution_timeout':
-      return { status: 'incomplete', reason: 'timeout' };
-    case 'worker_start':
-    case 'worker_failure':
-    case 'protocol':
-    case 'closed':
-      return { status: 'incomplete', reason: 'worker_failure' };
-  }
-}
 
 /**
  * Runs policy rules over already-normalized entities. This is a rules-stage API,
@@ -99,16 +37,7 @@ export async function executePolicyRules(
     readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   },
   subjects: readonly RuleSubject[],
-  options: {
-    readonly signal?: AbortSignal;
-    readonly runtime?: CelRuntime;
-    readonly referenceData?: ReferenceDataPreparation;
-    readonly sourceDocuments?: readonly ParsedSourceDocument[];
-    readonly sourceSubstitutions?: readonly {
-      readonly subjectId: string;
-      readonly substitutions: readonly SourceSubstitution[];
-    }[];
-  } = {},
+  options: RuleExecutionOptions = {},
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
   using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
@@ -139,304 +68,26 @@ export async function executePolicyRules(
         : 'none',
     });
   }
-  const schemas = createSchemaRegistry(context.schemaArtifacts);
-  const schemaValidators = new Map(
-    policy.rules
-      .filter((rule) => rule.kind === 'schema')
-      .map((rule) => [rule.id, schemas.get(rule.schema)]),
+  const prepared = await prepareRuleRun(
+    run,
+    profile,
+    policy,
+    sorted,
+    budget,
+    context.schemaArtifacts,
+    options,
   );
-  const sourceFiles = new Map(run.source.files.map((file) => [file.uri, file]));
-  const documents = new Map<string, ParsedSourceDocument>();
-  for (const document of options.sourceDocuments ?? []) {
-    const file = sourceFiles.get(document.uri);
-    if (!file || file.digest !== document.sourceDigest || file.version !== document.version)
-      reject('integrity', '/sourceDocuments', 'rule source provenance does not match the snapshot');
-    documents.set(JSON.stringify([document.uri, document.document]), document);
-  }
-  const substitutions = new Map(
-    options.sourceSubstitutions?.map((row) => [row.subjectId, row.substitutions]),
-  );
-  const fixIndexes = new Map<string, SourceLineIndex>();
-  let generatedFixes = 0;
-  const rulesById = new Map(policy.rules.map((rule) => [rule.id, rule]));
-  const rules = orderRules(policy.rules, profile.limits.graphDepth).map((id) => {
-    const rule = rulesById.get(id);
-    if (!rule) throw new Error('Rule graph invariant violated');
-    return rule;
-  });
-  const runtime = options.runtime ?? getSharedCelRuntime();
-  const catalogPaths = [
-    ...new Set(
-      policy.rules.filter((rule) => rule.kind === 'catalog').map((rule) => rule.referencePath),
-    ),
-  ];
-  let catalogBindings: CatalogBindings = new Map();
-  try {
-    if (catalogPaths.length)
-      catalogBindings = await bindCatalogReferences(
-        run,
-        profile,
-        sorted,
-        catalogPaths,
-        options.referenceData,
-        budget,
-      );
-  } catch (error) {
-    if (!(error instanceof CelError) || !budget.interrupted) throw error;
-  }
-  const evaluationContext = {
-    requestId: JSON.stringify([
-      run.identity.installationId,
-      run.identity.repositoryId,
-      run.run.runId,
-      run.run.attemptId,
-      run.run.generation,
-    ]),
-    deadlineAt: run.execution.deadlineAt,
-    signal: budget.signal,
-    executionMs: profile.limits.celExecutionMs,
-  };
-  const reports = new Array<RuleExecutionReport>(sorted.length);
-  let next = 0;
-  const lane = async (): Promise<void> => {
-    while (next < sorted.length) {
-      const index = next++;
-      const subject = sorted[index];
-      if (!subject) throw new Error('Subject scheduling invariant violated');
-      const states = new Map<string, RuleState>();
-      const findings: Finding[] = [];
-      const coverage: Coverage[] = [];
-      const failures: {
-        subjectId: string;
-        ruleId: string;
-        code: CelErrorCode | 'unsupported_rule' | 'catalog_unavailable';
-      }[] = [];
-      let interrupted: RuleExecutionReport['interrupted'] = 'none';
-      for (const rule of rules) {
-        const state: RuleState = {
-          ruleId: rule.id,
-          subjectId: subject.id,
-          required: rule.mandatory,
-          status: 'passed',
-        };
-        const covered: Coverage = {
-          stage: 'rules',
-          subject: JSON.stringify([subject.id, rule.id]),
-          required: rule.mandatory,
-          status: 'verified',
-        };
-        if (rule.requires.some((id) => states.get(id)?.status !== 'passed')) {
-          state.status = 'blocked';
-          state.reason = 'prerequisite_blocked';
-          covered.status = 'blocked';
-          covered.reason = 'A prerequisite did not pass.';
-        } else {
-          try {
-            budget.throwIfInterrupted();
-            if (
-              rule.selector &&
-              !(await runtime.evaluate(rule.selector, subject.value, evaluationContext))
-            ) {
-              state.status = 'not_applicable';
-            } else if (rule.kind === 'schema') {
-              const validate = schemaValidators.get(rule.id);
-              const issue = validate?.issue(subject.value);
-              const path = validate ? issue?.path : '';
-              budget.throwIfInterrupted();
-              if (!validate || path !== undefined) {
-                const dependency = !validate;
-                state.status = dependency ? 'incomplete' : 'failed';
-                if (dependency) {
-                  state.reason = 'dependency_unavailable';
-                  covered.status = 'unavailable';
-                  covered.reason = 'The pinned policy schema artifact is unavailable.';
-                  failures.push({
-                    subjectId: subject.id,
-                    ruleId: rule.id,
-                    code: 'unsupported_rule',
-                  });
-                }
-                const pointer = path ?? '';
-                const document = documents.get(subject.id);
-                let nearest = pointer;
-                while (document && !document.locations[nearest] && nearest)
-                  nearest = nearest.slice(0, nearest.lastIndexOf('/'));
-                const location = document
-                  ? locateParsedPath(document, pointer)
-                  : { ...subject.location, path: pointer };
-                const edit =
-                  !dependency && generatedFixes < SCALAR_FIX_LIMITS.generated
-                    ? scalarConstEdit(
-                        run,
-                        document,
-                        subject.value,
-                        issue,
-                        substitutions.get(subject.id) ?? [],
-                        fixIndexes,
-                      )
-                    : undefined;
-                if (edit) generatedFixes++;
-                budget.throwIfInterrupted();
-                findings.push({
-                  id: createFindingId({
-                    ruleId: rule.id,
-                    ruleVersion: rule.version,
-                    subjectId: subject.id,
-                    path: pointer,
-                    policyDigest: run.policy.digest,
-                    profileDigest: run.profile.digest,
-                  }),
-                  ruleId: rule.id,
-                  ruleVersion: rule.version,
-                  subjectId: subject.id,
-                  message: dependency
-                    ? 'The pinned policy schema artifact is unavailable.'
-                    : 'Entity does not satisfy the policy schema.',
-                  category: dependency ? 'dependency' : 'policy',
-                  severity: dependency && run.execution.mode === 'ide' ? 'warning' : rule.severity,
-                  enforcement:
-                    run.execution.mode === 'ci' &&
-                    (dependency ? rule.mandatory : rule.mandatory || rule.severity === 'error')
-                      ? 'blocking'
-                      : 'advisory',
-                  location,
-                  relatedLocations: [...(document?.locations[nearest]?.relatedLocations ?? [])],
-                  edits: edit ? [edit] : [],
-                });
-              }
-            } else if (rule.kind === 'catalog') {
-              const facts = catalogBindings.get(subject.id)?.get(rule.referencePath);
-              const unavailable = facts?.find(
-                (fact) =>
-                  fact.status === 'unavailable' ||
-                  fact.status === 'blocked' ||
-                  (fact.expiresAt !== undefined && fact.expiresAt <= Date.now()),
-              );
-              const addFinding = (
-                location: Finding['location'],
-                relatedLocations: readonly Immutable<Finding['location']>[],
-                dependency: boolean,
-                entityPath: string = location.path,
-              ) =>
-                findings.push({
-                  id: createFindingId({
-                    ruleId: rule.id,
-                    ruleVersion: rule.version,
-                    subjectId: subject.id,
-                    path: entityPath,
-                    policyDigest: run.policy.digest,
-                    profileDigest: run.profile.digest,
-                  }),
-                  ruleId: rule.id,
-                  ruleVersion: rule.version,
-                  subjectId: subject.id,
-                  message: dependency
-                    ? 'Catalog data is unavailable for this policy rule.'
-                    : 'Referenced entity is absent from the proposed catalog view.',
-                  category: dependency ? 'dependency' : 'policy',
-                  severity: dependency && run.execution.mode === 'ide' ? 'warning' : rule.severity,
-                  enforcement:
-                    run.execution.mode === 'ci' &&
-                    (dependency ? rule.mandatory : rule.mandatory || rule.severity === 'error')
-                      ? 'blocking'
-                      : 'advisory',
-                  location,
-                  relatedLocations: [...relatedLocations],
-                  edits: [],
-                });
-              if (!facts || unavailable) {
-                state.status = 'incomplete';
-                state.reason = 'dependency_unavailable';
-                covered.status = unavailable?.status === 'unavailable' ? 'unavailable' : 'blocked';
-                covered.reason = 'Catalog observations required by the policy are unavailable.';
-                failures.push({
-                  subjectId: subject.id,
-                  ruleId: rule.id,
-                  code: 'catalog_unavailable',
-                });
-                addFinding(
-                  unavailable?.reference.location ?? subject.location,
-                  unavailable?.reference.relatedLocations ?? [],
-                  true,
-                  unavailable?.reference.entityPath ?? subject.location.path,
-                );
-              } else if (!facts.length) state.status = 'not_applicable';
-              else {
-                const missing = facts.filter((fact) => fact.status === 'missing');
-                if (missing.length) state.status = 'failed';
-                for (const fact of missing)
-                  addFinding(
-                    fact.reference.location,
-                    fact.reference.relatedLocations,
-                    false,
-                    fact.reference.entityPath,
-                  );
-              }
-            } else if (
-              !(await runtime.evaluate(rule.expression, subject.value, evaluationContext))
-            ) {
-              state.status = 'failed';
-              findings.push({
-                id: createFindingId({
-                  ruleId: rule.id,
-                  ruleVersion: rule.version,
-                  subjectId: subject.id,
-                  path: subject.location.path,
-                  policyDigest: run.policy.digest,
-                  profileDigest: run.profile.digest,
-                }),
-                ruleId: rule.id,
-                ruleVersion: rule.version,
-                subjectId: subject.id,
-                message: 'Entity does not satisfy the policy rule.',
-                category: 'policy',
-                severity: rule.severity,
-                enforcement:
-                  run.execution.mode === 'ci' && (rule.mandatory || rule.severity === 'error')
-                    ? 'blocking'
-                    : 'advisory',
-                location: subject.location,
-                relatedLocations: [],
-                edits: [],
-              });
-            }
-          } catch (failure) {
-            const error = failure instanceof CelError ? failure : new CelError('worker_failure');
-            Object.assign(state, failureState(error.code));
-            covered.status = 'blocked';
-            covered.reason = error.message;
-            failures.push({ subjectId: subject.id, ruleId: rule.id, code: error.code });
-            interrupted = mergeInterruption(interrupted, stateInterruption(state.reason));
-          }
-        }
-        states.set(rule.id, state);
-        coverage.push(covered);
-      }
-      // A required summary records stage completion even for optional/empty rule sets.
-      const incomplete = [...states.values()].some(
-        (state) => state.required && !['passed', 'failed', 'not_applicable'].includes(state.status),
-      );
-      coverage.push({
-        stage: 'rules',
-        subject: JSON.stringify([subject.id]),
-        required: true,
-        status: incomplete ? 'blocked' : 'verified',
-      });
-      reports[index] = {
-        findings,
-        coverage,
-        ruleStates: [...states.values()],
-        failures,
-        interrupted,
-      };
-    }
-  };
   const concurrency = Math.min(
     profile.limits.celWorkers,
     profile.limits.celOutstandingJobs,
     sorted.length,
   );
-  await Promise.all(Array.from({ length: concurrency }, lane));
+  // Reports are indexed by sorted subject ID; lanes share the run context's fix budget.
+  const reports = await scheduleLanes(sorted.length, concurrency, (index) => {
+    const subject = sorted[index];
+    if (!subject) throw new Error('Subject scheduling invariant violated');
+    return evaluateSubject(prepared.context, prepared.rules, subject);
+  });
   const interrupted = budget.interrupted
     ? cancellationError(budget.signal).code === 'request_timeout'
       ? 'timeout'
