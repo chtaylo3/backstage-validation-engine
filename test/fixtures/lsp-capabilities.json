@@ -140,8 +140,12 @@
   },
   "no filesystem; position encodings without UTF-16": {
     "error": {
-      "type": "Error",
-      "message": "UTF-16 positions are required."
+      "type": "ResponseError",
+      "code": -32602,
+      "message": "UTF-16 positions are required.",
+      "data": {
+        "retry": false
+      }
     }
   },
   "filesystem; empty capabilities": {
@@ -291,8 +295,12 @@
   },
   "filesystem; position encodings without UTF-16": {
     "error": {
-      "type": "Error",
-      "message": "UTF-16 positions are required."
+      "type": "ResponseError",
+      "code": -32602,
+      "message": "UTF-16 positions are required.",
+      "data": {
+        "retry": false
+      }
     }
   },
   "second initialize after success": [
@@ -310,8 +318,12 @@
   "initialize after a rejected position encoding": [
     {
       "error": {
-        "type": "Error",
-        "message": "UTF-16 positions are required."
+        "type": "ResponseError",
+        "code": -32602,
+        "message": "UTF-16 positions are required.",
+        "data": {
+          "retry": false
+        }
       }
     },
     {

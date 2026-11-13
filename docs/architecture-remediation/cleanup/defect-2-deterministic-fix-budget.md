@@ -1,6 +1,8 @@
 # Defect 2: The fix budget depends on worker timing
 
-Read [the cleanup rules](README.md) first.
+Read [the cleanup rules](README.md) first. Do not start until the decision in
+[defect 3, "Unknown errors"](defect-3-contract-errors-in-rules.md#unknown-errors) is recorded,
+because step 4 below reports through the channel chosen there.
 
 ## Defect
 
@@ -14,6 +16,10 @@ in sorted order, and the first 64 eligible findings receive the fixes. When a CE
 awaited, lanes interleave by worker completion time. With more than 64 eligible findings, which
 findings receive a fix then varies between runs of the same request. The report, its digest, and
 the editor's quick fixes are not reproducible.
+
+A second fault sits in the same code. If building a fix throws, the surrounding rule is recorded
+as `incomplete` with a worker failure and its finding is lost, although the schema check itself
+had already completed and failed.
 
 ## Fix
 
@@ -31,17 +37,24 @@ Assign fixes after all lanes finish, in a fixed order.
    against the limit. A candidate that yields no edit does not count, as today.
 3. **Interruption.** If the request budget is interrupted, stop assigning. Do not throw. The
    findings stay without edits and the report's `interrupted` value is computed as today.
-4. **Errors while building a fix.** A fix is optional and must not change a rule's result. A
-   `ContractError` propagates. Any other error leaves that finding without an edit.
+4. **Errors while building a fix (decided: keep the verdict, drop the fix, report the error).** A
+   fix is optional, and by the time it is built the rule's verdict is known. An error here must
+   not change the rule state or remove the finding.
+   - A `ContractError` with the code `limit` leaves that finding without an edit. It is an
+     expected bound on optional output, like the 64-fix limit, and is not reported as an error.
+   - Any other `ContractError` propagates and fails the run, as in defect 3.
+   - Any other error leaves that finding without an edit, keeps the rule `failed`, and is reported
+     as an internal error through the channel that defect 3 defines for unknown errors. Assignment
+     continues with the next candidate.
 5. **Remove the shared counter** from the rule run context. The line-index cache
    (`fixes.indexes`) moves to the assignment step.
 
 The order in step 2 equals the order that a policy without CEL already produces, so those runs do
 not change.
 
-Keep the candidate list internal. `RuleExecutionReport` and every exported type keep their shape.
-Put the assignment step in its own module under `src/pipeline/rules/` and keep every function
-within the size limits.
+Keep the candidate list internal. `RuleExecutionReport` and every exported type keep their shape,
+apart from what defect 3's reporting channel adds. Put the assignment step in its own module under
+`src/pipeline/rules/` and keep every function within the size limits.
 
 ## What changes for callers
 
@@ -50,6 +63,7 @@ within the size limits.
 - With more than 64 and CEL in the policy: the same 64 findings receive fixes on every run, namely
   the first 64 eligible ones in sorted subject order and rule order.
 - An unexpected error while building a fix no longer turns a failed rule into an incomplete one.
+  The finding stays, without a fix, and the error is reported as an internal error.
 
 ## Success criteria
 
@@ -59,11 +73,14 @@ within the size limits.
    sorted subject order and rule order.
 3. `fixes.generated`, or any other counter shared between lanes, no longer exists in
    `src/pipeline/rules/`.
-4. `test/fixtures/pipeline-golden.json` is byte-identical. If a scenario changes, the report lists
+4. An error while building a fix never changes a rule state, a finding other than its `edits`, or
+   a coverage row. An unknown error is visible through defect 3's reporting channel, with the
+   subject and rule it belongs to.
+5. `test/fixtures/pipeline-golden.json` is byte-identical. If a scenario changes, the report lists
    it and shows that the policy in that scenario awaits CEL and exceeds the limit.
-5. The exported types and `test/fixtures/public-api.json` are unchanged.
-6. The new tests below fail before the fix where marked, and pass after it.
-7. The full gate passes, and `npm run benchmark:cel` shows no warm p95 regression above 15% for
+6. The exported names in `test/fixtures/public-api.json` change only as defect 3 allows.
+7. The new tests below fail before the fix where marked, and pass after it.
+8. The full gate passes, and `npm run benchmark:cel` shows no warm p95 regression above 15% for
    the 100-entity case. Report the numbers before and after.
 
 ## Test cases
@@ -87,10 +104,13 @@ the test resolves in a chosen order. No test waits on a timer.
 6. **Interrupted before assignment**: the budget is aborted after the lanes finish and before
    assignment. No finding carries an edit, the findings and rule states are otherwise unchanged,
    and `interrupted` is reported.
-7. **Error while building a fix**: a candidate whose edit construction throws a plain `Error`
-   leaves that finding without an edit, keeps the rule `failed`, and does not affect other
-   findings. A `ContractError` propagates.
-8. **Concurrency**: case 1 with one, two, and four lanes gives the same report.
+7. **Unknown error while building a fix** (fails before): one candidate's edit construction throws
+   a plain `Error`. That finding has no edit, its rule is still `failed`, its coverage row is
+   unchanged, the candidates after it still receive edits, and the internal error is reported with
+   that subject and rule.
+8. **Contract errors while building a fix**: a `limit` error leaves the finding without an edit and
+   reports nothing; an `integrity` error rejects the run.
+9. **Concurrency**: case 1 with one, two, and four lanes gives the same report.
 
 ## Out of scope
 

@@ -548,7 +548,10 @@ They follow the [LSP initialize rules](https://raw.githubusercontent.com/microso
 and [shutdown rules](https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/shutdown.md).
 
 The server supports UTF-16 positions. An absent encoding offer retains UTF-16.
-An offer that includes UTF-16 selects it. An offer that excludes it fails initialization with the existing UTF-16 requirement.
+An offer that includes UTF-16 selects it. An offer that excludes it fails initialization with `InvalidParams` (`-32602`),
+the message `UTF-16 positions are required.`, and `data: { retry: false }` (the protocol's `InitializeError`).
+The check runs before the server records any client feature, so a rejected `initialize` leaves the server uninitialized and a later valid `initialize` succeeds.
+The guard against a second `initialize` or one after shutdown (`-32600`) runs first.
 Client `rootUri` and `workspaceFolders` cannot widen or replace the trusted launcher source roots or file selection.
 Watcher registration rejection produces a sanitized warning. Save notifications still refresh approved files.
 

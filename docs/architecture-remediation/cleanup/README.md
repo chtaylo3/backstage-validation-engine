@@ -1,17 +1,28 @@
 # Cleanup phase: existing defects
 
-The seven remediation phases preserved four defects on purpose, because those phases were
+The seven remediation phases preserved a set of defects on purpose, because those phases were
 structural. This phase fixes them. Each defect has its own plan:
 
-| Order | Plan                                                                      | Defect                                                          |
-| ----- | ------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 1     | [Interruption priority](defect-1-interruption-priority.md)                | Source validation overwrites the interruption it should merge   |
-| 2     | [Deterministic fix budget](defect-2-deterministic-fix-budget.md)          | Which findings receive generated fixes depends on worker timing |
-| 3     | [Contract errors in rule execution](defect-3-contract-errors-in-rules.md) | A contract error inside a rule is reported as a worker failure  |
-| 4     | [Position encoding rejection](defect-4-initialize-encoding-rejection.md)  | `initialize` rejects with an internal error after writing state |
+| Order | Plan                                                                             | Defect                                                            |
+| ----- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1     | [Interruption priority](defect-1-interruption-priority.md)                       | Source validation overwrites the interruption it should merge     |
+| 2     | [Deterministic fix budget](defect-2-deterministic-fix-budget.md)                 | Which findings receive generated fixes depends on worker timing   |
+| 3     | [Errors in rule execution](defect-3-contract-errors-in-rules.md)                 | Contract and unknown errors inside a rule become a worker failure |
+| 4     | [Position encoding rejection](defect-4-initialize-encoding-rejection.md)         | `initialize` rejects with an internal error after writing state   |
+| 5     | [Document notification parameters](defect-5-document-notification-parameters.md) | Document notifications throw on missing parameters                |
+| 6     | [Custom notifications before initialization](defect-6-notification-admission.md) | `bve/recordSelection` is dropped without a stated rule            |
+| 7     | [Oversized watched-files notifications](defect-7-oversized-watched-files.md)     | A large notification always refreshes, admitted or not            |
+| 8     | [Missing catalog observation check](defect-8-missing-observation-check.md)       | A rejection in reference preparation appears unreachable          |
 
-Work through them in this order. Defects 2 and 3 touch the same rule-execution modules, so finish
-and verify 2 before starting 3.
+## Status and order
+
+- Defects 1 and 4 are independent and are implemented first.
+- Defects 2 and 3 change the same rule-execution modules. Finish and verify 2 before starting 3.
+  Both depend on one open decision, how an unexpected internal error is reported, which is
+  recorded in [defect 3](defect-3-contract-errors-in-rules.md#unknown-errors). Do not start
+  either until that section says the decision is made.
+- Defects 5, 6, and 7 change the language server handlers. Do them after defect 4, in that order.
+- Defect 8 is independent.
 
 ## Baseline
 
@@ -36,16 +47,17 @@ The rules in [the remediation README](../README.md) apply, with these changes fo
    unless a plan says an entry may change. When an entry changes, regenerate with the documented
    environment variable, and show in the report exactly which scenarios or cases changed and why
    each change follows from the fix. An unexplained change is a defect in the fix.
-5. **Public surface.** `test/fixtures/public-api.json` and `schemas/*.schema.json` do not change.
-   If a fix needs a new exported name, stop and report it.
+5. **Public surface.** `test/fixtures/public-api.json` and `schemas/*.schema.json` do not change
+   unless a plan names the change. If a fix needs a new exported name that no plan names, stop and
+   report it.
 6. **Architecture rules.** `npm run architecture:check` must pass. Function-size ceilings may only
    go down.
 7. **Version control.** Do not commit, stash, reset, restore, clean, push, or switch branches.
 
 ## Verification
 
-Run the affected test files after each defect. After all four, run the full gate from
-[the remediation README](../README.md#verification-gate).
+Run the affected test files after each defect. After the defects assigned to you, run the full
+gate from [the remediation README](../README.md#verification-gate).
 
 ## Final report
 

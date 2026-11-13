@@ -1,9 +1,10 @@
 import {
+  ErrorCodes,
   PositionEncodingKind,
   ResponseError,
   TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
-import type { InitializeResult } from 'vscode-languageserver/node';
+import type { InitializeError, InitializeResult } from 'vscode-languageserver/node';
 import { APPLY_FIX_COMMAND } from '../fixes.js';
 import type { ClientFeatureFlags, ServerContext } from '../server-context.js';
 import { watchFiles } from './documents.js';
@@ -51,10 +52,15 @@ export function registerLifecycleHandlers(context: ServerContext): void {
   connection.onInitialize((params) => {
     if (lifecycle.initialized || lifecycle.stopped)
       throw new ResponseError(-32600, 'Language server cannot initialize in its current state.');
-    features.accept(params.capabilities);
+    // A rejected client writes nothing: the encodings are checked before any state changes.
     const encodings = params.capabilities.general?.positionEncodings;
     if (encodings?.length && !encodings.includes(PositionEncodingKind.UTF16))
-      throw new Error('UTF-16 positions are required.');
+      throw new ResponseError<InitializeError>(
+        ErrorCodes.InvalidParams,
+        'UTF-16 positions are required.',
+        { retry: false },
+      );
+    features.accept(params.capabilities);
     lifecycle.initialize();
     return initializeResult(features, !!options.filesystem);
   });

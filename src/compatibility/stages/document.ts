@@ -1,4 +1,5 @@
 import { ContractError } from '../../base/errors.js';
+import { mergeInterruption } from '../../core/stage-report.js';
 import { locateParsedPath } from '../../parsing/index.js';
 import type { ParsedSourceDocument } from '../../parsing/index.js';
 import { CelError } from '../../runtime/cel/errors.js';
@@ -78,7 +79,7 @@ export async function validateSourceDocument(
   }
 }
 
-/** Maps a document failure to a finding, blocked coverage and the run's assigned interruption. */
+/** Maps a document failure to a finding, blocked coverage and the run's merged interruption. */
 function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress, error: unknown) {
   const { document, phase, subject } = progress;
   if (error instanceof SourceResolutionError) {
@@ -107,7 +108,7 @@ function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress
       reason: 'Source resolution did not produce a native-validation subject.',
     });
     if (resource) {
-      state.interrupted = 'resource_limit';
+      state.interrupted = mergeInterruption(state.interrupted, 'resource_limit');
       state.unavailable = true;
       state.blockedReason = MESSAGES.resource_limit;
     }
@@ -141,8 +142,10 @@ function recordDocumentFailure(state: SourceRunState, progress: DocumentProgress
     reason: MESSAGES[code],
   });
   if (code !== 'adapter_unavailable')
-    state.interrupted =
-      code === 'timeout' ? 'timeout' : code === 'cancelled' ? 'cancelled' : 'resource_limit';
+    state.interrupted = mergeInterruption(
+      state.interrupted,
+      code === 'timeout' ? 'timeout' : code === 'cancelled' ? 'cancelled' : 'resource_limit',
+    );
   state.unavailable = true;
   if (phase === 'locations') state.unresolvedIncludes = true;
   state.blockedReason = MESSAGES[code];

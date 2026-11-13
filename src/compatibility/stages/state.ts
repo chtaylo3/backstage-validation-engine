@@ -48,7 +48,9 @@ export type CustomSchema = DeploymentProfile['customKinds'][number]['schema'];
 
 /**
  * The accumulator of one source validation run. Stages append to the ordered arrays and own no
- * copies of them. The status fields are assigned, not merged: the last writer wins.
+ * copies of them. `interrupted` is merged by priority (`mergeInterruption`), so a later,
+ * lower-priority cause never replaces an earlier one; the other status fields are assigned, and
+ * the last writer wins.
  */
 export interface SourceRunState {
   readonly run: Immutable<ValidationRequest>;

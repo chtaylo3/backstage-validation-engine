@@ -176,8 +176,9 @@ void test('child encoding offers select UTF-16 or reject unsupported-only offers
         assert.equal((await result).capabilities.positionEncoding, 'utf-16');
       else
         await assert.rejects(result, (error: ResponseError<unknown>) => {
-          assert.equal(error.code, -32603);
+          assert.equal(error.code, -32602);
           assert.match(error.message, /UTF-16 positions are required/u);
+          assert.deepEqual(error.data, { retry: false });
           return true;
         });
     });

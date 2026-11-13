@@ -1,4 +1,5 @@
 import { createFindingId } from '../../core/results.js';
+import { mergeInterruption } from '../../core/stage-report.js';
 import type { SourceIdentityClaim } from '../types.js';
 import type { SourceRunState } from './state.js';
 
@@ -27,7 +28,7 @@ export function resolveIdentityConflicts(state: SourceRunState) {
       conflicts.add(entityRef);
       for (const claim of group) {
         if (++conflictFindings > CONFLICT_FINDINGS) {
-          state.interrupted = 'resource_limit';
+          state.interrupted = mergeInterruption(state.interrupted, 'resource_limit');
           break;
         }
         const ruleId = 'backstage/overlay/competing_claims';

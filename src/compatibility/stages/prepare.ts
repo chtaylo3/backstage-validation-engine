@@ -1,6 +1,7 @@
 import type { SchemaArtifact } from '../../contracts/schemas.js';
 import { ContractError } from '../../base/errors.js';
 import type { Immutable } from '../../base/json.js';
+import { mergeInterruption } from '../../core/stage-report.js';
 import { CelError } from '../../runtime/cel/errors.js';
 import { loadBackstageAdapter } from '../adapter.js';
 import { createCustomKindRegistry } from '../custom-schemas.js';
@@ -61,6 +62,10 @@ export async function prepareSourceRun(
       status: code === 'adapter_unavailable' ? 'unavailable' : 'blocked',
       reason: state.blockedReason,
     });
-    if (error instanceof CelError) state.interrupted = code === 'timeout' ? 'timeout' : 'cancelled';
+    if (error instanceof CelError)
+      state.interrupted = mergeInterruption(
+        state.interrupted,
+        code === 'timeout' ? 'timeout' : 'cancelled',
+      );
   }
 }

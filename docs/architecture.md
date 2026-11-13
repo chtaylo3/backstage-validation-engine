@@ -126,7 +126,8 @@ interrupted request budget stopped (`timeout` or `cancelled`).
 - `src/compatibility/sources.ts` orchestrates the stage modules in `src/compatibility/stages/`:
   the processing gate, preparation, and per document substitution, native validation, admission,
   references, and Location discovery, followed by identity conflicts. The stages share one run
-  state object. Source stages assign the interruption instead of merging it.
+  state object. Source stages merge their interruption by priority with `mergeInterruption`, as
+  the rule stage and the composition do.
 - `src/pipeline/cel-rules.ts` schedules subjects on lanes (`src/pipeline/rules/lanes.ts`) and
   evaluates each rule through `RULE_EVALUATORS`, one evaluator module per rule kind. A rule kind
   without an evaluator does not compile.

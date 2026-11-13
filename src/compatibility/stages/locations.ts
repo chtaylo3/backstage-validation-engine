@@ -1,3 +1,4 @@
+import { mergeInterruption } from '../../core/stage-report.js';
 import { parsingFindings } from '../../parsing/index.js';
 import type { NativeEntityCheck } from '../types.js';
 import { MESSAGES, sourceFinding } from './state.js';
@@ -33,7 +34,7 @@ export async function discoverIncludedSources(
           reason: 'Included source parsing did not complete.',
         });
     if (report.interrupted !== 'none') {
-      state.interrupted = report.interrupted;
+      state.interrupted = mergeInterruption(state.interrupted, report.interrupted);
       state.unavailable = true;
       state.blockedReason =
         report.interrupted === 'timeout'
@@ -67,7 +68,7 @@ export async function discoverIncludedSources(
     );
   if (discovered.issues.length) state.unresolvedIncludes = true;
   if (resource) {
-    state.interrupted = 'resource_limit';
+    state.interrupted = mergeInterruption(state.interrupted, 'resource_limit');
     state.unavailable = true;
     state.blockedReason = MESSAGES.resource_limit;
   }
