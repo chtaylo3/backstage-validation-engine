@@ -33,6 +33,10 @@ export const SERIAL_FILES = Object.freeze({
     'A 90 ms request deadline must still admit a 55 ms evaluation on a real CEL worker.',
   'engine/cel-runtime.test.js':
     'Real CEL workers with 20-60 ms queue and request windows and a 30 ms startup deadline.',
+  'engine/default-boundaries.test.js':
+    'The largest admitted documents must parse inside the 5 s default request deadline; failed on Windows under concurrent activity.',
+  'engine/rule-contributions.test.js':
+    'Completion must answer inside the 50 ms synchronous editor budget; failed on Windows under concurrent activity.',
   'lsp/lsp-catalog-refresh.test.js':
     'Single-shot suggestion assertions inside a 250 ms catalog freshness window; failed once under concurrent activity.',
   'lsp/lsp-rule-contributions.test.js':
