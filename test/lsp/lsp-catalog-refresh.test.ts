@@ -18,7 +18,7 @@ import {
   ownerRule,
 } from '../harness/policy-fixture.js';
 import { parseLspConfig } from '../../src/lsp/config.js';
-import { startLspClient } from '../harness/lsp-client.js';
+import { searchReferences, startLspClient } from '../harness/lsp-client.js';
 import { setTimeout as pause } from 'node:timers/promises';
 import {
   CodeActionRequest,
@@ -614,8 +614,7 @@ void test('PC-11 query-only stdio sessions refresh empty membership, deletion an
         }),
       );
       const query = { kind: 'group', namespace: 'default', prefix: 'refresh-' };
-      const search = () =>
-        host.client.sendRequest<{ reference: string }[]>('bve/searchReferences', query);
+      const search = () => searchReferences<{ reference: string }[]>(host.client, query);
       assert.deepEqual(await search(), []);
       fixture.upsert({ ...team, metadata: { name: 'refresh-added' } });
       const wait = async (wanted: string | undefined) => {
@@ -784,10 +783,7 @@ void test('live query refresh preserves deletion, invalid replacement and confli
       );
       const query = { kind: 'group', namespace: 'default', prefix: 'te' };
       const search = () =>
-        host.client.sendRequest<{ reference: string; source: string }[]>(
-          'bve/searchReferences',
-          query,
-        );
+        searchReferences<{ reference: string; source: string }[]>(host.client, query);
       const initial = await search();
       assert(initial.some((row) => row.reference === 'group:default/te-remote'));
       assert(
@@ -902,11 +898,7 @@ void test('a held advisory query does not delay timely remote-only body diagnost
   await host.waitFor(
     (row) => row.version === 12 && row.diagnostics.some((d) => d.code === 'owner-exists'),
   );
-  await host.client.sendRequest('bve/searchReferences', {
-    kind: 'group',
-    namespace: 'default',
-    prefix: 'ot',
-  });
+  await searchReferences(host.client, { kind: 'group', namespace: 'default', prefix: 'ot' });
   const gate = fixture.holdNext({ operation: 'byQuery' });
   const after = host.diagnostics.length;
   fixture.upsert(team);
@@ -1147,11 +1139,7 @@ void test('a newly observed query denial revokes an existing guarded repair befo
     context: { diagnostics: report.diagnostics, only: ['quickfix'] },
   })) as CodeAction[];
   assert.equal(actions.length, 1);
-  await host.client.sendRequest('bve/searchReferences', {
-    kind: 'group',
-    namespace: 'default',
-    prefix: 'te',
-  });
+  await searchReferences(host.client, { kind: 'group', namespace: 'default', prefix: 'te' });
   fixture.setPrincipal({
     token: 'policy-test-secret',
     principalId: 'reader',
@@ -1160,11 +1148,7 @@ void test('a newly observed query denial revokes an existing guarded repair befo
     visibleRefs: '*',
   });
   const after = fixture.requests().length;
-  await host.client.sendRequest('bve/searchReferences', {
-    kind: 'group',
-    namespace: 'default',
-    prefix: 'ot',
-  });
+  await searchReferences(host.client, { kind: 'group', namespace: 'default', prefix: 'ot' });
   assert(
     fixture
       .requests()

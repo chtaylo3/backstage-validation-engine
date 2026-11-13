@@ -14,7 +14,10 @@ import { URI } from '../helpers.js';
 import {
   CompletionRequest,
   HoverRequest,
+  DidChangeWatchedFilesNotification,
   DidOpenTextDocumentNotification,
+  InitializedNotification,
+  LSPErrorCodes,
 } from 'vscode-languageserver/node';
 
 void test('discovery captures new matching files, excludes dependencies, and records deletion', async (t) => {
@@ -248,6 +251,44 @@ void test('catalog search works from the pinned workspace without opening a docu
     prefix: 'te',
   });
   assert.deepEqual(result, [{ reference: 'group:default/team', source: 'Workspace source' }]);
+});
+
+void test('a search that a source change overtakes is refused as content modified, never answered as empty', async (t) => {
+  const f = await filesystemFixture(t, {
+    files: { 'catalog.yaml': componentText(), 'team.yaml': localTeam.text },
+    entrypoints: ['catalog.yaml', 'team.yaml'],
+    rules: [],
+  });
+  const host = await startLspClient(t, f.config, { watchFiles: true });
+  await host.client.sendNotification(InitializedNotification.type, {});
+  const found = [{ reference: 'group:default/team', source: 'Workspace source' }];
+  const search = () =>
+    host.client
+      .sendRequest('bve/searchReferences', { kind: 'group', namespace: 'default', prefix: 'te' })
+      .catch((error: unknown) => (error as { code?: unknown }).code);
+  assert.deepEqual(await search(), found);
+  const uri = f.uri('catalog.yaml');
+  const outcomes: unknown[] = [];
+  for (let round = 0; round < 5; round++) {
+    await writeFile(path.join(f.root, 'catalog.yaml'), componentText() + '# ' + round + '\n');
+    // The change notification follows the request on the wire and arrives while the search runs.
+    const racing = search();
+    void host.client.sendNotification(DidChangeWatchedFilesNotification.type, {
+      changes: [{ uri, type: 2 }],
+    });
+    outcomes.push(await racing);
+  }
+  // A search either completed before the change or was overtaken. An overtaken search says so:
+  // an empty list would tell the client that nothing matches.
+  for (const outcome of outcomes)
+    assert(
+      outcome === LSPErrorCodes.ContentModified ||
+        JSON.stringify(outcome) === JSON.stringify(found),
+      JSON.stringify(outcome),
+    );
+  assert(outcomes.includes(LSPErrorCodes.ContentModified), JSON.stringify(outcomes));
+  // The same question asked again is answered.
+  assert.deepEqual(await search(), found);
 });
 
 void test('the stdio host automatically reloads its fixed configuration path and recovers after invalid JSON', async (t) => {

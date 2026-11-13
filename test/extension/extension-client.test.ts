@@ -657,6 +657,65 @@ void test('search debounces valid queries, normalizes their identity and clears 
   assert(!editorState.messages.join('\n').includes('private remote details'));
 });
 
+void test('search asks an overtaken query again, a bounded number of times, and stops for a new query or a closed picker', async () => {
+  const { current, picker } = await openSearch();
+  const overtaken = () =>
+    Promise.reject(
+      Object.assign(new Error('The workspace changed during the search.'), { code: -32801 }),
+    );
+  const rows = [{ reference: 'group:default/team', source: 'workspace' }];
+  const item = {
+    label: 'group:default/team',
+    description: 'workspace',
+    reference: 'group:default/team',
+  };
+  const asked = () =>
+    current.requestCalls.map((call) => (call.params as { prefix: string }).prefix);
+  // Overtaken twice, then answered: the same question is asked three times and the answer shown.
+  let answers = [overtaken, overtaken, () => Promise.resolve(rows)];
+  current.requestHandler = () => answers.shift()!();
+  picker.change('group:default/te');
+  await until(() => current.requestCalls.length === 1);
+  await settle();
+  assert.equal(picker.busy, true, 'The picker stays busy while it asks again.');
+  assert.deepEqual(picker.items, []);
+  await until(() => current.requestCalls.length === 3);
+  await until(() => !picker.busy);
+  assert.deepEqual(picker.items, [item]);
+  assert.deepEqual(asked(), ['te', 'te', 'te']);
+  // Always overtaken: four requests in all, then no results and no further request.
+  current.requestCalls.length = 0;
+  current.requestHandler = overtaken;
+  picker.change('group:default/tx');
+  await until(() => current.requestCalls.length === 4);
+  await until(() => !picker.busy);
+  assert.deepEqual(picker.items, []);
+  await new Promise<void>((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(asked(), ['tx', 'tx', 'tx', 'tx']);
+  // A new query during the pause replaces the retries of the old one.
+  current.requestCalls.length = 0;
+  answers = [overtaken, () => Promise.resolve(rows)];
+  current.requestHandler = () => answers.shift()!();
+  picker.change('group:default/old');
+  await until(() => current.requestCalls.length === 1);
+  await settle();
+  picker.change('group:default/new');
+  await until(() => current.requestCalls.length === 2);
+  await until(() => !picker.busy);
+  await new Promise<void>((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(asked(), ['old', 'new']);
+  assert.deepEqual(picker.items, [item]);
+  // Closing the picker during the pause stops the retries.
+  current.requestCalls.length = 0;
+  current.requestHandler = overtaken;
+  picker.change('group:default/gone');
+  await until(() => current.requestCalls.length === 1);
+  await settle();
+  picker.hide();
+  await new Promise<void>((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(asked(), ['gone']);
+});
+
 void test('new search queries cancel old requests and late success or failure cannot replace current results', async () => {
   const { current, picker } = await openSearch();
   const requests = Array.from({ length: 4 }, () =>

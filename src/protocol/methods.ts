@@ -7,7 +7,11 @@ export const BVE_METHODS = Object.freeze({
   reloadConfiguration: 'bve/reloadConfiguration',
   /** Client to server notification. The parameter is `RecordSelectionParams`. */
   recordSelection: 'bve/recordSelection',
-  /** Client to server request: `SearchReferencesParams` to `SearchReferencesResult`. */
+  /**
+   * Client to server request: `SearchReferencesParams` to `SearchReferencesResult`. A search that
+   * a source change or a configuration reload overtook is refused with the LSP `ContentModified`
+   * error (-32801), and the client may ask again.
+   */
   searchReferences: 'bve/searchReferences',
   /** Client to server request. No parameters; the result is `FilesystemObservationResult`. */
   filesystemObservation: 'bve/filesystemObservation',

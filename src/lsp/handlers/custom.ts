@@ -1,3 +1,4 @@
+import { LSPErrorCodes, ResponseError } from 'vscode-languageserver/node';
 import type { CancellationToken } from 'vscode-languageserver/node';
 import { verifyRequestBindings } from '../../core/bindings.js';
 import { parseContract } from '../../contracts/validate.js';
@@ -84,11 +85,31 @@ export function registerCustomHandlers(context: ServerContext): void {
     sessions().current.editor.record(input);
   });
   connection.onRequest(BVE_METHODS.searchReferences, (input: unknown, token: CancellationToken) =>
-    lifecycle.admitted(() =>
-      requests.execute<SearchReferencesResult>(
+    lifecycle.admitted(() => {
+      /**
+       * The answer of a search without a result. A search that a source change or a configuration
+       * reload overtook has no answer, and an empty list would say that nothing matches. It gets
+       * the LSP `ContentModified` error, which tells the client to ask again. A search that the
+       * client cancelled, or that the server cannot run, keeps the empty list.
+       */
+      const unanswered = (
+        request?: Parameters<Parameters<typeof requests.execute>[3]>[0],
+      ): SearchReferencesResult | ResponseError<void> =>
+        request &&
+        !token.isCancellationRequested &&
+        !lifecycle.stopped &&
+        sessions().available &&
+        (workspace.generation !== request.snapshot.generation ||
+          sessions().current.generation !== request.session.generation)
+          ? new ResponseError(
+              LSPErrorCodes.ContentModified,
+              'The workspace changed during the search.',
+            )
+          : [];
+      return requests.execute<SearchReferencesResult | ResponseError<void>>(
         token,
         undefined,
-        () => [],
+        unanswered,
         async (request) => {
           const { config, completion, filesystem } = request.session;
           const generation = context.coordinator.generation;
@@ -105,24 +126,25 @@ export function registerCustomHandlers(context: ServerContext): void {
                 deadlineAt: request.deadlineAt,
                 signal: request.signal,
               });
-              if (!request.current()) return [];
+              if (!request.current()) return unanswered(request);
               verifyRequestBindings(
                 parseContract('validation-request', { ...original, source }),
                 config,
               );
-              if (!workspace.commitCapture(source, disk, sourceGeneration)) return [];
+              if (!workspace.commitCapture(source, disk, sourceGeneration))
+                return unanswered(request);
             }
             await completion.update(
               parseContract('validation-request', { ...original, source: workspace.source }),
               generation,
             );
             await completion.ready(generation, request.signal);
-            if (!request.current()) return [];
+            if (!request.current()) return unanswered(request);
           }
           return completion.searchReferences(input, generation, request.signal);
         },
-      ),
-    ),
+      );
+    }),
   );
   connection.onRequest(BVE_METHODS.reloadConfiguration, () =>
     lifecycle.admitted(context.reloadConfiguration),

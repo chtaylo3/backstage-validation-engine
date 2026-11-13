@@ -126,7 +126,8 @@ export class RequestContexts<S extends RequestSession> {
   async execute<T>(
     token: CancellationToken | undefined,
     uri: string | undefined,
-    empty: () => T,
+    /** The answer of a request without a result. It receives the context of an admitted request. */
+    empty: (admitted?: RequestContext<S>) => T,
     operation: (context: RequestContext<S>) => Promise<T> | T,
     checkResult = true,
   ): Promise<T> {
@@ -135,11 +136,11 @@ export class RequestContexts<S extends RequestSession> {
     const context = admitted.context;
     try {
       const result = await context.session.operations.run(() =>
-        context.current() ? operation(context) : empty(),
+        context.current() ? operation(context) : empty(context),
       );
-      return !checkResult || context.current() ? result : empty();
+      return !checkResult || context.current() ? result : empty(context);
     } catch {
-      return empty();
+      return empty(context);
     } finally {
       context.close();
     }

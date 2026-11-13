@@ -42,6 +42,27 @@ interface ClientOptions {
   ) => ApplyWorkspaceEditResult | Promise<ApplyWorkspaceEditResult>;
 }
 
+/**
+ * Asks a reference search as a client must. The server refuses a search that a source or
+ * dependency change overtook with the LSP `ContentModified` error (-32801), and the same question
+ * is asked again: here until the usual ten-second bound of a test wait, where the VS Code client
+ * stops after four requests. Any other failure is thrown at once.
+ */
+export async function searchReferences<T>(
+  client: { sendRequest(method: string, params: unknown): Promise<unknown> },
+  query: unknown,
+): Promise<T> {
+  const end = Date.now() + 10_000;
+  for (;;) {
+    try {
+      return (await client.sendRequest('bve/searchReferences', query)) as T;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== -32801 || Date.now() >= end) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+}
+
 /** A real child connection without automatic initialize, for protocol lifecycle controls. */
 export async function createLspClient(
   t: TestContext,

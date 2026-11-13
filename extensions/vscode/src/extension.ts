@@ -6,6 +6,7 @@ import {
   CloseAction,
   ErrorAction,
   LanguageClient,
+  LSPErrorCodes,
   RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import type { DocumentSelector, LanguageClientOptions } from 'vscode-languageclient/node';
@@ -77,6 +78,15 @@ async function recordSelection(value: unknown): Promise<void> {
     await extensionContext.workspaceState.update(historyKey, history.slice(-128));
   }
 }
+/** How often one search query is asked: once, and again after each overtaken answer. */
+const SEARCH_ATTEMPTS = 4;
+/**
+ * The server answers a search that a source change or a configuration reload overtook with the
+ * LSP `ContentModified` error: that search has no answer, and the same question can be asked again.
+ */
+function overtaken(error: unknown): boolean {
+  return record(error) && error.code === LSPErrorCodes.ContentModified;
+}
 function searchReferences(): Promise<void> | undefined {
   const current = client;
   if (!current?.isRunning() || !vscode.workspace.isTrusted) return;
@@ -111,36 +121,42 @@ function searchReferences(): Promise<void> | undefined {
         return;
       }
       picker.busy = true;
-      timer = setTimeout(() => {
+      const params: SearchReferencesParams = {
+        kind: match[1]!,
+        namespace: match[2]!,
+        prefix: match[3]!,
+      };
+      const ask = (attempt: number) => {
         const token = new vscode.CancellationTokenSource();
         cancellation = token;
-        const params: SearchReferencesParams = {
-          kind: match[1]!,
-          namespace: match[2]!,
-          prefix: match[3]!,
-        };
-        void current
-          .sendRequest<unknown>(BVE_METHODS.searchReferences, params, token.token)
-          .then(
-            (rows) => {
-              if (query !== generation) return;
-              // An invalid response clears the results, as a failed request does.
-              if (!isSearchReferencesResult(rows)) picker.items = [];
-              else if (!token.token.isCancellationRequested)
-                picker.items = rows.map((row) => ({
-                  label: row.reference,
-                  description: row.source,
-                  reference: row.reference,
-                }));
-            },
-            () => {
-              if (query === generation) picker.items = [];
-            },
-          )
-          .finally(() => {
-            if (query === generation) picker.busy = false;
-          });
-      }, 120);
+        void current.sendRequest<unknown>(BVE_METHODS.searchReferences, params, token.token).then(
+          (rows) => {
+            if (query !== generation) return;
+            // An invalid response clears the results, as a failed request does.
+            if (!isSearchReferencesResult(rows)) picker.items = [];
+            else if (!token.token.isCancellationRequested)
+              picker.items = rows.map((row) => ({
+                label: row.reference,
+                description: row.source,
+                reference: row.reference,
+              }));
+            picker.busy = false;
+          },
+          (error: unknown) => {
+            if (query !== generation) return;
+            // An overtaken search is asked again, after the same pause as a new query. The picker
+            // stays busy meanwhile, and a new query or closing the picker stops the retries.
+            if (overtaken(error) && attempt < SEARCH_ATTEMPTS) {
+              token.dispose();
+              timer = setTimeout(() => ask(attempt + 1), 120);
+              return;
+            }
+            picker.items = [];
+            picker.busy = false;
+          },
+        );
+      };
+      timer = setTimeout(() => ask(1), 120);
     }),
   );
   subscriptions.push(

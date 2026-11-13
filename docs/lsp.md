@@ -461,7 +461,14 @@ wait. A local answer is returned however long it took to compute; its only time 
 request time of the profile, and the metadata admission limits bound its size.
 
 A new query, source generation, request cancellation, or shutdown cancels obsolete work. A caller
-cancellation also cancels a shared equal query. Another request can retry. The provider shares
+cancellation also cancels a shared equal query. Another request can retry.
+
+The reference search request tells its caller when to retry. A search that a source change or a
+configuration reload overtook has no answer, and the server refuses it with the LSP
+`ContentModified` error (-32801); an empty list would say that nothing matches. The VS Code client
+asks the same query again after its usual 120 ms pause, at most four times in all, and a new query
+or closing the picker stops that. A search that the client cancelled, or that the server cannot
+run, is still answered with an empty list. The provider shares
 admission, credentials, rate limits, response budgets and shutdown with validation. These are
 configured wait bounds, not an end-to-end editor latency guarantee.
 
