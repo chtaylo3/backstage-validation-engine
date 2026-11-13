@@ -124,11 +124,15 @@ void test('saved and external included-file edits refresh both native pins while
       assert.equal(saved.version, 1);
       after = host.diagnostics.length;
       await writeFile(join(f.root, 'spec.yaml'), spec('experimental'));
+      // An oversized notification refreshes at its first admitted change: the approved spec.
       await host.client.sendNotification(DidChangeWatchedFilesNotification.type, {
-        changes: Array.from({ length: 1001 }, (_, index) => ({
-          uri: f.uri(`unapproved-${index}.yaml`),
-          type: 2 as const,
-        })),
+        changes: [
+          ...Array.from({ length: 1000 }, (_, index) => ({
+            uri: f.uri(`unapproved-${index}.yaml`),
+            type: 2 as const,
+          })),
+          { uri: f.uri('spec.yaml'), type: 2 as const },
+        ],
       });
       assert.equal(
         (await host.waitFor((row) => row.uri === f.uri('catalog.yaml'), after)).diagnostics[0]

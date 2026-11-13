@@ -44,9 +44,20 @@ void test('filesystem observation is opt-in, admits only selected canonical URIs
   assert(bounded.truncated);
   assert(Buffer.byteLength(bounded.uris.join(''), 'utf8') <= 65536);
   assert(bounded.generation > observed.generation);
-  const coalesced = await event(
-    Array.from({ length: 1001 }, () => ({ uri: 'file:///outside/private.yaml', type: 2 })),
+  // An oversized notification without an admitted change neither refreshes nor observes.
+  assert.deepEqual(
+    await event(
+      Array.from({ length: 1001 }, () => ({ uri: 'file:///outside/private.yaml', type: 2 })),
+    ),
+    bounded,
   );
+  const coalesced = await event([
+    ...Array.from({ length: 1000 }, () => ({
+      uri: 'file:///outside/private.yaml',
+      type: 2 as const,
+    })),
+    { uri: f.uri('catalog.yaml'), type: 2 },
+  ]);
   assert(coalesced);
   assert.deepEqual(coalesced.uris, []);
   assert(coalesced.truncated);

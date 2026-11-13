@@ -24,7 +24,15 @@ export interface BveMethodShape {
   readonly direction: 'clientToServer' | 'serverToClient';
   readonly kind: 'request' | 'notification';
 }
-/** The direction and message kind of every custom method. */
+/**
+ * The direction and message kind of every custom method.
+ *
+ * Admission rule for client-to-server methods. A request outside the initialized state is rejected:
+ * with `-32002` (not initialized) before `initialize`, and with `-32600` (invalid request) after
+ * `shutdown`. A notification outside the initialized state, or with parameters that fail its guard,
+ * is dropped without effect and without a response: JSON-RPC gives a notification no response, and
+ * the server may send nothing before it has answered `initialize`.
+ */
 export const BVE_METHOD_SHAPES: Readonly<Record<BveMethod, BveMethodShape>> = Object.freeze({
   [BVE_METHODS.reloadConfiguration]: Object.freeze({
     direction: 'clientToServer',

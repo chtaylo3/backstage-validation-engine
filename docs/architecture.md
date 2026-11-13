@@ -110,6 +110,14 @@ exchange, once:
   each handler keeps its answer to invalid input (`null`, an empty list, or a silent ignore).
 - `index.ts` holds the explicit exports, published as the `./protocol` package entry point.
 
+Admission rule for client-to-server methods. A request outside the initialized state is rejected:
+with `-32002` (not initialized) before `initialize`, and with `-32600` (invalid request) after
+`shutdown`. A notification outside the initialized state, or with parameters that fail its guard,
+is dropped without effect and without a response: JSON-RPC gives a notification no response, and
+the server may send nothing before it has answered `initialize`. The language server registers every custom
+notification through one internal helper in `src/lsp/handlers/custom.ts`, and
+`test/lsp/protocol-parity.test.ts` checks the rule for every method in `BVE_METHOD_SHAPES`.
+
 The module has no dependencies, so the VS Code extension bundles it by relative path, and another
 client can use it without the engine. The extension validates every response with these guards
 and treats an invalid response like a failed request. `node scripts/test-client.mjs` measures the

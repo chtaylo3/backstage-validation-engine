@@ -3,6 +3,7 @@ import { verifyRequestBindings } from '../../core/bindings.js';
 import { parseContract } from '../../contracts/validate.js';
 import { BVE_METHODS, isRecordSelectionParams } from '../../protocol/index.js';
 import type {
+  BveMethod,
   ReloadConfigurationResult,
   SearchReferencesParams,
   SearchReferencesResult,
@@ -26,6 +27,25 @@ const reloadMatchesProtocol: MutuallyAssignable<
 void searchMatchesProtocol;
 void searchResultMatchesProtocol;
 void reloadMatchesProtocol;
+
+/**
+ * Registers a custom client-to-server notification under the admission rule of
+ * `BVE_METHOD_SHAPES`: outside the initialized state, or when `guard` rejects the parameters, the
+ * notification is dropped without effect and without a response. Every custom notification is
+ * registered here, so none can follow a different rule.
+ */
+function onAdmittedNotification<T>(
+  context: ServerContext,
+  method: BveMethod,
+  guard: (input: unknown) => input is T,
+  handle: (params: T) => void,
+): void {
+  const { connection, lifecycle } = context;
+  connection.onNotification(method, (input: unknown) => {
+    if (!lifecycle.initialized || lifecycle.stopped || !guard(input)) return;
+    handle(input);
+  });
+}
 
 /**
  * The client to server methods of `src/protocol`: `bve/filesystemObservation`,
@@ -58,8 +78,7 @@ export function registerCustomHandlers(context: ServerContext): void {
       dependencyGeneration: sessions().current.refresh?.generation ?? 0,
     });
   });
-  connection.onNotification(BVE_METHODS.recordSelection, (input: unknown) => {
-    if (!lifecycle.initialized || lifecycle.stopped || !isRecordSelectionParams(input)) return;
+  onAdmittedNotification(context, BVE_METHODS.recordSelection, isRecordSelectionParams, (input) => {
     if (!sessions().available) return;
     sessions().current.completion.record(input);
     sessions().current.editor.record(input);

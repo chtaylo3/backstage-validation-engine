@@ -295,6 +295,12 @@ function observeTargets(
     const reason = blocked.get(targetRef);
     if (reason !== undefined) return { targetRef, status: 'blocked', reason };
     const entry = received.get(targetRef);
+    // Invariant, not an expected path: `classifyTargets` blocks a target or records its
+    // proposed-catalog entry, and `lookupCatalog` either blocks every remaining (eligible) target or
+    // records an entry for each one. It accepts a provider answer only when the data-snapshot
+    // contract holds (distinct keys), the entry count equals the eligible count, and every key is
+    // an eligible target's key: distinct keys over as many entries as targets answer each target
+    // exactly once. The guard narrows the type and keeps the trust decision explicit.
     if (!entry) reject('integrity', '/catalog', 'catalog observation is missing');
     return { ...entry, targetRef };
   });

@@ -2,49 +2,88 @@ import { DidChangeWatchedFilesNotification } from 'vscode-languageserver/node';
 import type { FileEvent } from 'vscode-languageserver/node';
 import { isCanonicalSourceUri } from '../../base/source-uris.js';
 import type { LspConfig } from '../config.js';
-import { filesystemEvent } from '../discovery.js';
 import type { ServerContext } from '../server-context.js';
 import type { SourceFileOperation } from '../workspace-state.js';
 
-/** At most this many changes are inspected; a larger notification refreshes without traversal. */
+/** Up to this many changes, every change is tested and the admitted URIs are observed. */
 const WATCHED_CHANGES = 1000;
+/**
+ * A larger notification is scanned for its first admitted change and observes no URIs. Past this
+ * many changes without an admitted one, the scan stops and the notification refreshes, so the work
+ * on one notification stays bounded.
+ */
+const WATCHED_SCAN_LIMIT = 50_000;
 /** Observed URIs are bounded by count and by UTF-8 bytes. */
 const OBSERVED_URIS = 32;
 const OBSERVED_BYTES = 64 * 1024;
+
+/** Whether one watched-files change is admitted. */
+export type WatchedFileAdmission = (row: FileEvent) => boolean;
+const admissions = new WeakMap<LspConfig, WatchedFileAdmission>();
+
+/**
+ * The admission test of one change, prepared once per configuration object. A change is admitted
+ * when its URI is canonical, its type is 1, 2 or 3, and it is an approved file, lies under a
+ * discovery root, or is a directory that contains an approved file or a discovery root. No glob is
+ * matched: a URI that matches a discovery glob already lies under its root. The cheap tests run
+ * first, the canonical-URI test last.
+ */
+export function watchedFileAdmission(config: LspConfig): WatchedFileAdmission {
+  const cached = admissions.get(config);
+  if (cached) return cached;
+  const { filesystem } = config;
+  const files = new Set(filesystem?.files ?? []);
+  const roots = filesystem?.discovery?.roots ?? [];
+  // Every directory prefix (ending in `/`) of an approved file or a discovery root.
+  const containers = new Set<string>();
+  for (const uri of [...files, ...roots])
+    for (let index = uri.indexOf('/'); index >= 0; index = uri.indexOf('/', index + 1))
+      containers.add(uri.slice(0, index + 1));
+  const admitted: WatchedFileAdmission = (row) => {
+    if (!row || typeof row.uri !== 'string' || (row.type !== 1 && row.type !== 2 && row.type !== 3))
+      return false;
+    const { uri } = row;
+    const directory = uri.endsWith('/');
+    return (
+      (files.has(uri) ||
+        containers.has(directory ? uri : uri + '/') ||
+        roots.some((root) => uri.startsWith(root))) &&
+      isCanonicalSourceUri(uri, directory)
+    );
+  };
+  admissions.set(config, admitted);
+  return admitted;
+}
 
 export type WatchedFilesDecision =
   | { readonly refresh: false }
   | { readonly refresh: true; readonly uris: string[]; readonly truncated: boolean };
 /**
  * Whether a watched-files notification refreshes the approved files, and the bounded URIs it
- * observes. A change is admitted when it is canonical, has a valid type, and names an approved
- * file, a discovery root, or a directory that contains an approved file.
+ * observes (see `watchedFileAdmission`). A notification refreshes when it has an admitted change.
+ * Up to `WATCHED_CHANGES` changes, the admitted URIs are observed up to the count and byte limits.
+ * A larger notification is scanned up to its first admitted change and observes no URIs; past
+ * `WATCHED_SCAN_LIMIT` changes without a decision it refreshes.
  */
 export function admitWatchedFiles(
   config: LspConfig,
   changes: readonly FileEvent[],
 ): WatchedFilesDecision {
-  if (changes.length > WATCHED_CHANGES)
-    // Preserve bounded coalescing without traversing an oversized notification.
-    return { refresh: true, uris: [], truncated: true };
+  const admitted = watchedFileAdmission(config);
+  if (changes.length > WATCHED_CHANGES) {
+    const scanned = Math.min(changes.length, WATCHED_SCAN_LIMIT);
+    for (let index = 0; index < scanned; index++)
+      if (admitted(changes[index]!)) return { refresh: true, uris: [], truncated: true };
+    return changes.length > WATCHED_SCAN_LIMIT
+      ? { refresh: true, uris: [], truncated: true }
+      : { refresh: false };
+  }
   const uris: string[] = [];
   let bytes = 0,
     admittedEvent = false,
     truncated = false;
   for (const row of changes) {
-    if (
-      !row ||
-      typeof row.uri !== 'string' ||
-      !isCanonicalSourceUri(row.uri, row.uri.endsWith('/')) ||
-      ![1, 2, 3].includes(row.type) ||
-      !(
-        filesystemEvent(config, row.uri) ||
-        config.filesystem!.files.some((uri) =>
-          uri.startsWith(row.uri.endsWith('/') ? row.uri : row.uri + '/'),
-        )
-      )
-    )
-      continue;
+    if (!admitted(row)) continue;
     admittedEvent = true;
     const size = Buffer.byteLength(row.uri, 'utf8');
     if (uris.length < OBSERVED_URIS && bytes + size <= OBSERVED_BYTES) {
@@ -120,14 +159,22 @@ export function registerDocumentHandlers(context: ServerContext): void {
         truncated: decision.truncated,
       });
   });
-  connection.onDidOpenTextDocument(({ textDocument: item }) => {
-    if (lifecycle.initialized && !lifecycle.stopped && workspace.open(item)) schedule();
-  });
-  connection.onDidChangeTextDocument(({ textDocument: item, contentChanges }) => {
-    if (lifecycle.initialized && !lifecycle.stopped && workspace.change(item, contentChanges))
+  // Parameters are read defensively: a notification without usable parameters is dropped, and
+  // `WorkspaceState` rejects a missing or malformed document item.
+  connection.onDidOpenTextDocument((params) => {
+    if (lifecycle.initialized && !lifecycle.stopped && workspace.open(params?.textDocument))
       schedule();
   });
-  connection.onDidCloseTextDocument(async ({ textDocument: item }) => {
+  connection.onDidChangeTextDocument((params) => {
+    if (
+      lifecycle.initialized &&
+      !lifecycle.stopped &&
+      workspace.change(params?.textDocument, params?.contentChanges)
+    )
+      schedule();
+  });
+  connection.onDidCloseTextDocument(async (params) => {
+    const item = params?.textDocument;
     if (!lifecycle.initialized || lifecycle.stopped || !item) return;
     const previous = workspace.closeDocument(item.uri);
     if (!previous) return;

@@ -13,16 +13,19 @@ structural. This phase fixes them. Each defect has its own plan:
 | 6     | [Custom notifications before initialization](defect-6-notification-admission.md) | `bve/recordSelection` is dropped without a stated rule            |
 | 7     | [Oversized watched-files notifications](defect-7-oversized-watched-files.md)     | A large notification always refreshes, admitted or not            |
 | 8     | [Missing catalog observation check](defect-8-missing-observation-check.md)       | A rejection in reference preparation appears unreachable          |
+| 9     | [Unknown errors in the source stage](defect-9-source-stage-unknown-errors.md)    | An unknown error is reported as an unavailable adapter            |
 
 ## Status and order
 
 - Defects 1 and 4 are independent and are implemented first.
-- Defects 2 and 3 change the same rule-execution modules. Finish and verify 2 before starting 3.
-  Both depend on one open decision, how an unexpected internal error is reported, which is
-  recorded in [defect 3](defect-3-contract-errors-in-rules.md#unknown-errors). Do not start
-  either until that section says the decision is made.
 - Defects 5, 6, and 7 change the language server handlers. Do them after defect 4, in that order.
 - Defect 8 is independent.
+- Defects 2, 3, and 9 share one decision about internal errors, recorded in
+  [defect 3](defect-3-contract-errors-in-rules.md#unknown-errors): contain the error, report it
+  in detail, keep every other finding, keep validating the rest of the run, and fail the run
+  overall. Do them in the order 2, 3, 9. Defect 2 adds the step after the subject lanes and the
+  observer; defect 3 defines the internal-error finding and uses that step; defect 9 applies the
+  same finding to the source stage.
 
 ## Baseline
 

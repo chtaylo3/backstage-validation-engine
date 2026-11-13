@@ -1,8 +1,9 @@
 # Defect 2: The fix budget depends on worker timing
 
-Read [the cleanup rules](README.md) first. Do not start until the decision in
-[defect 3, "Unknown errors"](defect-3-contract-errors-in-rules.md#unknown-errors) is recorded,
-because step 4 below reports through the channel chosen there.
+Read [the cleanup rules](README.md) first, and read
+[defect 3, "Unknown errors"](defect-3-contract-errors-in-rules.md#unknown-errors): step 4 below
+reports an error through the finding, the observer, and the limit that are defined there.
+Implement this plan first. Defect 3 then reuses the step that this plan adds after the lanes.
 
 ## Defect
 
@@ -37,15 +38,20 @@ Assign fixes after all lanes finish, in a fixed order.
    against the limit. A candidate that yields no edit does not count, as today.
 3. **Interruption.** If the request budget is interrupted, stop assigning. Do not throw. The
    findings stay without edits and the report's `interrupted` value is computed as today.
-4. **Errors while building a fix (decided: keep the verdict, drop the fix, report the error).** A
-   fix is optional, and by the time it is built the rule's verdict is known. An error here must
-   not change the rule state or remove the finding.
+4. **Errors while building a fix (decided: keep the verdict, drop the fix, report the error in
+   detail, and fail the run overall).** A fix is optional, and by the time it is built the rule's
+   verdict is known. An error here must not change the rule state or remove the finding.
    - A `ContractError` with the code `limit` leaves that finding without an edit. It is an
      expected bound on optional output, like the 64-fix limit, and is not reported as an error.
    - Any other `ContractError` propagates and fails the run, as in defect 3.
-   - Any other error leaves that finding without an edit, keeps the rule `failed`, and is reported
-     as an internal error through the channel that defect 3 defines for unknown errors. Assignment
-     continues with the next candidate.
+   - Any other error leaves that finding without an edit and keeps the rule `failed`. It is
+     reported as an internal error exactly as defect 3 specifies: an `engine/internal_error`
+     finding at the original finding's location whose message says a suggested fix for the rule
+     could not be built, an `internal_error` failure entry, and a call to the `onInternalError`
+     observer with the thrown value. The finding's category is `execution`, so the run's outcome
+     becomes `error` (exit code 2). Assignment continues with the next candidate.
+   - The internal-error findings from this step count against the same limit of 64 per run as
+     those from rule evaluation, in the same sorted order.
 5. **Remove the shared counter** from the rule run context. The line-index cache
    (`fixes.indexes`) moves to the assignment step.
 
@@ -62,8 +68,12 @@ apart from what defect 3's reporting channel adds. Put the assignment step in it
 - With more than 64 and no CEL in the policy: nothing.
 - With more than 64 and CEL in the policy: the same 64 findings receive fixes on every run, namely
   the first 64 eligible ones in sorted subject order and rule order.
-- An unexpected error while building a fix no longer turns a failed rule into an incomplete one.
-  The finding stays, without a fix, and the error is reported as an internal error.
+- An unexpected error while building a fix no longer turns a failed rule into an incomplete one
+  and no longer removes its finding. The rule stays `failed`, its finding stays without a fix, an
+  `engine/internal_error` finding is added, and the run's outcome is `error`. Before, the run was
+  `incomplete`. Both are exit code 2.
+- `executePolicyRules` and `validatePolicySources` accept the optional `onInternalError` observer
+  that defect 3 defines. Add it here, since this plan is implemented first.
 
 ## Success criteria
 
@@ -74,11 +84,13 @@ apart from what defect 3's reporting channel adds. Put the assignment step in it
 3. `fixes.generated`, or any other counter shared between lanes, no longer exists in
    `src/pipeline/rules/`.
 4. An error while building a fix never changes a rule state, a finding other than its `edits`, or
-   a coverage row. An unknown error is visible through defect 3's reporting channel, with the
-   subject and rule it belongs to.
+   a coverage row. An unknown error adds one `engine/internal_error` finding that names the rule,
+   adds an `internal_error` failure entry, reaches the observer, and makes the outcome `error`.
+   The thrown error's message and stack appear nowhere in the report.
 5. `test/fixtures/pipeline-golden.json` is byte-identical. If a scenario changes, the report lists
    it and shows that the policy in that scenario awaits CEL and exceeds the limit.
-6. The exported names in `test/fixtures/public-api.json` change only as defect 3 allows.
+6. `test/fixtures/public-api.json` is byte-identical. The observer is an optional option field,
+   not an exported name.
 7. The new tests below fail before the fix where marked, and pass after it.
 8. The full gate passes, and `npm run benchmark:cel` shows no warm p95 regression above 15% for
    the 100-entity case. Report the numbers before and after.
@@ -105,12 +117,20 @@ the test resolves in a chosen order. No test waits on a timer.
    assignment. No finding carries an edit, the findings and rule states are otherwise unchanged,
    and `interrupted` is reported.
 7. **Unknown error while building a fix** (fails before): one candidate's edit construction throws
-   a plain `Error`. That finding has no edit, its rule is still `failed`, its coverage row is
-   unchanged, the candidates after it still receive edits, and the internal error is reported with
-   that subject and rule.
+   a plain `Error` whose message is a marker string. That finding has no edit, its rule is still
+   `failed`, its coverage row is unchanged, and the candidates after it still receive edits. The
+   report has one `engine/internal_error` finding at that finding's location that names the rule,
+   and one `internal_error` failure entry. The outcome is `error` and the exit code is 2. The
+   marker appears nowhere in the serialized report; the observer receives the original error.
 8. **Contract errors while building a fix**: a `limit` error leaves the finding without an edit and
    reports nothing; an `integrity` error rejects the run.
 9. **Concurrency**: case 1 with one, two, and four lanes gives the same report.
+10. **Shared limit**: with 70 candidates whose edit construction throws, exactly 64 internal-error
+    findings are added, for the first 64 in sorted subject and rule order, and all 70 findings
+    stay without an edit.
+
+To make edit construction throw in a test without changing its behavior, give the assignment step
+an injectable edit builder that defaults to `scalarConstEdit`. Keep it internal.
 
 ## Out of scope
 

@@ -111,6 +111,15 @@ on shutdown or EOF.
 It builds one server context (`src/lsp/server-context.ts`) that holds the owners, the connection lifecycle, the client features accepted at `initialize`, and the latest coverage and filesystem observations.
 The handler modules in `src/lsp/handlers/` register the lifecycle, document, language, and custom `bve/` methods over that context and keep no state of their own.
 The custom method names, payload types, and payload guards come from the dependency-free `src/protocol/` module (package entry point `./protocol`), which the VS Code client also bundles.
+
+Admission rule for client-to-server methods. A request outside the initialized state is rejected:
+with `-32002` (not initialized) before `initialize`, and with `-32600` (invalid request) after
+`shutdown`. A notification outside the initialized state, or with parameters that fail its guard,
+is dropped without effect and without a response: JSON-RPC gives a notification no response, and
+the server may send nothing before it has answered `initialize`.
+The server registers every custom notification through one internal helper, and `test/lsp/protocol-parity.test.ts` checks the rule for every method in `BVE_METHOD_SHAPES`.
+`bve/recordSelection` is that notification: the VS Code client sends it only while the language client runs and replays its stored selection history after every start and configuration reload, so a dropped notification loses nothing.
+
 `EditorService` is a facade over the indexing, rule contribution, completion, navigation, and repair modules in `src/lsp/editor/`.
 Features consume immutable document views. A document lifetime changes after close and reopen, even with the same URI and version.
 Source capture commits only when its disk and workspace generations remain current.
