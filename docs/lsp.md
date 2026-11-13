@@ -133,6 +133,9 @@ Reload blocks affected requests, prepares and admits replacement resources, and 
 One activation commit installs the new services and source selection. Failures cannot reactivate retired resources.
 Session close bounds internal draining and attempts every owned finalizer. Cleanup failure requires reconnecting.
 The process configuration watch survives failed reloads. Each credential watch belongs to its resource generation.
+The configuration watch does not reload a file that still holds the bytes the configuration in use was read from, so one
+change that an explicit reload request already loaded is not loaded a second time. It compares a digest of the bytes, not
+file times. A file that cannot be read stably, a load that failed, and a credential change all reload as before.
 
 Programmatic hosts retain responsibility for supplied provider/filesystem cleanup through their aggregate `dispose` callback.
 The stdio launcher supplies a callback that attempts both closes. Session replacement does not close its shared CEL runtime.

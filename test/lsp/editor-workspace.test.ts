@@ -174,6 +174,66 @@ void test('trusted configuration reload changes policy without replacing the ser
   assert.deepEqual(await host.client.sendRequest('bve/reloadConfiguration'), { reloaded: true });
 });
 
+void test('an explicit reload is not repeated by the configuration watch for the same file change', async (t) => {
+  const text = componentText().replace('production', '');
+  const create = (value: string) => {
+    const run = policyRun({ text, ...fixPolicy(value) });
+    return parseLspConfig({
+      ...run.context,
+      identity: run.request.identity,
+      source: run.request.source,
+      debounceMs: 0,
+    });
+  };
+  const host = await startLspClient(t, create('production'));
+  let reloads = 0;
+  host.client.onNotification('bve/configurationReloaded', () => {
+    reloads++;
+  });
+  await host.client.sendNotification(DidOpenTextDocumentNotification.type, {
+    textDocument: { uri: URI, languageId: 'yaml', version: 1, text },
+  });
+  await host.waitFor((row) => row.uri === URI && row.version === 1);
+  const after = host.diagnostics.length;
+  await writeFile(host.configPath, JSON.stringify(create('internal')));
+  assert.deepEqual(await host.client.sendRequest('bve/reloadConfiguration'), { reloaded: true });
+  // Every reload that became ready before this response has announced itself by now.
+  const announced = reloads;
+  assert(announced >= 1);
+  await host.waitFor(
+    (row) =>
+      row.uri === URI &&
+      row.version === 1 &&
+      !row.diagnostics.some((item) => item.code === 'validation/incomplete'),
+    after,
+  );
+  // The watch polls the file every 500 ms. Give it more than two polls to see the change that
+  // the explicit request already loaded.
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  assert.equal(reloads, announced, 'The watch must not reload a configuration already in use.');
+  const offered = await host.client.sendRequest(CompletionRequest.type, {
+    textDocument: { uri: URI },
+    position: { line: 5, character: 13 },
+  });
+  assert(offered && 'items' in offered);
+  assert.deepEqual(
+    offered.items.map((item) => item.label),
+    ['internal'],
+  );
+  // A later change that nothing requested is still loaded by the watch alone.
+  await writeFile(host.configPath, JSON.stringify(create('production')));
+  await new Promise<void>((resolve, reject) => {
+    const end = Date.now() + 5000;
+    const poll = () =>
+      reloads > announced
+        ? resolve()
+        : Date.now() > end
+          ? reject(new Error('The watch did not load a changed configuration.'))
+          : setTimeout(poll, 25);
+    poll();
+  });
+});
+
 void test('catalog search works from the pinned workspace without opening a document', async (t) => {
   const run = policyRun({ rules: [], files: [localTeam] });
   const config = parseLspConfig({

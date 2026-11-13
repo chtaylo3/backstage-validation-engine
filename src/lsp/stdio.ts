@@ -9,7 +9,7 @@ import {
 import { closeSharedCelRuntime, getSharedCelRuntime } from '../runtime/cel/index.js';
 import { systemClock } from '../base/clock.js';
 import { createLspCatalog } from './config.js';
-import { readTrustedLspConfig } from './trusted-config.js';
+import { readTrustedLspConfig, trustedConfigDigest, trustedFileDigest } from './trusted-config.js';
 import { BoundedLspInput } from './framing.js';
 import { createFilesystemSource } from './filesystem.js';
 import { attachLspServer } from './server.js';
@@ -82,17 +82,28 @@ try {
     watchdog,
   );
   let watches: TrustedFileWatches | undefined = undefined;
+  // The digest of the file bytes behind the configuration in use. It changes only when a session
+  // activates, so the watch still retries a load that failed or was read but never activated.
+  let inUse = trustedConfigDigest(config);
   const server = attachLspServer(connection, config, {
     ...initial,
     clock,
     reload: async () => resources(await readTrustedLspConfig(configPath)),
-    configurationChanged: (current) => watches?.credential(current.catalog?.tokenFile),
+    configurationChanged: (current) => {
+      inUse = trustedConfigDigest(current);
+      return watches?.credential(current.catalog?.tokenFile);
+    },
     onClose: () => watches?.close(),
   });
   startupCleanup = server.close;
-  watches = new TrustedFileWatches(configPath, () => {
-    void server.reload().catch(() => undefined);
-  });
+  watches = new TrustedFileWatches(
+    configPath,
+    () => {
+      void server.reload().catch(() => undefined);
+    },
+    undefined,
+    async () => inUse !== undefined && (await trustedFileDigest(configPath)) === inUse,
+  );
   server.own(watches.credential(config.catalog?.tokenFile));
   let stopping = false;
   const stop = (code: number) => {
