@@ -2,6 +2,8 @@ import { normalizeCatalogAccess } from '../providers/catalog.js';
 import { CatalogFailure } from '../providers/types.js';
 import { abortable } from '../providers/async.js';
 import { digestJson } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import type {
   CatalogAccessContext,
   CatalogProvider,
@@ -20,20 +22,24 @@ export const CATALOG_REFRESH_LIMITS = Object.freeze({
   recentMs: 120_000,
   queryConcurrency: 4,
 });
-export interface RefreshClock {
-  now(): number;
+/** The refresh reads wall time through `Clock`, and adds jitter and a scheduler of its own. */
+export interface RefreshClock extends Clock {
   random(): number;
   schedule(work: () => void, milliseconds: number): () => void;
 }
-const clock: RefreshClock = {
-  now: () => Date.now(),
-  random: () => Math.random(),
-  schedule: (work, milliseconds) => {
-    const timer = setTimeout(work, milliseconds);
-    timer.unref();
-    return () => clearTimeout(timer);
-  },
-};
+/** A refresh clock that reads `clock`, with `Math.random` jitter and real, unreferenced timers. */
+export function refreshClock(clock: Clock = systemClock): RefreshClock {
+  return {
+    wall: () => clock.wall(),
+    monotonic: () => clock.monotonic(),
+    random: () => Math.random(),
+    schedule: (work, milliseconds) => {
+      const timer = setTimeout(work, milliseconds);
+      timer.unref();
+      return () => clearTimeout(timer);
+    },
+  };
+}
 type Catalog = { readonly provider: CatalogProvider; readonly access: CatalogAccessContext };
 type Query = { query: CatalogSuggestionQuery; touched: number; report?: CatalogSuggestionReport };
 /** Session-owned polling. A tick admits one new validation, which owns all fresh reads. */
@@ -68,7 +74,7 @@ export class CatalogRefresh {
   constructor(
     catalog: Catalog,
     private readonly invalidate: () => void,
-    private readonly time: RefreshClock = clock,
+    private readonly time: RefreshClock = refreshClock(),
   ) {
     this.original = { provider: catalog.provider, access: normalizeCatalogAccess(catalog.access) };
     const provider: CatalogProvider = {
@@ -129,12 +135,12 @@ export class CatalogRefresh {
       !this.closed &&
       !this.suspended &&
       !this.busy &&
-      this.time.now() >= Math.min(this.due, this.claimsExpireAt)
+      this.time.wall() >= Math.min(this.due, this.claimsExpireAt)
     )
       this.tick();
   }
   private prune(): void {
-    const now = this.time.now();
+    const now = this.time.wall();
     for (const [key, value] of this.queries)
       if (now - value.touched >= CATALOG_REFRESH_LIMITS.recentMs || now < value.touched) {
         this.queries.delete(key);
@@ -153,7 +159,7 @@ export class CatalogRefresh {
       (!this.references.size && !this.queries.size && !this.candidateReferences.size)
     )
       return;
-    const now = this.time.now();
+    const now = this.time.wall();
     const cadence = Math.min(
       CATALOG_REFRESH_LIMITS.cadenceMs,
       this.original.access.maxAgeMs || CATALOG_REFRESH_LIMITS.cadenceMs,
@@ -258,7 +264,7 @@ export class CatalogRefresh {
     access = this.approved(access);
     const revision = this.revision;
     const key = JSON.stringify(query),
-      now = this.time.now();
+      now = this.time.wall();
     this.prune();
     const previous = this.queries.get(key);
     if (previous) {
@@ -409,7 +415,7 @@ export class CatalogRefresh {
           );
           this.failures = failed ? this.failures + 1 : 0;
           this.hasClaims ||= entries.some((row) => row.status !== 'unavailable');
-          this.observedAt = this.time.now();
+          this.observedAt = this.time.wall();
           this.expiresAt = Math.min(
             Infinity,
             ...entries
@@ -447,7 +453,7 @@ export class CatalogRefresh {
           Math.min(this.candidateReferences.get(reference) ?? Infinity, expiresAt),
         );
       this.candidateFailed ||= failed;
-      this.observedAt ||= this.time.now();
+      this.observedAt ||= this.time.wall();
       if (!this.busy) {
         if (failed) this.failures++;
         this.schedule();
@@ -545,7 +551,7 @@ export class CatalogRefresh {
           while (
             next < queries.length &&
             !execution.signal?.aborted &&
-            this.time.now() < execution.deadlineAt
+            this.time.wall() < execution.deadlineAt
           ) {
             const row = queries[next++]!;
             // Background activity never extends the query's user-interest lifetime.

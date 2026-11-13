@@ -1,5 +1,7 @@
 import type { CancellationToken } from 'vscode-languageserver/node';
 import { RequestBudget } from '../runtime/request-budget.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import type { LspConfig } from './config.js';
 import type { WorkspaceSnapshot, WorkspaceState } from './workspace-state.js';
 
@@ -68,6 +70,8 @@ export class RequestContexts<S extends RequestSession> {
   constructor(
     private readonly workspace: WorkspaceState,
     private readonly read: () => RequestState<S>,
+    /** Reads each request's deadline and decides its budget. */
+    private readonly clock: Clock = systemClock,
   ) {}
   capture(token?: CancellationToken, uri?: string): RequestAdmission<S> {
     const state = this.read();
@@ -83,10 +87,11 @@ export class RequestContexts<S extends RequestSession> {
     if (uri !== undefined && !document) return { status: 'document_unavailable' };
     const cancellation = new AbortController();
     const subscription = token?.onCancellationRequested(() => cancellation.abort());
-    const deadlineAt = Date.now() + state.session.config.profile.limits.requestTimeoutMs;
+    const deadlineAt = this.clock.wall() + state.session.config.profile.limits.requestTimeoutMs;
     const budget = new RequestBudget(
       deadlineAt,
       AbortSignal.any([cancellation.signal, state.session.operations.signal]),
+      this.clock,
     );
     let closed = false;
     const current = () => {

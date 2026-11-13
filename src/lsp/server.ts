@@ -56,6 +56,8 @@ function validate(context: ServerContext, run: ValidationRun): Promise<void> {
   const refresh = available ? session.refresh?.begin() : undefined;
   const dependencyGeneration = session.refresh?.generation ?? 0;
   const input = {
+    clock: context.clock,
+    runtime: session.runtime,
     dependencyGeneration,
     observeCoverage: (value: CoverageObservation) => {
       if (run.current() && sessions.current === session && sessions.available)
@@ -116,26 +118,33 @@ export function createServerContext(
       ...(options.catalog ? { catalog: options.catalog } : {}),
       ...(options.filesystem ? { filesystem: options.filesystem } : {}),
       ...(options.dispose ? { dispose: options.dispose } : {}),
+      ...(options.runtime ? { runtime: options.runtime } : {}),
     },
     sessionPorts(context),
     options.reload,
+    undefined,
+    context.clock,
   );
   const coordinator: ValidationCoordinator = new ValidationCoordinator(
     (run) => validate(context, run),
     () => sessions.current.config.debounceMs,
     (reason) => invalidateState(context, reason),
   );
-  const requests = new RequestContexts(context.workspace, () => {
-    sessions.current.refresh?.ensureFresh();
-    if (sessions.available && sessions.current.editor.rulePreparationExpired)
-      coordinator.invalidate('metadata');
-    return {
-      initialized: context.lifecycle.initialized,
-      stopped: context.lifecycle.stopped,
-      available: sessions.available,
-      session: sessions.current,
-    };
-  });
+  const requests = new RequestContexts(
+    context.workspace,
+    () => {
+      sessions.current.refresh?.ensureFresh();
+      if (sessions.available && sessions.current.editor.rulePreparationExpired)
+        coordinator.invalidate('metadata');
+      return {
+        initialized: context.lifecycle.initialized,
+        stopped: context.lifecycle.stopped,
+        available: sessions.available,
+        session: sessions.current,
+      };
+    },
+    context.clock,
+  );
   context.wire({ sessions, coordinator, requests });
   return context;
 }

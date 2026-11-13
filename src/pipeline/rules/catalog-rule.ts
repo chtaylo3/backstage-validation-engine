@@ -15,7 +15,7 @@ export const evaluateCatalogRule: RuleEvaluator<RuleOfKind<'catalog'>> = (
     (fact) =>
       fact.status === 'unavailable' ||
       fact.status === 'blocked' ||
-      (fact.expiresAt !== undefined && fact.expiresAt <= Date.now()),
+      (fact.expiresAt !== undefined && fact.expiresAt <= context.budget.clock.wall()),
   );
   const addFinding = (
     location: Immutable<Finding['location']>,

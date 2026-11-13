@@ -127,7 +127,7 @@ function createAdapter(id: BackstageAdapterId, lib: Library): BackstageAdapter {
     context: NativeExecutionContext,
     mode: 'entity' | 'kind' | 'normalize' = 'entity',
   ): Promise<NativeEntityCheck> => {
-    using budget = new RequestBudget(context.deadlineAt, context.signal);
+    using budget = new RequestBudget(context.deadlineAt, context.signal, context.clock);
     budget.throwIfInterrupted();
     const parentPolicy = settings ? configuredParent(settings) : undefined;
     const authored = snapshot(value);

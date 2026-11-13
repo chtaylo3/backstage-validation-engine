@@ -100,6 +100,7 @@ export async function openSourceRun(
     mode: run.execution.mode,
     deadlineAt: run.execution.deadlineAt,
     signal: budget.signal,
+    clock: budget.clock,
     ...(uris === undefined ? {} : { uris }),
     limits: {
       files: profile.limits.entities,

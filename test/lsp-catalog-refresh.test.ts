@@ -36,7 +36,8 @@ function setup(maxAgeMs = 30_000) {
     delay = 0,
     invalidations = 0;
   const time: RefreshClock = {
-    now: () => now,
+    wall: () => now,
+    monotonic: () => now,
     random: () => 0,
     schedule: (work, ms) => {
       callback = work;
@@ -554,7 +555,8 @@ void test('real provider body changes alter dependency digest while the entity i
     let now = Date.now(),
       tick: (() => void) | undefined;
     const refresh = new CatalogRefresh(catalog, () => {}, {
-      now: () => now,
+      wall: () => now,
+      monotonic: () => now,
       random: () => 0,
       schedule: (work) => {
         tick = work;

@@ -7,6 +7,8 @@ import type { Immutable } from '../base/json.js';
 import { createSourceSnapshot, overlaySourceSnapshot } from '../core/snapshots.js';
 import { isCanonicalSourceUri } from '../base/source-uris.js';
 import { RequestBudget } from '../runtime/request-budget.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import type { LspConfig } from './config.js';
 import { approvedFilesystemUri, discoverFiles } from './discovery.js';
 
@@ -174,12 +176,14 @@ async function capture(
   shutdown: AbortSignal,
   base: Immutable<SourceSnapshot>,
   options: CaptureOptions,
+  clock: Clock,
 ) {
   const { config, root } = scope;
   if (shutdown.aborted) fail('closed');
   using budget = new RequestBudget(
     options.deadlineAt,
     AbortSignal.any([shutdown, ...(options.signal ? [options.signal] : [])]),
+    clock,
   );
   try {
     const skip = new Set(options.skip ?? []);
@@ -238,7 +242,11 @@ async function capture(
 }
 
 /** Host allowlist and optional bounded discovery; every read retains containment checks. */
-export async function createFilesystemSource(config: LspConfig): Promise<FilesystemSource> {
+/** The host's filesystem reader. `clock` decides each capture's deadline; defaults to `systemClock`. */
+export async function createFilesystemSource(
+  config: LspConfig,
+  clock: Clock = systemClock,
+): Promise<FilesystemSource> {
   const scope = await openRoot(config);
   const settings = config.filesystem!;
   const allowed = new Set(settings.files);
@@ -254,7 +262,7 @@ export async function createFilesystemSource(config: LspConfig): Promise<Filesys
   return {
     files: Object.freeze([...allowed]),
     capture: (base, options) => {
-      const work = capture(scope, paths, shutdown.signal, base, options);
+      const work = capture(scope, paths, shutdown.signal, base, options, clock);
       pending.add(work);
       void work.then(
         () => pending.delete(work),

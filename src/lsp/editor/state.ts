@@ -1,5 +1,7 @@
 import type { Immutable } from '../../base/json.js';
 import { digestText, immutableJson } from '../../base/json.js';
+import { systemClock } from '../../base/clock.js';
+import type { Clock } from '../../base/clock.js';
 import { capabilityBinding } from '../../capabilities/bindings.js';
 import type { CapabilitySession } from '../../capabilities/session.js';
 import type {
@@ -11,6 +13,8 @@ import type {
 import type { JsonValue, ValidationRequest } from '../../contracts/schemas.js';
 import type { PreparedRuleMetadata } from '../../host/rule-contributions.js';
 import { RULE_EDITOR_LIMITS } from '../../host/rule-contributions.js';
+import { defaultRuleRuntime } from '../../pipeline/rules/context.js';
+import type { CelRuntime } from '../../runtime/cel/index.js';
 import type { LspConfig } from '../config.js';
 import type { EditorDocument, EditorFile } from '../editor-documents.js';
 import { object, parts, resolveFields } from '../editor-schemas.js';
@@ -29,11 +33,19 @@ export interface IndexedFile {
   readonly file: EditorFile;
   readonly documents: readonly IndexedDocument[];
 }
+/** The editor's options from its owner: capability binding, the runtime, and the clock. */
 export interface CapabilityOptions {
   readonly provider?: CapabilitySession;
   readonly sessionGeneration?: number;
   readonly dependencyGeneration?: () => number;
   readonly authorityContextDigest?: string;
+  /**
+   * The runtime of rule selector evaluation, from the editor's owner. When absent, the documented
+   * default of rule execution applies at evaluation time.
+   */
+  readonly runtime?: CelRuntime;
+  /** Reads rule contribution lifetimes and metadata deadlines. Defaults to `systemClock`. */
+  readonly clock?: Clock;
 }
 
 /** Incomplete object values are absent, never converted into explicit JSON null. */
@@ -105,11 +117,18 @@ export class EditorState {
   rules: readonly PreparedRuleMetadata[] = [];
   rulesWall = 0;
   rulesMonotonic = 0;
+  readonly clock: Clock;
   constructor(
     readonly config: LspConfig,
     readonly capabilities: CapabilitySession,
     readonly capabilityOptions: CapabilityOptions,
-  ) {}
+  ) {
+    this.clock = capabilityOptions.clock ?? systemClock;
+  }
+  /** The runtime that evaluates rule selectors: the owner's, else the rule execution default. */
+  get runtime(): CelRuntime {
+    return this.capabilityOptions.runtime ?? defaultRuleRuntime();
+  }
   fields(selected: IndexedDocument, path: string): ResolvedField[] {
     return resolveFields(selected.schemas, selected.basePath + path, selected.schemaValue);
   }
@@ -131,8 +150,8 @@ export class EditorState {
   }
   /** Installed rule contributions that have not expired by wall or monotonic time. */
   currentRules(): readonly PreparedRuleMetadata[] {
-    const now = Date.now(),
-      elapsed = performance.now() - this.rulesMonotonic;
+    const now = this.clock.wall(),
+      elapsed = this.clock.monotonic() - this.rulesMonotonic;
     return now < this.rulesWall
       ? []
       : this.rules.filter((row) => now < row.expiresAt && elapsed < row.expiresAt - this.rulesWall);
@@ -224,7 +243,7 @@ export class EditorState {
             ? { authorityContextDigest: this.capabilityOptions.authorityContextDigest }
             : {}),
         }),
-        deadlineAt: Date.now() + Math.min(50, this.config.profile.limits.requestTimeoutMs),
+        deadlineAt: this.clock.wall() + Math.min(50, this.config.profile.limits.requestTimeoutMs),
         current: () =>
           this.request === request && this.lifetime === lifetime && this.generation === generation,
       });

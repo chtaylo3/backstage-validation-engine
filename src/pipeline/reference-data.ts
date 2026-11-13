@@ -8,6 +8,8 @@ import type {
   ValidationRequest,
 } from '../contracts/schemas.js';
 import { parseContract } from '../contracts/validate.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { validateBackstageSources } from '../compatibility/sources.js';
 import type { BackstageCompatibilityReport } from '../compatibility/types.js';
 import { catalogEntityKey, normalizeCatalogAccess } from '../providers/catalog.js';
@@ -74,6 +76,7 @@ type PinFailure = ReferenceDataPreparation['pinFailure'];
 /** Shared by the collection steps; each step merges the interruption it observes. */
 interface Collection {
   readonly run: Immutable<ValidationRequest>;
+  readonly clock: Clock;
   readonly budget: RequestBudget;
   readonly timer: FailureTimer;
   readonly failureEvidence: FailureEvidence[];
@@ -136,8 +139,11 @@ async function qualifySources(
   context: SourceContext,
   onLocalSources: ((sources: LocalCatalogSources) => void) | undefined,
 ) {
-  const { run, budget } = collection;
-  const compatibility = await validateBackstageSources(run, context, { signal: budget.signal });
+  const { run, budget, clock } = collection;
+  const compatibility = await validateBackstageSources(run, context, {
+    signal: budget.signal,
+    clock,
+  });
   collection.interruption = compatibility.interrupted;
   let baseline: BackstageCompatibilityReport | undefined;
   if (run.baseline && collection.interruption === 'none' && !budget.interrupted) {
@@ -145,7 +151,7 @@ async function qualifySources(
     baseline = await validateBackstageSources(
       parseContract('validation-request', { ...withoutBaseline, source: sourceBaseline }),
       context,
-      { signal: budget.signal },
+      { signal: budget.signal, clock },
     );
     collection.interruption = mergeInterruption(collection.interruption, baseline.interrupted);
   }
@@ -304,7 +310,7 @@ function pinEvaluationRequest(
   provider: CatalogProvider,
   received: ReadonlyMap<string, Immutable<DataEntry>>,
 ) {
-  const { run, budget } = collection;
+  const { run, budget, clock } = collection;
   const retained = run.data.entries.filter(
     (entry) =>
       !(
@@ -328,7 +334,7 @@ function pinEvaluationRequest(
     pinFailure = 'resource_limit';
     collection.interruption = mergeInterruption(collection.interruption, 'resource_limit');
   }
-  const pinnedAt = Date.now();
+  const pinnedAt = clock.wall();
   if (budget.interrupted || pinnedAt >= run.execution.deadlineAt) {
     pinFailure = 'interrupted';
     collection.interruption = mergeInterruption(
@@ -399,17 +405,30 @@ export async function prepareBackstageReferenceData(
     readonly signal?: AbortSignal;
     readonly referencePaths?: readonly string[];
     readonly onLocalSources?: (sources: LocalCatalogSources) => void;
+    /**
+     * Decides the collection and source-stage deadlines and the pin time. Catalog lookups read the
+     * provider's clock.
+     */
+    readonly clock?: Clock;
   },
 ): Promise<ReferenceDataPreparation> {
-  const timer = new FailureTimer();
+  const clock = options.clock ?? systemClock;
+  const timer = new FailureTimer(clock);
   const failureEvidence: FailureEvidence[] = [];
   const run = parseContract('validation-request', request);
-  using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
+  using budget = new RequestBudget(run.execution.deadlineAt, options.signal, clock);
   verifyRequestBindings(run, context);
   const referencePaths = selectReferencePaths(context, options.referencePaths);
   const provider = options.provider;
   const access = bindCatalogAccess(run, context, provider, options.access);
-  const collection: Collection = { run, budget, timer, failureEvidence, interruption: 'none' };
+  const collection: Collection = {
+    run,
+    clock,
+    budget,
+    timer,
+    failureEvidence,
+    interruption: 'none',
+  };
   const sources = await qualifySources(collection, context, options.onLocalSources);
   const { baseline } = sources;
   const { compatibility, targets, blocked, received } = classifyTargets(

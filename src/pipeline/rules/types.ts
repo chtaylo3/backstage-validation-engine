@@ -5,6 +5,7 @@ import type {
   RuleState,
   ValidationRequest,
 } from '../../contracts/schemas.js';
+import type { Clock } from '../../base/clock.js';
 import type { Immutable } from '../../base/json.js';
 import type { PolicySchemaValidator } from '../../compatibility/custom-schemas.js';
 import type { SourceSubstitution } from '../../compatibility/types.js';
@@ -28,6 +29,8 @@ export interface RuleFailure {
 export interface RuleExecutionOptions {
   readonly signal?: AbortSignal;
   readonly runtime?: CelRuntime;
+  /** Reads the rule stage's deadline and catalog fact expiry. CEL workers keep real time. */
+  readonly clock?: Clock;
   readonly referenceData?: ReferenceDataPreparation;
   readonly sourceDocuments?: readonly ParsedSourceDocument[];
   readonly sourceSubstitutions?: readonly {
@@ -42,6 +45,7 @@ export interface RuleExecutionOptions {
  */
 export interface RuleRunContext {
   readonly run: Immutable<ValidationRequest>;
+  /** The run's budget. Its `clock` decides the deadline and catalog fact expiry. */
   readonly budget: RequestBudget;
   readonly runtime: CelRuntime;
   readonly evaluation: EvaluationContext;

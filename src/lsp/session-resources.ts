@@ -1,4 +1,7 @@
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
+import type { CelRuntime } from '../runtime/cel/index.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { abortable } from '../providers/async.js';
 import { CompletionService } from './completion.js';
 import { EditorService } from './editor.js';
@@ -6,7 +9,7 @@ import { BuiltinValidationService } from '../host/builtin-validation.js';
 import { capabilityAuthorityDigest } from '../capabilities/bindings.js';
 import type { LspConfig } from './config.js';
 import type { FilesystemSource } from './filesystem.js';
-import { CatalogRefresh } from './catalog-refresh.js';
+import { CatalogRefresh, refreshClock } from './catalog-refresh.js';
 import { SessionOperations } from './request-context.js';
 
 export interface SessionRegistration {
@@ -17,6 +20,12 @@ export interface LspServerResources {
   readonly config: LspConfig;
   readonly catalog?: { readonly provider: CatalogProvider; readonly access: CatalogAccessContext };
   readonly filesystem?: FilesystemSource;
+  /**
+   * The CEL runtime of this generation's editor selectors, validation and rule hints. The stdio
+   * entry point passes the shared runtime; when absent, each consumer applies the documented
+   * default of rule execution. The host owns its lifetime: a generation never closes it.
+   */
+  readonly runtime?: CelRuntime;
   /** The host owns provider/filesystem cleanup through this aggregate finalizer. */
   readonly dispose?: () => Promise<void>;
 }
@@ -53,13 +62,15 @@ export class SessionGeneration {
     private readonly closeMs = 5000,
     private readonly cleanupFailed: () => void = () => {},
     dependencyChanged: () => void = () => {},
+    /** The connection's clock; see `LspServerOptions.clock`. */
+    private readonly clock: Clock = systemClock,
   ) {
     if (!!resources.config.filesystem !== !!resources.filesystem)
       throw new Error('Invalid host resources.');
     this.refresh = resources.catalog
-      ? new CatalogRefresh(resources.catalog, dependencyChanged)
+      ? new CatalogRefresh(resources.catalog, dependencyChanged, refreshClock(clock))
       : undefined;
-    this.completion = new CompletionService(resources.config, this.catalog, undefined, {
+    this.completion = new CompletionService(resources.config, this.catalog, clock, {
       dependencyGeneration: () => this.refresh?.generation ?? 0,
       sessionGeneration: generation,
     });
@@ -71,8 +82,17 @@ export class SessionGeneration {
       sessionGeneration: generation,
       authorityContextDigest,
       dependencyGeneration: () => this.refresh?.generation ?? 0,
+      clock,
+      ...(resources.runtime ? { runtime: resources.runtime } : {}),
     });
-    this.validation = new BuiltinValidationService(resources.config, generation);
+    this.validation = new BuiltinValidationService(resources.config, generation, {
+      clock,
+      ...(resources.runtime ? { runtime: resources.runtime } : {}),
+    });
+  }
+  /** The host-supplied CEL runtime of this generation, if any. */
+  get runtime(): CelRuntime | undefined {
+    return this.resources.runtime;
   }
   get config() {
     return this.resources.config;
@@ -123,7 +143,7 @@ export class SessionGeneration {
     this.editor.invalidate();
     this.completion.invalidate();
     this.disposal = (async () => {
-      const deadline = performance.now() + this.closeMs;
+      const deadline = this.clock.monotonic() + this.closeMs;
       const draining = await bounded(
         Promise.allSettled([
           this.operations.drain(),
@@ -132,7 +152,7 @@ export class SessionGeneration {
           this.editor.close(),
           this.validation.close(),
         ]),
-        deadline - performance.now(),
+        deadline - this.clock.monotonic(),
       ).then(
         (outcomes) => outcomes.every((outcome) => outcome.status === 'fulfilled'),
         () => false,
@@ -144,7 +164,7 @@ export class SessionGeneration {
       cleanup.push(Promise.resolve().then(() => this.resources.dispose?.()));
       const outcomes = await Promise.all(
         cleanup.map((work) =>
-          bounded(work, deadline - performance.now()).then(
+          bounded(work, deadline - this.clock.monotonic()).then(
             () => true,
             () => false,
           ),
@@ -182,6 +202,8 @@ export class SessionResources {
     private readonly ports: SessionPorts,
     private readonly load?: () => Promise<LspServerResources>,
     private readonly closeMs = 5000,
+    /** The connection's clock, handed to every generation. */
+    private readonly clock: Clock = systemClock,
   ) {
     this.active = this.createGeneration(initial);
   }
@@ -204,6 +226,7 @@ export class SessionResources {
         }
       },
       () => this.ports.dependencyChanged?.(),
+      this.clock,
     );
   }
   get current() {

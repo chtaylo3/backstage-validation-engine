@@ -1,6 +1,9 @@
 import type { SessionOperations } from './request-context.js';
 import type { Diagnostic } from 'vscode-languageserver/node';
 import { digestText } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
+import type { CelRuntime } from '../runtime/cel/index.js';
 import { overlaySourceSnapshot } from '../core/snapshots.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import type { BuiltinValidationService } from '../host/builtin-validation.js';
@@ -25,6 +28,10 @@ import type { ValidationRun } from './validation-coordinator.js';
 import { prepareRuleContributions } from '../host/rule-contributions.js';
 
 interface ValidationInputs {
+  /** The connection's clock: request deadlines, failure timing, and fix lifetimes read it. */
+  readonly clock?: Clock;
+  /** The session's CEL runtime for optional rule hints; validation receives it from its owner. */
+  readonly runtime?: CelRuntime | undefined;
   readonly dependencyGeneration?: number;
   readonly refreshQueries?: (deadlineAt: number, signal: AbortSignal) => Promise<void>;
   readonly operations: SessionOperations | undefined;
@@ -78,7 +85,7 @@ async function captureSources(
 ): Promise<ReturnType<typeof createLspRequest> | undefined | typeof STALE> {
   const { config, workspace, filesystem } = input;
   const frame = input.snapshot.documents;
-  const original = filesystem ? createLspRequest(config, workspace.source) : undefined;
+  const original = filesystem ? createLspRequest(config, workspace.source, input.clock) : undefined;
   record.deadlineAt = original?.execution.deadlineAt;
   if (filesystem && workspace.capturedGeneration < workspace.diskGeneration) {
     const requested = workspace.diskGeneration;
@@ -134,7 +141,7 @@ function proposedRequest(
   if (input.filesystem) source = reconcileFilesystemSource(config, source);
   return original
     ? parseContract('validation-request', { ...original, source })
-    : createLspRequest(config, source);
+    : createLspRequest(config, source, input.clock);
 }
 /**
  * Execute: starts the query refresh, completion indexing and editor indexing beside the
@@ -281,6 +288,8 @@ async function prepareRuleHints(
       generation: input.dependencyGeneration ?? 0,
       signal: context.signal,
       current,
+      clock: input.clock ?? systemClock,
+      ...(input.runtime ? { runtime: input.runtime } : {}),
       ...(input.candidateCatalog ? { catalog: input.candidateCatalog } : {}),
       render: (subjectId, path, value, ruleId) =>
         editor.renderRuleCandidate(
@@ -306,7 +315,11 @@ async function prepareRuleHints(
           source: report.request.source,
           ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
           documents: snapshot.allDocuments,
-          expiresAt: Math.min(Date.now() + FIX_LIMITS.ttlMs, editor.ruleExpiresAt, dataExpiresAt),
+          expiresAt: Math.min(
+            (input.clock ?? systemClock).wall() + FIX_LIMITS.ttlMs,
+            editor.ruleExpiresAt,
+            dataExpiresAt,
+          ),
         });
     }
   } catch {
@@ -362,17 +375,18 @@ export async function runValidation(
   const { config, snapshot, workspace, editor, fixes, fixesEnabled } = input;
   const { generation } = context;
   const frame: Frame = snapshot.documents;
+  const clock = input.clock ?? systemClock;
 
   if (!frame.length) {
     if (input.refreshQueries)
       await input.refreshQueries(
-        Date.now() + config.profile.limits.requestTimeoutMs,
+        clock.wall() + config.profile.limits.requestTimeoutMs,
         context.signal,
       );
     return;
   }
   const record: RunRecord = {
-    timing: new FailureTimer(),
+    timing: new FailureTimer(clock),
     evidence: [],
     phase: 'validation',
     deadlineAt: undefined,
@@ -408,7 +422,7 @@ export async function runValidation(
         source: report.request.source,
         ...(report.request.baseline ? { baseline: report.request.baseline } : {}),
         documents: snapshot.allDocuments,
-        expiresAt: Math.min(Date.now() + FIX_LIMITS.ttlMs, eligibility.dataExpiresAt),
+        expiresAt: Math.min(clock.wall() + FIX_LIMITS.ttlMs, eligibility.dataExpiresAt),
       });
     }
     if (!(await publishFindings(context, input, report, record.evidence))) return;

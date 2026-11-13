@@ -25,6 +25,7 @@ export async function validateNativeEntity(
   let checked: NativeEntityCheck = await adapter.normalizeEntity(value, profile.nativePolicies, {
     deadlineAt: run.execution.deadlineAt,
     signal: budget.signal,
+    clock: budget.clock,
   });
   budget.throwIfInterrupted();
   if (
@@ -59,6 +60,7 @@ export async function validateNativeEntity(
       const kindCheck = await adapter.validateKind(checked.normalized, {
         deadlineAt: run.execution.deadlineAt,
         signal: budget.signal,
+        clock: budget.clock,
       });
       checked = { ...kindCheck, authored: checked.authored, changes: checked.changes };
       if (checked.status === 'unsupported' && customKinds.hasKind(kind))

@@ -10,6 +10,7 @@ import { verifyRequestBindings } from '../core/bindings.js';
 import { deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { RequestBudget } from '../runtime/request-budget.js';
+import type { Clock } from '../base/clock.js';
 import { validateSourceDocument } from './stages/document.js';
 import { resolveIdentityConflicts } from './stages/identity-conflicts.js';
 import { prepareSourceRun } from './stages/prepare.js';
@@ -26,10 +27,18 @@ export async function validateBackstageSources(
     readonly activation: Immutable<ActivationManifest>;
     readonly schemaArtifacts?: readonly Immutable<SchemaArtifact>[];
   },
-  options: { readonly signal?: AbortSignal; readonly uris?: readonly string[] } = {},
+  options: {
+    readonly signal?: AbortSignal;
+    readonly uris?: readonly string[];
+    /**
+     * Decides the stage's deadline, for parsing, source resolution and native checks alike.
+     * Defaults to `systemClock`.
+     */
+    readonly clock?: Clock;
+  } = {},
 ): Promise<BackstageCompatibilityReport> {
   const run = parseContract('validation-request', request);
-  using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
+  using budget = new RequestBudget(run.execution.deadlineAt, options.signal, options.clock);
   verifyRequestBindings(run, context);
   const profile = parseContract('deployment-profile', context.profile);
   const uris = options.uris ?? run.source.entrypoints;

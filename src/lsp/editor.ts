@@ -45,13 +45,16 @@ export class EditorService {
   ) {
     this.capabilities =
       capabilityOptions.provider ??
-      builtinMetadataSession([
-        config.profile.adapterId,
-        ...config.schemaArtifacts.map(
-          (artifact) => `${artifact.id}@${artifact.version}:${artifact.digest}`,
-        ),
-        ...config.editorArtifacts.map((artifact) => `${artifact.id}:${artifact.digest}`),
-      ]);
+      builtinMetadataSession(
+        [
+          config.profile.adapterId,
+          ...config.schemaArtifacts.map(
+            (artifact) => `${artifact.id}@${artifact.version}:${artifact.digest}`,
+          ),
+          ...config.editorArtifacts.map((artifact) => `${artifact.id}:${artifact.digest}`),
+        ],
+        capabilityOptions.clock,
+      );
     this.state = new EditorState(config, this.capabilities, capabilityOptions);
     try {
       this.state.native = schemaLoader(config);

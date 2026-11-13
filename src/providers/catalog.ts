@@ -3,6 +3,7 @@ import type { DataEntry } from '../contracts/schemas.js';
 import { deepFreeze, digestJson, digestText, canonicalJson, immutableJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
+import { systemClock } from '../base/clock.js';
 import { ContractError } from '../base/errors.js';
 import { FailureTimer } from '../runtime/failure-evidence.js';
 import type { FailureStage } from '../runtime/failure-evidence.js';
@@ -176,9 +177,26 @@ export async function createCatalogProvider(
   const transport = options.transport ?? fetch;
   const adapter = await loadBackstageAdapter(options.adapterId);
   const admission = new CatalogAdmission(limits.concurrency, limits.outstanding);
-  const rateLimit = new CatalogRateLimit();
+  const clock = options.clock ?? systemClock;
+  const rateLimit = new CatalogRateLimit(clock);
   const shutdown = new AbortController();
   const calls = new Set<Promise<unknown>>();
+  /** One request scope per call, bounded by its deadline, the caller's signal and shutdown. */
+  const scope = (execution: CatalogExecutionContext) =>
+    new RequestBudget(
+      execution.deadlineAt,
+      AbortSignal.any([shutdown.signal, ...(execution.signal ? [execution.signal] : [])]),
+      clock,
+    );
+  /** Tracks a call until it settles, so that close can await every call in flight. */
+  const track = <T>(work: Promise<T>): Promise<T> => {
+    calls.add(work);
+    void work.then(
+      () => calls.delete(work),
+      () => calls.delete(work),
+    );
+    return work;
+  };
   const cache = new Map<string, { entry: Immutable<DataEntry>; bytes: number }>();
   let cacheBytes = 0;
   let epoch = 0;
@@ -222,13 +240,10 @@ export async function createCatalogProvider(
     } catch {
       throw new CatalogProviderError('invalid_reference');
     }
-    const timer = new FailureTimer();
+    const timer = new FailureTimer(clock);
     let stage: FailureStage = 'catalog_admission';
     const generation = ++epoch;
-    using budget = new RequestBudget(
-      execution.deadlineAt,
-      AbortSignal.any([shutdown.signal, ...(execution.signal ? [execution.signal] : [])]),
-    );
+    using budget = scope(execution);
     const entries = new Map<string, Immutable<DataEntry>>();
     const failures: {
       code: CatalogFailureCode;
@@ -295,7 +310,7 @@ export async function createCatalogProvider(
               ? 'offline'
               : 'provider_error';
       for (const ref of missing)
-        entries.set(ref, entry(ref, { status: 'unavailable', reason }, Date.now()));
+        entries.set(ref, entry(ref, { status: 'unavailable', reason }, clock.wall()));
     };
     let release: (() => void) | undefined;
     try {
@@ -319,7 +334,7 @@ export async function createCatalogProvider(
         const key = (ref: string) => `${partition}/${ref}`;
         for (const ref of refs) {
           const cached = cache.get(key(ref));
-          const now = Date.now();
+          const now = clock.wall();
           if (
             cached &&
             access.maxAgeMs > 0 &&
@@ -359,7 +374,7 @@ export async function createCatalogProvider(
                 generation === epoch &&
                 !shutdown.signal.aborted &&
                 access.maxAgeMs > 0 &&
-                value.provenance.expiresAt > Date.now()
+                value.provenance.expiresAt > clock.wall()
               ) {
                 const bytes = Buffer.byteLength(canonicalJson(value), 'utf8');
                 if (limits.cacheEntries > 0 && bytes <= limits.cacheBytes) {
@@ -405,7 +420,7 @@ export async function createCatalogProvider(
       release?.();
     }
     stage = 'catalog_freshness';
-    const completedAt = Date.now();
+    const completedAt = clock.wall();
     const stale: string[] = [];
     const future: string[] = [];
     for (const [ref, value] of entries) {
@@ -479,10 +494,7 @@ export async function createCatalogProvider(
     )
       throw new CatalogProviderError('invalid_reference');
     const access = normalizeCatalogAccess(rawAccess);
-    using budget = new RequestBudget(
-      execution.deadlineAt,
-      AbortSignal.any([shutdown.signal, ...(execution.signal ? [execution.signal] : [])]),
-    );
+    using budget = scope(execution);
     let release: (() => void) | undefined;
     try {
       budget.throwIfInterrupted();
@@ -503,7 +515,8 @@ export async function createCatalogProvider(
         rateLimit,
       });
       budget.throwIfInterrupted();
-      if (result.fetchedAt > Date.now() || result.fetchedAt + limits.presentTtlMs <= Date.now())
+      const now = clock.wall();
+      if (result.fetchedAt > now || result.fetchedAt + limits.presentTtlMs <= now)
         throw new CatalogFailure('timeout');
       return deepFreeze({
         ...result,
@@ -521,7 +534,7 @@ export async function createCatalogProvider(
         cacheBytes = 0;
         epoch++;
       }
-      const now = Date.now();
+      const now = clock.wall();
       return deepFreeze({
         status: 'unavailable',
         refs: [],
@@ -537,24 +550,8 @@ export async function createCatalogProvider(
   return Object.freeze<CatalogProvider>({
     connectionId,
     adapterId: adapter.id,
-    lookup: (refs, access, execution) => {
-      const work = lookup(refs, access, execution);
-      calls.add(work);
-      void work.then(
-        () => calls.delete(work),
-        () => calls.delete(work),
-      );
-      return work;
-    },
-    suggest: (query, access, execution) => {
-      const work = suggest(query, access, execution);
-      calls.add(work);
-      void work.then(
-        () => calls.delete(work),
-        () => calls.delete(work),
-      );
-      return work;
-    },
+    lookup: (refs, access, execution) => track(lookup(refs, access, execution)),
+    suggest: (query, access, execution) => track(suggest(query, access, execution)),
     stats: () => Object.freeze({ ...admission.stats(), cacheEntries: cache.size, cacheBytes }),
     close: () =>
       (closing ??= (async () => {

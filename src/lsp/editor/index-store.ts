@@ -5,7 +5,6 @@ import type { ValidationRequest } from '../../contracts/schemas.js';
 import { ParsingBudget } from '../../parsing/budget.js';
 import { SourceLineIndex } from '../../parsing/locations.js';
 import type { validatePolicySources } from '../../pipeline/policy-sources.js';
-import { getSharedCelRuntime } from '../../runtime/cel/index.js';
 import { editorDocuments } from '../editor-documents.js';
 import type { EditorFile } from '../editor-documents.js';
 import { forbidden, object } from '../editor-schemas.js';
@@ -40,6 +39,7 @@ export async function updateIndex(
     mode: 'ide',
     deadlineAt: request.execution.deadlineAt,
     signal: controller.signal,
+    clock: state.clock,
     limits: {
       fileBytes: config.profile.limits.fileBytes,
       requestBytes: config.profile.limits.requestBytes,
@@ -115,7 +115,7 @@ export async function updateIndex(
           if (rule.selector) {
             try {
               if (
-                !(await getSharedCelRuntime().evaluate(rule.selector, document.value, {
+                !(await state.runtime.evaluate(rule.selector, document.value, {
                   requestId: `editor:${request.run.runId}`,
                   deadlineAt: request.execution.deadlineAt,
                   signal: controller.signal,
@@ -234,6 +234,7 @@ export async function refineIndex(
     using budget = new ParsingBudget({
       mode: 'ide',
       deadlineAt: report.request.execution.deadlineAt,
+      clock: state.clock,
       ...(state.controller ? { signal: state.controller.signal } : {}),
     });
     for (const [uri, payload] of payloads) {

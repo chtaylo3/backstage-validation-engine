@@ -16,8 +16,8 @@ export function installRuleContributions(
 ): void {
   if (state.generation === generation) {
     state.rules = rows;
-    state.rulesWall = Date.now();
-    state.rulesMonotonic = performance.now();
+    state.rulesWall = state.clock.wall();
+    state.rulesMonotonic = state.clock.monotonic();
   }
 }
 /** Whether an installed rule contribution has expired since it was installed. */

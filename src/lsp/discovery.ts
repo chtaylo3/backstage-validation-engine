@@ -86,6 +86,7 @@ export async function discoverFiles(
       async: ['source-discovery'],
       required: ['source-discovery'],
       permissions: ['source-discovery'],
+      clock: budget.clock,
     },
   );
   try {

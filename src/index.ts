@@ -3,6 +3,8 @@ export { ContractError } from './base/errors.js';
 export type { ContractIssue } from './base/errors.js';
 export { canonicalJson, digestJson, digestText, immutableJson } from './base/json.js';
 export type { Immutable, JsonLimits } from './base/json.js';
+export { systemClock } from './base/clock.js';
+export type { Clock } from './base/clock.js';
 export {
   createSourceSnapshot,
   createDataSnapshot,

@@ -74,7 +74,7 @@ export function registerCustomHandlers(context: ServerContext): void {
           const { config, completion, filesystem } = request.session;
           const generation = context.coordinator.generation;
           if (!request.snapshot.allDocuments.size) {
-            const created = createLspRequest(config, workspace.source);
+            const created = createLspRequest(config, workspace.source, context.clock);
             const original = parseContract('validation-request', {
               ...created,
               execution: { ...created.execution, deadlineAt: request.deadlineAt },

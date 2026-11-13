@@ -5,6 +5,7 @@ import { createCustomKindRegistry, createSchemaRegistry } from '../compatibility
 import { canonicalJson, deepFreeze, digestJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { reject } from '../base/errors.js';
+import { systemClock } from '../base/clock.js';
 import { orderRules } from '../contracts/rule-graph.js';
 import { POLICY_BUNDLE_LIMITS, resolvePolicyBundles } from './bundles.js';
 
@@ -39,7 +40,11 @@ export function signPolicyRelease(
 }
 
 /** Verify a bounded immutable package against separately installed host keys, scope and baseline pins. */
-export function verifyPolicyRelease(input: unknown, hostTrust: unknown, now = Date.now()) {
+export function verifyPolicyRelease(
+  input: unknown,
+  hostTrust: unknown,
+  now: number = systemClock.wall(),
+) {
   canonicalJson(input, { maxBytes: POLICY_BUNDLE_LIMITS.bytes });
   const release = parseContract('policy-release', input);
   const trust = parseContract('policy-trust', hostTrust);

@@ -40,7 +40,7 @@ export async function executePolicyRules(
   options: RuleExecutionOptions = {},
 ): Promise<RuleExecutionReport> {
   const run = parseContract('validation-request', request);
-  using budget = new RequestBudget(run.execution.deadlineAt, options.signal);
+  using budget = new RequestBudget(run.execution.deadlineAt, options.signal, options.clock);
   verifyRequestBindings(run, context);
   const profile = parseContract('deployment-profile', context.profile);
   const policy = parseContract('policy-bundle', context.policy);

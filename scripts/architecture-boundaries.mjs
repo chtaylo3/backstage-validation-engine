@@ -48,6 +48,83 @@ export const FUNCTION_LINE_LIMIT = 150;
  * the list only shrinks.
  */
 export const FUNCTION_ALLOWLIST = 'scripts/function-size-allowlist.json';
+/**
+ * The only files that may import the process-wide CEL runtime accessors: the public barrel, the two
+ * composition roots, the runtime module that defines them, and the pipeline module that supplies the
+ * documented default runtime of rule execution. Every other component receives a runtime from its
+ * owner. A namespace import, `export *` or dynamic import of the defining module counts as importing
+ * them, because it can reach them.
+ */
+export const SHARED_RUNTIME_IMPORTERS = Object.freeze([
+  'src/index.ts',
+  'src/cli/main.ts',
+  'src/lsp/stdio.ts',
+  'src/runtime/cel/index.ts',
+  'src/pipeline/rules/context.ts',
+]);
+/**
+ * `defaultRuleRuntime` is the shared runtime under the name of rule execution's documented default.
+ * Only its defining module and the editor state's lazy fallback (for an editor whose owner supplies
+ * no runtime) may import it.
+ */
+export const DEFAULT_RUNTIME_IMPORTERS = Object.freeze([
+  'src/pipeline/rules/context.ts',
+  'src/lsp/editor/state.ts',
+]);
+/** Each tracked set of names, the module that defines them, and the files that may import them. */
+const RUNTIME_RULES = Object.freeze([
+  {
+    names: ['getSharedCelRuntime', 'closeSharedCelRuntime'],
+    module: 'src/runtime/cel/index.ts',
+    importers: SHARED_RUNTIME_IMPORTERS,
+    what: 'the shared CEL runtime',
+  },
+  {
+    names: ['defaultRuleRuntime'],
+    module: 'src/pipeline/rules/context.ts',
+    importers: DEFAULT_RUNTIME_IMPORTERS,
+    what: 'the default rule runtime',
+  },
+]);
+/**
+ * The ways `source` reaches `rule.names`: named import or re-export bindings of those names from
+ * any module, and whole-module access to `rule.module`, which `resolve` identifies from a module
+ * specifier.
+ */
+function runtimeAccess(source, resolve, rule) {
+  const found = [];
+  const whole = (specifier) => resolve(specifier) === rule.module;
+  function visit(node) {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      const specifier = node.moduleSpecifier.text;
+      const bindings = ts.isImportDeclaration(node)
+        ? node.importClause?.namedBindings
+        : node.exportClause;
+      if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
+        for (const element of bindings.elements) {
+          const name = (element.propertyName ?? element.name).text;
+          if (rule.names.includes(name)) found.push(`${name} from '${specifier}'`);
+        }
+      } else if (whole(specifier) && (!ts.isImportDeclaration(node) || bindings))
+        found.push(`the whole of '${specifier}'`);
+    }
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments[0] &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      whole(node.arguments[0].text)
+    )
+      found.push(`a dynamic import of '${node.arguments[0].text}'`);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return found;
+}
 const VSCODE_PACKAGES =
   /^(?:vscode|vscode-languageserver|vscode-languageclient|vscode-jsonrpc)(?:$|[/-])/u;
 /** The directory of the dependency-free protocol layer. */
@@ -295,6 +372,7 @@ export async function checkArchitecture(root) {
   const graph = new Map();
   const externals = new Map();
   const functions = [];
+  const runtimeImports = [];
   for (const filename of files) {
     const relative = normalize(path.relative(root, filename));
     const source = ts.createSourceFile(
@@ -313,6 +391,19 @@ export async function checkArchitecture(root) {
     }
     graph.set(relative, edges);
     externals.set(relative, packages);
+    const resolveFile = (specifier) => {
+      const target = ts.resolveModuleName(specifier, filename, options, ts.sys).resolvedModule;
+      return target && !target.isExternalLibraryImport
+        ? normalize(path.relative(root, target.resolvedFileName))
+        : undefined;
+    };
+    if (relative.startsWith('src/'))
+      for (const rule of RUNTIME_RULES)
+        if (!rule.importers.includes(relative))
+          for (const row of runtimeAccess(source, resolveFile, rule))
+            runtimeImports.push(
+              `${relative} imports ${row}: only ${rule.importers.join(', ')} may import ${rule.what}; receive a CelRuntime from the owner instead`,
+            );
     for (const row of measureFunctions(source)) functions.push({ file: relative, ...row });
   }
   const failures = new Set();
@@ -363,6 +454,7 @@ export async function checkArchitecture(root) {
     }
     visit(origin, []);
   }
+  for (const failure of runtimeImports) failures.add(failure);
   const sources = new Map([...graph].filter(([file]) => file.startsWith('src/')));
   for (const chain of cycles(sources)) failures.add(`Import cycle: ${chain.join(' -> ')}`);
   for (const failure of functionSizeFailures(functions, await readAllowlist(root)))

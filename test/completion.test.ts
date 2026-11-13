@@ -14,7 +14,7 @@ async function setup(
   t: TestContext,
   options: Parameters<typeof policyRun>[0] = {},
   remote?: { suggest: NonNullable<CatalogProvider['suggest']>; maxAgeMs?: number },
-  clock?: { wall(): number; mono(): number },
+  clock?: { wall(): number; monotonic(): number },
 ) {
   const run = policyRun({ rules: [], files: [localTeam], ...options });
   const config = parseLspConfig({
@@ -430,7 +430,7 @@ void test('cache freshness uses authority-bound max age, monotonic expiry and cl
   let calls = 0,
     wall = Date.now(),
     mono = 100;
-  const clock = { wall: () => wall, mono: () => mono };
+  const clock = { wall: () => wall, monotonic: () => mono };
   const f = await setup(
     t,
     {},

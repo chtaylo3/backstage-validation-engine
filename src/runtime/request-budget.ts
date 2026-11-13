@@ -1,3 +1,5 @@
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { cancellationError, CelError } from './cel/errors.js';
 import { CEL_LIMITS } from './cel/limits.js';
 
@@ -17,7 +19,10 @@ export class BudgetAdmissionError extends RangeError {
   }
 }
 
-/** One scope per validation request, shared by every selector/expression/provider. */
+/**
+ * One scope per validation request, shared by every selector/expression/provider. Admission and the
+ * `interrupted` check read `clock`; the abort timer is a real timer for the same remaining time.
+ */
 export class RequestBudget {
   readonly signal: AbortSignal;
   private readonly controller = new AbortController();
@@ -29,23 +34,26 @@ export class RequestBudget {
   constructor(
     readonly deadlineAt: number,
     upstream?: AbortSignal,
+    /** The clock that decides this request; work inside the request reads time through it. */
+    readonly clock: Clock = systemClock,
   ) {
     if (!Number.isSafeInteger(deadlineAt) || deadlineAt < 0) {
       throw new BudgetAdmissionError('invalid_deadline');
     }
-    if (deadlineAt - Date.now() > CEL_LIMITS.requestMs)
-      throw new BudgetAdmissionError('deadline_out_of_range');
+    // One wall reading and one monotonic reading decide admission, expiry and the timer.
+    const remaining = deadlineAt - clock.wall();
+    if (remaining > CEL_LIMITS.requestMs) throw new BudgetAdmissionError('deadline_out_of_range');
     this.signal = this.controller.signal;
-    this.deadline = performance.now() + Math.max(0, deadlineAt - Date.now());
+    this.deadline = clock.monotonic() + Math.max(0, remaining);
     this.upstream = upstream;
     this.abortUpstream = () =>
       this.controller.abort(upstream ? cancellationError(upstream) : new CelError('cancelled'));
     if (upstream?.aborted) this.abortUpstream();
-    else if (deadlineAt <= Date.now()) this.controller.abort(new CelError('request_timeout'));
+    else if (remaining <= 0) this.controller.abort(new CelError('request_timeout'));
     else {
       this.timer = setTimeout(
         () => this.controller.abort(new CelError('request_timeout')),
-        Math.max(0, deadlineAt - Date.now()),
+        Math.max(0, remaining),
       );
       upstream?.addEventListener('abort', this.abortUpstream, { once: true });
     }
@@ -56,7 +64,7 @@ export class RequestBudget {
   }
 
   get interrupted(): boolean {
-    if (!this.signal.aborted && performance.now() >= this.deadline) {
+    if (!this.signal.aborted && this.clock.monotonic() >= this.deadline) {
       this.controller.abort(new CelError('request_timeout'));
     }
     return this.signal.aborted;

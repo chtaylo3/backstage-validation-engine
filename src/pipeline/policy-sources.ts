@@ -9,6 +9,8 @@ import { validateBackstageSources } from '../compatibility/sources.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
 import { CatalogProviderError } from '../providers/types.js';
 import type { CelRuntime } from '../runtime/cel/index.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { executePolicyRules } from './cel-rules.js';
 import { deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
@@ -124,9 +126,16 @@ export async function validatePolicySources(
     /** Unexpected-exception observer. Structured failures remain in the returned report. */
     readonly onFailure?: (evidence: FailureEvidence) => void;
     readonly onLocalSources?: (sources: LocalCatalogSources) => void;
+    /**
+     * The run's clock: failure timing, the source and rule stage deadlines, reference pinning and
+     * catalog fact expiry read it. The catalog provider reads its own clock, and CEL workers keep
+     * real time (see `Clock`).
+     */
+    readonly clock?: Clock;
   } = {},
 ) {
-  const timer = new FailureTimer();
+  const clock = options.clock ?? systemClock;
+  const timer = new FailureTimer(clock);
   let stage: FailureStage = 'bindings';
   try {
     verifyRequestBindings(request, context);
@@ -147,11 +156,13 @@ export async function validatePolicySources(
           ...catalog,
           ...signal,
           referencePaths: paths,
+          clock,
           ...(options.onLocalSources ? { onLocalSources: options.onLocalSources } : {}),
         })
       : undefined;
     const compatibility =
-      preparation?.compatibility ?? (await validateBackstageSources(request, context, signal));
+      preparation?.compatibility ??
+      (await validateBackstageSources(request, context, { ...signal, clock }));
     const pinned = preparation?.evaluationRequest ?? request;
     stage = 'rules';
     const rules = await executePolicyRules(
@@ -176,6 +187,7 @@ export async function validatePolicySources(
         })),
         ...(options.runtime ? { runtime: options.runtime } : {}),
         ...(preparation ? { referenceData: preparation } : {}),
+        clock,
       },
     );
     const interrupted = [

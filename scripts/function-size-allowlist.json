@@ -7,7 +7,7 @@
     "SnapshotSourceResolver.resolve.visit": 168
   },
   "src/host/rule-contributions.ts": {
-    "prepareRuleContributions": 168
+    "prepareRuleContributions": 158
   },
   "src/lsp/editor-documents.ts": {
     "editorTarget": 151
@@ -16,7 +16,7 @@
     "parseSourceSnapshot": 182
   },
   "src/providers/catalog.ts": {
-    "createCatalogProvider": 429,
-    "createCatalogProvider.lookup": 271
+    "createCatalogProvider": 425,
+    "createCatalogProvider.lookup": 268
   }
 }

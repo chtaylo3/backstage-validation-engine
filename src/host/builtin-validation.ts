@@ -24,9 +24,14 @@ const contribution = (report: Report) => ({
 export class BuiltinValidationService {
   private readonly calls = new Map<string, { options: Options; report?: Report }>();
   readonly capabilities;
+  /**
+   * `defaults.runtime` and `defaults.clock` apply to every run whose options do not name their own;
+   * the clock also decides the capability session's admission and reply deadlines.
+   */
   constructor(
     context: PolicySourceContext,
     private readonly generation = 0,
+    defaults: Pick<Options, 'runtime' | 'clock'> = {},
   ) {
     this.capabilities = builtinCapabilitySession(
       'bve.builtin.validation',
@@ -35,6 +40,7 @@ export class BuiltinValidationService {
           const call = this.calls.get(request.requestId);
           if (!call) throw new CapabilityError('not_approved');
           const report = await validatePolicySources(input.request, context, {
+            ...defaults,
             ...call.options,
             signal: execution.signal,
           });
@@ -53,6 +59,7 @@ export class BuiltinValidationService {
           're2js@2.9.0/cel-v1',
           're2js@2.9.0/schema-v1',
         ],
+        ...(defaults.clock ? { clock: defaults.clock } : {}),
       },
     );
   }

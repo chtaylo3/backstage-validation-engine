@@ -64,6 +64,21 @@ count as imports. The check also enforces these rules:
   `extensions/vscode/src/` is longer than 150 lines. `scripts/function-size-allowlist.json` lists
   the older functions above the limit, each with its current length as a ceiling. An allowlisted
   function may not grow, and an entry fails once its function is within the limit or gone.
+- Only `src/index.ts`, `src/cli/main.ts`, `src/lsp/stdio.ts`, `src/runtime/cel/index.ts`, and
+  `src/pipeline/rules/context.ts` import `getSharedCelRuntime` or `closeSharedCelRuntime`. A
+  namespace import, `export *`, or `import()` of `src/runtime/cel/index.ts` counts as importing
+  them. Every other component receives a `CelRuntime` from its owner; `src/pipeline/rules/context.ts`
+  supplies the documented default of rule execution, `defaultRuleRuntime`, when a caller passes
+  none. Only that module and `src/lsp/editor/state.ts` import `defaultRuleRuntime`, by the same
+  rule: the editor falls back to it lazily when its owner supplies no runtime.
+
+Engine decisions read time through a `Clock` (`src/base/clock.ts`): `wall()` for epoch
+milliseconds that compare with contract deadlines, and `monotonic()` for elapsed time. Components
+take an optional `clock` on their existing options or constructor, with `systemClock` as the
+default at the parameter. Real timers stay real. `npm run lint` rejects `Date.now` and
+`performance.now` in `src/`, except in the files that measure real time on purpose:
+`src/base/clock.ts`, `src/runtime/cel/pool.ts` (worker supervision), and `src/parsing/budget.ts`
+and `src/compatibility/adapter.ts` (cooperative yielding).
 
 ### Shared protocol
 

@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { canonicalJson, digestJson, deepFreeze } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { RequestBudget } from '../runtime/request-budget.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { cancellationError } from '../runtime/cel/errors.js';
 import { parseContract } from '../contracts/validate.js';
 import { childPointer } from '../parsing/locations.js';
@@ -99,6 +101,8 @@ export class CapabilitySession {
     approval: CapabilityApproval,
     private readonly endpoint: CapabilityEndpoint,
     private readonly closeMs: number = CAPABILITY_LIMITS.closeMs,
+    /** Reads admission and reply deadlines and the close budget. Cleanup timers stay real. */
+    private readonly clock: Clock = systemClock,
   ) {
     this.manifest = parseManifest(manifest);
     if (!Number.isSafeInteger(closeMs) || closeMs < 1 || closeMs > CAPABILITY_LIMITS.closeMs)
@@ -240,7 +244,7 @@ export class CapabilitySession {
     if (this.stopped || this.failed) throw new CapabilityError('closed');
     if (!this.initialized || !this.negotiated.has(id)) throw new CapabilityError('unsupported');
     if (context.signal?.aborted) throw new CapabilityError('cancelled');
-    if (Date.now() >= context.deadlineAt) throw new CapabilityError('deadline', 'admission');
+    if (this.clock.wall() >= context.deadlineAt) throw new CapabilityError('deadline', 'admission');
     if (context.current && !context.current()) throw new CapabilityError('binding');
     if (this.active.size >= CAPABILITY_LIMITS.outstanding)
       throw new CapabilityError('resource_limit');
@@ -281,7 +285,7 @@ export class CapabilitySession {
   ): Immutable<CapabilityResult<K>> {
     if (this.stopped || this.failed) throw new CapabilityError('closed');
     if (context.signal?.aborted) throw new CapabilityError('cancelled');
-    if (Date.now() >= context.deadlineAt) throw new CapabilityError('deadline', 'reply');
+    if (this.clock.wall() >= context.deadlineAt) throw new CapabilityError('deadline', 'reply');
     if (context.current && !context.current()) throw new CapabilityError('binding');
     const result = parseCapabilityResult(id, input);
     if (
@@ -374,6 +378,7 @@ export class CapabilitySession {
     using budget = new RequestBudget(
       context.deadlineAt,
       AbortSignal.any([controller.signal, ...(context.signal ? [context.signal] : [])]),
+      this.clock,
     );
     const result = this.endpoint.provide(request, {
       signal: budget.signal,
@@ -426,6 +431,7 @@ export class CapabilitySession {
     using budget = new RequestBudget(
       context.deadlineAt,
       AbortSignal.any([controller.signal, ...(context.signal ? [context.signal] : [])]),
+      this.clock,
     );
     const work = Promise.resolve().then(() => {
       budget.throwIfInterrupted();
@@ -491,12 +497,12 @@ export class CapabilitySession {
     this.stopped = true;
     for (const { controller } of this.active.values()) controller.abort();
     this.disposal = (async () => {
-      const deadline = performance.now() + this.closeMs;
+      const deadline = this.clock.monotonic() + this.closeMs;
       const drain = async () => {
         while (this.invocations.size || this.owned.size) {
           await bounded(
             Promise.allSettled([...this.invocations, ...this.owned]),
-            deadline - performance.now(),
+            deadline - this.clock.monotonic(),
           );
         }
       };
@@ -510,7 +516,7 @@ export class CapabilitySession {
       // Final disposal follows cancellation acknowledgement. It still runs after a failed drain.
       const finalizing = bounded(
         this.ready.catch(() => undefined).then(() => this.endpoint.dispose()),
-        deadline - performance.now(),
+        deadline - this.clock.monotonic(),
       );
       outcomes.push(
         await finalizing.then(
@@ -545,6 +551,8 @@ export function builtinCapabilitySession(
     readonly permissions?: readonly ('catalog-read' | 'source-discovery')[];
     readonly languageProfiles?: readonly string[];
     readonly changeObservation?: CapabilityManifest['changeObservation'];
+    /** The session's clock; see `CapabilitySession`. */
+    readonly clock?: Clock;
   } = {},
 ): CapabilitySession {
   const declared = CAPABILITY_IDS.filter((key) => handlers[key]);
@@ -620,5 +628,7 @@ export function builtinCapabilitySession(
       languageProfiles: settings.languageProfiles ?? ['host-contract/0.2'],
     },
     endpoint,
+    CAPABILITY_LIMITS.closeMs,
+    settings.clock,
   );
 }

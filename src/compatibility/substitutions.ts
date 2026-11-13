@@ -135,6 +135,7 @@ export class SnapshotSourceResolver {
           mode: this.mode,
           deadlineAt: this.budget.deadlineAt,
           signal: this.budget.signal,
+          clock: this.budget.clock,
           limits: {
             fileBytes: this.profile.limits.fileBytes,
             requestBytes: this.profile.limits.requestBytes,

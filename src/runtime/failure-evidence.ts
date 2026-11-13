@@ -1,3 +1,5 @@
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { ContractError } from '../base/errors.js';
 import { CelError } from './cel/errors.js';
 import { BudgetAdmissionError } from './request-budget.js';
@@ -59,16 +61,21 @@ export const FAILURE_EVIDENCE_LIMIT = 64;
 const bounded = (value: number, minimum = -60_000, maximum = 60_000) =>
   Number.isFinite(value) ? Math.min(maximum, Math.max(minimum, Math.trunc(value))) : minimum;
 
+/** Elapsed time from construction: monotonic for `elapsedMs`, wall for the deadline comparison. */
 export class FailureTimer {
-  private readonly monotonic = performance.now();
-  private readonly wall = Date.now();
+  private readonly monotonic: number;
+  private readonly wall: number;
+  constructor(private readonly clock: Clock = systemClock) {
+    this.monotonic = clock.monotonic();
+    this.wall = clock.wall();
+  }
 
   capture(stage: FailureStage, cause: FailureCause, deadlineAt?: number): FailureEvidence {
-    const wall = Date.now();
+    const wall = this.clock.wall();
     return Object.freeze({
       stage,
       cause,
-      elapsedMs: bounded(performance.now() - this.monotonic, 0),
+      elapsedMs: bounded(this.clock.monotonic() - this.monotonic, 0),
       wallElapsedMs: bounded(wall - this.wall),
       ...(deadlineAt === undefined ? {} : { deadlineRemainingMs: bounded(deadlineAt - wall) }),
     });

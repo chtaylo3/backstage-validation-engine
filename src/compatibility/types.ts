@@ -4,6 +4,7 @@ import type {
   JsonValue,
   ValidationResult,
 } from '../contracts/schemas.js';
+import type { Clock } from '../base/clock.js';
 import type { Immutable } from '../base/json.js';
 import type { StageReport } from '../core/stage-report.js';
 import type { ParsedSourceDocument } from '../parsing/types.js';
@@ -52,6 +53,8 @@ export interface NativeEntityCheck {
 export interface NativeExecutionContext {
   readonly deadlineAt: number;
   readonly signal?: AbortSignal;
+  /** Decides the deadline. The cooperative yield between native calls keeps real time. */
+  readonly clock?: Clock;
 }
 export interface BackstageAdapter {
   readonly id: BackstageAdapterId;

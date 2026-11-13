@@ -309,6 +309,95 @@ void test('protocol: every engine layer may import src/protocol', async (t) => {
   assert.deepEqual(await check(t, files), []);
 });
 
+/** The defining module of the shared CEL runtime accessors, as the runtime layer lays it out. */
+const sharedRuntime = {
+  'src/runtime/cel/pool.ts': 'export interface CelRuntime { evaluate(): Promise<boolean> }',
+  'src/runtime/cel/index.ts':
+    "import type { CelRuntime } from './pool.js';\n" +
+    'export function getSharedCelRuntime(): CelRuntime { return { evaluate: () => Promise.resolve(true) }; }\n' +
+    'export async function closeSharedCelRuntime(): Promise<void> {}\n' +
+    "export type { CelRuntime } from './pool.js';\n" +
+    'export const CEL_LIMITS = { requestMs: 5000 };',
+};
+void test('shared runtime: a file outside the allowlist that imports the shared CEL runtime is rejected', async (t) => {
+  const failures = await check(t, {
+    ...sharedRuntime,
+    'src/lsp/editor/named.ts':
+      "import { getSharedCelRuntime } from '../../runtime/cel/index.js'; export const a = getSharedCelRuntime;",
+    'src/lsp/aliased.ts':
+      "import { getSharedCelRuntime as shared } from '../runtime/cel/index.js'; export const a = shared;",
+    'src/host/close.ts':
+      "import { closeSharedCelRuntime } from '../runtime/cel/index.js'; export const a = closeSharedCelRuntime;",
+    'src/pipeline/reexport.ts': "export { getSharedCelRuntime } from '../runtime/cel/index.js';",
+    'src/capabilities/namespace.ts':
+      "import * as cel from '../runtime/cel/index.js'; export const a = cel.getSharedCelRuntime;",
+    'src/providers/star.ts': "export * from '../runtime/cel/index.js';",
+    'src/compatibility/dynamic.ts': "export const load = () => import('../runtime/cel/index.js');",
+  });
+  for (const [file, reached] of [
+    ['src/lsp/editor/named.ts', 'getSharedCelRuntime'],
+    ['src/lsp/aliased.ts', 'getSharedCelRuntime'],
+    ['src/host/close.ts', 'closeSharedCelRuntime'],
+    ['src/pipeline/reexport.ts', 'getSharedCelRuntime'],
+    ['src/capabilities/namespace.ts', 'the whole of'],
+    ['src/providers/star.ts', 'the whole of'],
+    ['src/compatibility/dynamic.ts', 'a dynamic import of'],
+  ] as const)
+    rejects(failures, `${file} imports`, reached, 'may import the shared CEL runtime');
+});
+
+void test('shared runtime: allowlisted importers and type-only CelRuntime imports at or above runtime are accepted', async (t) => {
+  const { LAYERS } = await boundaries();
+  const files: Record<string, string> = {
+    ...sharedRuntime,
+    'src/index.ts':
+      "export { getSharedCelRuntime, closeSharedCelRuntime } from './runtime/cel/index.js';",
+    'src/cli/main.ts':
+      "import { closeSharedCelRuntime } from '../runtime/cel/index.js'; await closeSharedCelRuntime();",
+    'src/lsp/stdio.ts':
+      "import { getSharedCelRuntime } from '../runtime/cel/index.js'; export const runtime = getSharedCelRuntime();",
+    'src/pipeline/rules/context.ts':
+      "import { getSharedCelRuntime } from '../../runtime/cel/index.js'; export const fallback = getSharedCelRuntime;",
+  };
+  const runtimeRank = LAYERS.findIndex((names) => names.includes('runtime'));
+  for (const name of LAYERS.slice(runtimeRank).flat())
+    files[`src/${name}/typed.ts`] =
+      `import type { CelRuntime } from '../runtime/cel/index.js'; import { CEL_LIMITS } from '../runtime/cel/index.js'; export type Runtime = CelRuntime; export const limit = CEL_LIMITS.requestMs;`;
+  assert.deepEqual(await check(t, files), []);
+});
+
+void test('default runtime: only its module and the editor state fallback may import defaultRuleRuntime', async (t) => {
+  const failures = await check(t, {
+    ...sharedRuntime,
+    'src/pipeline/rules/context.ts':
+      "import { getSharedCelRuntime } from '../../runtime/cel/index.js';\n" +
+      'export function defaultRuleRuntime() { return getSharedCelRuntime(); }\n' +
+      'export function prepareRuleRun() { return 1; }',
+    'src/pipeline/cel-rules.ts':
+      "import { prepareRuleRun } from './rules/context.js'; export const run = prepareRuleRun;",
+    'src/lsp/editor/state.ts':
+      "import { defaultRuleRuntime } from '../../pipeline/rules/context.js'; export const a = defaultRuleRuntime;",
+    'src/lsp/editor/index-store.ts':
+      "import { defaultRuleRuntime } from '../../pipeline/rules/context.js'; export const a = defaultRuleRuntime;",
+    'src/host/fallback.ts':
+      "import { defaultRuleRuntime as fallback } from '../pipeline/rules/context.js'; export const a = fallback;",
+    'src/lsp/namespace.ts':
+      "import * as rules from '../pipeline/rules/context.js'; export const a = rules.prepareRuleRun;",
+  });
+  for (const [file, reached] of [
+    ['src/lsp/editor/index-store.ts', 'defaultRuleRuntime'],
+    ['src/host/fallback.ts', 'defaultRuleRuntime'],
+    ['src/lsp/namespace.ts', 'the whole of'],
+  ] as const)
+    rejects(failures, `${file} imports`, reached, 'may import the default rule runtime');
+  for (const allowed of ['src/pipeline/cel-rules.ts', 'src/lsp/editor/state.ts'])
+    assert(
+      !failures.some((failure) => failure.startsWith(`${allowed} `)),
+      `${allowed} was rejected:\n${failures.join('\n')}`,
+    );
+  assert.equal(failures.length, 3, failures.join('\n'));
+});
+
 void test('the repository satisfies every architecture rule', async () => {
   assert.deepEqual(await (await boundaries()).checkArchitecture(repository), []);
 });

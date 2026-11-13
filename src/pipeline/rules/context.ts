@@ -11,12 +11,22 @@ import { createSchemaRegistry } from '../../compatibility/custom-schemas.js';
 import type { SourceLineIndex } from '../../parsing/locations.js';
 import type { ParsedSourceDocument } from '../../parsing/types.js';
 import { getSharedCelRuntime } from '../../runtime/cel/index.js';
+import type { CelRuntime } from '../../runtime/cel/index.js';
 import { CelError } from '../../runtime/cel/errors.js';
 import type { RequestBudget } from '../../runtime/request-budget.js';
 import { bindCatalogReferences } from '../catalog-bindings.js';
 import type { CatalogBindings } from '../catalog-bindings.js';
 import type { RuleSubject } from '../types.js';
 import type { Rule, RuleExecutionOptions, RuleRunContext } from './types.js';
+
+/**
+ * The documented default runtime of rule execution when a caller supplies none: the process-wide
+ * shared runtime. This module is the only engine module below the composition roots that may name
+ * it; other components receive a runtime from their owner.
+ */
+export function defaultRuleRuntime(): CelRuntime {
+  return getSharedCelRuntime();
+}
 
 /**
  * Resolves the run-level inputs of rule execution in dependency order: schema validators, source
@@ -55,7 +65,7 @@ export async function prepareRuleRun(
     if (!rule) throw new Error('Rule graph invariant violated');
     return rule;
   });
-  const runtime = options.runtime ?? getSharedCelRuntime();
+  const runtime = options.runtime ?? defaultRuleRuntime();
   const catalogPaths = [
     ...new Set(
       policy.rules.filter((rule) => rule.kind === 'catalog').map((rule) => rule.referencePath),

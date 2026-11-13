@@ -3,7 +3,10 @@ import { RequestBudget } from '../runtime/request-budget.js';
 import type { ParsingLimits, ParsingOptions } from './types.js';
 import { PARSING_LIMITS, ParseFault } from './types.js';
 
-/** Cooperative work gate shared by lexing, syntax guards, and JSON expansion. */
+/**
+ * Cooperative work gate shared by lexing, syntax guards, and JSON expansion. The yield cadence reads
+ * real time on purpose: it bounds real CPU slices, not a decision that a test clock should move.
+ */
 export class ParsingBudget {
   readonly limits: ParsingLimits;
   syntaxNodes = 0;
@@ -24,7 +27,7 @@ export class ParsingBudget {
       }
     }
     this.limits = Object.freeze(limits);
-    this.request = new RequestBudget(options.deadlineAt, options.signal);
+    this.request = new RequestBudget(options.deadlineAt, options.signal, options.clock);
   }
 
   async tick(): Promise<void> {

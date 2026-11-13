@@ -7,6 +7,8 @@ import { Ajv } from 'ajv';
 import type { DeploymentProfile, ValidationRequest } from '../contracts/schemas.js';
 import { immutableJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { createCatalogProvider } from '../providers/catalog.js';
 import type { CatalogProvider } from '../providers/types.js';
 
@@ -49,11 +51,15 @@ export function parseCatalogSettings(input: unknown): Immutable<CatalogSettings>
   return settings;
 }
 
-/** Credentials come from the host, independently of CLI or editor protocol configuration. */
+/**
+ * Credentials come from the host, independently of CLI or editor protocol configuration. `clock`
+ * is the provider's clock (see `CatalogProviderOptions.clock`); defaults to `systemClock`.
+ */
 export async function createHostCatalog(
   settings: Immutable<CatalogSettings> | undefined,
   context: CatalogHostContext,
   environment: NodeJS.ProcessEnv,
+  clock: Clock = systemClock,
 ) {
   if (!settings) return undefined;
   const credential = async () => {
@@ -119,6 +125,7 @@ export async function createHostCatalog(
       ? {}
       : { allowInsecureHttp: settings.allowInsecureHttp }),
     adapterId: context.adapterId,
+    clock,
     credentials: async (access) => ({
       token: await credential(),
       installationId: access.installationId,

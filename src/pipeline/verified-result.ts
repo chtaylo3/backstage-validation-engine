@@ -3,14 +3,18 @@ import type { validatePolicySources } from './policy-sources.js';
 import { verifyRequestBindings } from '../core/bindings.js';
 import { canonicalJson } from '../base/json.js';
 import { reject } from '../base/errors.js';
+import { systemClock } from '../base/clock.js';
 import { createValidationResult } from '../core/results.js';
 import type { verifyPolicyRelease } from '../policy/releases.js';
 
-/** Bind execution evidence to a verified release and narrow publication to its validity window. */
+/**
+ * Bind execution evidence to a verified release and narrow publication to its validity window.
+ * `completedAt` is epoch milliseconds; a caller with an injected clock passes its wall time.
+ */
 export function createVerifiedPolicyResult(
   report: Awaited<ReturnType<typeof validatePolicySources>>,
   context: ReturnType<typeof verifyPolicyRelease>,
-  completedAt = Date.now(),
+  completedAt = systemClock.wall(),
 ) {
   verifyRequestBindings(report.request, context);
   if (canonicalJson(report.request.identity) !== canonicalJson(context.identity))

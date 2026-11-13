@@ -3,6 +3,8 @@ import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node
 import type { CompletionList, CompletionParams, Range } from 'vscode-languageserver/node';
 import type { ValidationRequest, JsonValue } from '../contracts/schemas.js';
 import type { Immutable } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import type { LocalCatalogSources } from '../pipeline/reference-data.js';
 import { digestText } from '../base/json.js';
 import { builtinCapabilitySession } from '../capabilities/session.js';
@@ -143,7 +145,7 @@ export class CompletionService {
   constructor(
     private readonly config: LspConfig,
     catalog?: { provider: CatalogProvider; access: CatalogAccessContext },
-    private readonly clock = { wall: () => Date.now(), mono: () => performance.now() },
+    private readonly clock: Clock = systemClock,
     private readonly capabilityOptions: {
       readonly sessionGeneration?: number;
       readonly dependencyGeneration?: () => number;
@@ -176,6 +178,7 @@ export class CompletionService {
           async: ['search'],
           permissions: ['catalog-read'],
           dependencies: [config.profile.adapterId],
+          clock,
         },
       );
     if (catalog) {
@@ -222,6 +225,8 @@ export class CompletionService {
     this.controller = controller;
     const task = (async () => {
       const request = input.request;
+      // The indexed request's creator set its deadline; this budget keeps the process clock, and
+      // the injected clock decides cache freshness and the remote search deadline.
       using budget = new RequestBudget(request.execution.deadlineAt, controller.signal);
       const adapter = await loadBackstageAdapter(this.config.profile.adapterId);
       const local = input.local ? await abortable(input.local, budget.signal) : undefined;
@@ -375,7 +380,7 @@ export class CompletionService {
       now >= cached.wall &&
       now >= cached.report.fetchedAt &&
       now < cached.report.expiresAt &&
-      this.clock.mono() - cached.mono < cached.ttl
+      this.clock.monotonic() - cached.mono < cached.ttl
     )
       return cached.report;
     this.discard(key);
@@ -397,7 +402,7 @@ export class CompletionService {
               dependencyGeneration: this.capabilityOptions.dependencyGeneration?.() ?? 0,
               authorityContextDigest: capabilityAuthorityDigest(this.config.identity, catalog),
             }),
-            deadlineAt: Date.now() + COMPLETION_LIMITS.remoteMs,
+            deadlineAt: this.clock.wall() + COMPLETION_LIMITS.remoteMs,
             signal: combined,
             current: () => !this.stopped && lifetime === this.generation && this.index === index,
           })
@@ -427,7 +432,7 @@ export class CompletionService {
                   this.cacheBytes + bytes > COMPLETION_LIMITS.cacheBytes)
               )
                 this.discard(this.cache.keys().next().value!);
-              this.cache.set(key, { report, wall, mono: this.clock.mono(), ttl, bytes });
+              this.cache.set(key, { report, wall, mono: this.clock.monotonic(), ttl, bytes });
               this.cacheBytes += bytes;
             }
           }

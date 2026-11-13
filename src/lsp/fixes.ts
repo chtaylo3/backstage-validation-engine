@@ -8,6 +8,8 @@ import type {
 } from 'vscode-languageserver/node';
 import type { Finding, SourceSnapshot } from '../contracts/schemas.js';
 import type { Immutable } from '../base/json.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { digestText } from '../base/json.js';
 import { SourceLineIndex } from '../parsing/locations.js';
 
@@ -153,9 +155,7 @@ export class FixRegistry {
   private readonly tokens = new Map<string, Candidate>();
   private applying = false;
   private awaitingChange = false;
-  constructor(
-    private readonly clock = { wall: () => Date.now(), monotonic: () => performance.now() },
-  ) {}
+  constructor(private readonly clock: Clock = systemClock) {}
   invalidate(): void {
     this.state = undefined;
     this.tokens.clear();

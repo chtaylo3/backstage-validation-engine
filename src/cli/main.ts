@@ -6,6 +6,8 @@ import { parseArgs } from 'node:util';
 import { parseContract } from '../contracts/validate.js';
 import type { ValidationRequest } from '../contracts/schemas.js';
 import { ContractError, reject } from '../base/errors.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { canonicalJson, digestJson } from '../base/json.js';
 import type { Immutable } from '../base/json.js';
 import { createDataSnapshot } from '../core/snapshots.js';
@@ -67,7 +69,7 @@ async function emit(value: unknown, path?: string) {
   }
 }
 
-async function main() {
+async function main(clock: Clock = systemClock) {
   let format = 'json';
   let output: string | undefined;
   let catalog: Awaited<ReturnType<typeof createHostCatalog>>;
@@ -116,7 +118,7 @@ async function main() {
       values.data ? readJson(values.data) : undefined,
       values['catalog-config'] ? readJson(values['catalog-config']) : undefined,
     ]);
-    const context = verifyPolicyRelease(release, trust);
+    const context = verifyPolicyRelease(release, trust, clock.wall());
     const explicit = values.request ? parseContract('validation-request', input) : undefined;
     const source = explicit?.source ?? parseContract('source-snapshot', input);
     if (explicit && canonicalJson(explicit.identity) !== canonicalJson(context.identity))
@@ -139,9 +141,10 @@ async function main() {
           profileDigest: digestJson(context.profile),
         },
         process.env,
+        clock,
       );
     }
-    const startedAt = Date.now();
+    const startedAt = clock.wall();
     const request: Immutable<ValidationRequest> =
       explicit ??
       parseContract('validation-request', {
@@ -170,8 +173,9 @@ async function main() {
     const report = await validatePolicySources(request, context, {
       ...(catalog ? { catalog } : {}),
       signal: cancellation.signal,
+      clock,
     });
-    const result = createVerifiedPolicyResult(report, context);
+    const result = createVerifiedPolicyResult(report, context, clock.wall());
     await emit(format === 'sarif' ? formatSarif(result) : result, output);
     return resultExitCode(result);
   } catch (error) {

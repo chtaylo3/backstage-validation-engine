@@ -1,4 +1,5 @@
 import type { Coverage, Finding, JsonValue, ValidationResult } from '../contracts/schemas.js';
+import type { Clock } from '../base/clock.js';
 import type { Immutable } from '../base/json.js';
 
 export type SourceLocation = Finding['location'];
@@ -98,6 +99,8 @@ export interface ParsingOptions {
   readonly uris?: readonly string[];
   /** Trusted process/profile configuration may lower these ceilings. */
   readonly limits?: Partial<ParsingLimits>;
+  /** Decides the deadline. Cooperative yielding always measures real elapsed time. */
+  readonly clock?: Clock;
 }
 
 export class ParseFault extends Error {

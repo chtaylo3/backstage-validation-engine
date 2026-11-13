@@ -2,6 +2,9 @@ import { ApplyWorkspaceEditRequest, ResponseError } from 'vscode-languageserver/
 import type { ClientCapabilities, Connection, Disposable } from 'vscode-languageserver/node';
 import { isValidationCoverageParams } from '../protocol/index.js';
 import type { CatalogAccessContext, CatalogProvider } from '../providers/types.js';
+import type { CelRuntime } from '../runtime/cel/index.js';
+import { systemClock } from '../base/clock.js';
+import type { Clock } from '../base/clock.js';
 import { ClientEdits } from './client-edits.js';
 import type { LspConfig } from './config.js';
 import type { CoverageObservation, FilesystemObservation } from './coverage-observation.js';
@@ -27,6 +30,13 @@ export interface LspServerOptions {
     | undefined;
   readonly filesystem?: FilesystemSource | undefined;
   readonly dispose?: (() => Promise<void>) | undefined;
+  /** The CEL runtime of the initial resources; see `LspServerResources.runtime`. */
+  readonly runtime?: CelRuntime | undefined;
+  /**
+   * The one clock of this connection: request deadlines, fix and rule lifetimes, completion and
+   * refresh freshness, and session cleanup budgets read it. Defaults to `systemClock`.
+   */
+  readonly clock?: Clock;
   readonly exit?: (code: number) => void;
   readonly reload?: () => Promise<LspServerResources>;
   readonly configurationChanged?: (config: LspConfig) => void | Disposable;
@@ -238,7 +248,8 @@ type ServerRequests = RequestContexts<SessionGeneration>;
  * earlier throws.
  */
 export class ServerContext {
-  readonly fixes = new FixRegistry();
+  readonly clock: Clock;
+  readonly fixes: FixRegistry;
   readonly features = new ClientFeatures();
   readonly observations = new Observations();
   readonly clientEdits: ClientEdits;
@@ -260,6 +271,8 @@ export class ServerContext {
     config: LspConfig,
     readonly options: LspServerOptions,
   ) {
+    this.clock = options.clock ?? systemClock;
+    this.fixes = new FixRegistry(this.clock);
     this.clientEdits = new ClientEdits((edit, token) =>
       connection.sendRequest(ApplyWorkspaceEditRequest.type, { label: FIX_TITLE, edit }, token),
     );
