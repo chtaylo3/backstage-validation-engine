@@ -1,5 +1,18 @@
 {
   "purpose": "Phase 1 probe evidence on Linux (WSL 2, Xvfb), 2026-11-14. Synthetic values only: lengths and digests.",
+  "curation": {
+    "assembled": "By a script from the run directories of earlier probe versions, not by the committed probe.",
+    "environment": "WSL 2, kernel 6.6.87.2; Xvfb; a private XDG_RUNTIME_DIR with a short path and a private D-Bus session (dbus-run-session); the inherited ELECTRON_* and VSCODE_* variables removed.",
+    "addedByTheScript": ["local.*.cases", "remote.*.*.dialogTextOnScreen", "remote.*.*.cases"],
+    "differencesFromTheCommittedProbe": [
+      "local.run1-function-form: the probe without its own child-process reference; the cases fail at setup by design.",
+      "local.run2/run3 probe-uri observations: one link per case; no externalUriOfRedirect, note, attempts, or logs fields.",
+      "remote.run1-without-consent: no externalUriOfRedirect, confirmedUriHandlerExtensionIds, localWindowStore, or localWindowActivation fields; no consent setting.",
+      "remote.run2-consent-by-setting: no localWindowStore or localWindowActivation fields; the local window used an environment variable.",
+      "remote.run5-without-password-store: no --password-store=basic; only the observation and results files were kept.",
+      "remote.final: no hostCli or newWindowCli fields; the CLI calls had no --no-sandbox and no --verbose."
+    ]
+  },
   "local": {
     "run1-function-form": {
       "cases": [
@@ -687,6 +700,100 @@
             "localWindowStore": {
               "stored": false,
               "error": "No local window stored."
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      }
+    },
+    "run5-without-password-store": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-a23d9fda-202a-474f-8eda-c5922d82286f",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 787,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "localWindowActivation": {
+              "at": 1794689570718,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-a23d9fda-202a-474f-8eda-c5922d82286f",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 478,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "localWindowActivation": {
+              "at": 1794689718117,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
             },
             "valueBeforeLocalWrite": "absent",
             "changeEventInRemoteWindow": false,

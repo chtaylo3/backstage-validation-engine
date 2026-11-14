@@ -294,7 +294,7 @@ Generic clock, transport, and resource controls retain their declared scope with
 
 Run `node scripts/qualification-inventory.mjs` from a clean checkout to print the exact revision and declared counts.
 This command reads the actual installed selector and versioned Backstage inventories. It performs no qualification execution.
-The current inventories contain 59 installed modules, with 51 in the ordinary portable selector.
+The current inventories contain 59 installed modules, with 50 in the ordinary portable selector (`open-url` runs only when named).
 The Backstage inventory declares 47 cases: nine environment, 16 CLI, 12 editor, and ten runner cases.
 Two editor versions expand that inventory to 59 cases per backend and 118 across both backends.
 H4's focused 22 controls per backend are a separate inventory and candidate.

@@ -785,9 +785,32 @@ async function execute(spec, output, fault, peer) {
       }
     } else {
       // A case can ask the host to give the running editor a vscode:// link, as an OS does.
-      const links = serveOpenUrlRequests(base, (url) =>
-        openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
-      );
+      // A new log session in the profile means that the CLI's editor process started with it.
+      const sessions = async () =>
+        (await readdir(path.join(profile, 'logs')).catch(() => [])).length;
+      const links = serveOpenUrlRequests(base, async (url, options) => {
+        const allowed = Object.fromEntries(
+          ['noSandbox', 'verbose', 'separator']
+            .filter((key) => typeof options[key] === 'boolean')
+            .map((key) => [key, options[key]]),
+        );
+        const logSessionsBefore = await sessions();
+        try {
+          const result = await openUrl(executable, url, {
+            userDataDir: profile,
+            extensionsDir: installed,
+            ...allowed,
+          });
+          return { ...result, logSessionsBefore, logSessionsAfter: await sessions() };
+        } catch (error) {
+          error.details = {
+            ...error.details,
+            logSessionsBefore,
+            logSessionsAfter: await sessions(),
+          };
+          throw error;
+        }
+      });
       try {
         result = await launch(args, {}, base);
       } finally {

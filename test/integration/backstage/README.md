@@ -118,7 +118,9 @@ the test permission policy denies catalog reads. Afterwards the runner restores 
 
 The sanitized report is `<reportDirectory>/oidc/flow-<release>.json`. It holds statuses, error
 bodies, lengths, and claim names. No token, authorization code, or verifier reaches a log or a
-report, and the flow fails if one does.
+report, and the flow fails if one does. The flow also fails, and lists `unmetExpectations`, when an
+expected refusal does not happen, when the returned `state` does not match, or when a step is
+missing.
 
 `--serve` leaves the sign-in configuration running for a person with a browser and VS Code, and
 prints the values to use. `--restore` removes it. See the

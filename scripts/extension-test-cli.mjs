@@ -135,7 +135,10 @@ export function runCli(executable, script, args, options = {}) {
  * The arguments that give a `vscode://` link to the running editor of a test, the way an operating
  * system does when a browser follows the link. The editor that owns `userDataDir` receives it.
  */
-export function openUrlArgs(url, { userDataDir, extensionsDir } = {}) {
+export function openUrlArgs(
+  url,
+  { userDataDir, extensionsDir, noSandbox = true, verbose = false, separator = false } = {},
+) {
   let parsed;
   try {
     parsed = new URL(url);
@@ -158,22 +161,56 @@ export function openUrlArgs(url, { userDataDir, extensionsDir } = {}) {
     'Name an absolute extensions directory.',
   );
   return [
-    '--open-url',
-    url,
+    // The CLI starts a second editor process that hands the link to the running one. A downloaded
+    // editor's Chromium sandbox needs unprivileged user namespaces, which Ubuntu 24.04 restricts;
+    // every other editor process of this harness also runs with --no-sandbox.
+    ...(noSandbox ? ['--no-sandbox'] : []),
+    // With --verbose, the CLI waits for that process and passes on its output.
+    ...(verbose ? ['--verbose'] : []),
     '--user-data-dir',
     userDataDir,
     ...(extensionsDir ? ['--extensions-dir', extensionsDir] : []),
+    '--open-url',
+    ...(separator ? ['--'] : []),
+    url,
   ];
 }
 
-/** Give a `vscode://` link to the running test editor with `--open-url`, through its native CLI. */
+/** Replace the values of credentials and correlation parameters in text that may echo a link. */
+export function redactLinkValues(text) {
+  return String(text ?? '').replace(
+    /([?&](?:code|state|token|access_token|refresh_token|id_token)=)[^&\s"']+/giu,
+    '$1<redacted>',
+  );
+}
+
+/**
+ * Give a `vscode://` link to the running test editor with `--open-url`, through its native CLI.
+ * Resolves, or rejects with `details`, with the CLI's exit code, redacted output, and duration.
+ */
 export async function openUrl(executable, url, options = {}) {
   const args = openUrlArgs(url, options);
   const { cli } = await resolveVSCodeCli(executable);
-  return runCli(executable, cli, args, {
-    env: options.env,
-    timeoutMs: options.timeoutMs ?? 60_000,
+  const started = Date.now();
+  const details = (result) => ({
+    args: args.map(redactLinkValues),
+    exitCode: result.exitCode ?? 0,
+    durationMs: Date.now() - started,
+    stdout: redactLinkValues(result.stdout).slice(-4000),
+    stderr: redactLinkValues(result.stderr).slice(-4000),
   });
+  try {
+    return details(
+      await runCli(executable, cli, args, {
+        env: options.env,
+        timeoutMs: options.timeoutMs ?? 60_000,
+      }),
+    );
+  } catch (error) {
+    const failure = new Error(redactLinkValues(error.message));
+    failure.details = { ...details(error), reason: error.reason ?? null };
+    throw failure;
+  }
 }
 
 export const OPEN_URL_REQUEST = 'open-url-request.json';
@@ -181,7 +218,8 @@ export const OPEN_URL_ACKNOWLEDGEMENT = 'open-url-ack.json';
 
 /**
  * Answer the link requests that a case in the editor writes to its control directory. A request is
- * `{ id, url }`; each id is answered once with `{ id, status }`, after `open(url)` settles.
+ * `{ id, url, options? }`; each id is answered once with `{ id, status, error?, cli? }`, after
+ * `open(url, options)` settles. `cli` holds the CLI evidence that `openUrl` returns.
  */
 export function serveOpenUrlRequests(directory, open, { intervalMs = 100 } = {}) {
   const answered = new Set();
@@ -195,15 +233,23 @@ export function serveOpenUrlRequests(directory, open, { intervalMs = 100 } = {})
         answered.add(request.id);
         let status = 'passed';
         let error;
+        let cli;
         try {
-          await open(request.url);
+          const result = await open(request.url, request.options ?? {});
+          if (result && typeof result === 'object' && 'exitCode' in result) cli = result;
         } catch (failure) {
           status = 'failed';
-          error = failure instanceof Error ? failure.message : String(failure);
+          error = redactLinkValues(failure instanceof Error ? failure.message : String(failure));
+          cli = failure?.details;
         }
         await writeFile(
           path.join(directory, OPEN_URL_ACKNOWLEDGEMENT),
-          JSON.stringify({ id: request.id, status, ...(error ? { error } : {}) }),
+          JSON.stringify({
+            id: request.id,
+            status,
+            ...(error ? { error } : {}),
+            ...(cli ? { cli } : {}),
+          }),
         );
       }
       await new Promise((resolve) => setTimeout(resolve, intervalMs));

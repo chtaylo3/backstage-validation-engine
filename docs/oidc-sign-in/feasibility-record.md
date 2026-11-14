@@ -3,34 +3,54 @@
 Read [the plan overview](README.md) and [Phase 1](phase-1-feasibility.md) first.
 
 This record answers the questions of Phase 1 with the evidence that supports each answer. It
-records what was observed, on which Backstage release, runner, desktop, and topology. A question
-that nobody has answered yet is marked **pending**, with the person or workflow that answers it.
+records what was observed, and where: on which Backstage release, runner, desktop, and topology.
+An answer is no stronger than its evidence. A question that nobody has answered yet is marked
+**pending**, with the person or workflow that answers it.
 
-The first answers were recorded on 2026-11-14, on Linux (WSL 2, kernel 6.6.87.2, Docker 29.9.2,
-Node 24.22.1), at commit `1345c23` with the plan documents of `6e67a7c` and the uncommitted Phase 1
-changes. No token, authorization code, PKCE verifier, or refresh token that Backstage issued appears
-in this record or in its evidence files.
+The evidence comes from two places:
+
+- **The implementer's machine:** Linux on WSL 2 (kernel 6.6.87.2), Docker 29.9.2, Node 24.22.1,
+  on 2026-11-14. The editor runs used Xvfb, a private `XDG_RUNTIME_DIR` with a short path, and a
+  private D-Bus session (`dbus-run-session`), because the inherited runtime directory was not
+  writable. They also removed the inherited `ELECTRON_*` and `VSCODE_*` variables. Results from
+  this machine are marked **local**.
+- **Hosted probe run 43641731276** at commit `c5307f8` on the GitHub-hosted `ubuntu-24.04`,
+  `windows-2025`, and `macos-15` runners. Results from it are marked **hosted**. Its summary is
+  [`evidence/hosted-run-43641731276.json`](evidence/hosted-run-43641731276.json).
+
+No token, authorization code, PKCE verifier, or refresh token that Backstage issued appears in this
+record or in its evidence files.
 
 ## Answers
 
-| ID  | Layer | Answer                                                                                                                                                                | Where it was answered                                                | Evidence                                                        |
-| --- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------- |
-| B1  | 2     | **Yes.** Backstage accepts the `vscode://` redirect URI and the browser follows it after consent.                                                                     | Compose applications 1.55.3 and 1.56.3, local Docker                 | [B1](#b1-the-vscode-redirect-uri)                               |
-| B2  | 2     | **Yes, with limits.** Issue, rotation, refusal of a rotated-out token, and revocation work on SQLite.                                                                 | 1.55.3 and 1.56.3                                                    | [B2](#b2-refresh-tokens-on-sqlite)                              |
-| B3  | 2     | **Yes.** An HTTPS document server on the Compose network works, with an exact client ID pattern and a trusted test authority.                                         | 1.55.3 and 1.56.3                                                    | [B3](#b3-the-client-metadata-document)                          |
-| B4  | 2     | **Yes.** The catalog accepts the token as the user, and `userinfo` returns the user entity reference.                                                                 | 1.55.3 and 1.56.3                                                    | [B4](#b4-user-token-and-userinfo)                               |
-| B5  | 2     | **No before this phase; yes after it.** The policy acted only on service principals. It now denies one user, and the other user is unaffected.                        | 1.55.3 and 1.56.3                                                    | [B5](#b5-per-user-permission-decisions)                         |
-| B6  | 2     | **No.** `expires_in` is always 3600, also when the token lives 900 seconds.                                                                                           | 1.55.3 and 1.56.3                                                    | [B6](#b6-the-reported-expiry)                                   |
-| V1  | 3     | **Yes on Linux.** **Pending** on Windows and macOS.                                                                                                                   | Linux, VS Code 1.106.3 and 1.145.2, local Xvfb                       | [V1](#v1-a-link-through---open-url)                             |
-| V2  | 3     | **Yes, after the developer allows the link.** Without that consent, VS Code holds the link in a dialog and delivers nothing.                                          | Linux SSH fixture, VS Code 1.106.3 and 1.145.2                       | [V2](#v2-a-link-to-the-extension-on-the-ssh-host)               |
-| V3  | 3     | **Yes, with a change.** The fourth pipe works, but the language client then leaves `serverProcess` unset, so the extension must keep the child process itself.        | Linux, VS Code 1.106.3 and 1.145.2. **Pending** on Windows and macOS | [V3](#v3-a-fourth-pipe-to-the-server)                           |
-| V4  | 3     | **Yes, where secret storage works.** The SSH window read the value that a local window stored, and saw one change event. Without a keyring, the store did not finish. | Linux SSH fixture, VS Code 1.106.3 and 1.145.2                       | [V4](#v4-secret-storage-from-a-local-window-in-a-remote-window) |
-| V5  | 3     | **Pending:** needs the hosted macOS runner.                                                                                                                           | —                                                                    | [V5](#v5-the-macos-open-command)                                |
-| D1  | 4     | **Pending:** the owner runs it.                                                                                                                                       | —                                                                    | [Pending questions](#pending-questions)                         |
-| D2  | 4     | **Pending:** the owner runs it.                                                                                                                                       | —                                                                    | [Pending questions](#pending-questions)                         |
-| D3  | 4     | **Pending:** the owner runs it.                                                                                                                                       | —                                                                    | [Pending questions](#pending-questions)                         |
-| D4  | 4     | **Pending:** the owner runs it.                                                                                                                                       | —                                                                    | [Pending questions](#pending-questions)                         |
-| D5  | 4     | **Pending:** the owner runs it.                                                                                                                                       | —                                                                    | [Pending questions](#pending-questions)                         |
+| ID  | Layer | Answer                                                                                                                                                                                            | Where it was observed                                                                                        | Details                                                         |
+| --- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| B1  | 2     | **Yes.** Backstage accepts the `vscode://` redirect URI, and the browser follows it after consent.                                                                                                | Compose applications 1.55.3 and 1.56.3: local and hosted                                                     | [B1](#b1-the-vscode-redirect-uri)                               |
+| B2  | 2     | **Yes, with limits.** Issue, rotation, refusal of a rotated-out token, and revocation work on SQLite. The limits are in [decisions 6 to 8](#decisions-that-follow).                               | 1.55.3 and 1.56.3: local and hosted                                                                          | [B2](#b2-refresh-tokens-on-sqlite)                              |
+| B3  | 2     | **Yes.** An HTTPS document server on the Compose network works, with an exact client ID pattern and a trusted test authority.                                                                     | 1.55.3 and 1.56.3: local and hosted                                                                          | [B3](#b3-the-client-metadata-document)                          |
+| B4  | 2     | **Yes.** The catalog accepts the token as the user, and `userinfo` returns the user entity reference.                                                                                             | 1.55.3 and 1.56.3: local and hosted                                                                          | [B4](#b4-user-token-and-userinfo)                               |
+| B5  | 2     | **No before this phase; yes after it.** The policy acted only on service principals. It now denies one user, and the other user is unaffected.                                                    | 1.55.3 and 1.56.3: local and hosted                                                                          | [B5](#b5-per-user-permission-decisions)                         |
+| B6  | 2     | **No, for the one lifetime tested.** With a 900-second token, `expires_in` was 3600.                                                                                                              | 1.55.3 and 1.56.3: local and hosted                                                                          | [B6](#b6-the-reported-expiry)                                   |
+| V1  | 3     | **Not established.** The link arrived on the local machine and on hosted macOS. On hosted Ubuntu and Windows nothing arrived: the CLI call never reached the running editor. Diagnosis continues. | Delivered: local Linux, hosted `macos-15`. Not delivered: hosted `ubuntu-24.04`, `windows-2025`              | [V1](#v1-a-link-through---open-url)                             |
+| V2  | 3     | **Not established.** Delivered on the local SSH fixture after consent. Not delivered on the hosted SSH fixture, where the same CLI path as V1 failed.                                             | Delivered: local SSH fixture. Not delivered: hosted SSH fixture                                              | [V2](#v2-a-link-to-the-extension-on-the-ssh-host)               |
+| V3  | 3     | **Yes, with a change.** The fourth pipe works, but the language client then leaves `serverProcess` unset, so the extension must keep the child process itself.                                    | Local Linux; hosted `ubuntu-24.04`, `windows-2025` (`node.exe`), and `macos-15`; VS Code 1.106.3 and 1.145.2 | [V3](#v3-a-fourth-pipe-to-the-server)                           |
+| V4  | 3     | **Yes in one local run; not answered on a hosted runner.** The hosted local window never opened.                                                                                                  | Local SSH fixture with `--password-store=basic`                                                              | [V4](#v4-secret-storage-from-a-local-window-in-a-remote-window) |
+| V5  | 3     | **No.** `open vscode://…` found no application for the scheme. The downloaded test editor is not registered with macOS.                                                                           | Hosted `macos-15`, VS Code 1.106.3 and 1.145.2                                                               | [V5](#v5-the-macos-open-command)                                |
+| D1  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D2  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D3  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D4  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D5  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+
+### Evidence for macOS, by layer
+
+- **Layer 1:** no new evidence from this phase. The existing `ci.yml` jobs run the unit and client
+  tests on `macos-15`.
+- **Layer 2:** none. The Backstage flow runs on Linux only.
+- **Layer 3 (hosted `macos-15`):** V1 delivered the link once on both editors (1506 ms on 1.106.3,
+  804 ms on 1.145.2), and the kept case `open-url` passed. V3 passed. V5 failed to reach the test
+  editor.
+- **Layer 4:** none. Nobody runs the desktop checks on macOS.
 
 ## What an operator configures
 
@@ -52,13 +72,14 @@ auth:
   `allowedRedirectUriPatterns` entry is the same string. A configured list replaces Backstage's
   loopback defaults: with this list, a loopback redirect URI is refused (test case 4).
 - **The client ID** is the HTTPS URL of the client document, as an exact `allowedClientIdPatterns`
-  entry. Backstage then skips its check that the document's host has a public address. Backstage
-  1.55.3 and 1.56.3 accept an `http:` client ID only for `localhost` with `NODE_ENV=development`.
+  entry. Backstage then skips its check that the document's host has a public address. The auth
+  backend of 1.55.3 and 1.56.3 accepts an `http:` client ID only for `localhost` with
+  `NODE_ENV=development` (from its source, `CimdClient.cjs.js`, `validateCimdUrl`; not tested).
 - **The Backstage backend must trust the certificate of the document's host.** In the tests, the
   backend received `NODE_EXTRA_CA_CERTS` with the test authority.
-- **Refresh tokens** need the user entity in the catalog. A refresh for a user without an entity
-  fails with `User entity no longer exists in the catalog`. Backstage logs on startup that SQLite
-  cannot fully protect concurrent rotation.
+- **Refresh tokens** need the user entity in the catalog (from the source, `OfflineAccessService`;
+  the tests sign in as a catalog user, so the refusal itself was not observed). Backstage logs on
+  startup that SQLite cannot fully protect concurrent rotation (observed).
 
 ### The client metadata document
 
@@ -78,10 +99,10 @@ This is the complete document that the tests served. A customer distribution rep
 ```
 
 - `client_id` must equal the URL that serves the document, exactly.
-- The redirect URI must be listed exactly, without a query. A request with
-  `?windowId=1` added is refused with `not registered in client metadata`.
+- The redirect URI must be listed exactly, without a query. A request with `?windowId=1` added is
+  refused with `not registered in client metadata` (test case 4).
 - The document must not contain `client_secret`, and `token_endpoint_auth_method` must not name a
-  secret method.
+  secret method (from the source; not tested).
 
 ### A proxy or a private certificate authority
 
@@ -95,51 +116,82 @@ This is the complete document that the tests served. A customer distribution rep
 
 ## Decisions that follow
 
-1. **The plan does not need the companion extension.** B1 holds on both releases, and V2 holds on
-   the SSH fixture after consent. D1 must still confirm a real browser on the owner's desktops.
-2. **VS Code asks before it gives a link to an extension.** In a normal window, VS Code shows
-   **Allow 'Backstage Validation Engine' extension to open this URI?** with **Open**, **Cancel**,
-   and **Do not ask me again for this extension**. Until the developer selects **Open**, the
-   extension receives nothing. Extension-development windows do not show the dialog, so the
-   layer 3 tests must pre-accept it with the user setting `extensions.confirmedUriHandlerExtensionIds`,
+1. **Nothing observed so far requires the companion extension, but layer 3 is not established.**
+   B1 holds on both releases. V1 and V2 delivered on the local machine and V1 on hosted macOS, but
+   not on hosted Ubuntu and Windows, where the CLI call never reached the editor (see V1). The
+   choice stays open until V1 and V2 hold on the hosted runners and D1 holds on the owner's
+   desktops.
+2. **VS Code asks before it gives a link to an extension.** On the local SSH fixture, in a normal
+   (not extension-development) window, VS Code showed **Allow 'Backstage Validation Engine'
+   extension to open this URI?** with **Open**, **Cancel**, and **Do not ask me again for this
+   extension**, on 1.106.3 and 1.145.2. Until the developer selects **Open**, the extension
+   receives nothing. Extension-development windows did not show the dialog. A layer 3 test in a
+   normal window must pre-accept it with the user setting `extensions.confirmedUriHandlerExtensionIds`,
    which the checkbox writes. Phase 3 must say in its sign-in prompt and its setup guide that VS
    Code asks once, and its timeout message must name this dialog as a likely cause.
-3. **The redirect URI carries no window identity.** `vscode.env.asExternalUri` turns the redirect
-   URI into `vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1`. Backstage refuses
-   that URI unless the client document lists it exactly, and a document cannot list every window.
-   Phase 3 therefore sends the fixed redirect URI and does not use `asExternalUri` for it. Which
-   window receives the callback is D2.
+3. **The redirect URI carries no window identity.** `vscode.env.asExternalUri` turned the redirect
+   URI into `vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1`: in the local SSH
+   window, and in the local windows of all three hosted runners. Backstage refuses that URI unless
+   the client document lists it exactly, and a document cannot list every window. Phase 3 therefore
+   sends the fixed redirect URI and does not use `asExternalUri` for it. Which window receives the
+   callback is D2.
 4. **The extension keeps the server process itself.** With the function form of the server options
-   in `vscode-languageclient` 11.0.0, `client.serverProcess` is `undefined`, and the client's
-   two-second kill after a stop applies only to a process it knows. Phase 2 and Phase 3 keep the
-   child process for `status().pid`, for stop, and for crash handling, as the probe did.
-5. **Phase 4 treats a rejected token as the signal.** B6 shows that `expires_in` is a constant.
-   The plan does not parse the token, so Phase 4 cannot use the token's own expiry either.
-6. **Sign-out cannot end the access token at Backstage.** Revocation deletes the refresh session.
-   The access token of that session stays valid until it expires (test case 7). Success criterion 8
-   of the plan holds because the extension and the server drop the token, not because Backstage
-   refuses it.
-7. **A refresh token is not bound to the client.** A public client sends no credentials, so
-   Backstage does not compare the client of a refresh with the client that received the token. A
-   refresh with another `client_id` succeeded. The threat table of the plan relies on rotation and
-   revocation only, which hold.
+   in `vscode-languageclient` 11.0.0, `client.serverProcess` stayed `undefined` on the local
+   machine and on all three hosted runners, and the client's two-second kill after a stop applies
+   only to a process it knows. Phase 2 and Phase 3 keep the child process for `status().pid`, for
+   stop, and for crash handling, as the probe did.
+5. **Phase 4 treats a rejected token as the signal.** With a 900-second token, `expires_in` was
+   3600, and the source returns 3600 as a constant (see B6). The plan does not parse the token, so
+   Phase 4 cannot use the token's own expiry either.
+6. **Sign-out does not end the access token at Backstage.** Revocation deletes the refresh session.
+   The access token of that session still read the catalog and `userinfo` immediately after the
+   revocation (test case 7). Whether it stays valid until it expires was not tested. Success
+   criterion 8 of the plan must therefore hold because the extension and the server drop the token,
+   not because Backstage refuses it.
+7. **A refresh token is not bound to the client, and reuse does not end the chain.** A public client
+   sends no credentials, so Backstage does not compare the client of a refresh with the client that
+   received the token: a refresh with another `client_id` succeeded. A refresh with a rotated-out
+   token was refused, and the current token still worked (decision 8). Together: a thief who
+   refreshes a stolen token first gets a valid chain, and the victim's next refresh is refused.
+   **Nothing tested whether the victim can then end the thief's chain.** The source of revocation
+   (`OfflineAccessService.cjs.js`, lines 197 to 205, in auth backend 0.30.1 and 0.30.2) deletes the
+   session that the token's identifier names without checking the token's hash, which suggests that
+   an old token can revoke the chain; this is not verified. The plan overview's threat-table row for
+   a stolen refresh token ("Backstage rotates the token on every use. Sign-out revokes it") is
+   therefore **not shown to hold**. See [changes for later phases](#changes-for-later-phases-and-for-the-owner).
 8. **Reuse of a rotated-out refresh token is refused, and the current token stays valid.**
    Backstage does not revoke the rotation chain when an old token is reused.
-9. **A secret storage call can stay pending.** Without a keyring, `SecretStorage.store` did not
-   finish within 45 seconds (V4). Phase 3 sets a time limit on its first secret storage call and
-   reports the keyring as the likely cause. D4 shows what a developer sees on a real Linux desktop.
-10. **Success criterion 3 can be tested.** `test-permissions.mjs` now denies `catalog.entity.read`
-    for `user:bve-demo/bve-denied-user`, and the harness signs in two users whose tokens are valid
-    at the same time.
+9. **Success criterion 3 can be tested.** `test-permissions.mjs` now denies `catalog.entity.read`
+   for `user:bve-demo/bve-denied-user`, and the harness signs in two users whose tokens are valid
+   at the same time.
+
+## Changes for later phases and for the owner
+
+These follow from the answers. The plan overview's decisions are unchanged; the owner decides.
+
+- **Threat table (owner):** the row for a stolen refresh token is not shown to hold (decision 7).
+  Phase 4 should test whether a victim's revocation, with the victim's rotated-out token, ends the
+  thief's chain, and the owner should decide whether that is enough or whether the companion
+  extension's argument (the refresh token never leaves the desktop) gains weight.
+- **Phase 2 and Phase 3:** the extension keeps the server child process (decision 4).
+- **Phase 3:** the consent dialog (decision 2), the fixed redirect URI without `asExternalUri`
+  (decision 3).
+- **Phase 4:** a rejected token is the expiry signal (decision 5); sign-out does not end the access
+  token at Backstage (decision 6); reuse does not end the chain (decisions 7 and 8).
+- **Phase 5:** layer 3 tests in a normal window pre-accept the URI consent; the test guest must be a
+  catalog user for refresh.
 
 ## Evidence by question
 
-The flow script performs the whole flow without a manual step. Its reports are
+The flow script performs the whole flow without a manual step, and fails when an expected refusal
+does not happen, when `state` does not match, or when a step is missing. Its local reports are
 [`evidence/flow-1.55.3.json`](evidence/flow-1.55.3.json) and
-[`evidence/flow-1.56.3.json`](evidence/flow-1.56.3.json), and the backend log facts are
+[`evidence/flow-1.56.3.json`](evidence/flow-1.56.3.json), with the backend log facts in
 [`evidence/host-1.55.3.json`](evidence/host-1.55.3.json) and
-[`evidence/host-1.56.3.json`](evidence/host-1.56.3.json). Both releases gave the same answers. The
-commands were:
+[`evidence/host-1.56.3.json`](evidence/host-1.56.3.json). These local reports were made before the
+script asserted its expectations; its current expectations hold for them and for the hosted
+reports. The hosted job **Backstage sign-in flow** reproduced every answer of B1 to B6 on both
+releases. Both releases gave the same answers. The local commands were:
 
 ```sh
 npm run backstage:test:up -- --target=1.56.3 --run=oidc-1563-b
@@ -178,8 +230,8 @@ restores the application as `backstage:test:up` started it.
 - Revocation with an unallowed client ID: HTTP 401, `invalid_client`. Revocation with the client
   ID: HTTP 200 with an empty body. A refresh with the revoked token: HTTP 400, `Invalid refresh
 token`.
-- The access token of the revoked session still read the catalog (HTTP 200) and `userinfo`
-  (HTTP 200) (test case 7).
+- The access token of the revoked session read the catalog (HTTP 200) and `userinfo` (HTTP 200)
+  immediately after the revocation (test case 7).
 - The backend logged the SQLite rotation warning on both releases.
 
 ### B3: the client metadata document
@@ -216,26 +268,59 @@ token`.
 ### B6: the reported expiry
 
 With `auth.backstageTokenExpiration` at 15 minutes, the token lived 900 seconds (`exp - iat`) and
-`expires_in` was 3600, for the code exchange and for every refresh. The auth backend source of both
-releases returns `expiresIn: 3600` as a constant.
+`expires_in` was 3600, for the code exchange and for every refresh, locally and hosted. Only this
+one lifetime was tested. The source returns the value as a constant: `expiresIn: 3600` in
+`dist/service/OidcService.cjs.js` of `@backstage/plugin-auth-backend` 0.30.1 and 0.30.2, line 455
+(code exchange) and line 473 (refresh).
 
 ### Test cases 2 to 5
 
-| Test case | Request                                                                            | Result on 1.55.3 and 1.56.3                                                                                                       |
-| --------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 2         | Code exchange with a wrong verifier                                                | HTTP 400, `invalid_grant`, `Invalid code verifier`. The code was not burned: the correct verifier then succeeded                  |
-| 3         | Second exchange of one code                                                        | HTTP 400, `invalid_grant`, `Authorization code already used`                                                                      |
-| 4         | Redirect URI with `?windowId=1`, which the document does not list                  | HTTP 400 JSON, `Invalid redirect_uri '…sign-in?windowId=1', not registered in client metadata`. No `Location` header, no callback |
-| 4         | Redirect URI of another extension, `vscode://other.publisher/sign-in`              | HTTP 400 JSON, `Invalid redirect_uri 'vscode://other.publisher/sign-in'`. No callback                                             |
-| 4         | Loopback redirect URI, `http://127.0.0.1:43123/callback`                           | HTTP 400 JSON, `Invalid redirect_uri`. The configured pattern list replaced the loopback defaults                                 |
-| 5         | Client ID `https://client-document:8443/unlisted-client.json`, not in the patterns | HTTP 400 JSON, `Invalid client_id`. Backstage did not fetch the document                                                          |
+| Test case | Request                                                                            | Refused by                                          | Result on 1.55.3 and 1.56.3                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 2         | Code exchange with a wrong verifier                                                | The token endpoint                                  | HTTP 400, `invalid_grant`, `Invalid code verifier`. The code was not burned: the correct verifier then succeeded                  |
+| 3         | Second exchange of one code                                                        | The token endpoint                                  | HTTP 400, `invalid_grant`, `Authorization code already used`                                                                      |
+| 4         | Redirect URI with `?windowId=1`, which the document does not list                  | The client document (the pattern ignores the query) | HTTP 400 JSON, `Invalid redirect_uri '…sign-in?windowId=1', not registered in client metadata`. No `Location` header, no callback |
+| 4         | Redirect URI of another extension, `vscode://other.publisher/sign-in`              | The configured redirect patterns                    | HTTP 400 JSON, `Invalid redirect_uri 'vscode://other.publisher/sign-in'`. No `Location` header, no callback                       |
+| 4         | Loopback redirect URI, `http://127.0.0.1:43123/callback`                           | The configured redirect patterns                    | HTTP 400 JSON, `Invalid redirect_uri 'http://127.0.0.1:43123/callback'`. The configured list replaced the loopback defaults       |
+| 5         | Client ID `https://client-document:8443/unlisted-client.json`, not in the patterns | The configured client ID patterns                   | HTTP 400 JSON, `Invalid client_id`. Backstage did not fetch the document                                                          |
+
+The attribution for test case 4 follows from the messages: the pattern check fails with
+`Invalid redirect_uri '<uri>'`, and the document check fails with `…, not registered in client
+metadata`.
 
 ### V1: a link through --open-url
 
-The editor evidence of V1 to V4 is [`evidence/editor-probe-linux.json`](evidence/editor-probe-linux.json):
-the case states, the probe observations, and the fourth-pipe digests of each local run, and the
-remote observations of the SSH runs (`run1-without-consent`, `run2-consent-by-setting`, and
-`final`). The local runs used:
+The kept harness function `openUrl` in `scripts/extension-test-cli.mjs` gives a link to the
+running test editor with `--open-url` and the editor's `--user-data-dir`, through the editor's
+native CLI. The probe build of the extension registers a URI handler (see [the probe](#the-probe)).
+
+- **Local (the implementer's machine, VS Code 1.145.2 and 1.106.3):** a link to
+  `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>` reached the product's
+  handler exactly once, after 267 ms and 548 ms, with the query unchanged. The kept case
+  `open-url` passed on both editors. These are extension-development windows; VS Code showed no
+  consent dialog in them.
+- **Hosted `macos-15`, both editors:** delivered once (1506 ms and 804 ms); `open-url` passed.
+- **Hosted `ubuntu-24.04` and `windows-2025`, both editors: nothing was delivered.** The host's
+  CLI call returned success (`open-url-ack.json` status `passed`), but the probe recorded 0
+  deliveries, and `open-url` failed with `Timed out: the link reaches the URI handler of its
+extension`. Each CLI call starts a second editor process that hands the link to the running
+  one, and on the local machine each such call left one more log session in the test profile
+  (`probe-uri`: 2 sessions for 1 link; `open-url`: 3 sessions for 2 links). On hosted Ubuntu and
+  Windows every case left exactly one session, so the second editor process never started with
+  that profile, or stopped before it could hand over the link. On macOS the CLI goes through
+  `open`, and the session count is not a signal there.
+- **Open cause.** On Ubuntu, a likely cause is the Chromium sandbox of the CLI's second editor
+  process: the harness starts every other editor process with `--no-sandbox`, `openUrl` did not,
+  and Ubuntu 24.04 restricts the unprivileged user namespaces that the sandbox of a downloaded
+  editor needs. This is not yet observed. On Windows no cause is known. The next hosted run tries
+  four CLI variants in each case and records each one's exit code, output, duration, log-session
+  count, and deliveries, with the editor's log lines about links (see [pending questions](#pending-questions)).
+  `openUrl` now passes `--no-sandbox` by default.
+- The kept case `open-url` is no longer in the default installed-editor selection; it runs only
+  when named (`--case=open-url`), until it passes on all three hosted runners.
+
+The local runs used these commands, in a copy of the checkout with `spike/oidc-phase-1/probe.patch`
+applied (as `node spike/oidc-phase-1/run-probe.mjs --local` does):
 
 ```sh
 BVE_VSCODE_VERSIONS=1.145.2 xvfb-run -a node scripts/test-extension.mjs --case=startup,restart,shutdown,server-crash,probe-pipe,probe-uri,probe-secret,open-url
@@ -243,38 +328,29 @@ BVE_VSCODE_VERSIONS=1.106.3 xvfb-run -a node scripts/test-extension.mjs --case=s
 xvfb-run -a node scripts/test-extension-remote.mjs --mode=ssh-remote --ssh-network=published
 ```
 
-in a copy of the checkout with `spike/oidc-phase-1/probe.patch` applied, which is what
-`node spike/oidc-phase-1/run-probe.mjs --local` and `--remote=<network>` do. On this machine the
-editor needed a writable runtime directory with a short path and its own D-Bus session, because
-the inherited `XDG_RUNTIME_DIR` was not writable. The hosted runners need neither.
-
-The kept harness function `openUrl` in `scripts/extension-test-cli.mjs` gives a link to the
-running test editor with `--open-url` and the editor's `--user-data-dir`. The probe build of the
-extension registers a URI handler (see [the probe](#the-probe)).
-
-- **Linux, VS Code 1.145.2 and 1.106.3 (local, Xvfb):** a link to
-  `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>` reached the product's
-  handler exactly once, after 267 ms and 548 ms, with the query unchanged. The kept case
-  `open-url` (test case 8) passed on both editors: the driver's link arrived once, and a link
-  for the product did not reach the driver.
-- These windows are extension-development windows. VS Code showed no consent dialog in them
-  (decision 2).
-- **Windows and macOS: pending** the hosted probe workflow.
+The local editor evidence is [`evidence/editor-probe-linux.json`](evidence/editor-probe-linux.json).
+It is **curated**: a script assembled it from the run directories of earlier probe versions, not
+the committed probe. Its `curation` field names the environment, the keys that the script added
+(the case lists and the dialog text), and, for each run, the fields that differ from what the
+committed probe writes.
 
 ### V2: a link to the extension on the SSH host
 
-Through the SSH fixture (`scripts/test-extension-remote.mjs --mode=ssh-remote
---ssh-network=published`, with the probe), with the product running in the remote extension host:
+Through the SSH fixture, with the product running in the remote extension host:
 
-- **Without consent (run 1):** the link reached the remote window, and VS Code showed **Allow
-  'Backstage Validation Engine' extension to open this URI?** with
+- **Local, without consent (run 1):** the link reached the remote window, and VS Code showed
+  **Allow 'Backstage Validation Engine' extension to open this URI?** with
   `vscode://chtaylo3.backstage-va...`, **Cancel**, **Open**, and **Do not ask me again for this
   extension**. Nothing reached the handler in 30 seconds, on 1.106.3 and on 1.145.2.
-- **With consent given through `extensions.confirmedUriHandlerExtensionIds` (run 2):** the link
-  reached the handler in the remote extension host (`remoteName: ssh-remote`) exactly once, after
-  679 ms (1.106.3) and 524 ms (1.145.2), with the query unchanged.
-- In the remote window, `asExternalUri` of the redirect URI returned `…/sign-in?windowId=1`
-  (decision 3).
+- **Local, with consent given through `extensions.confirmedUriHandlerExtensionIds`:** in each run
+  that the curated evidence keeps (run 2, run 5, and the final run), the link reached the handler in
+  the remote extension host (`remoteName: ssh-remote`) exactly once, in 478 ms to 787 ms, with the
+  query unchanged.
+- **Hosted (`ubuntu-24.04`, `--ssh-network=host`), with the same consent setting:** 0 deliveries
+  on both editors. The desktop logs of each editor show two log sessions, one per stage, each with
+  one window, and no session from the CLI call. This is the same failure of the CLI path as V1 on
+  hosted Ubuntu. The hosted job passed only because the probe runner did not check the remote
+  observations; it does now.
 
 ### V3: a fourth pipe to the server
 
@@ -282,13 +358,15 @@ The probe starts the packaged runtime with `stdio: ['pipe', 'pipe', 'pipe', 'pip
 synthetic value of 52 bytes to the fourth pipe, and a preload in the server reads file descriptor 3
 with `net.Socket` and records its length and SHA-256.
 
-- **Linux, VS Code 1.145.2 and 1.106.3:** the server received the value unchanged at start and
-  after a restart (digests matched).
-- With the function form of the server options, `client.serverProcess` stayed `undefined`, and
-  the existing cases failed at setup with `Running packaged server must expose its PID`.
+- **Local Linux and hosted `ubuntu-24.04`, `windows-2025` (runtime `node.exe`), and `macos-15`,
+  VS Code 1.106.3 and 1.145.2:** the server received the value unchanged at start and after a
+  restart (digests matched).
+- With the function form of the server options, `client.serverProcess` stayed `undefined`
+  everywhere. In the first local run, without the probe's own reference, the existing cases failed
+  at setup with `Running packaged server must expose its PID`.
 - With the extension keeping the child process (and its own kill two seconds after a stop), the
-  existing cases `startup`, `restart`, `shutdown`, and `server-crash` passed on both editors.
-- **Windows (`node.exe`) and macOS: pending** the hosted probe workflow.
+  existing cases `startup`, `restart`, `shutdown`, and `server-crash` passed on both editors,
+  locally and on all three hosted runners.
 
 ### V4: secret storage from a local window in a remote window
 
@@ -296,52 +374,73 @@ Through the SSH fixture, while the remote window ran, the host opened a local wi
 editor with `--new-window`. The product in the local window stored a synthetic value. The remote
 case recorded what the product in the SSH host saw.
 
-- **With `--password-store=basic` (final run):** before the local write, the remote window read no
-  value. After it, the remote window saw exactly one change event for the key, and read a value
-  whose SHA-256 equals the value that the local window stored. The same on 1.106.3 and 1.145.2.
-- **Without a keyring and without `--password-store=basic` (runs 3 to 5):** the local window
-  activated and found the value to store, but `SecretStorage.store` neither resolved nor rejected
-  within 45 seconds. The remote window saw nothing. Nothing on screen was captured for the local
-  window, so the cause is not observed. A missing keyring is the likely cause: the runner has no
-  keyring service, and the basic store fixed it. D4 measures this on a real Linux desktop.
-- **Consequence for Phase 3 and Phase 4:** a `SecretStorage` call can stay pending. The checks
-  before sign-in need a time limit on the first secret storage call, and its error names the
-  keyring. Phase 4 can keep one session for all windows of a profile, because the change event
-  reaches a remote window.
+- **Local, with `--password-store=basic` (final run):** before the local write, the remote window
+  read no value. After it, the remote window saw exactly one change event for the key, and read a
+  value whose SHA-256 equals the value that the local window stored. The same on 1.106.3 and
+  1.145.2.
+- **Hosted:** not answered. The product wrote no activation note in a local window, and the desktop
+  logs show no second window: the `--new-window` call failed in the same way as V1.
+- **An unexplained local observation, not an answer:** in local run 5, without
+  `--password-store=basic`, the local window activated and found the value to store, but
+  `SecretStorage.store` neither resolved nor rejected within 45 seconds; the curated evidence keeps
+  that run's observations (`run5-without-password-store`). Nothing on screen was captured, so the
+  cause is not known. D4 looks at secret storage without a keyring on a real Linux desktop.
+- The local half (the product stores, reads back, and sees its own change event in a local
+  extension-development window) passed locally and on all three hosted runners.
 
 ### V5: the macOS open command
 
-**Pending.** The hosted probe workflow runs `open vscode://…` on `macos-15` while the test editor
-runs, and records whether the editor's handler receives the link. macOS has evidence of layers 1
-to 3 only after that run; it has no layer 4 evidence, because nobody runs the desktop checks on
-macOS.
+On hosted `macos-15`, the probe ran `open vscode://chtaylo3.backstage-validation-engine/sign-in?…`
+while the test editor ran. `open` failed on both editors with `kLSApplicationNotFoundErr: E.g. no
+application claims the file` (`NSOSStatusErrorDomain` code -10814), and nothing was delivered.
+macOS has no application registered for the scheme on the runner, and the downloaded test editor
+does not register one. The `open` command therefore does not replace layer 4 on macOS.
+
+## Success criteria
+
+1. Every question has a recorded answer: **not met.** V1, V2, and V4 are not established on the
+   hosted runners; D1 to D5 are pending.
+2. The redirect URI and the exact `allowedRedirectUriPatterns` value: **met.**
+3. The complete client metadata document: **met.**
+4. Proxy and private certificate authority: **pending D3.**
+5. The harness script completes the whole flow on both releases without a manual step: **met**,
+   locally and hosted.
+6. The procedure by hand followed by the owner without help: **pending the owner.**
+7. macOS layers: **met** (see [evidence for macOS](#evidence-for-macos-by-layer)).
+8. The existing release tests pass with the changed applications: **met on the implementer's
+   machine only.** The development release suite passed 118 of 118 cases on both releases; its
+   summary is [`evidence/backstage-development-suite.json`](evidence/backstage-development-suite.json).
+   It is a development-mode run with uncommitted inputs and a scratch copy of the VSIX without two
+   third-party lock files, so it cannot qualify a release, and no hosted run of the suite exists.
+   The isolated permission regression `permissions.mjs` passed locally. The H4 focused controls
+   were not run: they refuse an uncommitted tree.
+9. No issued token in the record, the logs, or the evidence: **met.**
 
 ## Pending questions
 
-| Question                      | Who answers it      | How                                                                                                                                                               |
-| ----------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V1, V3 on Windows and macOS   | The hosted workflow | A push to a branch named `spike/oidc-phase-1*` runs `oidc-phase-1-probe.yml`; job **Editor probe**, artifacts `oidc-probe-windows-2025` and `oidc-probe-macos-15` |
-| V5                            | The hosted workflow | The same run, job **Editor probe / macos-15**, folder `darwin-open-command`                                                                                       |
-| V2, V4 on the hosted runner   | The hosted workflow | The same run, job **SSH fixture probe**, artifact `oidc-probe-ssh`                                                                                                |
-| B1 to B6 on the hosted runner | The hosted workflow | The same run, job **Backstage sign-in flow**, artifacts `oidc-flow-1.55.3` and `oidc-flow-1.56.3`                                                                 |
-| D1 to D5                      | The owner, by hand  | [The desktop procedure](phase-1-desktop-procedure.md), returned as `phase-1-desktop-observations.md`                                                              |
+| Question                       | Who answers it      | How                                                                                                                                                                                       |
+| ------------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1 on Ubuntu and Windows       | The hosted workflow | The next probe run: job **Editor probe**, `probe-uri-observation.json` per case, with four CLI variants and their evidence, and the kept case `open-url` with `open-url-observation.json` |
+| V2 and V4 on the hosted runner | The hosted workflow | The same run, job **SSH fixture probe**: `probe-remote-observation.json` with `hostCli` and `newWindowCli`; the job now fails unless V2 and V4 hold                                       |
+| D1 to D5                       | The owner, by hand  | [The desktop procedure](phase-1-desktop-procedure.md), returned as `phase-1-desktop-observations.md`                                                                                      |
 
 ## The probe
 
-The probe is throwaway and is never merged. It lives in `spike/oidc-phase-1/`:
-`probe.patch` changes the extension, three probe cases, and the two editor harness scripts in a
-temporary copy of the checkout, and `run-probe.mjs` builds and runs it. The workflow
-`.github/workflows/oidc-phase-1-probe.yml` runs it on the hosted runners on dispatch only. Remove
-all three with the spike branch.
+The probe is throwaway and is never merged. It lives in `spike/oidc-phase-1/`: `probe.patch`
+changes the extension, adds three probe cases, and changes three editor harness scripts in a
+temporary copy of the checkout, and `run-probe.mjs` builds and runs it and checks the remote
+observations. The workflow `.github/workflows/oidc-phase-1-probe.yml` runs it on the hosted runners
+on every push to a branch named `spike/oidc-phase-1*`, and on dispatch once the file is on the
+default branch. Remove all three with the spike branch.
 
 ## Kept harness changes
 
 - The test applications install `@backstage/plugin-auth` (0.1.12 for 1.55.3, 0.1.13 for 1.56.3),
   and `app-config.test.yaml` enables client ID metadata documents and refresh tokens. The four
-  static tokens are unchanged. The development release suite passed on both releases afterwards:
-  118 of 118 cases.
-- `test/integration/backstage/oidc/`: the client document server, the flow script, and the host
-  runner, with `--serve` and `--restore` for runs by hand.
+  static tokens are unchanged.
+- `test/integration/backstage/oidc/`: the client document server, the flow script with its
+  expectations, and the host runner, with `--serve` and `--restore` for runs by hand.
 - `test/integration/backstage/editor/cdp.mjs`: a small Chromium driver.
-- `scripts/extension-test-cli.mjs`: `openUrl` and the request server that cases use to ask the host
-  for a link, with the installed-editor case `open-url` and a unit test.
+- `scripts/extension-test-cli.mjs`: `openUrl`, which now records the CLI's evidence, and the
+  request server that cases use to ask the host for a link. The installed-editor case `open-url`
+  runs only when named, and a unit test covers the arguments and the request server.

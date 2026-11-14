@@ -329,7 +329,7 @@ These scratch rows do not enter the normal positive release inventory.
 
 Run `node scripts/qualification-inventory.mjs` from a clean checkout. The output identifies the exact source revision and client/mode/platform scope.
 The command reads the same selector as the installed runner. It declares counts and performs no editor execution.
-The current source contains 59 installed modules. The ordinary portable selector includes 51 of them.
+The current source contains 59 installed modules. The ordinary portable selector includes 50 of them; `open-url` runs only when named.
 The historical cross-OS baseline at `6938b8b85c1b5889af3fbe1119684de6577e5b45` selects 44 portable cases per editor.
 Its 88 executions per OS cover Linux x64, Windows x64, and macOS arm64 on editors 1.106.3 and 1.145.2.
 The later Linux baseline at `54ce7a932c46b85e70f3fec0a68c15852af7e28b` selects 46 cases per editor, or 92 ordinary executions.

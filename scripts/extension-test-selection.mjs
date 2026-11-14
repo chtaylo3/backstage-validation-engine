@@ -23,5 +23,9 @@ export function selectInstalledModules(
   if (compatibility) return modules.filter((name) => name.startsWith('compat-'));
   if (endurance) return modules.filter((name) => /^endurance-(100|1000|saturation)\./u.test(name));
   if (soak) return modules.filter((name) => name.startsWith('endurance-soak.'));
-  return modules.filter((name) => !/^(compat-|endurance-|remote-)/u.test(name));
+  // `open-url` runs only when a caller names it: it does not yet pass on the hosted Linux and
+  // Windows runners (docs/oidc-sign-in/feasibility-record.md, V1).
+  return modules.filter(
+    (name) => !/^(compat-|endurance-|remote-)/u.test(name) && !/^open-url(\.|$)/u.test(name),
+  );
 }

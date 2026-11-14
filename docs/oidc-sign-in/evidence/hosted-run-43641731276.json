@@ -1,0 +1,1328 @@
+{
+  "purpose": "Summary of hosted probe run 43641731276 at c5307f8 (GitHub-hosted runners), compiled from its downloaded artifacts. Synthetic probe values only; probe nonces removed.",
+  "editors": {
+    "ubuntu-24.04 linux-local": {
+      "platform": "linux",
+      "runnerImage": "20261111.370.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 1
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "failed",
+            "error": "Error: Timed out: the link reaches the URI handler of its extension"
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: The link reaches the handler once."
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "failed",
+            "error": "Error: Timed out: the link reaches the URI handler of its extension"
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: The link reaches the handler once."
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 4305,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 4328,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "storedSha256": "9e1e9ff0265849a59700a450496fbd5752bae17d5601ef700a1e9a142894469a",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 5175,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 9093,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 9130,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "storedSha256": "2a5079ccd40a5b81e5ac8214b6e821f12f2208b27ab23a9b3e7aeb3e1f73b1a4",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 9994,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-3604.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-4305.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-4328.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-4867.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-5406.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-6103.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-6117.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6656.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6676.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6689.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6702.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-7241.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-7787.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-8345.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-9093.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-9130.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-9659.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-10211.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10924.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10947.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11495.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11534.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11548.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11561.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-12089.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-12638.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "windows-2025 win32-local": {
+      "platform": "win32",
+      "runnerImage": "20261103.298.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 1
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "failed",
+            "error": "Error: Timed out: the link reaches the URI handler of its extension"
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: The link reaches the handler once."
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "failed",
+            "error": "Error: Timed out: the link reaches the URI handler of its extension"
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "failed",
+            "error": "AssertionError [ERR_ASSERTION]: The link reaches the handler once."
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 9120,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 9552,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "storedSha256": "348db699cea3c253116cc2b87a11591af97bf04c03bb2a209300d539d2d84899",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 3056,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 4008,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 1948,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "storedSha256": "ace0d47f9c7b4a0c13731f48bb259de24dddc209c9a27b96cbc33f146594110a",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 2040,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-4624.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-9120.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-9552.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-8104.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-5916.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-5164.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-8580.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-4608.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-4688.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8108.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8232.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-8600.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-7060.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-5080.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-1948.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-4008.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-1700.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-2824.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-3276.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-3392.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-5848.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-7368.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-9632.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-9656.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-1664.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-8292.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "macos-15 darwin-local": {
+      "platform": "darwin",
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 7508,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 7539,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "storedSha256": "17466a7c0b85521d0af742096517f8d7be49ca8e425817503f0b2311c89f0697",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 1,
+          "firstDeliveryMs": 1506,
+          "deliveredPath": "/sign-in",
+          "deliveredQueryUnchanged": true,
+          "handlerExtensionHostPid": 7927,
+          "caseExtensionHostPid": 7927,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 9441,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 9550,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "storedSha256": "3d1b53d0973426f5517b9ac60f20237a4f7cba69f1f81a1e87f3df5b0a958df0",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 1,
+          "firstDeliveryMs": 804,
+          "deliveredPath": "/sign-in",
+          "deliveredQueryUnchanged": true,
+          "handlerExtensionHostPid": 9843,
+          "caseExtensionHostPid": 9843,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-7173.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-7508.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-7539.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-7698.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-7968.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-8230.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-8258.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8307.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8339.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8342.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8425.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-8594.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-8722.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-9123.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-9441.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-9550.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-9685.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-9866.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10118.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10130.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-10178.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-10315.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-10382.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-10389.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-10449.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-10681.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "macos-15 darwin-open-command": {
+      "platform": "darwin",
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "open-command",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "open-command/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V5",
+          "mode": "open-command",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "requestError": "Command failed: open vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>\nNo application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n\n\n'failed' !== 'passed'\n",
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 12165,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        },
+        {
+          "at": "open-command/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V5",
+          "mode": "open-command",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "requestError": "Command failed: open vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>\nNo application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n\n\n'failed' !== 'passed'\n",
+          "deliveries": 0,
+          "firstDeliveryMs": null,
+          "deliveredPath": null,
+          "deliveredQueryUnchanged": null,
+          "handlerExtensionHostPid": null,
+          "caseExtensionHostPid": 13214,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here."
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "open-command/1.106.3/probe-uri/probe-fd3-12185.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "open-command/1.145.2/probe-uri/probe-fd3-13236.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "probe-uri": 1
+        },
+        "1.145.2": {
+          "probe-uri": 1
+        }
+      }
+    }
+  },
+  "ssh": {
+    "runner": {
+      "os": "linux",
+      "arch": "x64",
+      "image": "20261111.370.1"
+    },
+    "sshNetwork": "host",
+    "counts": {
+      "discovered": 4,
+      "executed": 4,
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0
+    },
+    "versions": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-32f851c3-1e78-4464-ac3a-82e44d2b1370",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 0,
+            "firstDeliveryMs": null,
+            "handlerRemoteName": null,
+            "deliveredQueryUnchanged": null
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "localWindowActivation": "The product wrote no activation note in a local window.",
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "desktopLogSessionsWithWindowCount": {
+          "20261114T211548": 1,
+          "20261114T211819": 1
+        }
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-32f851c3-1e78-4464-ac3a-82e44d2b1370",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 0,
+            "firstDeliveryMs": null,
+            "handlerRemoteName": null,
+            "deliveredQueryUnchanged": null
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "localWindowActivation": "The product wrote no activation note in a local window.",
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "desktopLogSessionsWithWindowCount": {
+          "20261114T211839": 1,
+          "20261114T212109": 1
+        }
+      }
+    }
+  },
+  "backstageFlow": {
+    "1.55.3": {
+      "status": "passed",
+      "startedAt": "2026-11-14T21:16:57.527Z",
+      "steps": [
+        "discovery",
+        "B1-B3.authorize-consent-redirect",
+        "TC2.wrong-verifier",
+        "TC1.exchange",
+        "TC3.second-exchange",
+        "B4.userinfo",
+        "B4-TC1.catalog-read",
+        "B6.expiry",
+        "B2.refresh",
+        "B2-TC6.reuse-rotated-out",
+        "B2-TC6.current-after-reuse",
+        "B2.refresh-with-other-client-id",
+        "B2.revoke-with-unallowed-client",
+        "B2.revoke",
+        "B2.refresh-after-revoke",
+        "TC7.access-token-after-revoke",
+        "TC4.redirect-with-query-not-in-document",
+        "TC4.redirect-of-other-extension",
+        "TC4.loopback-redirect",
+        "TC5.client-not-allowed",
+        "B5.two-users"
+      ]
+    },
+    "1.56.3": {
+      "status": "passed",
+      "startedAt": "2026-11-14T21:16:56.423Z",
+      "steps": [
+        "discovery",
+        "B1-B3.authorize-consent-redirect",
+        "TC2.wrong-verifier",
+        "TC1.exchange",
+        "TC3.second-exchange",
+        "B4.userinfo",
+        "B4-TC1.catalog-read",
+        "B6.expiry",
+        "B2.refresh",
+        "B2-TC6.reuse-rotated-out",
+        "B2-TC6.current-after-reuse",
+        "B2.refresh-with-other-client-id",
+        "B2.revoke-with-unallowed-client",
+        "B2.revoke",
+        "B2.refresh-after-revoke",
+        "TC7.access-token-after-revoke",
+        "TC4.redirect-with-query-not-in-document",
+        "TC4.redirect-of-other-extension",
+        "TC4.loopback-redirect",
+        "TC5.client-not-allowed",
+        "B5.two-users"
+      ]
+    }
+  }
+}
