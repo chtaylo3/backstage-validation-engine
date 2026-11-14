@@ -1,0 +1,895 @@
+--- a/extensions/vscode/package.json
++++ b/extensions/vscode/package.json
+@@ -22,7 +22,8 @@
+   ],
+   "main": "./out/extension.cjs",
+   "activationEvents": [
+-    "onStartupFinished"
++    "onStartupFinished",
++    "onUri"
+   ],
+   "capabilities": {
+     "untrustedWorkspaces": {
+@@ -54,6 +55,26 @@
+       {
+         "command": "backstageValidation.searchReferences",
+         "title": "Backstage Validation: Search Entity References"
++      },
++      {
++        "command": "backstageValidation.probe.signIn",
++        "title": "Backstage OIDC Probe: Start Sign-In"
++      },
++      {
++        "command": "backstageValidation.probe.reach",
++        "title": "Backstage OIDC Probe: Check Reachability"
++      },
++      {
++        "command": "backstageValidation.probe.secretStorage",
++        "title": "Backstage OIDC Probe: Check Secret Storage"
++      },
++      {
++        "command": "backstageValidation.probe.loopback",
++        "title": "Backstage OIDC Probe: Start Loopback Listener"
++      },
++      {
++        "command": "backstageValidation.probe.copyReport",
++        "title": "Backstage OIDC Probe: Copy Report"
+       }
+     ],
+     "configuration": {
+--- a/extensions/vscode/src/extension.ts
++++ b/extensions/vscode/src/extension.ts
+@@ -1,5 +1,8 @@
+ import { readFile } from 'node:fs/promises';
+-import { createHash } from 'node:crypto';
++import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
++import { spawn } from 'node:child_process';
++import type { Writable } from 'node:stream';
++import { createHash, randomBytes } from 'node:crypto';
+ import path from 'node:path';
+ import * as vscode from 'vscode';
+ import {
+@@ -25,6 +28,319 @@
+ import { addRoot, configuredSpellings, pathKey, protocolFileUri } from './protocol-uris.js';
+ import type { ConfiguredSpellings } from './protocol-uris.js';
+ 
++// ---------------------------------------------------------------------------------------------
++// OIDC PHASE 1 FEASIBILITY PROBE. THROWAWAY: never merge. It answers V1 to V5 and nothing else.
++// ---------------------------------------------------------------------------------------------
++const PROBE_SECRET_KEY = 'bve.oidc-probe';
++const probeState = {
++  uris: [] as { uri: string; at: number; remoteName: string | null; extensionHostPid: number }[],
++  pipes: [] as { pid: number | undefined; bytes: number; sha256: string }[],
++  secretChanges: [] as { key: string; at: number }[],
++  // The function form leaves `client.serverProcess` undefined (vscode-languageclient 11.0.0),
++  // so the probe keeps the child itself.
++  child: undefined as ReturnType<typeof spawn> | undefined,
++};
++/**
++ * Runs in the server process before `stdio.js`. It reads one line from file descriptor 3, the
++ * fourth pipe, and records its length and digest (never the value) for the case.
++ */
++const PROBE_PRELOAD =
++  'data:text/javascript,' +
++  encodeURIComponent(
++    [
++      "import net from 'node:net';",
++      "import fs from 'node:fs';",
++      "import path from 'node:path';",
++      "import { createHash } from 'node:crypto';",
++      'const chunks = [];',
++      'let done = false;',
++      'const socket = new net.Socket({ fd: 3, readable: true, writable: false });',
++      "socket.on('data', (chunk) => {",
++      '  if (done) return;',
++      '  chunks.push(chunk);',
++      "  const text = Buffer.concat(chunks).toString('utf8');",
++      "  const end = text.indexOf('\\n');",
++      '  if (end < 0) return;',
++      '  done = true;',
++      '  const value = text.slice(0, end);',
++      "  const row = { pid: process.pid, bytes: Buffer.byteLength(value), sha256: createHash('sha256').update(value).digest('hex'), platform: process.platform, runtime: path.basename(process.execPath) };",
++      '  const dir = process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY || process.env.BVE_PROBE_DIRECTORY;',
++      "  try { if (dir) fs.writeFileSync(path.join(dir, 'probe-fd3-' + process.pid + '.json'), JSON.stringify(row)); } catch {}",
++      "  process.stderr.write('BVE_PROBE_FD3 ' + JSON.stringify(row) + '\\n');",
++      '});',
++      "socket.on('error', (error) => process.stderr.write('BVE_PROBE_FD3_ERROR ' + error.message + '\\n'));",
++      'socket.unref();',
++    ].join('\n'),
++  );
++function probeServer(runtime: string, server: string, config: string) {
++  return () => {
++    const child = spawn(runtime, ['--import', PROBE_PRELOAD, server, '--config', config], {
++      cwd: path.dirname(config),
++      env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined },
++      shell: false,
++      windowsHide: true,
++      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
++    });
++    // A synthetic value. Phase 3 sends the access token here instead.
++    const value = 'bve-probe-synthetic-' + randomBytes(16).toString('hex');
++    (child.stdio[3] as Writable).write(value + '\n');
++    probeState.child = child;
++    probeState.pipes.push({
++      pid: child.pid,
++      bytes: Buffer.byteLength(value),
++      sha256: createHash('sha256').update(value).digest('hex'),
++    });
++    return Promise.resolve(child);
++  };
++}
++function probeActivate(context: vscode.ExtensionContext) {
++  const ownerHandler = probeCommands(context);
++  context.subscriptions.push(
++    vscode.window.registerUriHandler({
++      handleUri(uri) {
++        ownerHandler(uri);
++        probeState.uris.push({
++          uri: uri.toString(true),
++          at: Date.now(),
++          remoteName: vscode.env.remoteName ?? null,
++          extensionHostPid: process.pid,
++        });
++      },
++    }),
++    context.secrets.onDidChange((event) => {
++      probeState.secretChanges.push({ key: event.key, at: Date.now() });
++    }),
++  );
++  // V4: a local window stores the value that a host file names, so that a remote window can read it.
++  // The host writes the value into the local profile's global storage of this extension, which
++  // only a local window sees. A window opened through the CLI does not get the launch environment.
++  const stored = path.join(context.globalStorageUri.fsPath, 'probe-secret-write.txt');
++  const file = existsSync(stored) ? stored : process.env.BVE_PROBE_SECRET_WRITE_FILE;
++  if (!vscode.env.remoteName)
++    try {
++      mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
++      writeFileSync(
++        path.join(context.globalStorageUri.fsPath, 'probe-local-activation.json'),
++        JSON.stringify({
++          at: Date.now(),
++          globalStorageFileExists: existsSync(stored),
++          environmentFileSet: !!process.env.BVE_PROBE_SECRET_WRITE_FILE,
++        }),
++      );
++    } catch {
++      // Diagnostics only.
++    }
++  if (!vscode.env.remoteName && file && existsSync(file))
++    void context.secrets.store(PROBE_SECRET_KEY, readFileSync(file, 'utf8').trim()).then(
++      () => writeFileSync(file + '.stored.json', JSON.stringify({ stored: true, at: Date.now() })),
++      (error: unknown) =>
++        writeFileSync(file + '.stored.json', JSON.stringify({ stored: false, error: String(error) })),
++    );
++  return {
++    // What VS Code makes of the redirect URI for this window (a windowId query, for example).
++    externalUri: async () =>
++      (
++        await vscode.env.asExternalUri(
++          vscode.Uri.parse(`${vscode.env.uriScheme}://chtaylo3.backstage-validation-engine/sign-in`),
++        )
++      ).toString(true),
++    uris: () => [...probeState.uris],
++    pipes: () => [...probeState.pipes],
++    secretChanges: () => [...probeState.secretChanges],
++    storeSecret: (value: string) => context.secrets.store(PROBE_SECRET_KEY, value),
++    getSecret: () => context.secrets.get(PROBE_SECRET_KEY),
++    remoteName: () => vscode.env.remoteName ?? null,
++  };
++}
++// Commands for the owner's runs by hand (D1 to D5). Reports hold no token, code, or verifier.
++function probeCommands(context: vscode.ExtensionContext) {
++  const channel = vscode.window.createOutputChannel('Backstage OIDC Probe');
++  const report: Record<string, unknown>[] = [];
++  const note = (row: Record<string, unknown>) => {
++    const value = {
++      at: new Date().toISOString(),
++      remoteName: vscode.env.remoteName ?? 'local',
++      uiKind: vscode.env.uiKind === vscode.UIKind.Desktop ? 'desktop' : 'web',
++      window: vscode.workspace.name ?? '(no folder)',
++      platform: process.platform,
++      ...row,
++    };
++    report.push(value);
++    channel.appendLine(JSON.stringify(value));
++    channel.show(true);
++  };
++  let pending: { state: string; verifier: string; issuer: string; clientId: string } | undefined;
++  const ask = async (key: string, prompt: string, fallback: string) => {
++    const value = await vscode.window.showInputBox({
++      prompt,
++      value: context.globalState.get<string>(key, fallback),
++      ignoreFocusOut: true,
++    });
++    if (value) await context.globalState.update(key, value);
++    return value;
++  };
++  const reach = async (url: string) => {
++    try {
++      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
++      return { status: response.status };
++    } catch (error) {
++      const cause = (error as { cause?: { code?: string; message?: string } }).cause;
++      return { error: cause?.code ?? cause?.message ?? String(error) };
++    }
++  };
++  const runtimeReach = (url: string) =>
++    new Promise<unknown>((resolve) => {
++      const runtime = context.asAbsolutePath(
++        path.join('runtime', process.platform === 'win32' ? 'node.exe' : 'node'),
++      );
++      const script = `fetch(${JSON.stringify(url)},{signal:AbortSignal.timeout(10000)}).then(r=>console.log(JSON.stringify({status:r.status})),e=>console.log(JSON.stringify({error:e.cause?.code??e.cause?.message??String(e)})))`;
++      const child = spawn(runtime, ['-e', script], {
++        env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined },
++        windowsHide: true,
++      });
++      let text = '';
++      child.stdout.on('data', (chunk: Buffer) => (text += chunk.toString()));
++      child.on('close', () => {
++        try {
++          resolve(JSON.parse(text));
++        } catch {
++          resolve({ error: 'no output' });
++        }
++      });
++      child.on('error', (error) => resolve({ error: error.message }));
++    });
++  const handleSignIn = async (uri: vscode.Uri) => {
++    const query = new URLSearchParams(uri.query);
++    const attempt = pending;
++    const stateMatches = !!attempt && query.get('state') === attempt.state;
++    const row: Record<string, unknown> = {
++      event: 'callback',
++      path: uri.path,
++      queryKeys: [...query.keys()],
++      pendingAttemptInThisWindow: !!attempt,
++      stateMatches,
++      error: query.get('error'),
++    };
++    if (attempt && stateMatches && query.get('code')) {
++      pending = undefined;
++      try {
++        const discovery = (await (
++          await fetch(`${attempt.issuer}/.well-known/openid-configuration`)
++        ).json()) as { token_endpoint: string; userinfo_endpoint: string };
++        const response = await fetch(discovery.token_endpoint, {
++          method: 'POST',
++          headers: { 'content-type': 'application/x-www-form-urlencoded' },
++          body: new URLSearchParams({
++            grant_type: 'authorization_code',
++            code: query.get('code')!,
++            code_verifier: attempt.verifier,
++            redirect_uri: 'vscode://chtaylo3.backstage-validation-engine/sign-in',
++            client_id: attempt.clientId,
++          }),
++        });
++        const body = (await response.json()) as { access_token?: string; error?: string };
++        row.exchange = { status: response.status, error: body.error ?? null };
++        if (body.access_token) {
++          const info = await fetch(discovery.userinfo_endpoint, {
++            headers: { authorization: `Bearer ${body.access_token}` },
++          });
++          const claims = (await info.json()) as { claims?: { sub?: string } };
++          row.userinfo = { status: info.status, sub: claims.claims?.sub ?? null };
++        }
++      } catch (error) {
++        row.exchange = { error: String((error as Error).message) };
++      }
++    }
++    note(row);
++  };
++  context.subscriptions.push(
++    channel,
++    vscode.commands.registerCommand('backstageValidation.probe.signIn', async () => {
++      const issuer = await ask(
++        'probe.issuer',
++        'Authorization server: the Backstage auth base URL',
++        'http://localhost:7007/api/auth',
++      );
++      const clientId = await ask(
++        'probe.clientId',
++        'Client ID: the URL of the client metadata document',
++        'https://client-document:8443/vscode-client.json',
++      );
++      if (!issuer || !clientId) return;
++      const verifier = randomBytes(32).toString('base64url');
++      const state = randomBytes(16).toString('base64url');
++      pending = { state, verifier, issuer: issuer.replace(/\/$/u, ''), clientId };
++      const url = `${pending.issuer}/v1/authorize?${new URLSearchParams({
++        response_type: 'code',
++        client_id: clientId,
++        redirect_uri: 'vscode://chtaylo3.backstage-validation-engine/sign-in',
++        scope: 'openid offline_access',
++        state,
++        code_challenge: createHash('sha256').update(verifier).digest('base64url'),
++        code_challenge_method: 'S256',
++      }).toString()}`;
++      note({
++        event: 'sign-in started',
++        extensionHostReachesDiscovery: await reach(`${pending.issuer}/.well-known/openid-configuration`),
++        packagedRuntimeReachesDiscovery: await runtimeReach(
++          `${pending.issuer}/.well-known/openid-configuration`,
++        ),
++      });
++      note({ event: 'browser opened', opened: await vscode.env.openExternal(vscode.Uri.parse(url)) });
++    }),
++    vscode.commands.registerCommand('backstageValidation.probe.reach', async () => {
++      const url = await ask('probe.reach', 'URL to reach from this window', 'https://');
++      if (!url) return;
++      note({
++        event: 'reach',
++        url,
++        extensionHost: await reach(url),
++        packagedRuntime: await runtimeReach(url),
++        proxySetting: vscode.workspace.getConfiguration('http').get('proxy') || null,
++        environmentProxy: !!(process.env.HTTPS_PROXY || process.env.https_proxy),
++        extraCaCerts: !!process.env.NODE_EXTRA_CA_CERTS,
++      });
++    }),
++    vscode.commands.registerCommand('backstageValidation.probe.secretStorage', async () => {
++      const value = 'bve-probe-' + randomBytes(8).toString('hex');
++      const row: Record<string, unknown> = { event: 'secret storage' };
++      try {
++        await context.secrets.store(PROBE_SECRET_KEY, value);
++        row.readBack = (await context.secrets.get(PROBE_SECRET_KEY)) === value;
++        await context.secrets.delete(PROBE_SECRET_KEY);
++        row.deleted = (await context.secrets.get(PROBE_SECRET_KEY)) === undefined;
++      } catch (error) {
++        row.error = String((error as Error).message);
++      }
++      note(row);
++    }),
++    vscode.commands.registerCommand('backstageValidation.probe.loopback', async () => {
++      const http = await import('node:http');
++      const server = http.createServer((request, response) => {
++        note({ event: 'loopback request', path: (request.url ?? '').split('?')[0] });
++        response.end('The probe received this request. You can close this tab.');
++      });
++      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
++      const port = (server.address() as { port: number }).port;
++      const local = vscode.Uri.parse(`http://127.0.0.1:${port}/callback`);
++      const external = await vscode.env.asExternalUri(local);
++      note({ event: 'loopback listening', port, externalUri: external.toString(true) });
++      await vscode.env.openExternal(external);
++      setTimeout(() => server.close(), 120_000);
++    }),
++    vscode.commands.registerCommand('backstageValidation.probe.copyReport', async () => {
++      await vscode.env.clipboard.writeText(JSON.stringify(report, null, 2));
++      void vscode.window.showInformationMessage('Backstage OIDC Probe report copied.');
++    }),
++  );
++  // The one URI handler of the extension (in probeActivate) passes each link here.
++  return (uri: vscode.Uri) => {
++    if (uri.path === '/sign-in' && (pending || new URLSearchParams(uri.query).has('state')))
++      void handleSignIn(uri);
++  };
++}
++// ------------------------------------- END OF PROBE STATE -------------------------------------
++
+ let client: LanguageClient | undefined;
+ let pending: Promise<void> = Promise.resolve();
+ let output: vscode.LogOutputChannel | undefined;
+@@ -330,7 +646,18 @@
+   reloadNotification?.dispose();
+   reloadNotification = undefined;
+   const previous = client;
++  const child = probeState.child;
+   if (previous) await previous.stop();
++  // PROBE: the kill fallback that the client applies only to a process it knows.
++  if (previous && child?.pid !== undefined)
++    setTimeout(() => {
++      try {
++        process.kill(child.pid!, 0);
++        child.kill();
++      } catch {
++        // Already exited.
++      }
++    }, 2000);
+   if (client === previous) client = undefined;
+   output?.info('Backstage validation stopped. Use Restart Language Server to resume.');
+ }
+@@ -352,15 +679,8 @@
+   const next = new LanguageClient(
+     'backstageValidation',
+     'Backstage Validation',
+-    {
+-      command: runtime,
+-      args: [server, '--config', config],
+-      options: {
+-        cwd: path.dirname(config),
+-        env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined },
+-        shell: false,
+-      },
+-    },
++    // PROBE: the function form, so that the server gets a fourth pipe.
++    probeServer(runtime, server, config),
+     {
+       ...selection,
+       middleware: {
+@@ -495,6 +815,7 @@
+ }
+ export async function activate(context: vscode.ExtensionContext) {
+   extensionContext = context;
++  const probe = probeActivate(context);
+   output = vscode.window.createOutputChannel('Backstage Validation', { log: true });
+   context.subscriptions.push(
+     output,
+@@ -545,9 +866,11 @@
+     },
+     status: () => ({
+       running: !disconnected && client?.isRunning() === true,
+-      pid: client?.serverProcess?.pid,
++      // PROBE: the client's own field stays undefined with the function form.
++      pid: client?.serverProcess?.pid ?? (client ? probeState.child?.pid : undefined),
+       disconnected,
+     }),
++    probe: { ...probe, clientServerProcessPid: () => client?.serverProcess?.pid ?? null },
+   };
+ }
+ export async function deactivate(): Promise<void> {
+--- a/extensions/vscode/test/cases/remote-session.case.ts
++++ b/extensions/vscode/test/cases/remote-session.case.ts
+@@ -6,6 +6,94 @@
+ import * as vscode from 'vscode';
+ import { until, exited, invalidTeam, team } from '../fixture.js';
+ import type { Fixture } from '../fixture.js';
++
++// ---------------------------------------------------------------------------------------------
++// OIDC PHASE 1 FEASIBILITY PROBE (V2, V4). THROWAWAY: never merge.
++// The host on the desktop serves requests that this remote case writes beside its progress file.
++// ---------------------------------------------------------------------------------------------
++interface RemoteProbe {
++  uris(): { uri: string; at: number; remoteName: string | null; extensionHostPid: number }[];
++  secretChanges(): { key: string; at: number }[];
++  getSecret(): Thenable<string | undefined>;
++  externalUri(): Promise<string>;
++}
++async function hostRequest(directory: string, action: string, extra: Record<string, unknown> = {}) {
++  const id = `${action}-${Date.now()}`;
++  await writeFile(path.join(directory, 'probe-request.json'), JSON.stringify({ id, action, ...extra }));
++  let answer:
++    | { id?: string; status?: string; error?: string; localStore?: unknown; localActivation?: unknown }
++    | undefined;
++  await until(async () => {
++    answer = await readFile(path.join(directory, 'probe-ack.json'), 'utf8')
++      .then((text) => JSON.parse(text) as typeof answer)
++      .catch(() => undefined);
++    return answer?.id === id;
++  }, 'the desktop host answers ' + action);
++  return answer!;
++}
++async function within(check: () => boolean, ms: number) {
++  const end = Date.now() + ms;
++  while (Date.now() < end && !check()) await new Promise((resolve) => setTimeout(resolve, 100));
++  return check();
++}
++async function probeRemote(fixture: Fixture): Promise<void> {
++  const probe = (fixture.api as unknown as { probe: RemoteProbe }).probe;
++  const directory = path.dirname(process.env.BVE_EXTENSION_TEST_PROGRESS!);
++  const nonce = createHash('sha256').update(String(Math.random())).digest('hex').slice(0, 16);
++  const url = `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=${nonce}`;
++  const started = Date.now();
++  const linkAnswer = await hostRequest(directory, 'open-url', { url });
++  await within(() => probe.uris().some((row) => row.uri.includes(nonce)), 30_000);
++  await new Promise((resolve) => setTimeout(resolve, 2000));
++  const rows = probe.uris().filter((row) => row.uri.includes(nonce));
++  const secretBefore = await probe.getSecret();
++  const changesBefore = probe.secretChanges().length;
++  const secretAnswer = await hostRequest(directory, 'local-window-secret');
++  const changed = await within(() => probe.secretChanges().length > changesBefore, 60_000);
++  const secretAfter = await probe.getSecret();
++  const expected = await readFile(path.join(directory, 'probe-expected.json'), 'utf8')
++    .then((text) => JSON.parse(text) as { sha256: string })
++    .catch(() => undefined);
++  const observation = {
++    remoteName: vscode.env.remoteName ?? null,
++    editorVersion: vscode.version,
++    remoteHostname: os.hostname(),
++    V2: {
++      hostOpenUrl: linkAnswer.status,
++      hostError: linkAnswer.error ?? null,
++      deliveries: rows.length,
++      firstDeliveryMs: rows[0] ? rows[0].at - started : null,
++      handlerRemoteName: rows[0]?.remoteName ?? null,
++      deliveredQueryUnchanged: rows[0] ? rows[0].uri === url : null,
++    },
++    externalUriOfRedirect: await probe.externalUri(),
++    confirmedUriHandlerExtensionIds:
++      vscode.workspace
++        .getConfiguration('extensions')
++        .get<string[]>('confirmedUriHandlerExtensionIds') ?? null,
++    V4: {
++      hostLocalWindow: secretAnswer.status,
++      hostError: secretAnswer.error ?? null,
++      localWindowStore: secretAnswer.localStore ?? null,
++      localWindowActivation: secretAnswer.localActivation ?? null,
++      valueBeforeLocalWrite: secretBefore === undefined ? 'absent' : 'present',
++      changeEventInRemoteWindow: changed,
++      changeEvents: probe.secretChanges().length - changesBefore,
++      valueAfterLocalWrite: secretAfter === undefined ? 'absent' : 'present',
++      valueMatchesLocalWrite:
++        secretAfter !== undefined && expected
++          ? createHash('sha256').update(secretAfter).digest('hex') === expected.sha256
++          : false,
++    },
++  };
++  await writeFile(
++    path.join(directory, 'probe-remote-observation.json'),
++    JSON.stringify(observation, null, 2) + '\n',
++  );
++  console.log('BVE_PROBE_OBSERVATION ' + JSON.stringify(observation));
++}
++// ------------------------------------- END OF PROBE STAGE -------------------------------------
++
+ export async function run(fixture: Fixture): Promise<void> {
+   assert.equal(
+     vscode.env.remoteName,
+@@ -47,7 +135,7 @@
+   if (previous) {
+     await until(() => exited(previous.pid), 'disconnect reaped the previous remote server');
+     assert.notEqual(pid, previous.pid);
+-  }
++  } else await probeRemote(fixture);
+   const document = await fixture.document();
+   await fixture.diagnostic();
+   const original = document.getText();
+--- a/scripts/test-extension.mjs
++++ b/scripts/test-extension.mjs
+@@ -1,4 +1,6 @@
+ import assert from 'node:assert/strict';
++import { execFile } from 'node:child_process';
++import { promisify } from 'node:util';
+ import { createHash } from 'node:crypto';
+ import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
+ import { tmpdir } from 'node:os';
+@@ -785,8 +787,11 @@
+       }
+     } else {
+       // A case can ask the host to give the running editor a vscode:// link, as an OS does.
++      // PROBE (V5): on macOS, hand the link to the operating system with `open` instead.
+       const links = serveOpenUrlRequests(base, (url) =>
+-        openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
++        process.env.BVE_PROBE_OPEN_MODE === 'open-command'
++          ? promisify(execFile)('open', [url], { timeout: 30_000 })
++          : openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
+       );
+       try {
+         result = await launch(args, {}, base);
+--- a/scripts/test-extension-remote.mjs
++++ b/scripts/test-extension-remote.mjs
+@@ -8,7 +8,7 @@
+ import { fileURLToPath } from 'node:url';
+ import { promisify } from 'node:util';
+ import { downloadAndUnzipVSCode } from '@vscode/test-electron';
+-import { resolveVSCodeCli, runVSCodeCommand } from './extension-test-cli.mjs';
++import { openUrl, resolveVSCodeCli, runCli, runVSCodeCommand } from './extension-test-cli.mjs';
+ import { launchEditor } from './extension-test-process.mjs';
+ import { debugPort, observeWorkbench } from './extension-test-ui.mjs';
+ import { classify, junit } from '../.artifacts/vscode/test/reporting.mjs';
+@@ -334,6 +334,23 @@
+         );
+       return manifests;
+     });
++    // PROBE (V4): the product also on the desktop, so that a local window can store a secret.
++    await preflight('PROBE: install the product in the desktop extensions', () =>
++      runVSCodeCommand(
++        [
++          '--install-extension',
++          info.vsix,
++          '--force',
++          '--extensions-dir',
++          installed,
++          '--user-data-dir',
++          path.join(session, 'installer-profile'),
++          '--shared-data-dir=' + path.join(session, 'installer-shared-data'),
++          '--no-sandbox',
++        ],
++        installerOptions,
++      ).then((result) => result.stdout),
++    );
+     let sshConfig;
+     if (mode === 'ssh-remote') {
+       const connection = await prepareSshConnection({
+@@ -472,6 +489,11 @@
+           'remote.SSH.useLocalServer': false,
+           'remote.SSH.showLoginTerminal': false,
+           'remote.SSH.remotePlatform': { bve: 'linux' },
++          // PROBE (V2): pre-accept "Allow ... extension to open this URI?", as its checkbox does.
++          // Run 1 without this setting showed the modal and delivered nothing.
++          ...(process.env.BVE_PROBE_CONFIRM_URI === '0'
++            ? {}
++            : { 'extensions.confirmedUriHandlerExtensionIds': ['chtaylo3.backstage-validation-engine'] }),
+         }),
+       );
+       const authority =
+@@ -494,6 +516,9 @@
+         '--skip-welcome',
+         '--skip-release-notes',
+         '--disable-updates',
++        // PROBE (V4): the runner has no OS keyring; without this, SecretStorage.store waits on a
++        // keyring prompt in the local window and never settles (runs 3 to 5).
++        '--password-store=basic',
+       ];
+       for (let stage = 0; stage < 2; stage++) {
+         await remote('rm', ['-f', path.posix.join(remoteSession, 'progress.json')]);
+@@ -510,10 +535,97 @@
+           signal: observerAbort.signal,
+           ownedContainer: mode === 'dev-container' ? containerName : undefined,
+         });
++        // PROBE (V2, V4): serve the requests of the remote case during the first session.
++        const probeSecretFile = path.join(
++          profile,
++          'User/globalStorage/chtaylo3.backstage-validation-engine/probe-secret-write.txt',
++        );
++        await mkdir(path.dirname(probeSecretFile), { recursive: true });
++        const probeLoop =
++          stage !== 0
++            ? Promise.resolve()
++            : (async () => {
++                const seen = new Set();
++                const request = path.posix.join(remoteSession, 'probe-request.json');
++                const ack = path.posix.join(remoteSession, 'probe-ack.json');
++                const writeRemote = (file, value) =>
++                  remote('/opt/bve-node', [
++                    '-e',
++                    `require('fs').writeFileSync(${JSON.stringify(file)},${JSON.stringify(JSON.stringify(value))})`,
++                  ]);
++                while (!exited) {
++                  const text = await remote('cat', [request]).catch(() => undefined);
++                  const row = text ? JSON.parse(text) : undefined;
++                  if (row && !seen.has(row.id)) {
++                    seen.add(row.id);
++                    let status = 'passed';
++                    let error;
++                    const extra = {};
++                    try {
++                      if (row.action === 'open-url')
++                        await openUrl(executable, row.url, {
++                          userDataDir: profile,
++                          extensionsDir: installed,
++                        });
++                      else if (row.action === 'local-window-secret') {
++                        const value = 'bve-probe-local-' + randomUUID();
++                        await writeFile(probeSecretFile, value);
++                        await writeRemote(path.posix.join(remoteSession, 'probe-expected.json'), {
++                          sha256: createHash('sha256').update(value).digest('hex'),
++                        });
++                        const local = await mkdtemp(path.join(session, 'probe-local-window-'));
++                        const { cli } = await resolveVSCodeCli(executable);
++                        // A window opened through the CLI gets the CLI's environment.
++                        await runCli(
++                          executable,
++                          cli,
++                          [
++                            '--new-window',
++                            local,
++                            '--user-data-dir',
++                            profile,
++                            '--extensions-dir',
++                            installed,
++                            '--disable-workspace-trust',
++                          ],
++                          { env: { BVE_PROBE_SECRET_WRITE_FILE: probeSecretFile } },
++                        );
++                        const until = Date.now() + 45_000;
++                        while (Date.now() < until && !extra.localStore) {
++                          extra.localStore = await readFile(probeSecretFile + '.stored.json', 'utf8')
++                            .then(JSON.parse)
++                            .catch(() => undefined);
++                          if (!extra.localStore) await new Promise((resolve) => setTimeout(resolve, 250));
++                        }
++                        extra.localStore ??= { stored: false, error: 'No local window stored.' };
++                        extra.localActivation = await readFile(
++                          path.join(path.dirname(probeSecretFile), 'probe-local-activation.json'),
++                          'utf8',
++                        )
++                          .then(JSON.parse)
++                          .catch(() => 'The product wrote no activation note in a local window.');
++                      } else throw new Error('Unknown probe request.');
++                    } catch (failure) {
++                      status = 'failed';
++                      error = String(failure?.message ?? failure);
++                    }
++                    await writeRemote(ack, {
++                      id: row.id,
++                      status,
++                      ...extra,
++                      ...(error ? { error } : {}),
++                    });
++                  }
++                  await new Promise((resolve) => setTimeout(resolve, 500));
++                }
++              })().catch((failure) => {
++                evidence.probeLoopError = String(failure?.stack ?? failure);
++              });
+         const result = await launchEditor(
+           executable,
+           [...args, '--remote-debugging-port=' + port, '--remote-debugging-address=127.0.0.1'],
+           {
++            BVE_PROBE_SECRET_WRITE_FILE: probeSecretFile,
+             BVE_EDITOR_CATALOG_TOKEN: catalogToken,
+             BVE_LSP_CONFIG: remoteEnvironment.BVE_LSP_CONFIG,
+             WSLENV: remoteEnvironment.WSLENV,
+@@ -560,7 +672,16 @@
+           exited = true;
+           observerAbort.abort();
+           await observation;
++          await probeLoop;
+         });
++        if (stage === 0) {
++          // PROBE: keep the remote observation beside the session evidence.
++          const probed = await remote('cat', [
++            path.posix.join(remoteSession, 'probe-remote-observation.json'),
++          ]).catch(() => JSON.stringify({ missing: 'The remote case wrote no probe observation.' }));
++          await writeFile(path.join(directory, 'probe-remote-observation.json'), probed + '\n');
++          console.log(`BVE_PROBE_REMOTE ${version} ${probed.replace(/\s+/gu, ' ')}`);
++        }
+         const progress = JSON.parse(
+           await remote('cat', [path.posix.join(remoteSession, 'progress.json')]).catch(
+             () => 'null',
+--- /dev/null
++++ b/extensions/vscode/test/cases/probe-uri.case.ts
+@@ -0,0 +1,54 @@
++// OIDC PHASE 1 FEASIBILITY PROBE. THROWAWAY: never merge.
++// V1 (and V5 with BVE_PROBE_OPEN_MODE=open-command): does a vscode:// link reach the product's
++// URI handler? The observation is written to the control directory for the probe summary.
++import assert from 'node:assert/strict';
++import { randomUUID } from 'node:crypto';
++import { writeFile } from 'node:fs/promises';
++import path from 'node:path';
++import { setTimeout as pause } from 'node:timers/promises';
++import * as vscode from 'vscode';
++import type { Fixture } from '../fixture.js';
++import { openUrl } from '../links.js';
++
++interface Probe {
++  uris(): { uri: string; at: number; remoteName: string | null; extensionHostPid: number }[];
++  externalUri(): Promise<string>;
++}
++export async function run(fixture: Fixture): Promise<void> {
++  const probe = (fixture.api as unknown as { probe: Probe }).probe;
++  assert(probe, 'Run the probe build.');
++  const mode = process.env.BVE_PROBE_OPEN_MODE ?? 'open-url';
++  const nonce = randomUUID();
++  const url = `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=${nonce}`;
++  const started = Date.now();
++  let requestError: string | undefined;
++  await openUrl(url).catch((error: unknown) => {
++    requestError = error instanceof Error ? error.message : String(error);
++  });
++  const until = Date.now() + 30_000;
++  while (Date.now() < until && !probe.uris().some((row) => row.uri.includes(nonce))) await pause(100);
++  await pause(2000);
++  const rows = probe.uris().filter((row) => row.uri.includes(nonce));
++  const observation = {
++    question: mode === 'open-command' ? 'V5' : 'V1',
++    mode,
++    platform: process.platform,
++    editorVersion: vscode.version,
++    remoteName: vscode.env.remoteName ?? null,
++    requestError: requestError ?? null,
++    deliveries: rows.length,
++    firstDeliveryMs: rows[0] ? rows[0].at - started : null,
++    deliveredPath: rows[0] ? vscode.Uri.parse(rows[0].uri).path : null,
++    deliveredQueryUnchanged: rows[0] ? rows[0].uri === url : null,
++    handlerExtensionHostPid: rows[0]?.extensionHostPid ?? null,
++    caseExtensionHostPid: process.pid,
++    externalUriOfRedirect: await probe.externalUri(),
++    note: 'Extension-development window: VS Code shows no URI confirmation dialog here.',
++  };
++  await writeFile(
++    path.join(process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY!, 'probe-uri-observation.json'),
++    JSON.stringify(observation, null, 2) + '\n',
++  );
++  console.log('BVE_PROBE_OBSERVATION ' + JSON.stringify(observation));
++  if (mode !== 'open-command') assert.equal(rows.length, 1, 'The link reaches the handler once.');
++}
+--- /dev/null
++++ b/extensions/vscode/test/cases/probe-pipe.case.ts
+@@ -0,0 +1,64 @@
++// OIDC PHASE 1 FEASIBILITY PROBE. THROWAWAY: never merge.
++// V3: the server receives a value on its fourth pipe, at start and after a restart, and the
++// client keeps `serverProcess`. Lengths and digests only; the value is synthetic.
++import assert from 'node:assert/strict';
++import { readFile, writeFile } from 'node:fs/promises';
++import path from 'node:path';
++import * as vscode from 'vscode';
++import { exited, until } from '../fixture.js';
++import type { Fixture } from '../fixture.js';
++
++interface Probe {
++  pipes(): { pid: number | undefined; bytes: number; sha256: string }[];
++  clientServerProcessPid(): number | null;
++}
++const directory = () => process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY!;
++async function received(pid: number) {
++  let row: { pid: number; bytes: number; sha256: string; runtime: string } | undefined;
++  await until(async () => {
++    row = await readFile(path.join(directory(), `probe-fd3-${pid}.json`), 'utf8')
++      .then((text) => JSON.parse(text) as typeof row)
++      .catch(() => undefined);
++    return !!row;
++  }, 'the server records the value of its fourth pipe');
++  return row!;
++}
++export async function run(fixture: Fixture): Promise<void> {
++  const probe = (fixture.api as unknown as { probe: Probe }).probe;
++  assert(probe, 'Run the probe build.');
++  const sessions = [];
++  for (let stage = 0; stage < 2; stage++) {
++    const pid = fixture.pid();
++    const sent = probe.pipes().find((row) => row.pid === pid);
++    assert(sent, 'The client records the pipe it wrote for this server process.');
++    const got = await received(pid);
++    sessions.push({
++      stage: stage === 0 ? 'start' : 'restart',
++      serverProcessPid: pid,
++      clientServerProcessPid: probe.clientServerProcessPid(),
++      sentBytes: sent.bytes,
++      receivedBytes: got.bytes,
++      digestsMatch: got.sha256 === sent.sha256,
++      serverRuntime: got.runtime,
++    });
++    await fixture.document();
++    await fixture.diagnostic();
++    if (stage === 0) {
++      await vscode.commands.executeCommand('backstageValidation.restart');
++      await until(() => fixture.api!.status().running && fixture.pid() !== pid, 'restart');
++      await until(() => exited(pid), 'previous server exits');
++    }
++  }
++  const observation = {
++    question: 'V3',
++    platform: process.platform,
++    editorVersion: vscode.version,
++    sessions,
++  };
++  await writeFile(
++    path.join(directory(), 'probe-pipe-observation.json'),
++    JSON.stringify(observation, null, 2) + '\n',
++  );
++  console.log('BVE_PROBE_OBSERVATION ' + JSON.stringify(observation));
++  for (const row of sessions) assert(row.digestsMatch, 'The server receives the value unchanged.');
++}
+--- /dev/null
++++ b/extensions/vscode/test/cases/probe-secret.case.ts
+@@ -0,0 +1,39 @@
++// OIDC PHASE 1 FEASIBILITY PROBE. THROWAWAY: never merge.
++// The product writes one SecretStorage value in a local window, reads it back, and sees its own
++// change event. The remote half of V4 is in the patched remote-session case.
++import assert from 'node:assert/strict';
++import { createHash, randomUUID } from 'node:crypto';
++import { writeFile } from 'node:fs/promises';
++import path from 'node:path';
++import * as vscode from 'vscode';
++import { until } from '../fixture.js';
++import type { Fixture } from '../fixture.js';
++
++interface Probe {
++  storeSecret(value: string): Thenable<void>;
++  getSecret(): Thenable<string | undefined>;
++  secretChanges(): { key: string; at: number }[];
++}
++export async function run(fixture: Fixture): Promise<void> {
++  const probe = (fixture.api as unknown as { probe: Probe }).probe;
++  assert(probe, 'Run the probe build.');
++  const value = 'bve-probe-secret-' + randomUUID();
++  const before = probe.secretChanges().length;
++  await probe.storeSecret(value);
++  await until(() => probe.secretChanges().length > before, 'the change event of the stored secret');
++  const read = await probe.getSecret();
++  const observation = {
++    question: 'V4 (local half)',
++    platform: process.platform,
++    editorVersion: vscode.version,
++    storedSha256: createHash('sha256').update(value).digest('hex'),
++    readMatches: read === value,
++    changeEvents: probe.secretChanges().length - before,
++  };
++  await writeFile(
++    path.join(process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY!, 'probe-secret-observation.json'),
++    JSON.stringify(observation, null, 2) + '\n',
++  );
++  console.log('BVE_PROBE_OBSERVATION ' + JSON.stringify(observation));
++  assert(observation.readMatches);
++}

@@ -1,0 +1,103 @@
+# THROWAWAY: OIDC sign-in plan, Phase 1 feasibility checks. Delete this file with spike/oidc-phase-1/
+# before anything merges. It runs on a push to a branch named spike/oidc-phase-1*, because GitHub
+# dispatches a workflow_dispatch workflow only when the file exists on the default branch. Once this
+# file is on the default branch, `gh workflow run oidc-phase-1-probe.yml --ref <branch>` also works.
+# Answers: job "Backstage sign-in flow" -> B1-B6 (artifact oidc-flow-<target>); job "Editor probe"
+# -> V1, V3 on each OS and V5 on macOS (artifact oidc-probe-<os>); job "SSH fixture probe" -> V2,
+# V4 (artifact oidc-probe-ssh). Each job prints BVE_PROBE_SUMMARY or flow lines to its log.
+name: OIDC phase 1 probe (throwaway)
+
+on:
+  push:
+    branches: ['spike/oidc-phase-1*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backstage:
+    name: Backstage sign-in flow / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: 1.55.3
+            run: oidc-probe-1553
+          - target: 1.56.3
+            run: oidc-probe-1563
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run backstage:test:up -- --target=${{ matrix.target }} --run=${{ matrix.run }}
+      - run: node test/integration/backstage/oidc/run.mjs --run=${{ matrix.run }}
+      - if: always()
+        run: npm run backstage:test:clean -- --run=${{ matrix.run }}
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oidc-flow-${{ matrix.target }}
+          path: .artifacts/backstage/${{ matrix.run }}/${{ matrix.target }}/oidc/
+          if-no-files-found: error
+          retention-days: 14
+
+  editor:
+    name: Editor probe / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: V1 and V3 (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node spike/oidc-phase-1/run-probe.mjs --local
+      - name: V1 and V3
+        if: runner.os != 'Linux'
+        run: node spike/oidc-phase-1/run-probe.mjs --local
+      - name: V5 (macOS open command)
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: node spike/oidc-phase-1/run-probe.mjs --open-command
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oidc-probe-${{ matrix.os }}
+          path: .artifacts/oidc-probe/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  ssh:
+    name: SSH fixture probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: V2 and V4
+        run: xvfb-run -a node spike/oidc-phase-1/run-probe.mjs --remote=host
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oidc-probe-ssh
+          path: .artifacts/oidc-probe/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
