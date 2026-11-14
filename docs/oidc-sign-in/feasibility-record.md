@@ -209,7 +209,7 @@ These follow from the answers. The plan overview's decisions are unchanged; the 
   link into an assertion's values, because a failing `deepEqual` prints both sides; compare a
   digest or a redacted form instead. It must account for the link in the process arguments of the
   CLI and of the editor process that it starts, for the lifetime of the call (inherent to
-  `--open-url`), where other processes of the same user can read it. And a remote test (the SSH
+  `--open-url`), where other local processes can read it: on Linux, every local user by default. And a remote test (the SSH
   fixture) needs its own disk-free link channel: the kept link server serves cases of a local
   editor only, and the probe's remote case used a request file on the SSH host, which is acceptable
   only for synthetic links.

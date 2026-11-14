@@ -321,7 +321,10 @@ Coder Remote also wrote to your desktop. From its source (`coder/vscode-coder` v
 - **SSH configuration.** It adds a block to `~/.ssh/config` (Windows:
   `%USERPROFILE%\.ssh\config`) that starts with a line `# --- START CODER` and ends with the
   matching `# --- END CODER` line: either `# --- START CODER VSCODE <host> ---`, or
-  `# --- START CODER INCLUDE CODER-REMOTE ---` with an `Include` line. Delete that block. The
+  `# --- START CODER INCLUDE CODER-REMOTE ---` with an `Include` line. Delete only the
+  `VSCODE` block whose host is the Coder host of this procedure, for example `localhost`. Delete
+  the `INCLUDE` block only if you did not use Coder Remote before this procedure, because every
+  Coder deployment shares it. Leave every other `CODER` block. The
   `Include` form also generated files in `coder.coder-remote/ssh/` in the platform data directory
   (Windows: `%APPDATA%\coder.coder-remote\ssh\`; Linux:
   `${XDG_DATA_HOME:-$HOME/.local/share}/coder.coder-remote/ssh/`); delete the files whose name ends

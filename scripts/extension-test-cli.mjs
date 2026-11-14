@@ -237,7 +237,7 @@ export const LINK_TOKEN_VARIABLE = 'BVE_EXTENSION_TEST_LINKS_TOKEN';
  * that `openUrl` returns. The harness writes the link to no file, so it cannot reach uploaded
  * evidence that way. It is in memory, on the loopback connection, and, for the lifetime of the CLI
  * call, in the process arguments of the CLI and of the editor process that it starts (inherent to
- * `--open-url`), where other processes of the same user can read it. A failing assertion that
+ * `--open-url`), where other local processes can read it: on Linux, every local user by default. A failing assertion that
  * compares links can also print it. This server serves cases of a local editor only.
  */
 export async function serveOpenUrlRequests(open) {
