@@ -36,6 +36,9 @@ kept as they were written.
 - [Versioned Backstage test harness](testing-harness.md): the test groups, the runner, and the versioned Backstage fixtures.
 - [VS Code qualification evidence](vscode-qualification.md): the provisional VS Code regression limits and their evidence.
 - [Architecture remediation](architecture-remediation/README.md): the phased architecture remediation plans and their shared rules.
+- [Cross-entity rules plan](cross-entity-rules/README.md): the phased plans for CEL rules that read referenced entities, and for rule-aware completion.
+- [Distributions and compiled plugins plan](distributions/README.md): the phased plans for customer builds with compiled plugins.
+- [OIDC sign-in plan](oidc-sign-in/README.md): the phased plans that replace the shared catalog token in the VS Code extension with a per-developer sign-in.
 - [Evidence](evidence/): measurement captures referenced by the CEL runtime documents.
 
 ## History
