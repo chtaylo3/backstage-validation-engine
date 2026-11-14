@@ -7,49 +7,57 @@ records what was observed, and where: on which Backstage release, runner, deskto
 An answer is no stronger than its evidence. A question that nobody has answered yet is marked
 **pending**, with the person or workflow that answers it.
 
-The evidence comes from two places:
+The evidence comes from three places:
 
 - **The implementer's machine:** Linux on WSL 2 (kernel 6.6.87.2), Docker 29.9.2, Node 24.22.1,
   on 2026-11-14. The editor runs used Xvfb, a private `XDG_RUNTIME_DIR` with a short path, and a
   private D-Bus session (`dbus-run-session`), because the inherited runtime directory was not
   writable. They also removed the inherited `ELECTRON_*` and `VSCODE_*` variables. Results from
   this machine are marked **local**.
-- **Hosted probe run 43641731276** at commit `c5307f8` on the GitHub-hosted `ubuntu-24.04`,
-  `windows-2025`, and `macos-15` runners. Results from it are marked **hosted**. Its summary is
+- **Hosted probe run 1** (run 43641731276, commit `c5307f8`) on the GitHub-hosted
+  `ubuntu-24.04`, `windows-2025`, and `macos-15` runners. Its summary is
   [`evidence/hosted-run-43641731276.json`](evidence/hosted-run-43641731276.json).
+- **Hosted probe run 2** (run 43645632753, commit `0c9c239`, with the kept changes of `581bcd6`)
+  on the same runners. Its summary is
+  [`evidence/hosted-run-43645632753.json`](evidence/hosted-run-43645632753.json). The CI run of the
+  same commit (43645632772) was green, including the installed-editor jobs on all three runners.
+
+Results from the hosted runs are marked **hosted run 1** or **hosted run 2**. Each hosted result
+comes from one run, so it is no evidence against flakiness.
 
 No token, authorization code, PKCE verifier, or refresh token that Backstage issued appears in this
 record or in its evidence files.
 
 ## Answers
 
-| ID  | Layer | Answer                                                                                                                                                                                            | Where it was observed                                                                                        | Details                                                         |
-| --- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| B1  | 2     | **Yes.** Backstage accepts the `vscode://` redirect URI, and the browser follows it after consent.                                                                                                | Compose applications 1.55.3 and 1.56.3: local and hosted                                                     | [B1](#b1-the-vscode-redirect-uri)                               |
-| B2  | 2     | **Yes, with limits.** Issue, rotation, refusal of a rotated-out token, and revocation work on SQLite. The limits are in [decisions 6 to 8](#decisions-that-follow).                               | 1.55.3 and 1.56.3: local and hosted                                                                          | [B2](#b2-refresh-tokens-on-sqlite)                              |
-| B3  | 2     | **Yes.** An HTTPS document server on the Compose network works, with an exact client ID pattern and a trusted test authority.                                                                     | 1.55.3 and 1.56.3: local and hosted                                                                          | [B3](#b3-the-client-metadata-document)                          |
-| B4  | 2     | **Yes.** The catalog accepts the token as the user, and `userinfo` returns the user entity reference.                                                                                             | 1.55.3 and 1.56.3: local and hosted                                                                          | [B4](#b4-user-token-and-userinfo)                               |
-| B5  | 2     | **No before this phase; yes after it.** The policy acted only on service principals. It now denies one user, and the other user is unaffected.                                                    | 1.55.3 and 1.56.3: local and hosted                                                                          | [B5](#b5-per-user-permission-decisions)                         |
-| B6  | 2     | **No, for the one lifetime tested.** With a 900-second token, `expires_in` was 3600.                                                                                                              | 1.55.3 and 1.56.3: local and hosted                                                                          | [B6](#b6-the-reported-expiry)                                   |
-| V1  | 3     | **Not established.** The link arrived on the local machine and on hosted macOS. On hosted Ubuntu and Windows nothing arrived: the CLI call never reached the running editor. Diagnosis continues. | Delivered: local Linux, hosted `macos-15`. Not delivered: hosted `ubuntu-24.04`, `windows-2025`              | [V1](#v1-a-link-through---open-url)                             |
-| V2  | 3     | **Not established.** Delivered on the local SSH fixture after consent. Not delivered on the hosted SSH fixture, where the same CLI path as V1 failed.                                             | Delivered: local SSH fixture. Not delivered: hosted SSH fixture                                              | [V2](#v2-a-link-to-the-extension-on-the-ssh-host)               |
-| V3  | 3     | **Yes, with a change.** The fourth pipe works, but the language client then leaves `serverProcess` unset, so the extension must keep the child process itself.                                    | Local Linux; hosted `ubuntu-24.04`, `windows-2025` (`node.exe`), and `macos-15`; VS Code 1.106.3 and 1.145.2 | [V3](#v3-a-fourth-pipe-to-the-server)                           |
-| V4  | 3     | **Yes in one local run; not answered on a hosted runner.** The hosted local window never opened.                                                                                                  | Local SSH fixture with `--password-store=basic`                                                              | [V4](#v4-secret-storage-from-a-local-window-in-a-remote-window) |
-| V5  | 3     | **No.** `open vscode://…` found no application for the scheme. The downloaded test editor is not registered with macOS.                                                                           | Hosted `macos-15`, VS Code 1.106.3 and 1.145.2                                                               | [V5](#v5-the-macos-open-command)                                |
-| D1  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
-| D2  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
-| D3  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
-| D4  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
-| D5  | 4     | **Pending:** the owner runs it.                                                                                                                                                                   | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| ID  | Layer | Answer                                                                                                                                                                             | Where it was observed                                                                                        | Details                                                         |
+| --- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| B1  | 2     | **Yes.** Backstage accepts the `vscode://` redirect URI, and the browser follows it after consent.                                                                                 | Compose applications 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                           | [B1](#b1-the-vscode-redirect-uri)                               |
+| B2  | 2     | **Yes, with limits.** Issue, rotation, refusal of a rotated-out token, and revocation work on SQLite. The limits are in [decisions 6 to 8](#decisions-that-follow).                | 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                                                | [B2](#b2-refresh-tokens-on-sqlite)                              |
+| B3  | 2     | **Yes.** An HTTPS document server on the Compose network works, with an exact client ID pattern and a trusted test authority.                                                      | 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                                                | [B3](#b3-the-client-metadata-document)                          |
+| B4  | 2     | **Yes.** The catalog accepts the token as the user, and `userinfo` returns the user entity reference.                                                                              | 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                                                | [B4](#b4-user-token-and-userinfo)                               |
+| B5  | 2     | **No before this phase; yes after it.** The policy acted only on service principals. It now denies one user, and the other user is unaffected.                                     | 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                                                | [B5](#b5-per-user-permission-decisions)                         |
+| B6  | 2     | **No, for the one lifetime tested.** With a 900-second token, `expires_in` was 3600.                                                                                               | 1.55.3 and 1.56.3: local, hosted runs 1 and 2                                                                | [B6](#b6-the-reported-expiry)                                   |
+| V1  | 3     | **Yes, with `--no-sandbox` on Linux.** In hosted run 2 the link reached the handler once on all three runners and both editors. Without `--no-sandbox`, nothing arrived on Ubuntu. | Hosted run 2: `ubuntu-24.04`, `windows-2025`, `macos-15`; local Linux                                        | [V1](#v1-a-link-through---open-url)                             |
+| V2  | 3     | **Yes, with test settings.** The link reached the handler in the SSH host once, with the URI consent pre-accepted by a user setting. Without that consent, nothing arrived.        | Hosted run 2 (SSH fixture on `ubuntu-24.04`); local SSH fixture                                              | [V2](#v2-a-link-to-the-extension-on-the-ssh-host)               |
+| V3  | 3     | **Yes, with a change.** The fourth pipe works, but the language client then leaves `serverProcess` unset, so the extension must keep the child process itself.                     | Local Linux; hosted `ubuntu-24.04`, `windows-2025` (`node.exe`), and `macos-15`; VS Code 1.106.3 and 1.145.2 | [V3](#v3-a-fourth-pipe-to-the-server)                           |
+| V4  | 3     | **Yes, with test settings.** The SSH window read the value that a local window stored, and saw one change event, with `--password-store=basic` and the consent setting in force.   | Hosted run 2 (SSH fixture on `ubuntu-24.04`); local SSH fixture                                              | [V4](#v4-secret-storage-from-a-local-window-in-a-remote-window) |
+| V5  | 3     | **No.** `open vscode://…` found no application for the scheme. The downloaded test editor is not registered with macOS.                                                            | Hosted runs 1 and 2: `macos-15`, VS Code 1.106.3 and 1.145.2                                                 | [V5](#v5-the-macos-open-command)                                |
+| D1  | 4     | **Pending:** the owner runs it.                                                                                                                                                    | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D2  | 4     | **Pending:** the owner runs it.                                                                                                                                                    | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D3  | 4     | **Pending:** the owner runs it.                                                                                                                                                    | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D4  | 4     | **Pending:** the owner runs it.                                                                                                                                                    | —                                                                                                            | [Pending questions](#pending-questions)                         |
+| D5  | 4     | **Pending:** the owner runs it.                                                                                                                                                    | —                                                                                                            | [Pending questions](#pending-questions)                         |
 
 ### Evidence for macOS, by layer
 
 - **Layer 1:** no new evidence from this phase. The existing `ci.yml` jobs run the unit and client
   tests on `macos-15`.
 - **Layer 2:** none. The Backstage flow runs on Linux only.
-- **Layer 3 (hosted `macos-15`):** V1 delivered the link once on both editors (1506 ms on 1.106.3,
-  804 ms on 1.145.2), and the kept case `open-url` passed. V3 passed. V5 failed to reach the test
-  editor.
+- **Layer 3 (hosted `macos-15`):** V1 delivered the link once on both editors in both hosted runs
+  (all four CLI variants in run 2), and the kept case `open-url` passed. V3 passed. V5 failed to
+  reach the test editor in both runs. V2 and V4 do not run on macOS: the SSH fixture runs on
+  Ubuntu.
 - **Layer 4:** none. Nobody runs the desktop checks on macOS.
 
 ## What an operator configures
@@ -116,11 +124,11 @@ This is the complete document that the tests served. A customer distribution rep
 
 ## Decisions that follow
 
-1. **Nothing observed so far requires the companion extension, but layer 3 is not established.**
-   B1 holds on both releases. V1 and V2 delivered on the local machine and V1 on hosted macOS, but
-   not on hosted Ubuntu and Windows, where the CLI call never reached the editor (see V1). The
-   choice stays open until V1 and V2 hold on the hosted runners and D1 holds on the owner's
-   desktops.
+1. **Nothing observed requires the companion extension.** B1 holds on both releases. V1 holds on
+   all three hosted runners in one run, and V2 and V4 hold on the hosted SSH fixture with test
+   settings (see [what layer 3 shows](#what-layer-3-shows-and-does-not-show)). The choice is
+   still the owner's, after D1 shows that a real browser hands the redirect to VS Code on the
+   owner's desktops.
 2. **VS Code asks before it gives a link to an extension.** On the local SSH fixture, in a normal
    (not extension-development) window, VS Code showed **Allow 'Backstage Validation Engine'
    extension to open this URI?** with **Open**, **Cancel**, and **Do not ask me again for this
@@ -178,8 +186,12 @@ These follow from the answers. The plan overview's decisions are unchanged; the 
   (decision 3).
 - **Phase 4:** a rejected token is the expiry signal (decision 5); sign-out does not end the access
   token at Backstage (decision 6); reuse does not end the chain (decisions 7 and 8).
-- **Phase 5:** layer 3 tests in a normal window pre-accept the URI consent; the test guest must be a
-  catalog user for refresh.
+- **Phase 3 and Phase 5 (layer 3 tests):** start the process that hands the link to the editor with
+  `--no-sandbox` on Linux, as `openUrl` now does, and keep the link as the last argument (see the
+  Windows hypothesis in V1). In a normal window, pre-accept the URI consent with
+  `extensions.confirmedUriHandlerExtensionIds`. The kept case `open-url` stays out of the default
+  installed-editor selection until Phase 3 decides that it joins it.
+- **Phase 5:** the test guest must be a catalog user for refresh.
 
 ## Evidence by question
 
@@ -189,9 +201,10 @@ does not happen, when `state` does not match, or when a step is missing. Its loc
 [`evidence/flow-1.56.3.json`](evidence/flow-1.56.3.json), with the backend log facts in
 [`evidence/host-1.55.3.json`](evidence/host-1.55.3.json) and
 [`evidence/host-1.56.3.json`](evidence/host-1.56.3.json). These local reports were made before the
-script asserted its expectations; its current expectations hold for them and for the hosted
-reports. The hosted job **Backstage sign-in flow** reproduced every answer of B1 to B6 on both
-releases. Both releases gave the same answers. The local commands were:
+script asserted its expectations; its current expectations hold for them and for the reports of
+hosted run 1. The hosted job **Backstage sign-in flow** reproduced every answer of B1 to B6 on both
+releases in both hosted runs. In hosted run 2 the script asserted its expectations, and none was
+unmet on either release. Both releases gave the same answers. The local commands were:
 
 ```sh
 npm run backstage:test:up -- --target=1.56.3 --run=oidc-1563-b
@@ -292,32 +305,64 @@ metadata`.
 
 The kept harness function `openUrl` in `scripts/extension-test-cli.mjs` gives a link to the
 running test editor with `--open-url` and the editor's `--user-data-dir`, through the editor's
-native CLI. The probe build of the extension registers a URI handler (see [the probe](#the-probe)).
+native CLI. The CLI starts a second editor process, which hands the link to the running one. The
+probe build of the extension registers a URI handler (see [the probe](#the-probe)). The local and
+hosted windows of V1 are extension-development windows; VS Code showed no consent dialog in them.
 
-- **Local (the implementer's machine, VS Code 1.145.2 and 1.106.3):** a link to
-  `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>` reached the product's
-  handler exactly once, after 267 ms and 548 ms, with the query unchanged. The kept case
-  `open-url` passed on both editors. These are extension-development windows; VS Code showed no
-  consent dialog in them.
-- **Hosted `macos-15`, both editors:** delivered once (1506 ms and 804 ms); `open-url` passed.
-- **Hosted `ubuntu-24.04` and `windows-2025`, both editors: nothing was delivered.** The host's
-  CLI call returned success (`open-url-ack.json` status `passed`), but the probe recorded 0
-  deliveries, and `open-url` failed with `Timed out: the link reaches the URI handler of its
-extension`. Each CLI call starts a second editor process that hands the link to the running
-  one, and on the local machine each such call left one more log session in the test profile
-  (`probe-uri`: 2 sessions for 1 link; `open-url`: 3 sessions for 2 links). On hosted Ubuntu and
-  Windows every case left exactly one session, so the second editor process never started with
-  that profile, or stopped before it could hand over the link. On macOS the CLI goes through
-  `open`, and the session count is not a signal there.
-- **Open cause.** On Ubuntu, a likely cause is the Chromium sandbox of the CLI's second editor
-  process: the harness starts every other editor process with `--no-sandbox`, `openUrl` did not,
-  and Ubuntu 24.04 restricts the unprivileged user namespaces that the sandbox of a downloaded
-  editor needs. This is not yet observed. On Windows no cause is known. The next hosted run tries
-  four CLI variants in each case and records each one's exit code, output, duration, log-session
-  count, and deliveries, with the editor's log lines about links (see [pending questions](#pending-questions)).
-  `openUrl` now passes `--no-sandbox` by default.
-- The kept case `open-url` is no longer in the default installed-editor selection; it runs only
-  when named (`--case=open-url`), until it passes on all three hosted runners.
+**Hosted run 2.** Each case tried four ways to call the CLI, each with its own link, and recorded
+the deliveries to the product's handler, the CLI's exit code and output, and the number of log
+sessions in the test profile before and after the call. A new log session means that the CLI's
+editor process started with the test profile. Deliveries, with the time to the first delivery:
+
+| Runner         | Editor  | Harness default (`--no-sandbox`) | Sandboxed, `--verbose` | `--no-sandbox --verbose` | `--no-sandbox --verbose --open-url -- <link>` |
+| -------------- | ------- | -------------------------------- | ---------------------- | ------------------------ | --------------------------------------------- |
+| `ubuntu-24.04` | 1.106.3 | 1 (502 ms)                       | **0**                  | 1 (552 ms)               | 1 (523 ms)                                    |
+| `ubuntu-24.04` | 1.145.2 | 1 (312 ms)                       | **0**                  | 1 (299 ms)               | 1 (325 ms)                                    |
+| `windows-2025` | 1.106.3 | 1 (654 ms)                       | 1 (748 ms)             | 1 (764 ms)               | 1 (770 ms)                                    |
+| `windows-2025` | 1.145.2 | 1 (490 ms)                       | 1 (434 ms)             | 1 (429 ms)               | 1 (414 ms)                                    |
+| `macos-15`     | 1.106.3 | 1 (692 ms)                       | 1 (815 ms)             | 1 (1282 ms)              | 1 (753 ms)                                    |
+| `macos-15`     | 1.145.2 | 1 (1034 ms)                      | 1 (807 ms)             | 1 (869 ms)               | 1 (595 ms)                                    |
+
+- Every delivering call added one log session. The sandboxed call on Ubuntu exited with code 0
+  and empty output, and added no log session: its editor process never started with the test
+  profile.
+- The kept case `open-url` passed on all three runners and both editors: the driver's link
+  arrived once, and a link for the product did not reach the driver.
+- In every case, `vscode.env.asExternalUri` of the redirect URI returned `…/sign-in?windowId=1`
+  (decision 3).
+
+**Hosted run 1, with the earlier `openUrl`** (arguments `--open-url <link> --user-data-dir <profile>
+--extensions-dir <extensions>`, without `--no-sandbox`): nothing was delivered on `ubuntu-24.04`
+and `windows-2025`, on both editors, although the CLI call reported success. On `macos-15` the link
+was delivered once (1506 ms on 1.106.3, 804 ms on 1.145.2). On all three runners every case left
+exactly one log session, so the CLI's editor process never started with the test profile, also on
+macOS, where the link still reached the running editor.
+
+**The cause on Ubuntu is confirmed:** the Chromium sandbox of the CLI's editor process. Ubuntu
+24.04 restricts the unprivileged user namespaces that the sandbox of a downloaded editor needs;
+every other editor process of the harness already ran with `--no-sandbox`. In run 2, only the
+sandboxed call failed, and every call with `--no-sandbox` delivered.
+
+**The cause on Windows is not identified.** In run 2 all four calls delivered on Windows, the
+sandboxed one included, so the sandbox was not the Windows cause. Between the two runs, `openUrl`
+called the CLI in the same way (`runCli`, with the same environment, the same piped output, and
+the same wait for the CLI's exit); only its arguments changed. **Hypothesis:** in run 1 the link
+came before `--user-data-dir` and `--extensions-dir`, and on Windows the editor process did not
+apply the options that followed the link, so it did not address the test editor. Run 2 puts the
+link last in every variant. Support: the argument order is the only change common to all four
+delivering variants on Windows; in run 1 no CLI call left a log session in the test profile on
+Windows or macOS; and the local Linux runs, where the earlier order delivered and added log
+sessions, show that the order did not matter on Linux. Not shown: no log of the CLI's editor
+process in run 1 exists, and no run put the link before the options with everything else unchanged.
+
+**Local (the implementer's machine, VS Code 1.145.2 and 1.106.3):** with the earlier `openUrl`, a
+link reached the product's handler exactly once, after 267 ms and 548 ms, with the query unchanged,
+and the kept case `open-url` passed on both editors. With the current `openUrl`, all four variants
+delivered once on 1.145.2 (280 ms to 325 ms), each with one new log session.
+
+The kept case `open-url` stays out of the default installed-editor selection and runs only when
+named (`--case=open-url`). It passed on all three hosted runners in one run. One run is no evidence
+against flakiness, and Phase 3 decides when the case joins the default selection.
 
 The local runs used these commands, in a copy of the checkout with `spike/oidc-phase-1/probe.patch`
 applied (as `node spike/oidc-phase-1/run-probe.mjs --local` does):
@@ -346,11 +391,19 @@ Through the SSH fixture, with the product running in the remote extension host:
   that the curated evidence keeps (run 2, run 5, and the final run), the link reached the handler in
   the remote extension host (`remoteName: ssh-remote`) exactly once, in 478 ms to 787 ms, with the
   query unchanged.
-- **Hosted (`ubuntu-24.04`, `--ssh-network=host`), with the same consent setting:** 0 deliveries
-  on both editors. The desktop logs of each editor show two log sessions, one per stage, each with
-  one window, and no session from the CLI call. This is the same failure of the CLI path as V1 on
-  hosted Ubuntu. The hosted job passed only because the probe runner did not check the remote
-  observations; it does now.
+- **Hosted run 2 (`ubuntu-24.04`, `--ssh-network=host`), with the consent setting and
+  `--password-store=basic` in force, and `--no-sandbox` on the CLI calls:** the link reached the
+  handler in the remote extension host (`remoteName: ssh-remote`) exactly once, after 750 ms
+  (1.106.3) and 524 ms (1.145.2), with the query unchanged. The CLI call added one log session in
+  the desktop profile. The probe runner now fails the job unless V2 and V4 hold; it reported no
+  failure, and the four cases of the SSH fixture passed.
+- **Hosted run 1**, with the earlier `openUrl` and without `--no-sandbox`: 0 deliveries on both
+  editors. The desktop logs of each editor show two log sessions, one per stage, each with one
+  window, and no session from the CLI call: the cause of V1 on Ubuntu. That job passed only because
+  the probe runner did not then check the remote observations.
+- **What these settings mean:** the consent setting stands in for a developer who selects **Open**
+  and **Do not ask me again**. A developer's desktop shows the dialog on the first callback
+  (decision 2).
 
 ### V3: a fourth pipe to the server
 
@@ -378,8 +431,16 @@ case recorded what the product in the SSH host saw.
   read no value. After it, the remote window saw exactly one change event for the key, and read a
   value whose SHA-256 equals the value that the local window stored. The same on 1.106.3 and
   1.145.2.
-- **Hosted:** not answered. The product wrote no activation note in a local window, and the desktop
-  logs show no second window: the `--new-window` call failed in the same way as V1.
+- **Hosted run 2 (`ubuntu-24.04`), with `--password-store=basic` and the consent setting in force,
+  and `--no-sandbox` on the CLI calls:** the local window activated, found the value, and stored it.
+  Before the local write, the remote window read no value. After it, the remote window saw exactly
+  one change event and read a value whose SHA-256 equals the stored value. The same on 1.106.3 and
+  1.145.2.
+- **Hosted run 1:** not answered. The product wrote no activation note in a local window, and the
+  desktop logs show no second window: the `--new-window` call failed in the same way as V1.
+- **What these settings mean:** `--password-store=basic` replaces the operating system's keyring
+  with VS Code's basic store, because the runner has no keyring. A developer's desktop normally uses
+  its keyring, which V4 does not exercise; D4 looks at it.
 - **An unexplained local observation, not an answer:** in local run 5, without
   `--password-store=basic`, the local window activated and found the value to store, but
   `SecretStorage.store` neither resolved nor rejected within 45 seconds; the curated evidence keeps
@@ -390,16 +451,45 @@ case recorded what the product in the SSH host saw.
 
 ### V5: the macOS open command
 
-On hosted `macos-15`, the probe ran `open vscode://chtaylo3.backstage-validation-engine/sign-in?…`
-while the test editor ran. `open` failed on both editors with `kLSApplicationNotFoundErr: E.g. no
-application claims the file` (`NSOSStatusErrorDomain` code -10814), and nothing was delivered.
+On hosted `macos-15`, in both hosted runs, the probe ran
+`open vscode://chtaylo3.backstage-validation-engine/sign-in?…` while the test editor ran. `open`
+exited with code 1 and `No application knows how to open URL vscode://…`
+(`kLSApplicationNotFoundErr`, `NSOSStatusErrorDomain` code -10814) on both editors, and nothing was
+delivered.
 macOS has no application registered for the scheme on the runner, and the downloaded test editor
 does not register one. The `open` command therefore does not replace layer 4 on macOS.
 
+## What layer 3 shows and does not show
+
+Layer 3 now shows, on the hosted runners in one run each:
+
+- A `vscode://` link that the test gives to the running test editor through its CLI with
+  `--open-url` reaches the URI handler of the addressed extension exactly once, unchanged, on
+  Ubuntu, Windows, and macOS, with both pinned editors (V1). A link for another extension does not
+  reach that handler (`open-url`).
+- On Linux this needs `--no-sandbox` on the CLI call.
+- The same holds when the extension runs in the remote host of the SSH fixture on Ubuntu, once the
+  URI consent is accepted (V2), and a value that a local window stores in `SecretStorage` reaches
+  the remote window with a change event, with the basic secret store (V4).
+- The fourth pipe works on all three runners, with the change of decision 4 (V3).
+
+Layer 3 does not show:
+
+- that an operating system or a browser hands a `vscode://` link to VS Code: the test gives the
+  link to the CLI itself, and on macOS the `open` command did not reach the test editor (V5). That
+  is layer 4 (D1);
+- what a developer sees in a normal local window, where VS Code asks for consent: the local windows
+  of V1 are extension-development windows, and the remote window of V2 had the consent pre-accepted;
+- the WSL and Coder topologies, or a remote host other than the SSH fixture;
+- secret storage with a real keyring (V4 used the basic store);
+- that the results repeat: each comes from one hosted run;
+- the cause of the Windows failure in hosted run 1 (V1).
+
 ## Success criteria
 
-1. Every question has a recorded answer: **not met.** V1, V2, and V4 are not established on the
-   hosted runners; D1 to D5 are pending.
+1. Every question has a recorded answer: **met for B1 to B6 and V1 to V5; pending for D1 to D5**,
+   which the owner runs. V2 and V4 are answered with test settings, and V2 and V4 ran on Ubuntu
+   only, where the SSH fixture runs.
 2. The redirect URI and the exact `allowedRedirectUriPatterns` value: **met.**
 3. The complete client metadata document: **met.**
 4. Proxy and private certificate authority: **pending D3.**
@@ -418,11 +508,9 @@ does not register one. The `open` command therefore does not replace layer 4 on 
 
 ## Pending questions
 
-| Question                       | Who answers it      | How                                                                                                                                                                                       |
-| ------------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V1 on Ubuntu and Windows       | The hosted workflow | The next probe run: job **Editor probe**, `probe-uri-observation.json` per case, with four CLI variants and their evidence, and the kept case `open-url` with `open-url-observation.json` |
-| V2 and V4 on the hosted runner | The hosted workflow | The same run, job **SSH fixture probe**: `probe-remote-observation.json` with `hostCli` and `newWindowCli`; the job now fails unless V2 and V4 hold                                       |
-| D1 to D5                       | The owner, by hand  | [The desktop procedure](phase-1-desktop-procedure.md), returned as `phase-1-desktop-observations.md`                                                                                      |
+| Question | Who answers it     | How                                                                                                  |
+| -------- | ------------------ | ---------------------------------------------------------------------------------------------------- |
+| D1 to D5 | The owner, by hand | [The desktop procedure](phase-1-desktop-procedure.md), returned as `phase-1-desktop-observations.md` |
 
 ## The probe
 
@@ -441,6 +529,7 @@ default branch. Remove all three with the spike branch.
 - `test/integration/backstage/oidc/`: the client document server, the flow script with its
   expectations, and the host runner, with `--serve` and `--restore` for runs by hand.
 - `test/integration/backstage/editor/cdp.mjs`: a small Chromium driver.
-- `scripts/extension-test-cli.mjs`: `openUrl`, which now records the CLI's evidence, and the
-  request server that cases use to ask the host for a link. The installed-editor case `open-url`
-  runs only when named, and a unit test covers the arguments and the request server.
+- `scripts/extension-test-cli.mjs`: `openUrl`, which passes `--no-sandbox`, puts the link last, and
+  records the CLI's evidence, and the request server that cases use to ask the host for a link.
+  The installed-editor case `open-url` runs only when named, and a unit test covers the arguments
+  and the request server.

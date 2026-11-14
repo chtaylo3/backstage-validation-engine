@@ -1,0 +1,2118 @@
+{
+  "purpose": "Summary of hosted probe run 43645632753 at 0c9c239 (GitHub-hosted runners), compiled from its downloaded artifacts. Synthetic probe values only; probe nonces removed.",
+  "editors": {
+    "ubuntu-24.04 linux-local": {
+      "platform": "linux",
+      "runnerImage": "20261111.127.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 3589,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 3605,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "storedSha256": "2933a8e040e74ec3383aa49f26bf510629e9e0d0d84ef12863a4d8d81f49dce8",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "caseExtensionHostPid": 4446,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-mF5KCO/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-onZQ9i/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1154,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 502,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-mF5KCO/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-onZQ9i/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1161,
+                "stdout": "[4770:1114/220021.775424:FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:169] The SUID sandbox helper binary was found, but is not configured correctly. Rather than run without sandboxing I'm aborting now. You need to make sure that /tmp/bve-oidc-probe-yaM7yy/.vscode-test/vscode-linux-x64-1.106.3/chrome-sandbox is owned by root and has mode 4755.\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "deliveredQueryUnchanged": null
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-mF5KCO/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-onZQ9i/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1440,
+                "stdout": "[4804:1114/220033.300852:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4804:1114/220033.300894:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4804:1114/220033.300899:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4804:1114/220033.300905:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4804:1114/220033.300930:ERROR:dbus/object_proxy.cc:590] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:\n\u001b[90m[main 2026-11-14T22:00:33.352Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:00:33.353Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:33.361Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-mF5KCO/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-mF5KCO/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:33.362Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:33.363Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:00:33.364Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:00:33.364Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:33.365Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:33.372Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:33.374Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-mF5KCO/profile/User'\n\u001b[90m[main 2026-11-14T22:00:33.375Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-mF5KCO/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:33.387Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:33.387Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:33.387Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 552,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-mF5KCO/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-onZQ9i/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1425,
+                "stdout": "[4871:1114/220034.834999:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4871:1114/220034.835035:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4871:1114/220034.835040:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4871:1114/220034.835045:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[4871:1114/220034.835053:ERROR:dbus/object_proxy.cc:590] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:\n\u001b[90m[main 2026-11-14T22:00:34.880Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:00:34.881Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:34.887Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-mF5KCO/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-mF5KCO/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:34.889Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:34.889Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:00:34.889Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:00:34.889Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:34.890Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:34.896Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:34.897Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-mF5KCO/profile/User'\n\u001b[90m[main 2026-11-14T22:00:34.898Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-mF5KCO/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:34.904Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:34.904Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:34.904Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 523,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220017",
+              "20261114T220020",
+              "20261114T220033",
+              "20261114T220034"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 8461,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 8486,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "storedSha256": "75f855624d94f1f4645b1580bc1aed43fa5e5b0acf447ee2217b63adf1c3a6dc",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "caseExtensionHostPid": 9355,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-zqSsc5/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-Z9rQkh/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1079,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 312,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-zqSsc5/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-Z9rQkh/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1070,
+                "stdout": "[9689:1114/220117.500759:FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper binary was found, but is not configured correctly. Rather than run without sandboxing I'm aborting now. You need to make sure that /tmp/bve-oidc-probe-yaM7yy/.vscode-test/vscode-linux-x64-1.145.2/chrome-sandbox is owned by root and has mode 4755.\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "deliveredQueryUnchanged": null
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-zqSsc5/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-Z9rQkh/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1243,
+                "stdout": "tHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:01:28.853Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/etc/github-copilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-zqSsc5/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-zqSsc5/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:01:28.854Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:01:28.854Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:01:28.854Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:01:28.854Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/github-copilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/etc/github-copilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:01:28.854Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/github-copilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:01:28.857Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-zqSsc5/profile/User'\n\u001b[90m[main 2026-11-14T22:01:28.858Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:01:28.858Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-zqSsc5/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:01:28.865Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:01:28.865Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:01:28.865Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 299,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-zqSsc5/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-Z9rQkh/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1240,
+                "stdout": "tHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:01:30.201Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:01:30.201Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/etc/github-copilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-zqSsc5/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-editor-zqSsc5/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:01:30.202Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:01:30.203Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:01:30.203Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/github-copilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/etc/github-copilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:01:30.203Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/github-copilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:01:30.208Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:01:30.210Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-zqSsc5/profile/User'\n\u001b[90m[main 2026-11-14T22:01:30.212Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-editor-zqSsc5/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:01:30.213Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:01:30.214Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:01:30.214Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 325,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220113",
+              "20261114T220116",
+              "20261114T220128",
+              "20261114T220130"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-2919.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-3589.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-3605.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-4142.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-4677.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-5466.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-5479.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6119.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6137.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6152.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6166.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-6703.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-7243.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-7799.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-8461.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-8486.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-9034.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-9570.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10481.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-10502.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11032.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11055.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11081.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-11096.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-11628.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-12167.json",
+          "bytes": 52,
+          "platform": "linux",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "windows-2025 win32-local": {
+      "platform": "win32",
+      "runnerImage": "20261103.298.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 3340,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 6312,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "storedSha256": "a93c1c6d6a6963465529764a321b56f0acb8fa7a44e3f9b91742eb60d5e97271",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "win32",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "caseExtensionHostPid": 9664,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-wmXf8u\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1243,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 654,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-wmXf8u\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2658,
+                "stdout": "\n[main 2026-11-14T22:02:16.223Z] PolicyConfiguration#initialize\n[main 2026-11-14T22:02:16.224Z] PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.enableWindowsBackgroundUpdates',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:16.227Z] NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n[main 2026-11-14T22:02:16.235Z] [File Watcher (node.js)] Request to start watching: c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:02:16.244Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User'\n[main 2026-11-14T22:02:16.246Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json'\n[main 2026-11-14T22:02:16.259Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:02:16.259Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:16.259Z] PolicyConfiguration#updatePolicyDefinitions []\n[main 2026-11-14T22:02:16.260Z] PolicyConfiguration#update []\n[main 2026-11-14T22:02:16.280Z] Sending some foreground love to the running instance: 3528\n[main 2026-11-14T22:02:16.284Z] Sending env to running instance...\n[main 2026-11-14T22:02:16.287Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:02:16.288Z] Lifecycle#kill()\n[main 2026-11-14T22:02:16.288Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 748,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-wmXf8u\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2639,
+                "stdout": "\n[main 2026-11-14T22:02:18.988Z] PolicyConfiguration#initialize\n[main 2026-11-14T22:02:18.989Z] PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.enableWindowsBackgroundUpdates',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:18.991Z] NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n[main 2026-11-14T22:02:19.001Z] [File Watcher (node.js)] Request to start watching: c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:02:19.010Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User'\n[main 2026-11-14T22:02:19.011Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json'\n[main 2026-11-14T22:02:19.036Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:02:19.037Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:19.037Z] PolicyConfiguration#updatePolicyDefinitions []\n[main 2026-11-14T22:02:19.037Z] PolicyConfiguration#update []\n[main 2026-11-14T22:02:19.056Z] Sending some foreground love to the running instance: 3528\n[main 2026-11-14T22:02:19.062Z] Sending env to running instance...\n[main 2026-11-14T22:02:19.073Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:02:19.073Z] Lifecycle#kill()\n[main 2026-11-14T22:02:19.073Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 764,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-wmXf8u\\installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2647,
+                "stdout": "\n[main 2026-11-14T22:02:21.725Z] PolicyConfiguration#initialize\n[main 2026-11-14T22:02:21.726Z] PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.enableWindowsBackgroundUpdates',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:21.729Z] NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n[main 2026-11-14T22:02:21.738Z] [File Watcher (node.js)] Request to start watching: c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:02:21.751Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User'\n[main 2026-11-14T22:02:21.763Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-z2qYXo\\profile\\User\\settings.json'\n[main 2026-11-14T22:02:21.763Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:02:21.763Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n[main 2026-11-14T22:02:21.764Z] PolicyConfiguration#updatePolicyDefinitions []\n[main 2026-11-14T22:02:21.764Z] PolicyConfiguration#update []\n[main 2026-11-14T22:02:21.806Z] Sending some foreground love to the running instance: 3528\n[main 2026-11-14T22:02:21.811Z] Sending env to running instance...\n[main 2026-11-14T22:02:21.824Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:02:21.824Z] Lifecycle#kill()\n[main 2026-11-14T22:02:21.824Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 770,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220209",
+              "20261114T220214",
+              "20261114T220216",
+              "20261114T220218",
+              "20261114T220221"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 9872,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 8032,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node.exe"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "storedSha256": "5925dded69c3868e5f87cadb222bedff3abeab2f784f2f80714b2da14f6a7708",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "win32",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "caseExtensionHostPid": 6092,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-K80yQN\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1126,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 490,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-K80yQN\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2300,
+                "stdout": "chat.agentHost.multipleChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:35.101Z] NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n[main 2026-11-14T22:03:35.132Z] Creating watcher for productName VSCode\n[main 2026-11-14T22:03:35.135Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:03:35.136Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:35.139Z] [File Watcher (node.js)] Request to start watching: c:\\Program Files\\GitHubCopilot\\managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:03:35.140Z] [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: c:\\Program Files\\GitHubCopilot\\managed-settings.json (error: Error: ENOENT: no such file or directory, stat 'c:\\Program Files\\GitHubCopilot\\managed-settings.json')\n[main 2026-11-14T22:03:35.140Z] [File Watcher (node.js)] starting fs.watchFile() on c:\\Program Files\\GitHubCopilot\\managed-settings.json (correlationId: undefined)\n[main 2026-11-14T22:03:35.151Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User'\n[main 2026-11-14T22:03:35.152Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json'\n[main 2026-11-14T22:03:35.168Z] Sending some foreground love to the running instance: 2776\n[main 2026-11-14T22:03:35.172Z] Sending env to running instance...\n[main 2026-11-14T22:03:35.184Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:03:35.184Z] Lifecycle#kill()\n[main 2026-11-14T22:03:35.184Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 434,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-K80yQN\\installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2287,
+                "stdout": "chat.agentHost.multipleChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:37.500Z] NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n[main 2026-11-14T22:03:37.532Z] Creating watcher for productName VSCode\n[main 2026-11-14T22:03:37.538Z] [File Watcher (node.js)] Request to start watching: c:\\Program Files\\GitHubCopilot\\managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:03:37.542Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:03:37.542Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:37.543Z] [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: c:\\Program Files\\GitHubCopilot\\managed-settings.json (error: Error: ENOENT: no such file or directory, stat 'c:\\Program Files\\GitHubCopilot\\managed-settings.json')\n[main 2026-11-14T22:03:37.543Z] [File Watcher (node.js)] starting fs.watchFile() on c:\\Program Files\\GitHubCopilot\\managed-settings.json (correlationId: undefined)\n[main 2026-11-14T22:03:37.551Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User'\n[main 2026-11-14T22:03:37.552Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json'\n[main 2026-11-14T22:03:37.591Z] Sending some foreground love to the running instance: 2776\n[main 2026-11-14T22:03:37.595Z] Sending env to running instance...\n[main 2026-11-14T22:03:37.608Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:03:37.608Z] Lifecycle#kill()\n[main 2026-11-14T22:03:37.608Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 429,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile",
+                  "--extensions-dir",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-install-K80yQN\\installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2287,
+                "stdout": "chat.agentHost.multipleChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:39.893Z] NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n[main 2026-11-14T22:03:39.926Z] Creating watcher for productName VSCode\n[main 2026-11-14T22:03:39.931Z] NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n[main 2026-11-14T22:03:39.931Z] PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n[main 2026-11-14T22:03:39.933Z] [File Watcher (node.js)] Request to start watching: c:\\Program Files\\GitHubCopilot\\managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n[main 2026-11-14T22:03:39.935Z] [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: c:\\Program Files\\GitHubCopilot\\managed-settings.json (error: Error: ENOENT: no such file or directory, stat 'c:\\Program Files\\GitHubCopilot\\managed-settings.json')\n[main 2026-11-14T22:03:39.935Z] [File Watcher (node.js)] starting fs.watchFile() on c:\\Program Files\\GitHubCopilot\\managed-settings.json (correlationId: undefined)\n[main 2026-11-14T22:03:39.944Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User'\n[main 2026-11-14T22:03:39.945Z] [File Watcher (node.js)] Started watching: 'c:\\Users\\runneradmin\\AppData\\Local\\Temp\\bve-editor-QArqTM\\profile\\User\\settings.json'\n[main 2026-11-14T22:03:39.966Z] Sending some foreground love to the running instance: 2776\n[main 2026-11-14T22:03:39.970Z] Sending env to running instance...\n[main 2026-11-14T22:03:39.983Z] Sent env to running instance. Terminating...\n[main 2026-11-14T22:03:39.983Z] Lifecycle#kill()\n[main 2026-11-14T22:03:39.983Z] Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 414,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220328",
+              "20261114T220333",
+              "20261114T220335",
+              "20261114T220337",
+              "20261114T220339"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-5868.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-3340.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-6312.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-9080.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-5232.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-2184.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-3296.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6104.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6972.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8208.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-8264.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-5880.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-5020.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-1844.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-8032.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-9872.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-9132.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-9768.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-1724.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-7896.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-1616.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-3012.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-5768.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-7036.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-7504.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-9352.json",
+          "bytes": 52,
+          "platform": "win32",
+          "runtime": "node.exe"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "macos-15 darwin-local": {
+      "platform": "darwin",
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "open-url": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-pipe": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-secret": {
+            "status": "passed",
+            "error": null
+          },
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          },
+          "restart": {
+            "status": "passed",
+            "error": null
+          },
+          "server-crash": {
+            "status": "passed",
+            "error": null
+          },
+          "shutdown": {
+            "status": "passed",
+            "error": null
+          },
+          "startup": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "local/1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 5849,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 5873,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "storedSha256": "0f88f5ad0a0d09823ece42cfe6220981f05fd2698ce3b6a730c5c2e25c21c35a",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "caseExtensionHostPid": 6217,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-ld1q0z/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-U32Zss/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1175,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 692,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-ld1q0z/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-U32Zss/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1914,
+                "stdout": "\u001b[90m[main 2026-11-14T22:01:20.645Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:01:20.646Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:20.647Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n\u001b[90m[main 2026-11-14T22:01:20.660Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /private/tmp/bve-editor-ld1q0z/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-ld1q0z/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:01:20.661Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:01:20.661Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:20.662Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:01:20.662Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:01:20.666Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:01:20.667Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User'\n\u001b[90m[main 2026-11-14T22:01:20.668Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:01:20.679Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:01:20.679Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:01:20.679Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "[6316:1114/220120.684517:WARNING:components/prefs/pref_notifier_impl.cc:60] Init observer found at shutdown.\n",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 815,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-ld1q0z/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-U32Zss/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2265,
+                "stdout": "\u001b[90m[main 2026-11-14T22:01:23.040Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:01:23.042Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:23.043Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n\u001b[90m[main 2026-11-14T22:01:23.061Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /private/tmp/bve-editor-ld1q0z/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-ld1q0z/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:01:23.065Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:01:23.065Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:23.065Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:01:23.065Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:01:23.069Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:01:23.084Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User'\n\u001b[90m[main 2026-11-14T22:01:23.190Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:01:23.203Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:01:23.205Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:01:23.205Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 1282,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-ld1q0z/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-U32Zss/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1829,
+                "stdout": "\u001b[90m[main 2026-11-14T22:01:24.975Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:01:24.977Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:24.979Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 4 policy definitions\n\u001b[90m[main 2026-11-14T22:01:24.988Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /private/tmp/bve-editor-ld1q0z/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-ld1q0z/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:01:25.004Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:01:25.004Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:01:25.004Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:01:25.004Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:01:25.007Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:01:25.009Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User'\n\u001b[90m[main 2026-11-14T22:01:25.010Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-ld1q0z/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:01:25.026Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:01:25.027Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:01:25.027Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 753,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220115",
+              "20261114T220119",
+              "20261114T220120",
+              "20261114T220122",
+              "20261114T220124"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 7697,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 7718,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "storedSha256": "0a526cf5d8be768a34be1d3fe4edc7af125bb5a9c8e2596b601447cd32ede787",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "caseExtensionHostPid": 8096,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-4jojwD/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-XvG9qF/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1240,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 1034,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-4jojwD/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-XvG9qF/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1860,
+                "stdout": "ChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:40.825Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n\u001b[90m[main 2026-11-14T22:02:40.847Z]\u001b[0m Creating watcher for productName com.microsoft.VSCode\n\u001b[90m[main 2026-11-14T22:02:40.854Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:02:40.854Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:40.854Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /Library/Application Support/GitHubCopilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:02:40.855Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /Library/Application Support/GitHubCopilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/Library/Application Support/GitHubCopilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:02:40.855Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /Library/Application Support/GitHubCopilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:02:40.865Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:02:40.867Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User'\n\u001b[90m[main 2026-11-14T22:02:40.869Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:02:40.898Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:02:40.898Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:02:40.898Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "[8318:1114/220240.905725:WARNING:components/prefs/pref_notifier_impl.cc:26] Init observer found at shutdown.\n",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 807,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-4jojwD/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-XvG9qF/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1924,
+                "stdout": "ChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:42.864Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n\u001b[90m[main 2026-11-14T22:02:42.877Z]\u001b[0m Creating watcher for productName com.microsoft.VSCode\n\u001b[90m[main 2026-11-14T22:02:42.886Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:02:42.887Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:42.887Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /Library/Application Support/GitHubCopilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:02:42.890Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /Library/Application Support/GitHubCopilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/Library/Application Support/GitHubCopilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:02:42.891Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /Library/Application Support/GitHubCopilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:02:42.900Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:02:42.902Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User'\n\u001b[90m[main 2026-11-14T22:02:42.902Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:02:42.914Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:02:42.914Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:02:42.914Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "[8329:1114/220242.920295:WARNING:components/prefs/pref_notifier_impl.cc:26] Init observer found at shutdown.\n",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 869,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/private/tmp/bve-editor-4jojwD/profile",
+                  "--extensions-dir",
+                  "/private/tmp/bve-install-XvG9qF/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1677,
+                "stdout": "ChatProviders.enabled',\n  'chat.agentHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:44.623Z]\u001b[0m NativePolicyService#_updatePolicyDefinitions - Found 17 policy definitions\n\u001b[90m[main 2026-11-14T22:02:44.633Z]\u001b[0m Creating watcher for productName com.microsoft.VSCode\n\u001b[90m[main 2026-11-14T22:02:44.636Z]\u001b[0m NativePolicyService#_onDidPolicyChange - Updated policy values: {}\n\u001b[90m[main 2026-11-14T22:02:44.637Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:02:44.637Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /Library/Application Support/GitHubCopilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/private/tmp/bve-editor-4jojwD/profile/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:02:44.638Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /Library/Application Support/GitHubCopilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/Library/Application Support/GitHubCopilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:02:44.638Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /Library/Application Support/GitHubCopilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:02:44.642Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:02:44.643Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User'\n\u001b[90m[main 2026-11-14T22:02:44.643Z]\u001b[0m [File Watcher (node.js)] Started watching: '/private/tmp/bve-editor-4jojwD/profile/User/settings.json'\n\u001b[90m[main 2026-11-14T22:02:44.658Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:02:44.658Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:02:44.658Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 595,
+              "deliveredQueryUnchanged": true
+            }
+          ],
+          "logs": {
+            "sessions": [
+              "20261114T220232",
+              "20261114T220239",
+              "20261114T220240",
+              "20261114T220242",
+              "20261114T220244"
+            ],
+            "main": [],
+            "exthost": [],
+            "renderer": []
+          }
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "local/1.106.3/open-url/probe-fd3-5538.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-5849.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-pipe/probe-fd3-5873.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-secret/probe-fd3-6076.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/probe-uri/probe-fd3-6269.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-6599.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/restart/probe-fd3-6600.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6649.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6793.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6858.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/server-crash/probe-fd3-6868.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/shutdown/probe-fd3-6927.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.106.3/startup/probe-fd3-7169.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/open-url/probe-fd3-7305.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-7697.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-pipe/probe-fd3-7718.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-secret/probe-fd3-8059.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/probe-uri/probe-fd3-8154.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-8549.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/restart/probe-fd3-8557.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-8610.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-8794.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-8798.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/server-crash/probe-fd3-8802.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/shutdown/probe-fd3-8854.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "local/1.145.2/startup/probe-fd3-8909.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        },
+        "1.145.2": {
+          "open-url": 1,
+          "probe-pipe": 1,
+          "probe-secret": 1,
+          "probe-uri": 1,
+          "restart": 1,
+          "server-crash": 1,
+          "shutdown": 1,
+          "startup": 1
+        }
+      }
+    },
+    "macos-15 darwin-open-command": {
+      "platform": "darwin",
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "open-command",
+          "exitCode": 0
+        }
+      ],
+      "cases": {
+        "1.106.3": {
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          }
+        },
+        "1.145.2": {
+          "probe-uri": {
+            "status": "passed",
+            "error": null
+          }
+        }
+      },
+      "observations": [
+        {
+          "at": "open-command/1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V5",
+          "mode": "open-command",
+          "platform": "darwin",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "caseExtensionHostPid": 10752,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "macOS open command",
+              "hostStatus": "failed",
+              "hostError": "Command failed: open vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>\nNo application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n",
+              "cli": {
+                "args": ["open", "<link>"],
+                "exitCode": 1,
+                "durationMs": 25,
+                "stdout": "",
+                "stderr": "No application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 1
+              },
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "deliveredQueryUnchanged": null
+            }
+          ],
+          "logs": {
+            "sessions": ["20261114T220432"],
+            "main": [],
+            "exthost": [
+              "2026-11-14 22:04:35.366 [info] Creating extension host with the following global extensions: vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-server-ready,vsco",
+              "2026-11-14 22:04:35.366 [info] Creating extension host with the following local extensions: vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-server-ready,vscod",
+              "2026-11-14 22:04:35.384 [info] $startExtensionHost: global extensions: vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-server-ready,vscode.diff,vscode.docker,",
+              "2026-11-14 22:04:35.384 [info] $startExtensionHost: local extensions: vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-server-ready,vscode.diff,vscode.docker,v",
+              "2026-11-14 22:04:35.655 [warning] [vscode.git] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'git.openRepositoryInParentFolders', provide the URI of a resource or 'null' for any resource.",
+              "2026-11-14 22:04:35.655 [warning] [vscode.git] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'git.showProgress', provide the URI of a resource or 'null' for any resource.",
+              "\tfile:///private/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/bve-oidc-probe-4jIjga/.vscode-test/vscode-darwin-arm64-1.106.3/Visual%20Studio%20Code.app/Contents/Resources/app/extensions/debug-auto-launch -> vscode.debug-auto-launch",
+              "2026-11-14 22:04:35.694 [info] ExtensionService#_doActivateExtension vscode.debug-auto-launch, startup: false, activationEvent: 'onStartupFinished'"
+            ],
+            "renderer": [
+              "2026-11-14 22:04:34.116 [info] workbench#open()",
+              "2026-11-14 22:04:35.298 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.scannedExtensions: vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,v",
+              "2026-11-14 22:04:35.299 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.localExtensions: local.bve-test-driver,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode",
+              "2026-11-14 22:04:35.299 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.myExtensions: local.bve-test-driver,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.de"
+            ]
+          }
+        },
+        {
+          "at": "open-command/1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V5",
+          "mode": "open-command",
+          "platform": "darwin",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "caseExtensionHostPid": 11502,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "macOS open command",
+              "hostStatus": "failed",
+              "hostError": "Command failed: open vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>\nNo application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n",
+              "cli": {
+                "args": ["open", "<link>"],
+                "exitCode": 1,
+                "durationMs": 47,
+                "stdout": "",
+                "stderr": "No application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 1
+              },
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "deliveredQueryUnchanged": null
+            }
+          ],
+          "logs": {
+            "sessions": ["20261114T220454"],
+            "main": [],
+            "exthost": [
+              "2026-11-14 22:04:57.106 [info] Creating extension host with the following global extensions: TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-lau",
+              "2026-11-14 22:04:57.106 [info] Creating extension host with the following local extensions: TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-laun",
+              "2026-11-14 22:04:57.161 [info] $startExtensionHost: global extensions: TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-serve",
+              "2026-11-14 22:04:57.161 [info] $startExtensionHost: local extensions: TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-language-features,vscode.dart,vscode.debug-auto-launch,vscode.debug-server",
+              "2026-11-14 22:04:57.635 [warning] [vscode.git] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'git.openRepositoryInParentFolders', provide the URI of a resource or 'null' for any resource.",
+              "2026-11-14 22:04:57.635 [warning] [vscode.git] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'git.showProgress', provide the URI of a resource or 'null' for any resource.",
+              "\tfile:///private/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/bve-oidc-probe-4jIjga/.vscode-test/vscode-darwin-arm64-1.145.2/Visual%20Studio%20Code.app/Contents/Resources/app/extensions/debug-auto-launch -> vscode.debug-auto-launch",
+              "2026-11-14 22:04:57.717 [info] ExtensionService#_doActivateExtension vscode.debug-auto-launch, startup: false, activationEvent: 'onStartupFinished'",
+              "2026-11-14 22:05:04.163 [warning] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'search.useIgnoreFiles', provide the URI of a resource or 'null' for any resource.",
+              "2026-11-14 22:05:04.163 [warning] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'search.useIgnoreFiles', provide the URI of a resource or 'null' for any resource."
+            ],
+            "renderer": [
+              "2026-11-14 22:04:56.083 [info] workbench#open()",
+              "2026-11-14 22:04:57.059 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.scannedExtensions: TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,GitHub.copilot-chat,vscode.cpp,vscode.csharp,vscode.css,vscode.css-la",
+              "2026-11-14 22:04:57.065 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.localExtensions: local.bve-test-driver,TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-la",
+              "2026-11-14 22:04:57.066 [info] NativeExtensionHostFactory._createLocalProcessExtensionHostDataProvider.myExtensions: local.bve-test-driver,TypeScriptTeam.jsts-chat-features,vscode.bat,vscode.clojure,vscode.coffeescript,vscode.configuration-editing,vscode.cpp,vscode.csharp,vscode.css,vscode.css-langu"
+            ]
+          }
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "open-command/1.106.3/probe-uri/probe-fd3-10771.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        },
+        {
+          "at": "open-command/1.145.2/probe-uri/probe-fd3-11527.json",
+          "bytes": 52,
+          "platform": "darwin",
+          "runtime": "node"
+        }
+      ],
+      "sessions": {
+        "1.106.3": {
+          "probe-uri": 1
+        },
+        "1.145.2": {
+          "probe-uri": 1
+        }
+      }
+    }
+  },
+  "ssh": {
+    "runner": {
+      "os": "linux",
+      "arch": "x64",
+      "image": "20261111.370.1"
+    },
+    "sshNetwork": "host",
+    "counts": {
+      "discovered": 4,
+      "executed": 4,
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0
+    },
+    "versions": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-f6dbe249-29e3-4b35-b5d2-2d76ec4a41a0",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "hostCli": {
+              "args": [
+                "--no-sandbox",
+                "--verbose",
+                "--user-data-dir",
+                "/tmp/bve-remote-f1k46I/profile-1.106.3",
+                "--extensions-dir",
+                "/tmp/bve-remote-f1k46I/local-extensions",
+                "--open-url",
+                "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+              ],
+              "exitCode": 0,
+              "durationMs": 1458,
+              "stdout": "[6400:1114/220014.349242:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6400:1114/220014.349389:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6400:1114/220014.349408:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6400:1114/220014.349412:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6400:1114/220014.349442:ERROR:dbus/object_proxy.cc:590] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:\n\u001b[90m[main 2026-11-14T22:00:14.401Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:00:14.402Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:14.412Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.106.3/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.106.3/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:14.414Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:14.414Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:00:14.414Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:00:14.415Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:14.415Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:14.426Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:14.428Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.106.3/User'\n\u001b[90m[main 2026-11-14T22:00:14.430Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.106.3/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:14.433Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:14.433Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:14.433Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+              "stderr": "",
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            "deliveries": 1,
+            "firstDeliveryMs": 750,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "newWindowCli": {
+              "exitCode": 0,
+              "durationMs": 1409,
+              "stdout": "to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6652:1114/220018.004962:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[6652:1114/220018.004970:ERROR:dbus/object_proxy.cc:590] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:\n\u001b[90m[main 2026-11-14T22:00:18.053Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:00:18.054Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy',\n  'http.proxyStrictSSL',\n  'http.proxyKerberosServicePrincipal',\n  'http.noProxy',\n  'http.proxyAuthorization',\n  'http.proxySupport',\n  'http.systemCertificates',\n  'http.systemCertificatesNode',\n  'http.experimental.systemCertificatesV2',\n  'http.fetchAdditionalSupport',\n  'http.experimental.networkInterfaceCheckInterval',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'telemetry.enableTelemetry',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:18.060Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.106.3/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.106.3/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:18.061Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed'\n]\n\u001b[90m[main 2026-11-14T22:00:18.062Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [ 'update.enableWindowsBackgroundUpdates' ]\n\u001b[90m[main 2026-11-14T22:00:18.062Z]\u001b[0m PolicyConfiguration#update []\n\u001b[90m[main 2026-11-14T22:00:18.062Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:18.062Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:18.069Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:18.071Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.106.3/User'\n\u001b[90m[main 2026-11-14T22:00:18.072Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.106.3/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:18.107Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:18.107Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:18.107Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+              "stderr": ""
+            },
+            "localWindowStore": {
+              "stored": true,
+              "at": 1794693619343
+            },
+            "localWindowActivation": {
+              "at": 1794693619340,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": true,
+            "changeEvents": 1,
+            "valueAfterLocalWrite": "present",
+            "valueMatchesLocalWrite": true
+          }
+        },
+        "desktopLogSessionsWithWindowCount": {
+          "20261114T220009": 2,
+          "20261114T220024": 1
+        }
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-f6dbe249-29e3-4b35-b5d2-2d76ec4a41a0",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "hostCli": {
+              "args": [
+                "--no-sandbox",
+                "--verbose",
+                "--user-data-dir",
+                "/tmp/bve-remote-f1k46I/profile-1.145.2",
+                "--extensions-dir",
+                "/tmp/bve-remote-f1k46I/local-extensions",
+                "--open-url",
+                "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+              ],
+              "exitCode": 0,
+              "durationMs": 1247,
+              "stdout": "t.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullRequests',\n  'chat.agentHost.experimental.markdownPlanRichLinks',\n  'chat.agentHost.experimental.overlapProviderPreparation',\n  'chat.agentHost.experimental.prewarmSessions',\n  'chat.experimental.workspaceSnapshot',\n  'chat.agentHost.agentOrchestrationLimits',\n  'chat.agentHost.systemProxy.enabled',\n  'chat.agentHost.githubMcpServer.enabled',\n  'chat.agentHost.computerUse.enabled',\n  'chat.agentHost.experimental.mcpToolRouting',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.byokModels.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:00:45.832Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:00:45.832Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/etc/github-copilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.145.2/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.145.2/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:45.833Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:45.833Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:45.833Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/github-copilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/etc/github-copilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:00:45.833Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/github-copilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:45.836Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:45.837Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.145.2/User'\n\u001b[90m[main 2026-11-14T22:00:45.838Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.145.2/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:45.840Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:45.840Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:45.840Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+              "stderr": "",
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            "deliveries": 1,
+            "firstDeliveryMs": 524,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "newWindowCli": {
+              "exitCode": 0,
+              "durationMs": 1264,
+              "stdout": "hat.agentHost.otel.dbSpanExporter.enabled',\n  'update.enableWindowsBackgroundUpdates',\n  'chat.agentHost.codexAgent.sdkRoot',\n  'chat.agentHost.codexAgent.codexHome',\n  'chat.agentHost.codexAgent.binaryArgs',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:00:49.344Z]\u001b[0m PolicyConfiguration#update [\n  'update.mode',\n  'telemetry.telemetryLevel',\n  'telemetry.feedback.enabled',\n  'extensions.allowed',\n  'chat.canvases.enabled',\n  'chat.agentHost.claudeAgent.enabled',\n  'chat.agentHost.codexAgent.enabled',\n  'chat.agentHost.otel.enabled',\n  'chat.agentHost.otel.exporterType',\n  'chat.agentHost.otel.otlpEndpoint',\n  'chat.agentHost.otel.captureContent',\n  'chat.agentHost.otel.outfile',\n  'chat.agentHost.otel.otlpProtocol',\n  'chat.agentHost.otel.captureIdentity',\n  'chat.agentHost.otel.serviceName',\n  'chat.agentHost.otel.resourceAttributes',\n  'chat.agentHost.otel.headers'\n]\n\u001b[90m[main 2026-11-14T22:00:49.344Z]\u001b[0m [File Watcher (node.js)] Request to start watching: /etc/vscode/policy.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/etc/github-copilot/managed-settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.145.2/User (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>),/tmp/bve-remote-f1k46I/profile-1.145.2/User/settings.json (excludes: <none>, includes: <all>, filter: <none>, correlationId: <none>)\n\u001b[90m[main 2026-11-14T22:00:49.346Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/vscode/policy.json (error: Error: ENOENT: no such file or directory, stat '/etc/vscode/policy.json')\n\u001b[90m[main 2026-11-14T22:00:49.346Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/vscode/policy.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:49.346Z]\u001b[0m [File Watcher (node.js)] ignoring a path for watching who's stat info failed to resolve: /etc/github-copilot/managed-settings.json (error: Error: ENOENT: no such file or directory, stat '/etc/github-copilot/managed-settings.json')\n\u001b[90m[main 2026-11-14T22:00:49.346Z]\u001b[0m [File Watcher (node.js)] starting fs.watchFile() on /etc/github-copilot/managed-settings.json (correlationId: undefined)\n\u001b[90m[main 2026-11-14T22:00:49.350Z]\u001b[0m Sending env to running instance...\n\u001b[90m[main 2026-11-14T22:00:49.351Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.145.2/User'\n\u001b[90m[main 2026-11-14T22:00:49.351Z]\u001b[0m [File Watcher (node.js)] Started watching: '/tmp/bve-remote-f1k46I/profile-1.145.2/User/settings.json'\n\u001b[90m[main 2026-11-14T22:00:49.392Z]\u001b[0m Sent env to running instance. Terminating...\n\u001b[90m[main 2026-11-14T22:00:49.392Z]\u001b[0m Lifecycle#kill()\n\u001b[90m[main 2026-11-14T22:00:49.392Z]\u001b[0m Lifecycle#onWillShutdown.fire()\n",
+              "stderr": ""
+            },
+            "localWindowStore": {
+              "stored": true,
+              "at": 1794693650704
+            },
+            "localWindowActivation": {
+              "at": 1794693650629,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": true,
+            "changeEvents": 1,
+            "valueAfterLocalWrite": "present",
+            "valueMatchesLocalWrite": true
+          }
+        },
+        "desktopLogSessionsWithWindowCount": {
+          "20261114T220040": 2,
+          "20261114T220055": 1
+        }
+      }
+    }
+  },
+  "backstageFlow": {
+    "1.55.3": {
+      "status": "passed",
+      "startedAt": "2026-11-14T22:01:44.772Z",
+      "unmetExpectations": [],
+      "steps": [
+        "discovery",
+        "B1-B3.authorize-consent-redirect",
+        "TC2.wrong-verifier",
+        "TC1.exchange",
+        "TC3.second-exchange",
+        "B4.userinfo",
+        "B4-TC1.catalog-read",
+        "B6.expiry",
+        "B2.refresh",
+        "B2-TC6.reuse-rotated-out",
+        "B2-TC6.current-after-reuse",
+        "B2.refresh-with-other-client-id",
+        "B2.revoke-with-unallowed-client",
+        "B2.revoke",
+        "B2.refresh-after-revoke",
+        "TC7.access-token-after-revoke",
+        "TC4.redirect-with-query-not-in-document",
+        "TC4.redirect-of-other-extension",
+        "TC4.loopback-redirect",
+        "TC5.client-not-allowed",
+        "B5.two-users"
+      ]
+    },
+    "1.56.3": {
+      "status": "passed",
+      "startedAt": "2026-11-14T22:01:32.261Z",
+      "unmetExpectations": [],
+      "steps": [
+        "discovery",
+        "B1-B3.authorize-consent-redirect",
+        "TC2.wrong-verifier",
+        "TC1.exchange",
+        "TC3.second-exchange",
+        "B4.userinfo",
+        "B4-TC1.catalog-read",
+        "B6.expiry",
+        "B2.refresh",
+        "B2-TC6.reuse-rotated-out",
+        "B2-TC6.current-after-reuse",
+        "B2.refresh-with-other-client-id",
+        "B2.revoke-with-unallowed-client",
+        "B2.revoke",
+        "B2.refresh-after-revoke",
+        "TC7.access-token-after-revoke",
+        "TC4.redirect-with-query-not-in-document",
+        "TC4.redirect-of-other-extension",
+        "TC4.loopback-redirect",
+        "TC5.client-not-allowed",
+        "B5.two-users"
+      ]
+    }
+  }
+}
