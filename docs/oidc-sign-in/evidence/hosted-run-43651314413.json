@@ -1,0 +1,622 @@
+{
+  "purpose": "Compact summary of hosted probe run 43651314413 at 3621199 (kept changes of a56d8bf), compiled from its downloaded artifacts: results and the fields that the feasibility record cites. Synthetic probe values only; nonces removed.",
+  "linkRequestOrAcknowledgementFilesInArtifacts": 0,
+  "editors": {
+    "ubuntu-24.04": {
+      "runnerImage": "20261111.370.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "failures": [],
+      "cases": {
+        "1.106.3": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        },
+        "1.145.2": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        }
+      },
+      "observations": {
+        "1.106.3": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 545,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 2,
+              "outputStart": "[4749:1114/230449.542199:FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:169] The SUID sandbox helper binary was found, but is not configured correctly. Rather than run without sandboxing I'm aborting now. You need to make sure that <work>/.vscode-test/vscode-linux-x64-1.106.3/chrome-sandbox "
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 406,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 398,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            }
+          ]
+        },
+        "1.145.2": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 291,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 2,
+              "outputStart": "[9677:1114/230542.602715:FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper binary was found, but is not configured correctly. Rather than run without sandboxing I'm aborting now. You need to make sure that <work>/.vscode-test/vscode-linux-x64-1.145.2/chrome-sandbox "
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 256,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 248,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            }
+          ]
+        }
+      }
+    },
+    "windows-2025": {
+      "runnerImage": "20261103.298.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "failures": [],
+      "cases": {
+        "1.106.3": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        },
+        "1.145.2": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        }
+      },
+      "observations": {
+        "1.106.3": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node.exe",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node.exe",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 942,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 666,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 681,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 655,
+              "exitCode": 0,
+              "logSessionsBefore": 4,
+              "logSessionsAfter": 5
+            }
+          ]
+        },
+        "1.145.2": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node.exe",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node.exe",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 467,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 349,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 397,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 368,
+              "exitCode": 0,
+              "logSessionsBefore": 4,
+              "logSessionsAfter": 5
+            }
+          ]
+        }
+      }
+    },
+    "macos-15": {
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "local",
+          "exitCode": 0
+        }
+      ],
+      "failures": [],
+      "cases": {
+        "1.106.3": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        },
+        "1.145.2": {
+          "open-url": "passed",
+          "probe-pipe": "passed",
+          "probe-secret": "passed",
+          "probe-uri": "passed",
+          "restart": "passed",
+          "server-crash": "passed",
+          "shutdown": "passed",
+          "startup": "passed"
+        }
+      },
+      "observations": {
+        "1.106.3": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 1456,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 1064,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 880,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 722,
+              "exitCode": 0,
+              "logSessionsBefore": 4,
+              "logSessionsAfter": 5
+            }
+          ]
+        },
+        "1.145.2": {
+          "V3": [
+            {
+              "stage": "start",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            },
+            {
+              "stage": "restart",
+              "digestsMatch": true,
+              "serverRuntime": "node",
+              "clientServerProcessPid": null
+            }
+          ],
+          "V4 (local half)": {
+            "readMatches": true,
+            "changeEvents": 1
+          },
+          "V1": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 841,
+              "exitCode": 0,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 2
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 596,
+              "exitCode": 0,
+              "logSessionsBefore": 2,
+              "logSessionsAfter": 3
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 569,
+              "exitCode": 0,
+              "logSessionsBefore": 3,
+              "logSessionsAfter": 4
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "deliveries": 1,
+              "firstDeliveryMs": 730,
+              "exitCode": 0,
+              "logSessionsBefore": 4,
+              "logSessionsAfter": 5
+            }
+          ]
+        }
+      }
+    },
+    "macos-15 open command": {
+      "runnerImage": "20261104.0514.1",
+      "runs": [
+        {
+          "name": "open-command",
+          "exitCode": 0
+        }
+      ],
+      "failures": [],
+      "cases": {
+        "1.106.3": {
+          "probe-uri": "passed"
+        },
+        "1.145.2": {
+          "probe-uri": "passed"
+        }
+      },
+      "observations": {
+        "1.106.3": {
+          "V5": [
+            {
+              "variant": "macOS open command",
+              "hostStatus": "failed",
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "exitCode": 1,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 1,
+              "outputStart": "No application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n"
+            }
+          ]
+        },
+        "1.145.2": {
+          "V5": [
+            {
+              "variant": "macOS open command",
+              "hostStatus": "failed",
+              "deliveries": 0,
+              "firstDeliveryMs": null,
+              "exitCode": 1,
+              "logSessionsBefore": 1,
+              "logSessionsAfter": 1,
+              "outputStart": "No application knows how to open URL vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce> (Error Domain=NSOSStatusErrorDomain Code=-10814 \"kLSApplicationNotFoundErr: E.g. no application claims the file\" UserInfo={_LSLine=1796, _LSFunction=runEvaluator}).\n"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "ssh": {
+    "runnerImage": "20261111.370.1",
+    "runs": [
+      {
+        "name": "remote",
+        "exitCode": 0
+      }
+    ],
+    "failures": [],
+    "cases": {
+      "1.106.3": {
+        "session-0": "passed",
+        "session-1": "passed"
+      },
+      "1.145.2": {
+        "session-0": "passed",
+        "session-1": "passed"
+      }
+    },
+    "versions": {
+      "1.106.3": {
+        "remoteName": "ssh-remote",
+        "V2": {
+          "deliveries": 1,
+          "firstDeliveryMs": 1176,
+          "handlerRemoteName": "ssh-remote",
+          "deliveredQueryUnchanged": true,
+          "hostCliExitCode": 0,
+          "hostCliLogSessions": [1, 2]
+        },
+        "V4": {
+          "newWindowCliExitCode": 0,
+          "localWindowStored": true,
+          "valueBeforeLocalWrite": "absent",
+          "changeEventInRemoteWindow": true,
+          "changeEvents": 1,
+          "valueMatchesLocalWrite": true
+        },
+        "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"]
+      },
+      "1.145.2": {
+        "remoteName": "ssh-remote",
+        "V2": {
+          "deliveries": 1,
+          "firstDeliveryMs": 366,
+          "handlerRemoteName": "ssh-remote",
+          "deliveredQueryUnchanged": true,
+          "hostCliExitCode": 0,
+          "hostCliLogSessions": [1, 2]
+        },
+        "V4": {
+          "newWindowCliExitCode": 0,
+          "localWindowStored": true,
+          "valueBeforeLocalWrite": "absent",
+          "changeEventInRemoteWindow": true,
+          "changeEvents": 1,
+          "valueMatchesLocalWrite": true
+        },
+        "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"]
+      }
+    }
+  },
+  "backstageFlow": {
+    "1.55.3": {
+      "status": "passed",
+      "unmetExpectations": [],
+      "refusalReasons": {
+        "TC2.wrong-verifier": "Invalid code verifier",
+        "TC3.second-exchange": "Authorization code already used",
+        "B2-TC6.reuse-rotated-out": "Invalid refresh token",
+        "B2.refresh-after-revoke": "Invalid refresh token"
+      },
+      "host": {
+        "unmetExpectations": [],
+        "sqliteRotationWarning": true,
+        "userPermissionDecisions": [
+          {
+            "user": "user:bve-demo/alice",
+            "nativeResult": "ALLOW",
+            "result": "ALLOW"
+          },
+          {
+            "user": "user:bve-demo/bve-denied-user",
+            "nativeResult": "ALLOW",
+            "result": "DENY"
+          }
+        ]
+      }
+    },
+    "1.56.3": {
+      "status": "passed",
+      "unmetExpectations": [],
+      "refusalReasons": {
+        "TC2.wrong-verifier": "Invalid code verifier",
+        "TC3.second-exchange": "Authorization code already used",
+        "B2-TC6.reuse-rotated-out": "Invalid refresh token",
+        "B2.refresh-after-revoke": "Invalid refresh token"
+      },
+      "host": {
+        "unmetExpectations": [],
+        "sqliteRotationWarning": true,
+        "userPermissionDecisions": [
+          {
+            "user": "user:bve-demo/alice",
+            "nativeResult": "ALLOW",
+            "result": "ALLOW"
+          },
+          {
+            "user": "user:bve-demo/bve-denied-user",
+            "nativeResult": "ALLOW",
+            "result": "DENY"
+          }
+        ]
+      }
+    }
+  }
+}
