@@ -110,6 +110,7 @@ const summary = {
   cases: [],
   observations: [],
   fourthPipe: [],
+  failures: [],
 };
 let failure;
 try {
@@ -170,6 +171,30 @@ try {
       recursive: true,
     }).catch(() => undefined);
     summary.runs.push({ name: 'remote', exitCode: code });
+    // The remote case records V2 and V4 without failing; the probe run fails here instead.
+    for (const version of versions.split(',')) {
+      const file = path.join(
+        out,
+        'remote/ssh-remote',
+        version,
+        'session-0/probe-remote-observation.json',
+      );
+      const value = JSON.parse(await readFile(file, 'utf8').catch(() => 'null'));
+      const check = (name, ok) => {
+        if (!ok) summary.failures.push(`${version}: ${name}`);
+      };
+      check('remote observation written', !!value && !value.missing);
+      check('V2: the link reaches the remote handler once', value?.V2?.deliveries === 1);
+      check('V4: the local window stored the value', value?.V4?.localWindowStore?.stored === true);
+      check(
+        'V4: the remote window sees the change event',
+        value?.V4?.changeEventInRemoteWindow === true,
+      );
+      check(
+        'V4: the remote window reads the stored value',
+        value?.V4?.valueMatchesLocalWrite === true,
+      );
+    }
   }
 } catch (error) {
   failure = error;
@@ -196,4 +221,5 @@ try {
   console.log('BVE_PROBE_SUMMARY ' + JSON.stringify(summary));
   if (!keep) await rm(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
-if (failure || summary.runs.some((row) => row.exitCode !== 0)) process.exitCode = 1;
+if (failure || summary.failures.length || summary.runs.some((row) => row.exitCode !== 0))
+  process.exitCode = 1;

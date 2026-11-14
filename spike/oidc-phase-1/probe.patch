@@ -429,7 +429,7 @@
  export async function deactivate(): Promise<void> {
 --- a/extensions/vscode/test/cases/remote-session.case.ts
 +++ b/extensions/vscode/test/cases/remote-session.case.ts
-@@ -6,6 +6,94 @@
+@@ -6,6 +6,104 @@
  import * as vscode from 'vscode';
  import { until, exited, invalidTeam, team } from '../fixture.js';
  import type { Fixture } from '../fixture.js';
@@ -448,7 +448,15 @@
 +  const id = `${action}-${Date.now()}`;
 +  await writeFile(path.join(directory, 'probe-request.json'), JSON.stringify({ id, action, ...extra }));
 +  let answer:
-+    | { id?: string; status?: string; error?: string; localStore?: unknown; localActivation?: unknown }
++    | {
++        id?: string;
++        status?: string;
++        error?: string;
++        localStore?: unknown;
++        localActivation?: unknown;
++        cli?: unknown;
++        newWindowCli?: unknown;
++      }
 +    | undefined;
 +  await until(async () => {
 +    answer = await readFile(path.join(directory, 'probe-ack.json'), 'utf8')
@@ -488,6 +496,7 @@
 +    V2: {
 +      hostOpenUrl: linkAnswer.status,
 +      hostError: linkAnswer.error ?? null,
++      hostCli: linkAnswer.cli ?? null,
 +      deliveries: rows.length,
 +      firstDeliveryMs: rows[0] ? rows[0].at - started : null,
 +      handlerRemoteName: rows[0]?.remoteName ?? null,
@@ -501,6 +510,7 @@
 +    V4: {
 +      hostLocalWindow: secretAnswer.status,
 +      hostError: secretAnswer.error ?? null,
++      newWindowCli: secretAnswer.newWindowCli ?? null,
 +      localWindowStore: secretAnswer.localStore ?? null,
 +      localWindowActivation: secretAnswer.localActivation ?? null,
 +      valueBeforeLocalWrite: secretBefore === undefined ? 'absent' : 'present',
@@ -524,7 +534,7 @@
  export async function run(fixture: Fixture): Promise<void> {
    assert.equal(
      vscode.env.remoteName,
-@@ -47,7 +135,7 @@
+@@ -47,7 +145,7 @@
    if (previous) {
      await until(() => exited(previous.pid), 'disconnect reaped the previous remote server');
      assert.notEqual(pid, previous.pid);
@@ -542,19 +552,43 @@
  import { createHash } from 'node:crypto';
  import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
  import { tmpdir } from 'node:os';
-@@ -785,8 +787,11 @@
-       }
-     } else {
-       // A case can ask the host to give the running editor a vscode:// link, as an OS does.
-+      // PROBE (V5): on macOS, hand the link to the operating system with `open` instead.
-       const links = serveOpenUrlRequests(base, (url) =>
--        openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
-+        process.env.BVE_PROBE_OPEN_MODE === 'open-command'
-+          ? promisify(execFile)('open', [url], { timeout: 30_000 })
-+          : openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
-       );
-       try {
-         result = await launch(args, {}, base);
+@@ -794,7 +796,36 @@
+             .filter((key) => typeof options[key] === 'boolean')
+             .map((key) => [key, options[key]]),
+         );
++        // PROBE: a shorter CLI bound, so that several diagnostic variants fit in one session.
++        if (typeof options.timeoutMs === 'number') allowed.timeoutMs = options.timeoutMs;
+         const logSessionsBefore = await sessions();
++        // PROBE (V5): on macOS, hand the link to the operating system with `open` instead.
++        if (process.env.BVE_PROBE_OPEN_MODE === 'open-command') {
++          const started = Date.now();
++          try {
++            const result = await promisify(execFile)('open', [url], { timeout: 30_000 });
++            return {
++              args: ['open', '<link>'],
++              exitCode: 0,
++              durationMs: Date.now() - started,
++              stdout: result.stdout,
++              stderr: result.stderr,
++              logSessionsBefore,
++              logSessionsAfter: await sessions(),
++            };
++          } catch (error) {
++            error.details = {
++              args: ['open', '<link>'],
++              exitCode: error.code ?? null,
++              durationMs: Date.now() - started,
++              stdout: String(error.stdout ?? ''),
++              stderr: String(error.stderr ?? ''),
++              logSessionsBefore,
++              logSessionsAfter: await sessions(),
++            };
++            throw error;
++          }
++        }
+         try {
+           const result = await openUrl(executable, url, {
+             userDataDir: profile,
 --- a/scripts/test-extension-remote.mjs
 +++ b/scripts/test-extension-remote.mjs
 @@ -8,7 +8,7 @@
@@ -612,7 +646,7 @@
        ];
        for (let stage = 0; stage < 2; stage++) {
          await remote('rm', ['-f', path.posix.join(remoteSession, 'progress.json')]);
-@@ -510,10 +535,97 @@
+@@ -510,10 +535,123 @@
            signal: observerAbort.signal,
            ownedContainer: mode === 'dev-container' ? containerName : undefined,
          });
@@ -643,11 +677,18 @@
 +                    let error;
 +                    const extra = {};
 +                    try {
-+                      if (row.action === 'open-url')
-+                        await openUrl(executable, row.url, {
++                      if (row.action === 'open-url') {
++                        const logs = path.join(profile, 'logs');
++                        const before = (await readdir(logs).catch(() => [])).length;
++                        extra.cli = await openUrl(executable, row.url, {
 +                          userDataDir: profile,
 +                          extensionsDir: installed,
++                          verbose: true,
++                          timeoutMs: 30_000,
 +                        });
++                        extra.cli.logSessionsBefore = before;
++                        extra.cli.logSessionsAfter = (await readdir(logs).catch(() => [])).length;
++                      }
 +                      else if (row.action === 'local-window-secret') {
 +                        const value = 'bve-probe-local-' + randomUUID();
 +                        await writeFile(probeSecretFile, value);
@@ -657,10 +698,14 @@
 +                        const local = await mkdtemp(path.join(session, 'probe-local-window-'));
 +                        const { cli } = await resolveVSCodeCli(executable);
 +                        // A window opened through the CLI gets the CLI's environment.
-+                        await runCli(
++                        const started = Date.now();
++                        const opened = await runCli(
 +                          executable,
 +                          cli,
 +                          [
++                            // Same reason as openUrl: the CLI's editor process needs it on Ubuntu.
++                            '--no-sandbox',
++                            '--verbose',
 +                            '--new-window',
 +                            local,
 +                            '--user-data-dir',
@@ -669,8 +714,22 @@
 +                            installed,
 +                            '--disable-workspace-trust',
 +                          ],
-+                          { env: { BVE_PROBE_SECRET_WRITE_FILE: probeSecretFile } },
-+                        );
++                          { env: { BVE_PROBE_SECRET_WRITE_FILE: probeSecretFile }, timeoutMs: 30_000 },
++                        ).catch((failure) => {
++                          extra.newWindowCli = {
++                            exitCode: failure.exitCode ?? null,
++                            reason: failure.reason ?? null,
++                            stdout: String(failure.stdout ?? '').slice(-3000),
++                            stderr: String(failure.stderr ?? '').slice(-3000),
++                          };
++                          throw failure;
++                        });
++                        extra.newWindowCli = {
++                          exitCode: 0,
++                          durationMs: Date.now() - started,
++                          stdout: opened.stdout.slice(-3000),
++                          stderr: opened.stderr.slice(-3000),
++                        };
 +                        const until = Date.now() + 45_000;
 +                        while (Date.now() < until && !extra.localStore) {
 +                          extra.localStore = await readFile(probeSecretFile + '.stored.json', 'utf8')
@@ -689,6 +748,7 @@
 +                    } catch (failure) {
 +                      status = 'failed';
 +                      error = String(failure?.message ?? failure);
++                      if (failure?.details) extra.cli = failure.details;
 +                    }
 +                    await writeRemote(ack, {
 +                      id: row.id,
@@ -710,7 +770,7 @@
              BVE_EDITOR_CATALOG_TOKEN: catalogToken,
              BVE_LSP_CONFIG: remoteEnvironment.BVE_LSP_CONFIG,
              WSLENV: remoteEnvironment.WSLENV,
-@@ -560,7 +672,16 @@
+@@ -560,7 +698,16 @@
            exited = true;
            observerAbort.abort();
            await observation;
@@ -727,62 +787,119 @@
          const progress = JSON.parse(
            await remote('cat', [path.posix.join(remoteSession, 'progress.json')]).catch(
              () => 'null',
+--- a/scripts/extension-test-process.mjs
++++ b/scripts/extension-test-process.mjs
+@@ -52,6 +52,7 @@
+     env.BVE_EXTENSION_TEST_CASE === 'endurance-soak'
+       ? Number(env.BVE_SOAK_SECONDS) * 1000 + 120_000
+       : env.BVE_EXTENSION_TEST_CASE.startsWith('endurance-') ||
++          env.BVE_EXTENSION_TEST_CASE.startsWith('probe-') ||
+           env.BVE_EXTENSION_TEST_CASE === 'remote-session'
+         ? 300_000
+         : 120_000,
 --- /dev/null
 +++ b/extensions/vscode/test/cases/probe-uri.case.ts
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,101 @@
 +// OIDC PHASE 1 FEASIBILITY PROBE. THROWAWAY: never merge.
 +// V1 (and V5 with BVE_PROBE_OPEN_MODE=open-command): does a vscode:// link reach the product's
-+// URI handler? The observation is written to the control directory for the probe summary.
++// URI handler? The host tries several ways to call the editor's CLI, each with its own link, and
++// the case records for each one the host's CLI evidence and the deliveries. It also records the
++// editor's main-process and extension-host log lines about links, so that a failure says why.
 +import assert from 'node:assert/strict';
 +import { randomUUID } from 'node:crypto';
-+import { writeFile } from 'node:fs/promises';
++import { readFile, readdir, writeFile } from 'node:fs/promises';
 +import path from 'node:path';
 +import { setTimeout as pause } from 'node:timers/promises';
 +import * as vscode from 'vscode';
 +import type { Fixture } from '../fixture.js';
 +import { openUrl } from '../links.js';
++import type { OpenUrlOptions } from '../links.js';
 +
 +interface Probe {
 +  uris(): { uri: string; at: number; remoteName: string | null; extensionHostPid: number }[];
 +  externalUri(): Promise<string>;
 +}
++async function logLines() {
++  const root = path.join(process.env.BVE_EXTENSION_TEST_PROFILE!, 'logs');
++  const sessions = (await readdir(root).catch(() => [])).sort();
++  const rows: Record<string, string[]> = { sessions };
++  const latest = sessions.at(-1);
++  if (!latest) return rows;
++  const pick = async (file: string) =>
++    (await readFile(path.join(root, latest, file), 'utf8').catch(() => ''))
++      .split('\n')
++      .filter((line) => /url|uri|open|instance|launch|protocol|error/iu.test(line))
++      .filter((line) => !/policy|File Watcher/u.test(line))
++      .map((line) => line.replace(/probe=[0-9a-f-]+/gu, 'probe=<nonce>').slice(0, 300))
++      .slice(-40);
++  rows.main = await pick('main.log');
++  rows.exthost = await pick('window1/exthost/exthost.log');
++  rows.renderer = await pick('window1/renderer.log');
++  return rows;
++}
 +export async function run(fixture: Fixture): Promise<void> {
 +  const probe = (fixture.api as unknown as { probe: Probe }).probe;
 +  assert(probe, 'Run the probe build.');
 +  const mode = process.env.BVE_PROBE_OPEN_MODE ?? 'open-url';
-+  const nonce = randomUUID();
-+  const url = `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=${nonce}`;
-+  const started = Date.now();
-+  let requestError: string | undefined;
-+  await openUrl(url).catch((error: unknown) => {
-+    requestError = error instanceof Error ? error.message : String(error);
-+  });
-+  const until = Date.now() + 30_000;
-+  while (Date.now() < until && !probe.uris().some((row) => row.uri.includes(nonce))) await pause(100);
++  const variants: { name: string; options: OpenUrlOptions & { timeoutMs?: number } }[] =
++    mode === 'open-command'
++      ? [{ name: 'macOS open command', options: {} }]
++      : [
++          { name: 'harness default (--no-sandbox)', options: { timeoutMs: 20_000 } },
++          { name: 'sandboxed, --verbose', options: { noSandbox: false, verbose: true, timeoutMs: 20_000 } },
++          { name: '--no-sandbox --verbose', options: { verbose: true, timeoutMs: 20_000 } },
++          {
++            name: '--no-sandbox --verbose --open-url -- <link>',
++            options: { verbose: true, separator: true, timeoutMs: 20_000 },
++          },
++        ];
++  const attempts = [];
++  for (const variant of variants) {
++    const nonce = randomUUID();
++    const url = `vscode://chtaylo3.backstage-validation-engine/sign-in?probe=${nonce}`;
++    const started = Date.now();
++    const answer = await openUrl(url, variant.options).catch((error: unknown) => ({
++      id: 'none',
++      status: 'failed' as const,
++      error: error instanceof Error ? error.message : String(error),
++    }));
++    const end = Date.now() + 10_000;
++    while (Date.now() < end && !probe.uris().some((row) => row.uri.includes(nonce))) await pause(100);
++    const rows = probe.uris().filter((row) => row.uri.includes(nonce));
++    attempts.push({
++      variant: variant.name,
++      hostStatus: answer.status,
++      hostError: answer.error ?? null,
++      cli: 'cli' in answer ? answer.cli : null,
++      deliveries: rows.length,
++      firstDeliveryMs: rows[0] ? rows[0].at - started : null,
++      deliveredQueryUnchanged: rows[0] ? rows[0].uri === url : null,
++    });
++  }
 +  await pause(2000);
-+  const rows = probe.uris().filter((row) => row.uri.includes(nonce));
 +  const observation = {
 +    question: mode === 'open-command' ? 'V5' : 'V1',
 +    mode,
 +    platform: process.platform,
 +    editorVersion: vscode.version,
 +    remoteName: vscode.env.remoteName ?? null,
-+    requestError: requestError ?? null,
-+    deliveries: rows.length,
-+    firstDeliveryMs: rows[0] ? rows[0].at - started : null,
-+    deliveredPath: rows[0] ? vscode.Uri.parse(rows[0].uri).path : null,
-+    deliveredQueryUnchanged: rows[0] ? rows[0].uri === url : null,
-+    handlerExtensionHostPid: rows[0]?.extensionHostPid ?? null,
 +    caseExtensionHostPid: process.pid,
 +    externalUriOfRedirect: await probe.externalUri(),
 +    note: 'Extension-development window: VS Code shows no URI confirmation dialog here.',
++    attempts,
++    logs: await logLines(),
 +  };
 +  await writeFile(
 +    path.join(process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY!, 'probe-uri-observation.json'),
 +    JSON.stringify(observation, null, 2) + '\n',
 +  );
 +  console.log('BVE_PROBE_OBSERVATION ' + JSON.stringify(observation));
-+  if (mode !== 'open-command') assert.equal(rows.length, 1, 'The link reaches the handler once.');
++  if (mode !== 'open-command')
++    assert.equal(
++      attempts[0]?.deliveries,
++      1,
++      'The harness default reaches the handler once. ' + JSON.stringify(attempts),
++    );
 +}
 --- /dev/null
 +++ b/extensions/vscode/test/cases/probe-pipe.case.ts
