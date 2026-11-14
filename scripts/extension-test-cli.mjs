@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import path from 'node:path';
 import { setTimeout, clearTimeout } from 'node:timers';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
@@ -176,12 +178,23 @@ export function openUrlArgs(
   ];
 }
 
+/** Parameters whose values are credentials or correlate a sign-in, and never reach evidence. */
+const SECRET_PARAMETERS = 'code|state|token|access_token|refresh_token|id_token|code_verifier';
+// A parameter starts at the start of a line, or after `?`, `&`, `#`, whitespace, a quote, or `,;({`,
+// with `?`, `&`, and `#` also in HTML-escaped, JSON-escaped, percent-encoded, or doubly
+// percent-encoded form. Its name ends with `=` in one of those forms.
+const PARAMETER_START = String.raw`(?:^|[?&#\s"',;({]|&amp;|\\u0026|\\u003[fF]|%(?:25)?(?:3[fF]|26|23))`;
+const PARAMETER_EQUALS = String.raw`(?:=|\\u003[dD]|%(?:25)?3[dD])`;
+// The value ends at the next separator in any of those forms, or at whitespace, a quote, or `\`.
+const VALUE_END = String.raw`(?:&|%(?:25)?26|\\u0026|["'\s\\<>])`;
+const SECRET_VALUE = new RegExp(
+  `(${PARAMETER_START}(?:${SECRET_PARAMETERS})${PARAMETER_EQUALS})(?:(?!${VALUE_END}).)+`,
+  'gimu',
+);
+
 /** Replace the values of credentials and correlation parameters in text that may echo a link. */
 export function redactLinkValues(text) {
-  return String(text ?? '').replace(
-    /([?&](?:code|state|token|access_token|refresh_token|id_token)=)[^&\s"']+/giu,
-    '$1<redacted>',
-  );
+  return String(text ?? '').replace(SECRET_VALUE, '$1<redacted>');
 }
 
 /**
@@ -213,54 +226,82 @@ export async function openUrl(executable, url, options = {}) {
   }
 }
 
-export const OPEN_URL_REQUEST = 'open-url-request.json';
-export const OPEN_URL_ACKNOWLEDGEMENT = 'open-url-ack.json';
+/** The environment variables that tell a case where to send its link requests. */
+export const LINK_ENDPOINT_VARIABLE = 'BVE_EXTENSION_TEST_LINKS';
+export const LINK_TOKEN_VARIABLE = 'BVE_EXTENSION_TEST_LINKS_TOKEN';
 
 /**
- * Answer the link requests that a case in the editor writes to its control directory. A request is
- * `{ id, url, options? }`; each id is answered once with `{ id, status, error?, cli? }`, after
- * `open(url, options)` settles. `cli` holds the CLI evidence that `openUrl` returns.
+ * Answer the link requests of the cases in one editor session, over HTTP on the loopback address.
+ * A case sends `POST <endpoint>` with `{ url, options? }` and the session's bearer token; the host
+ * calls `open(url, options)` and answers `{ status, error?, cli? }`, where `cli` is the evidence
+ * that `openUrl` returns. The link travels only in memory and on the loopback connection: nothing
+ * writes it to disk, so a link with an authorization code cannot reach uploaded evidence.
  */
-export function serveOpenUrlRequests(directory, open, { intervalMs = 100 } = {}) {
-  const answered = new Set();
-  let stopped = false;
-  const loop = (async () => {
-    while (!stopped) {
-      const request = await readFile(path.join(directory, OPEN_URL_REQUEST), 'utf8')
-        .then((text) => JSON.parse(text))
-        .catch(() => undefined);
-      if (request && typeof request.id === 'string' && !answered.has(request.id)) {
-        answered.add(request.id);
-        let status = 'passed';
-        let error;
-        let cli;
-        try {
-          const result = await open(request.url, request.options ?? {});
-          if (result && typeof result === 'object' && 'exitCode' in result) cli = result;
-        } catch (failure) {
-          status = 'failed';
-          error = redactLinkValues(failure instanceof Error ? failure.message : String(failure));
-          cli = failure?.details;
-        }
-        await writeFile(
-          path.join(directory, OPEN_URL_ACKNOWLEDGEMENT),
-          JSON.stringify({
-            id: request.id,
-            status,
-            ...(error ? { error } : {}),
-            ...(cli ? { cli } : {}),
-          }),
-        );
+export async function serveOpenUrlRequests(open) {
+  const token = randomBytes(24).toString('hex');
+  const outcomes = [];
+  const server = createServer((request, response) => {
+    void (async () => {
+      if (
+        request.method !== 'POST' ||
+        request.url !== '/open-url' ||
+        request.headers.authorization !== `Bearer ${token}`
+      ) {
+        response.writeHead(404).end();
+        return;
       }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-  })();
+      let body = '';
+      for await (const chunk of request) {
+        body += chunk;
+        if (body.length > 64 * 1024) {
+          response.writeHead(413).end();
+          return;
+        }
+      }
+      let value;
+      try {
+        value = JSON.parse(body);
+      } catch {
+        response.writeHead(400).end();
+        return;
+      }
+      let status = 'passed';
+      let error;
+      let cli;
+      try {
+        const result = await open(String(value?.url ?? ''), value?.options ?? {});
+        if (result && typeof result === 'object' && 'exitCode' in result) cli = result;
+      } catch (failure) {
+        status = 'failed';
+        error = redactLinkValues(failure instanceof Error ? failure.message : String(failure));
+        cli = failure?.details;
+      }
+      outcomes.push(status);
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({ status, ...(error ? { error } : {}), ...(cli ? { cli } : {}) }),
+      );
+    })().catch(() => {
+      if (!response.headersSent) response.writeHead(500);
+      response.end();
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  assert(address && typeof address !== 'string');
   return {
-    answered: () => [...answered],
-    stop: async () => {
-      stopped = true;
-      await loop;
-    },
+    endpoint: `http://127.0.0.1:${address.port}/open-url`,
+    token,
+    /** The environment that a case needs to send link requests. */
+    environment: () => ({
+      [LINK_ENDPOINT_VARIABLE]: `http://127.0.0.1:${address.port}/open-url`,
+      [LINK_TOKEN_VARIABLE]: token,
+    }),
+    outcomes: () => [...outcomes],
+    stop: () => new Promise((resolve) => server.close(() => resolve(undefined))),
   };
 }
 

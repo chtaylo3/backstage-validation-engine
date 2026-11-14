@@ -18,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as pause } from 'node:timers/promises';
 import { promisify } from 'node:util';
+import { unmetHostExpectations } from './expectations.mjs';
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -354,11 +355,17 @@ try {
       .split('\n')
       .filter((line) => line.includes('client-document fetch')).length,
   };
+  facts.unmetExpectations = unmetHostExpectations(facts, {
+    firstUser: FIRST_USER,
+    secondUser: SECOND_USER,
+  });
   await writeFile(
     path.join(out, `host-${state.target}.json`),
     JSON.stringify(facts, null, 2) + '\n',
   );
   console.log(`[${state.target}] host facts: ${JSON.stringify(facts)}`);
+  if (facts.unmetExpectations.length)
+    failure ??= new Error('Unmet host expectations: ' + facts.unmetExpectations.join(', '));
 } catch (error) {
   failure = error;
 } finally {

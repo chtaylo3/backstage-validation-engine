@@ -1,0 +1,381 @@
+{
+  "purpose": "Local run of the probe built from the current tree (spike/oidc-phase-1/probe.patch on the kept harness), cases probe-uri and open-url, 2026-11-14. Synthetic probe values only; nonces removed; CLI output truncated to 300 characters.",
+  "environment": "WSL 2, kernel 6.6.87.2; Xvfb; a private XDG_RUNTIME_DIR with a short path and a private D-Bus session (dbus-run-session); the inherited ELECTRON_* and VSCODE_* variables removed.",
+  "command": "BVE_VSCODE_VERSIONS unset (both editors); xvfb-run -a node scripts/test-extension.mjs --case=probe-uri,open-url, in a copy of the checkout with the probe patch applied",
+  "versions": {
+    "1.106.3": {
+      "probe-uri": {
+        "status": "passed",
+        "logSessionsInProfile": 5,
+        "controlFiles": [
+          "launch.json",
+          "probe-fd3-35183.json",
+          "probe-uri-observation.json",
+          "progress.json"
+        ],
+        "observation": {
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "caseExtensionHostPid": 34960,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-VexDlq/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1138,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 485,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-VexDlq/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1403,
+                "stdout": "\u001b[90m[main 2026-11-14T22:53:50.819Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:53:50.820Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy'",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 413,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-VexDlq/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1387,
+                "stdout": "\u001b[90m[main 2026-11-14T22:53:52.209Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:53:52.209Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy'",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 394,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-VexDlq/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1379,
+                "stdout": "\u001b[90m[main 2026-11-14T22:53:53.593Z]\u001b[0m PolicyConfiguration#initialize\n\u001b[90m[main 2026-11-14T22:53:53.594Z]\u001b[0m PolicyConfiguration#updatePolicyDefinitions [\n  'update.mode',\n  'update.channel',\n  'update.showReleaseNotes',\n  'http.useLocalProxyConfiguration',\n  'http.electronFetch',\n  'http.proxy'",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 387,
+              "deliveredQueryUnchanged": true
+            }
+          ]
+        }
+      },
+      "open-url": {
+        "status": "passed",
+        "logSessionsInProfile": 3,
+        "controlFiles": [
+          "launch.json",
+          "open-url-observation.json",
+          "probe-fd3-34436.json",
+          "progress.json"
+        ],
+        "observation": {
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "ownLink": {
+            "host": {
+              "status": "passed",
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-tuUY6J/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "vscode://local.bve-test-driver/open-url?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 2253,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              }
+            },
+            "deliveries": 1
+          },
+          "otherLink": {
+            "host": {
+              "status": "passed",
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-tuUY6J/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-0Ta7yC/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/open-url?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1137,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              }
+            },
+            "deliveries": 0
+          }
+        }
+      }
+    },
+    "1.145.2": {
+      "probe-uri": {
+        "status": "passed",
+        "logSessionsInProfile": 5,
+        "controlFiles": [
+          "launch.json",
+          "probe-fd3-36735.json",
+          "probe-uri-observation.json",
+          "progress.json"
+        ],
+        "observation": {
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "caseExtensionHostPid": 36545,
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "note": "Extension-development window: VS Code shows no URI confirmation dialog here.",
+          "attempts": [
+            {
+              "variant": "harness default (--no-sandbox)",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-awlLth/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1059,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 242,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "sandboxed, --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-awlLth/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1597,
+                "stdout": "tHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullReque",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 213,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-awlLth/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1882,
+                "stdout": "tHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullReque",
+                "stderr": "",
+                "logSessionsBefore": 3,
+                "logSessionsAfter": 4
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 884,
+              "deliveredQueryUnchanged": true
+            },
+            {
+              "variant": "--no-sandbox --verbose --open-url -- <link>",
+              "hostStatus": "passed",
+              "hostError": null,
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--verbose",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-awlLth/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "--",
+                  "vscode://chtaylo3.backstage-validation-engine/sign-in?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1201,
+                "stdout": "tHost.moveChats.enabled',\n  'chat.agentHost.experimental.titleGeneration',\n  'chat.artifactIntegrations.enabled',\n  'chat.artifactTools.enabled',\n  'chat.artifactIntegrations.githubPullRequests.autoMarkReadyIgnoredChecks',\n  'chat.canvases.enabled',\n  'chat.agentHost.experimental.autoAttachPullReque",
+                "stderr": "",
+                "logSessionsBefore": 4,
+                "logSessionsAfter": 5
+              },
+              "deliveries": 1,
+              "firstDeliveryMs": 205,
+              "deliveredQueryUnchanged": true
+            }
+          ]
+        }
+      },
+      "open-url": {
+        "status": "passed",
+        "logSessionsInProfile": 3,
+        "controlFiles": [
+          "launch.json",
+          "open-url-observation.json",
+          "probe-fd3-36066.json",
+          "progress.json"
+        ],
+        "observation": {
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "ownLink": {
+            "host": {
+              "status": "passed",
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-LQGNpu/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "vscode://local.bve-test-driver/open-url?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1067,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 1,
+                "logSessionsAfter": 2
+              }
+            },
+            "deliveries": 1
+          },
+          "otherLink": {
+            "host": {
+              "status": "passed",
+              "cli": {
+                "args": [
+                  "--no-sandbox",
+                  "--user-data-dir",
+                  "/tmp/bve-editor-LQGNpu/profile",
+                  "--extensions-dir",
+                  "/tmp/bve-install-PRqJME/installed",
+                  "--open-url",
+                  "vscode://chtaylo3.backstage-validation-engine/open-url?probe=<nonce>"
+                ],
+                "exitCode": 0,
+                "durationMs": 1064,
+                "stdout": "",
+                "stderr": "",
+                "logSessionsBefore": 2,
+                "logSessionsAfter": 3
+              }
+            },
+            "deliveries": 0
+          }
+        }
+      }
+    }
+  }
+}

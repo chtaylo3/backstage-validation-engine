@@ -23,6 +23,7 @@ import {
   waitFor,
 } from '../editor/cdp.mjs';
 import { VSCODE_REDIRECT_URI } from './client-document.mjs';
+import { unmetFlowExpectations } from './expectations.mjs';
 
 const options = Object.fromEntries(
   process.argv
@@ -361,81 +362,6 @@ const step = (id, value) => {
   report.steps[id] = value;
   console.log(`[${options.release}] ${id}: ${text}`);
 };
-/**
- * The expected outcome of every step. A refusal that does not happen, a `state` that does not
- * match, or a missing step fails the run. Observations that are answers (B6, test case 7, the
- * refresh with another client ID) are recorded without a check.
- */
-const refused = (row) => row?.status === 400 && row?.error?.error === 'invalid_grant';
-const message = (row) => String(row?.error?.message ?? '');
-const EXPECTATIONS = {
-  discovery: (s) =>
-    s.issuerIsAuthPluginBase &&
-    s.endpointsShareIssuerOrigin &&
-    s.client_id_metadata_document_supported === true &&
-    s.code_challenge_methods_supported?.includes('S256') &&
-    s.grant_types_supported?.includes('refresh_token'),
-  'B1-B3.authorize-consent-redirect': (s) =>
-    s.pages?.includes('consent') &&
-    String(s.redirectObservedAs).startsWith('browser navigation') &&
-    s.redirect?.protocol === 'vscode:' &&
-    s.redirect?.authority === 'chtaylo3.backstage-validation-engine' &&
-    s.redirect?.pathname === '/sign-in' &&
-    s.redirect?.stateMatches === true &&
-    s.redirect?.codeLength > 0 &&
-    s.clientDocumentFetches?.length > 0,
-  'TC2.wrong-verifier': refused,
-  'TC1.exchange': (s) =>
-    s.status === 200 && s.refreshTokenPresent === true && /^user:/u.test(s.accessClaims?.sub),
-  'TC3.second-exchange': refused,
-  'B4.userinfo': (s, steps) =>
-    s.status === 200 && s.body?.claims?.sub === steps['TC1.exchange']?.accessClaims?.sub,
-  'B4-TC1.catalog-read': (s) =>
-    s.withIssuedToken?.byName?.status === 200 &&
-    s.withIssuedToken?.byName?.entity === 'component:bve-demo/demo-service' &&
-    s.withoutToken === 401,
-  'B2.refresh': (s) =>
-    s.status === 200 &&
-    s.refreshTokenRotated === true &&
-    s.catalogWithRefreshedToken?.status === 200,
-  'B2-TC6.reuse-rotated-out': refused,
-  'B2-TC6.current-after-reuse': (s) => s.status === 200 && s.refreshTokenRotated === true,
-  'B2.revoke-with-unallowed-client': (s) => s.status === 401,
-  'B2.revoke': (s) => s.status === 200,
-  'B2.refresh-after-revoke': refused,
-  // Refused by the client document: the configured pattern ignores the query.
-  'TC4.redirect-with-query-not-in-document': (s) =>
-    s.status === 400 &&
-    s.location === null &&
-    message(s).includes('not registered in client metadata'),
-  // Refused by the configured redirect patterns, before the document is consulted.
-  'TC4.redirect-of-other-extension': (s) =>
-    s.status === 400 &&
-    s.location === null &&
-    message(s).startsWith('Invalid redirect_uri') &&
-    !message(s).includes('not registered'),
-  'TC4.loopback-redirect': (s) =>
-    s.status === 400 &&
-    s.location === null &&
-    message(s).startsWith('Invalid redirect_uri') &&
-    !message(s).includes('not registered'),
-  'TC5.client-not-allowed': (s) =>
-    s.status === 400 &&
-    s.location === null &&
-    message(s).startsWith('Invalid client_id') &&
-    s.clientDocumentFetches?.length === 0,
-  'B5.two-users': (s) =>
-    s.firstUser?.catalog?.byName?.status === 200 &&
-    s.secondUser?.sub === options['second-user'] &&
-    s.secondUser?.catalog?.byName?.status === 404 &&
-    s.secondUser?.catalog?.list?.count === 0,
-};
-function unmetExpectations(steps) {
-  return Object.entries(EXPECTATIONS)
-    .filter(([id, check]) => !steps[id] || !check(steps[id], steps))
-    .map(([id]) => (steps[id] ? id : `${id} (step missing)`));
-}
-
 let failure;
 try {
   // Discovery.
@@ -606,7 +532,9 @@ try {
   report.error = scrub(String(error?.stack ?? error));
 } finally {
   report.completedAt = new Date().toISOString();
-  report.unmetExpectations = unmetExpectations(report.steps);
+  report.unmetExpectations = unmetFlowExpectations(report.steps, {
+    secondUser: options['second-user'],
+  });
   if (!failure && report.unmetExpectations.length)
     failure = new Error('Unmet expectations: ' + report.unmetExpectations.join(', '));
   if (failure && !report.error) report.error = scrub(String(failure.message));

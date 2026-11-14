@@ -3,7 +3,11 @@
   "curation": {
     "assembled": "By a script from the run directories of earlier probe versions, not by the committed probe.",
     "environment": "WSL 2, kernel 6.6.87.2; Xvfb; a private XDG_RUNTIME_DIR with a short path and a private D-Bus session (dbus-run-session); the inherited ELECTRON_* and VSCODE_* variables removed.",
-    "addedByTheScript": ["local.*.cases", "remote.*.*.dialogTextOnScreen", "remote.*.*.cases"],
+    "addedByTheScript": [
+      "local.*.cases (with logSessionsInProfile)",
+      "remote.*.*.dialogTextOnScreen",
+      "remote.*.*.cases"
+    ],
     "differencesFromTheCommittedProbe": [
       "local.run1-function-form: the probe without its own child-process reference; the cases fail at setup by design.",
       "local.run2/run3 probe-uri observations: one link per case; no externalUriOfRedirect, note, attempts, or logs fields.",
@@ -20,49 +24,57 @@
           "case": "open-url",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "probe-pipe",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "probe-secret",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "probe-uri",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "restart",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "server-crash",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "shutdown",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         },
         {
           "case": "startup",
           "status": "failed",
           "phase": "setup",
-          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID.",
+          "logSessionsInProfile": 1
         }
       ],
       "observations": [],
@@ -139,49 +151,57 @@
           "case": "1.145.2/open-url",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 3
         },
         {
           "case": "1.145.2/probe-pipe",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.145.2/probe-secret",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.145.2/probe-uri",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 2
         },
         {
           "case": "1.145.2/restart",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.145.2/server-crash",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.145.2/shutdown",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.145.2/startup",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         }
       ],
       "observations": [
@@ -349,49 +369,57 @@
           "case": "1.106.3/open-url",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 3
         },
         {
           "case": "1.106.3/probe-pipe",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.106.3/probe-secret",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.106.3/probe-uri",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 2
         },
         {
           "case": "1.106.3/restart",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.106.3/server-crash",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.106.3/shutdown",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         },
         {
           "case": "1.106.3/startup",
           "status": "passed",
           "phase": "complete",
-          "error": null
+          "error": null,
+          "logSessionsInProfile": 1
         }
       ],
       "observations": [

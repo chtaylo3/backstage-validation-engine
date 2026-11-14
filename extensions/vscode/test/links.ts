@@ -1,8 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import assert from 'node:assert/strict';
-import { until } from './readiness.js';
+import { OBSERVATION_TIMEOUT_MS } from './readiness.js';
 
 /** The identifier of the driver extension that every installed-editor case runs beside. */
 export const DRIVER_EXTENSION_ID = 'local.bve-test-driver';
@@ -14,9 +11,8 @@ export interface OpenUrlOptions {
   separator?: boolean;
 }
 
-/** What the host reports for one link: the outcome and the CLI's evidence. */
+/** What the host reports for one link: the outcome and the CLI's redacted evidence. */
 export interface OpenUrlAnswer {
-  id: string;
   status: 'passed' | 'failed';
   error?: string;
   cli?: {
@@ -33,23 +29,20 @@ export interface OpenUrlAnswer {
 
 /**
  * Ask the host to give this editor a `vscode://` link with `--open-url`, as an operating system
- * does when a browser follows the link. Resolves with the host's answer when its CLI call has
- * finished; delivery to a URI handler is the caller's observation.
+ * does when a browser follows the link. The link goes to the host over loopback HTTP, with the
+ * session's bearer token, and is never written to disk. Resolves with the host's answer when its
+ * CLI call has finished; delivery to a URI handler is the caller's observation.
  */
 export async function openUrl(url: string, options: OpenUrlOptions = {}): Promise<OpenUrlAnswer> {
-  const directory = process.env.BVE_EXTENSION_TEST_CONTROL_DIRECTORY;
-  assert(directory, 'The host must provide a control directory.');
-  const id = randomUUID();
-  await writeFile(
-    path.join(directory, 'open-url-request.json'),
-    JSON.stringify({ id, url, options }),
-  );
-  let answer: OpenUrlAnswer | undefined;
-  await until(async () => {
-    answer = await readFile(path.join(directory, 'open-url-ack.json'), 'utf8')
-      .then((text) => JSON.parse(text) as OpenUrlAnswer)
-      .catch(() => undefined);
-    return answer?.id === id;
-  }, 'the host gives the link to the editor');
-  return answer!;
+  const endpoint = process.env.BVE_EXTENSION_TEST_LINKS;
+  const token = process.env.BVE_EXTENSION_TEST_LINKS_TOKEN;
+  assert(endpoint && token, 'The host must serve link requests.');
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ url, options }),
+    signal: AbortSignal.timeout(OBSERVATION_TIMEOUT_MS),
+  });
+  assert.equal(response.status, 200, 'The host answers the link request.');
+  return (await response.json()) as OpenUrlAnswer;
 }

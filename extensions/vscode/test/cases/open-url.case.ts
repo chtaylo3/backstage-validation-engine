@@ -38,14 +38,17 @@ export async function run(): Promise<void> {
     JSON.stringify(observation, null, 2) + '\n',
   );
   const evidence = JSON.stringify(observation);
-  assert.equal(first.status, 'passed', 'The host gives the link to the editor. ' + evidence);
-  assert.deepEqual(
-    received.filter((uri) => uri.includes(own)),
-    [ownUrl],
-    'The link reaches its handler once, unchanged. ' + evidence,
+  assert.equal(first.status, 'passed', 'The host gives the first link to the editor. ' + evidence);
+  // Without this, "another extension's link does not arrive" would pass if the host never sent it.
+  assert.equal(
+    second.status,
+    'passed',
+    'The host gives the second link to the editor. ' + evidence,
   );
-  assert(
-    !received.some((uri) => uri.includes(other)),
-    'A link for another extension does not reach this handler. ' + evidence,
+  assert.deepEqual(
+    received,
+    [ownUrl],
+    'The handler sees exactly one link: its own, once and unchanged, and not the other one. ' +
+      evidence,
   );
 }

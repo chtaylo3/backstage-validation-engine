@@ -788,7 +788,8 @@ async function execute(spec, output, fault, peer) {
       // A new log session in the profile means that the CLI's editor process started with it.
       const sessions = async () =>
         (await readdir(path.join(profile, 'logs')).catch(() => [])).length;
-      const links = serveOpenUrlRequests(base, async (url, options) => {
+      // The link travels to the host over loopback HTTP and is never written to disk.
+      const links = await serveOpenUrlRequests(async (url, options) => {
         const allowed = Object.fromEntries(
           ['noSandbox', 'verbose', 'separator']
             .filter((key) => typeof options[key] === 'boolean')
@@ -812,7 +813,7 @@ async function execute(spec, output, fault, peer) {
         }
       });
       try {
-        result = await launch(args, {}, base);
+        result = await launch(args, links.environment(), base);
       } finally {
         await links.stop();
       }

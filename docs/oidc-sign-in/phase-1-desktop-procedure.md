@@ -36,18 +36,34 @@ Plan for about three hours. Write down each observation as you make it, in the
 
 - **A separate VS Code profile.** The probe is a build of the product extension with the same
   identifier, so installing it replaces the product in whatever profile you install it into. Create
-  a profile for the probe, and install the probe only there:
+  a profile for the probe, and install the probe only there. The CLI cannot install into a profile
+  that does not exist yet (it answers `Profile 'BVE probe' not found.`), so open a window with the
+  new profile first, which creates it, and close that window:
 
   ```sh
+  code --profile "BVE probe" --new-window <an empty folder>
+  # close that window, then:
   code --profile "BVE probe" --install-extension <probe VSIX> --force
-  code --profile "BVE probe" <folder>
+  code --profile "BVE probe" --list-extensions
   ```
+
+  The last command lists `chtaylo3.backstage-validation-engine`. This order was run with VS Code
+  1.145.2 on Linux (WSL) with a separate user data directory; on Windows it is not verified, so
+  check the list there too.
 
   A separate profile keeps the probe out of your daily profile, and the same VS Code instance still
   receives the `vscode://` callback from the operating system (a separate `--user-data-dir` would
   not). In a remote window (WSL or Coder), extensions are installed on the remote host for every
   profile. The probe then replaces the product on that remote host, so reinstall your usual version
   there when you finish.
+
+- **Only probe windows while you test.** VS Code gives the operating system's callback to the
+  window that was active last, whatever its profile. A window of another profile, where the probe is
+  not installed, can take the callback, and the probe never sees it. Before D1 and D2, close every
+  window that is not in the probe profile. You can tell a window's profile from the profile name on
+  the **Manage** (gear) icon in the activity bar. If VS Code shows a dialog about opening the link,
+  or about an extension that is not installed, and no probe window logs a `callback` line, another
+  profile's window took the callback: write that down, close it, and repeat the run.
 
 - **Docker images.** Steps marked **Docker warning** build or pull images with fixed tags. Building
   or pulling a tag replaces the image that had that tag before, and on Docker with the containerd
@@ -73,6 +89,12 @@ gh run download <run id> --repo chtaylo3/backstage-validation-engine --name oidc
 - The Linux VSIX is `bve-probe-linux/linux-local/vsix/probe-backstage-validation-engine-0.1.0-linux-x64.vsix`.
   You need it for the Linux desktop, for the WSL topology, and for the Coder topology.
 
+Use the latest run: probe builds of runs after 43645632753 revoke their refresh token after the
+sign-in check (see Part 2); earlier builds do not. Hosted artifacts expire after 14 days. After
+that, ask the maintainer to run the probe workflow again: a push to the spike branch, or a re-run
+of the latest probe run by someone with write access (`gh run rerun <run id>`). Or build the VSIX
+yourself as below.
+
 If you cannot download them, build them from the spike branch: on Linux or in WSL,
 `node spike/oidc-phase-1/run-probe.mjs --package-only` writes
 `.artifacts/oidc-probe/linux-package/vsix/`; in PowerShell on a Windows checkout of the branch, the
@@ -81,7 +103,8 @@ temporary folder and does not change it.
 
 Install the probe for the window you test:
 
-- **Local window:** `code --profile "BVE probe" --install-extension <the VSIX for this desktop> --force`.
+- **Local window:** `code --profile "BVE probe" --install-extension <the VSIX for this desktop> --force`,
+  after the profile exists (see [before you start](#before-you-start-keep-your-own-setup-safe)).
 - **WSL or Coder window:** open the window in the probe profile and connect it first. Then open the
   Extensions view, select **...** > **Install from VSIX...**, and choose the Linux VSIX. VS Code
   installs it on the remote host.
@@ -99,9 +122,20 @@ the [client metadata document](feasibility-record.md#the-client-metadata-documen
 that your Backstage backend trusts. Use that URL as the client ID, and
 `<your Backstage URL>/api/auth` as the authorization server, in the questions below.
 
+Each sign-in creates a refresh session on your Backstage. The probe revokes its refresh token right
+after the check, and its report shows `revokeRefreshToken` with status 200; a probe without that
+field is an older build. From the auth backend source (not tested): Backstage keeps at most one
+refresh session per user for the same client, so the next sign-in replaces it, and an unused
+session ends after `auth.experimentalRefreshToken.tokenLifetime` (30 days by default). To remove one
+earlier, an administrator deletes the rows of the `offline_sessions` table of the auth database
+whose `oidc_client_id` is the probe's client ID.
+
 **Option B: the test application.** **Docker warning:** `backstage:test:up` builds and tags the
 images `bve-backstage:1.56.3` and `bve-backstage-test:local`, replacing any images with those tags,
-plus images tagged for this run. Run this on the Linux desktop, or in WSL on Windows:
+plus images tagged for this run. The build also pulls its base images, if they are missing:
+`node:24.22.1-bookworm-slim` and `mcr.microsoft.com/playwright:v1.64.1-noble`, both at pinned
+digests (several GB together). They stay after the clean-up. Run this on the Linux desktop, or in
+WSL on Windows:
 
 ```sh
 npm run backstage:test:up -- --target=1.56.3 --run=desk-1563
@@ -131,48 +165,68 @@ npm run backstage:test:clean -- --run=desk-1563
 ```
 
 The clean command removes the run's containers, volumes, network, and run-tagged images. It does
-not remove `bve-backstage:1.56.3` or `bve-backstage-test:local`. Compare with
-`~/bve-images-before.txt` and remove them only if they were not there before.
+not remove `bve-backstage:1.56.3`, `bve-backstage-test:local`, or the two base images. Compare with
+`~/bve-images-before.txt` and remove them only if they were not there before. The test application
+keeps its refresh sessions in its own database, which the clean command deletes.
 
 ## Part 3: Set up a Coder workspace
 
-These server-side steps ran on a Linux host with Docker on 2026-11-14 with Coder v2.39.1. They
-are not verified on Windows with Docker Desktop. On Windows, run them in the WSL Ubuntu shell and
-write down any step that behaves differently.
+The desktop and the workspace reach the Coder server under different names, and that differs
+between Docker Desktop (Windows) and Docker Engine (a Linux desktop):
+
+- The access URL is `http://localhost:7080`. The desktop browser and the Coder Remote extension use
+  it as it is.
+- The workspace agent runs in a container of the Docker starter template. That template replaces
+  `localhost` in the access URL with `host.docker.internal`, and maps that name to `host-gateway`
+  (`examples/templates/docker/main.tf` of Coder v2.39.1, lines 182 to 186).
+- **Docker Desktop (Windows):** `host-gateway` is Docker Desktop's host address, which reaches ports
+  that are published on the host's loopback address. A port published on `127.0.0.1` is enough, and
+  no other interface is opened. This was shown on 2026-11-14 in WSL 2 against Docker Desktop's
+  engine, with a test container on a loopback-published port (not with Coder itself): another
+  container reached it through `host.docker.internal`, and Windows reached it through `localhost`.
+  On that desktop, `host.docker.internal` resolved to the host's network address, where nothing
+  listened. That is why the desktop uses `localhost`, not `host.docker.internal`.
+- **Docker Engine (a Linux desktop):** `host-gateway` is the address of the `docker0` bridge, and a
+  container normally cannot reach a port that is published only on `127.0.0.1`. Publish the port on
+  the bridge address as well. That address is reachable from this machine and from its containers,
+  not from other machines, unless your machine routes or forwards it; it stays open until you remove
+  the container. This was not run: the implementer had no Docker Engine desktop. Use the checks in
+  step 2 to confirm it.
 
 1. **Docker warning:** this pulls `ghcr.io/coder/coder:latest`, and step 4 pulls
    `codercom/example-base:ubuntu`. Check first whether you already have them:
    `grep -E 'coder/coder|example-base' ~/bve-images-before.txt`. Then start the open-source Coder
-   server in Docker:
+   server in Docker. In the WSL shell on Windows, or on the Linux desktop:
 
    ```sh
-   export CODER_DATA=$HOME/.config/coderv2-docker
+   export CODER_DATA=$HOME/.config/bve-coder-data
    export DOCKER_GROUP=$(getent group docker | cut -d: -f3)
    mkdir -p "$CODER_DATA"
-   docker run -d --name bve-coder \
-     -p 127.0.0.1:7080:7080 \
+   # Docker Desktop (Windows): the loopback address only.
+   export CODER_PUBLISH="-p 127.0.0.1:7080:7080"
+   # Docker Engine (Linux desktop): also the docker0 bridge address. Use this line instead:
+   # export CODER_PUBLISH="-p 127.0.0.1:7080:7080 -p $(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'):7080:7080"
+   docker run -d --name bve-coder $CODER_PUBLISH \
      -e CODER_HTTP_ADDRESS=0.0.0.0:7080 \
-     -e CODER_ACCESS_URL=http://host.docker.internal:7080 \
-     --add-host host.docker.internal:host-gateway \
+     -e CODER_ACCESS_URL=http://localhost:7080 \
      -v "$CODER_DATA":/home/coder/.config \
      -v /var/run/docker.sock:/var/run/docker.sock \
      --group-add "$DOCKER_GROUP" \
      ghcr.io/coder/coder:latest
-   curl -s http://127.0.0.1:7080/api/v2/buildinfo
    ```
 
-   Write down the `version` that the last command prints. Create the data directory yourself, as
-   shown: the server runs as user 1000 and cannot write to a directory that Docker creates for it.
-   If `$HOME/.config/coderv2-docker` already exists, use another directory, so that clean-up does
-   not delete your data. If `getent group docker` prints nothing, write that down and use
-   `--group-add 0`.
+   `CODER_HTTP_ADDRESS=0.0.0.0` is the address inside the container; the host publishes only the
+   addresses of `CODER_PUBLISH`. Create the data directory yourself, as shown: the server runs as
+   user 1000 and cannot write to a directory that Docker creates for it. If the directory already
+   exists, choose another name, so that clean-up does not delete your data. If
+   `getent group docker` prints nothing, write that down and use `--group-add 0`.
 
-2. Make the access URL resolve on the desktop. The workspace agent and the Coder Remote extension
-   both use `http://host.docker.internal:7080`.
-   - **Windows:** Docker Desktop adds `host.docker.internal` to the hosts file. Check with
-     `ping host.docker.internal` in PowerShell.
-   - **Linux:** if `getent hosts host.docker.internal` prints nothing, add the line
-     `127.0.0.1 host.docker.internal` to `/etc/hosts`, and write down that you added it.
+2. Check that the desktop reaches the server, and write down the `version`:
+   - **Windows, in PowerShell:** `Invoke-RestMethod http://localhost:7080/api/v2/buildinfo`
+   - **Linux desktop, in a shell:** `curl -fsS http://localhost:7080/api/v2/buildinfo`
+
+   If this fails, run `docker logs bve-coder` and `docker ps --filter name=bve-coder`, write down
+   what they show, and stop here: the rest of Part 3 needs this address.
 
 3. Open `http://localhost:7080` in the browser and create the first user (the administrator).
 
@@ -188,7 +242,19 @@ write down any step that behaves differently.
    docker exec bve-coder /opt/coder list
    ```
 
-   The list shows `bve-probe` with status `Started` and healthy `true`.
+   The list shows `bve-probe` with status `Started` and healthy `true`. Then check the
+   workspace's own view of the server:
+
+   ```sh
+   docker exec "$(docker ps --filter name=bve-probe --format '{{.Names}}' | head -1)" \
+     curl -fsS http://host.docker.internal:7080/api/v2/buildinfo
+   ```
+
+   If `coder list` shows the workspace unhealthy or this request fails: on Docker Engine, check
+   that you used the second `CODER_PUBLISH` line, and that no firewall blocks the `docker0`
+   interface (`sudo ufw status`); on Docker Desktop, write down the Docker Desktop version and the
+   output. If `curl` is missing in the workspace image, write that down; `coder list` is then the
+   check.
 
 5. Connect desktop VS Code. In the Coder dashboard, open the workspace and select **VS Code
    Desktop**. The browser asks to open VS Code. VS Code installs the Coder Remote extension
@@ -207,8 +273,8 @@ sudo rm -rf "$CODER_DATA"
 ```
 
 Remove `ghcr.io/coder/coder:latest` and `codercom/example-base:ubuntu` only if they are not in
-`~/bve-images-before.txt`. If you added `host.docker.internal` to `/etc/hosts` in step 2, remove
-that line again.
+`~/bve-images-before.txt`. If an earlier version of this procedure made you add
+`host.docker.internal` to `/etc/hosts`, remove that line again.
 
 ## Part 4: The questions
 
@@ -219,15 +285,15 @@ one row of the [observation sheet](#observation-sheet), and copy the probe repor
 Do not copy the browser's address bar or a `vscode://` link from the browser, and do not take
 screenshots of the address bar or of the VS Code dialog **Allow 'Backstage Validation Engine'
 extension to open this URI?**: those can show the authorization code. Write the dialog's text by
-hand.
+hand, and write `<link>` in place of any link that it shows.
 
 ### D1: Does the browser hand the redirect to VS Code, and does the callback reach the extension?
 
 Topologies: Windows local, Windows WSL, Windows Coder, Linux local (system package), Linux Coder.
 
-1. Open a window in the topology, in the probe profile: a local folder; or `code --profile "BVE
-probe" .` from the WSL shell; or the Coder workspace from the dashboard. Install the probe in it
-   and reload.
+1. Close every window that is not in the probe profile. Open a window in the topology, in the
+   probe profile: a local folder; or `code --profile "BVE probe" .` from the WSL shell; or the
+   Coder workspace from the dashboard. Install the probe in it and reload.
 2. Run **Backstage OIDC Probe: Start Sign-In**. Enter the authorization server from Part 2, and
    then the client ID.
 3. The output channel shows a `sign-in started` line. Write down its
@@ -239,7 +305,8 @@ probe" .` from the WSL shell; or the Coder workspace from the dashboard. Install
    - whether the browser asks to open VS Code, its exact text, and whether it offers to remember
      the choice;
    - whether VS Code asks **Allow 'Backstage Validation Engine' extension to open this URI?**,
-     and its exact text. Select **Open**. Do not check **Do not ask me again** on the first run;
+     and its exact text, with `<link>` in place of the link. Select **Open**. Do not check **Do not
+     ask me again** on the first run;
    - the `callback` line in the output channel: `stateMatches`, `pendingAttemptInThisWindow`,
      `exchange`, and `userinfo`.
 6. Repeat steps 2 to 5 once, and this time check **Do not ask me again** in the VS Code prompt.
@@ -253,7 +320,8 @@ Write down the exchange error for D3.
 
 Topologies: Windows (a local window and a WSL window), Linux (a local window and a Coder window).
 
-1. Open both windows in the probe profile. Install the probe in both.
+1. Close every window that is not in the probe profile. Open both windows in the probe profile.
+   Install the probe in both.
 2. In window A, run **Start Sign-In**. Before you select **Authorize** in the browser, click into
    window B, so that window B was active last.
 3. Select **Authorize**. Write down which window logs a `callback` line, and its
@@ -331,15 +399,27 @@ Topology: Linux local. Use a separate folder for each part.
       dbus-run-session --config-file="$HOME/bve-no-keyring-bus.conf" -- sh -c 'dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListActivatableNames; dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames' | grep -i -E 'secrets|kwallet'
       ```
 
-   3. Quit every VS Code window. Then start VS Code on that bus, in the probe profile:
+   3. Quit every VS Code window, so that `code` starts a new editor instead of handing the folder to
+      a running one on your normal bus. Then start VS Code on that bus, in the probe profile. With
+      `--wait`, `dbus-run-session` keeps the private bus until you close the window; without it,
+      the bus ends at once and the editor runs with no D-Bus at all:
 
       ```sh
-      dbus-run-session --config-file="$HOME/bve-no-keyring-bus.conf" -- code --profile "BVE probe" --new-window <folder>
+      dbus-run-session --config-file="$HOME/bve-no-keyring-bus.conf" -- code --wait --profile "BVE probe" --new-window <folder>
       ```
 
-   4. Run **Check Secret Storage**. Write down every message that VS Code shows, the report line,
-      and the lines about secret storage in **Developer: Show Logs...** > **Main**. Quit VS Code
+   4. Check the editor's own bus: in that window, open a terminal (**Terminal: Create New
+      Terminal**), which inherits the editor's environment, and run the two `dbus-send` commands of
+      step 2 there. The first lists only `org.freedesktop.DBus`. If it lists more, or fails, write
+      that down and stop.
+   5. Run **Check Secret Storage**. Write down every message that VS Code shows, the report line,
+      and the lines about secret storage in **Developer: Show Logs...** > **Main**. Close the window
       afterwards; your normal session is unchanged.
+
+   This sequence was run on 2026-11-14 in WSL 2 under Xvfb with VS Code 1.145.2 from the archive:
+   with `--wait`, the editor's bus answered with only `org.freedesktop.DBus`; without `--wait`,
+   `dbus-run-session` had already ended a few seconds after the start. It was not run on a Linux
+   desktop.
 
 ### D5: Does a forwarded loopback listener receive the redirect?
 
@@ -374,8 +454,7 @@ Then clean up:
 - Remove the probe from the probe profile, or delete the profile (**Profiles: Delete Profile**).
   On every remote host where you installed it (WSL, Coder), uninstall it and reinstall your usual
   version of the extension.
-- Run the clean-up steps of Part 2 and Part 3, including the image comparison and the `/etc/hosts`
-  line.
+- Run the clean-up steps of Part 2 and Part 3, including the image comparison.
 
 ## Observation sheet
 
