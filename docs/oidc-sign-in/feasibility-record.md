@@ -204,6 +204,15 @@ These follow from the answers. The plan overview's decisions are unchanged; the 
   `createSession`, in auth backend 0.30.1 and 0.30.2). If that holds, a developer who signs in on a
   second machine with the same client document ends the refresh session of the first machine.
   Phase 4 should test this before it relies on refresh across machines.
+- **Phases 3 to 5 (tests that carry a real authorization code):** the kept link helper was built and
+  tested with synthetic links only. A test that gives a real code to the editor must not put the
+  link into an assertion's values, because a failing `deepEqual` prints both sides; compare a
+  digest or a redacted form instead. It must account for the link in the process arguments of the
+  CLI and of the editor process that it starts, for the lifetime of the call (inherent to
+  `--open-url`), where other processes of the same user can read it. And a remote test (the SSH
+  fixture) needs its own disk-free link channel: the kept link server serves cases of a local
+  editor only, and the probe's remote case used a request file on the SSH host, which is acceptable
+  only for synthetic links.
 
 ## Evidence by question
 
@@ -213,18 +222,23 @@ does not happen, when `state` does not match, or when a step is missing. Its loc
 [`evidence/flow-1.56.3.json`](evidence/flow-1.56.3.json), with the backend log facts in
 [`evidence/host-1.55.3.json`](evidence/host-1.55.3.json) and
 [`evidence/host-1.56.3.json`](evidence/host-1.56.3.json). These local reports were made before the
-script asserted its expectations; its current expectations hold for them and for the reports of
-hosted run 1. The hosted job **Backstage sign-in flow** reproduced every answer of B1 to B6 on both
-releases in both hosted runs. In hosted run 2 the script asserted its expectations, and none was
+script asserted its expectations. The hosted job **Backstage sign-in flow** reproduced every answer
+of B1 to B6 on both releases in all three hosted runs. In hosted run 2 the script asserted its expectations, and none was
 unmet on either release. The expectations now also require the exact `error_description` of each
 token-endpoint refusal (`Invalid code verifier`, `Authorization code already used`, `Invalid
 refresh token`), and the host runner now fails unless the backend logged the SQLite rotation
 warning and the B5 policy decisions (see B5). Hosted run 3 executed both checks: on 1.55.3 and on
 1.56.3 the flow passed with no unmet expectation, the four refusals had exactly the expected
 reasons, and the host runner reported no unmet expectation, with the SQLite rotation warning
-logged, `ALLOW` for `user:bve-demo/alice`, and `DENY` for `user:bve-demo/bve-denied-user`. The same
-checks also hold, offline, for the local reports and the reports of hosted runs 1 and 2
-(`test/tooling/backstage-oidc-expectations.test.ts`). Both releases gave the same answers. The local commands were:
+logged, `ALLOW` for `user:bve-demo/alice`, and `DENY` for `user:bve-demo/bve-denied-user`.
+
+The unit test `test/tooling/backstage-oidc-expectations.test.ts` checks the committed local reports
+above, and falsified copies of them, against the same expectations
+(`test/integration/backstage/oidc/expectations.mjs`). It does not read the hosted summaries in
+`evidence/`, which have another shape. The raw flow and host reports of hosted runs 1, 2, and 3
+(the downloaded `oidc-flow-<release>` artifacts, which are not committed) were checked against the
+same module by hand on 2026-11-14: none of the twelve reports had an unmet expectation. Both
+releases gave the same answers. The local commands were:
 
 ```sh
 npm run backstage:test:up -- --target=1.56.3 --run=oidc-1563-b
@@ -368,7 +382,7 @@ editor process started with the test profile. Deliveries, with the time to the f
   (decision 3).
 
 **Hosted run 3**, with the loopback link server (the case sends the link to the host over HTTP
-with a per-session token, and no file holds it) and the tightened `open-url` case:
+with a per-session token, and the harness writes it to no file) and the tightened `open-url` case:
 
 - The same pattern as run 2, on both editors: the harness default and both other `--no-sandbox`
   variants delivered once on every runner, and the sandboxed variant delivered once on Windows and
@@ -603,8 +617,10 @@ default branch. Remove all three with the spike branch.
 - `test/integration/backstage/editor/cdp.mjs`: a small Chromium driver.
 - `scripts/extension-test-cli.mjs`: `openUrl`, which passes `--no-sandbox`, puts the link last, and
   records the CLI's redacted evidence, and the link server that cases use to ask the host for a
-  link. A case sends the link over loopback HTTP with a per-session bearer token, so the link is
-  never written to disk, and `redactLinkValues` removes credential values also in percent-encoded,
+  link. A case sends the link over loopback HTTP with a per-session bearer token, so the harness
+  writes the link to no file; it is still in the CLI's process arguments while the call runs (see
+  the Phase 3 to 5 item in [changes for later phases](#changes-for-later-phases-and-for-the-owner)).
+  `redactLinkValues` removes credential values also in percent-encoded,
   doubly encoded, HTML-escaped, and JSON-escaped forms. The installed-editor case `open-url` runs
   only when named. A unit test covers the arguments, the redaction, the link server, and that a link
   with `code` and `state` leaves neither value on disk or in the answer.

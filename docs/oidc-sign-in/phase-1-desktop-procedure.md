@@ -40,6 +40,13 @@ Plan for about three hours. Write down each observation as you make it, in the
   that does not exist yet (it answers `Profile 'BVE probe' not found.`), so open a window with the
   new profile first, which creates it, and close that window:
 
+  **Where to run these commands.** On Windows, run them in **PowerShell**, not in a WSL shell: in a
+  WSL shell, `code` is VS Code's WSL command, so `--install-extension` installs into the WSL host
+  and `--list-extensions` lists the WSL host's extensions, which would confirm the install falsely.
+  Give a VSIX path that Windows can read, for example a file under `$env:USERPROFILE\Downloads`
+  (download the Windows VSIX in PowerShell, as in Part 1). On a Linux desktop, run them in a
+  terminal of the desktop, outside any remote window.
+
   ```sh
   code --profile "BVE probe" --new-window <an empty folder>
   # close that window, then:
@@ -47,9 +54,39 @@ Plan for about three hours. Write down each observation as you make it, in the
   code --profile "BVE probe" --list-extensions
   ```
 
-  The last command lists `chtaylo3.backstage-validation-engine`. This order was run with VS Code
-  1.145.2 on Linux (WSL) with a separate user data directory; on Windows it is not verified, so
-  check the list there too.
+  The last command lists `chtaylo3.backstage-validation-engine`. To check that the install went to
+  the desktop profile and not to a remote host: in PowerShell, `Get-Command code` names a file in
+  the Windows installation of VS Code (for example `...\Microsoft VS Code\bin\code.cmd`); and in a
+  local (not remote) window of the probe profile, the Extensions view lists the probe under
+  **Installed**, not under a heading such as **WSL: Ubuntu - Installed**.
+
+  A new profile is empty, so it also lacks the remote extensions. Before the WSL and Coder
+  topologies, install them into the probe profile, in the same place as above:
+
+  ```sh
+  code --profile "BVE probe" --install-extension ms-vscode-remote.remote-wsl
+  code --profile "BVE probe" --install-extension ms-vscode-remote.remote-ssh
+  code --profile "BVE probe" --install-extension coder.coder-remote
+  ```
+
+  (`remote-wsl` only on Windows.) Where the probe itself goes depends on the topology, because it is
+  a workspace extension and runs where the workspace is:
+
+  | Topology               | Install the probe in                   | How                                                                       |
+  | ---------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+  | Windows local          | the probe profile on Windows           | the PowerShell commands above, with the Windows VSIX                      |
+  | Windows WSL            | the WSL host                           | **Install from VSIX...** in a WSL window of the probe profile, Linux VSIX |
+  | Windows or Linux Coder | the Coder workspace                    | **Install from VSIX...** in the Coder window, Linux VSIX                  |
+  | Linux local            | the probe profile on the Linux desktop | the commands above in a desktop terminal, with the Linux VSIX             |
+
+  For WSL and Coder, the desktop profile needs only the remote extensions, not the probe.
+
+  What was run for real: on Linux (WSL, VS Code 1.145.2 and 1.106.3, a separate user data
+  directory), `--install-extension` into a missing profile answered `Profile 'BVE probe' not
+found.`, and on 1.145.2 opening a window with `--profile "BVE probe"` created the profile, after
+  which the install listed the probe in that profile only. Not run: the PowerShell commands, the
+  WSL-shell behavior, and the remote extensions in a new profile. Those follow VS Code's
+  documentation of profiles and remote development; write down anything that differs.
 
   A separate profile keeps the probe out of your daily profile, and the same VS Code instance still
   receives the `vscode://` callback from the operating system (a separate `--user-data-dir` would
@@ -104,7 +141,9 @@ temporary folder and does not change it.
 Install the probe for the window you test:
 
 - **Local window:** `code --profile "BVE probe" --install-extension <the VSIX for this desktop> --force`,
-  after the profile exists (see [before you start](#before-you-start-keep-your-own-setup-safe)).
+  after the profile exists, in PowerShell on Windows or a desktop terminal on Linux (see
+  [before you start](#before-you-start-keep-your-own-setup-safe), which also lists where the probe
+  goes for each topology).
 - **WSL or Coder window:** open the window in the probe profile and connect it first. Then open the
   Extensions view, select **...** > **Install from VSIX...**, and choose the Linux VSIX. VS Code
   installs it on the remote host.
@@ -269,8 +308,31 @@ Remove Coder when you finish all questions:
 ```sh
 docker exec bve-coder /opt/coder delete bve-probe --yes
 docker rm -f bve-coder
-sudo rm -rf "$CODER_DATA"
+# Set the variable again: a new shell does not have it. Use the name you chose in step 1.
+CODER_DATA="$HOME/.config/bve-coder-data"
+ls -ld "$CODER_DATA" && sudo rm -rf -- "${CODER_DATA:?CODER_DATA is empty}"
 ```
+
+The `${CODER_DATA:?...}` form stops the command if the variable is empty, and `ls -ld` shows
+first what will be removed.
+
+Coder Remote also wrote to your desktop. From its source (`coder/vscode-coder` v1.18.0; not run):
+
+- **SSH configuration.** It adds a block to `~/.ssh/config` (Windows:
+  `%USERPROFILE%\.ssh\config`) that starts with a line `# --- START CODER` and ends with the
+  matching `# --- END CODER` line: either `# --- START CODER VSCODE <host> ---`, or
+  `# --- START CODER INCLUDE CODER-REMOTE ---` with an `Include` line. Delete that block. The
+  `Include` form also generated files in `coder.coder-remote/ssh/` in the platform data directory
+  (Windows: `%APPDATA%\coder.coder-remote\ssh\`; Linux:
+  `${XDG_DATA_HOME:-$HOME/.local/share}/coder.coder-remote/ssh/`); delete the files whose name ends
+  in `--<host>.conf`, where `<host>` is the Coder host name, for example `localhost`.
+- **The `coder` binary and the session.** It keeps them per deployment in its global storage, in
+  `coder.coder-remote/<host>/` (`bin/` for the binary, and the files `session`, `session_token`, and
+  `url`). The global storage is under VS Code's user data: Windows `%APPDATA%\Code\User\`, Linux
+  `~/.config/Code/User/`, in `globalStorage/` for the default profile and, for another profile,
+  possibly in `profiles/<profile id>/globalStorage/` (not verified). Delete the
+  `coder.coder-remote/<host>/` folder that you find, or the whole `coder.coder-remote` folder if you
+  did not use Coder Remote before. Deleting the probe profile also removes its own folder.
 
 Remove `ghcr.io/coder/coder:latest` and `codercom/example-base:ubuntu` only if they are not in
 `~/bve-images-before.txt`. If an earlier version of this procedure made you add

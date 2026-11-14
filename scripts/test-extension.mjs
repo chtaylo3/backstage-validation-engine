@@ -788,7 +788,8 @@ async function execute(spec, output, fault, peer) {
       // A new log session in the profile means that the CLI's editor process started with it.
       const sessions = async () =>
         (await readdir(path.join(profile, 'logs')).catch(() => [])).length;
-      // The link travels to the host over loopback HTTP and is never written to disk.
+      // The link travels to the host over loopback HTTP; the harness writes it to no file (it is
+      // still in the CLI's process arguments while the call runs; see serveOpenUrlRequests).
       const links = await serveOpenUrlRequests(async (url, options) => {
         const allowed = Object.fromEntries(
           ['noSandbox', 'verbose', 'separator']

@@ -30,8 +30,9 @@ export interface OpenUrlAnswer {
 /**
  * Ask the host to give this editor a `vscode://` link with `--open-url`, as an operating system
  * does when a browser follows the link. The link goes to the host over loopback HTTP, with the
- * session's bearer token, and is never written to disk. Resolves with the host's answer when its
- * CLI call has finished; delivery to a URI handler is the caller's observation.
+ * session's bearer token; the harness writes it to no file (it is still in the CLI's process
+ * arguments while the call runs). Resolves with the host's answer when its CLI call has finished;
+ * delivery to a URI handler is the caller's observation.
  */
 export async function openUrl(url: string, options: OpenUrlOptions = {}): Promise<OpenUrlAnswer> {
   const endpoint = process.env.BVE_EXTENSION_TEST_LINKS;

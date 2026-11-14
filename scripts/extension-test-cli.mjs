@@ -234,8 +234,11 @@ export const LINK_TOKEN_VARIABLE = 'BVE_EXTENSION_TEST_LINKS_TOKEN';
  * Answer the link requests of the cases in one editor session, over HTTP on the loopback address.
  * A case sends `POST <endpoint>` with `{ url, options? }` and the session's bearer token; the host
  * calls `open(url, options)` and answers `{ status, error?, cli? }`, where `cli` is the evidence
- * that `openUrl` returns. The link travels only in memory and on the loopback connection: nothing
- * writes it to disk, so a link with an authorization code cannot reach uploaded evidence.
+ * that `openUrl` returns. The harness writes the link to no file, so it cannot reach uploaded
+ * evidence that way. It is in memory, on the loopback connection, and, for the lifetime of the CLI
+ * call, in the process arguments of the CLI and of the editor process that it starts (inherent to
+ * `--open-url`), where other processes of the same user can read it. A failing assertion that
+ * compares links can also print it. This server serves cases of a local editor only.
  */
 export async function serveOpenUrlRequests(open) {
   const token = randomBytes(24).toString('hex');
