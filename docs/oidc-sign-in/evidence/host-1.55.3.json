@@ -1,0 +1,8 @@
+{
+  "sqliteRotationWarning": true,
+  "userPermissionDecisions": [
+    "{\"user\":\"user:bve-demo/alice\",\"permission\":\"catalog.entity.read\",\"nativeResult\":\"ALLOW\",\"result\":\"ALLOW\",\"method\":\"authorizeConditional\"}",
+    "{\"user\":\"user:bve-demo/bve-denied-user\",\"permission\":\"catalog.entity.read\",\"nativeResult\":\"ALLOW\",\"result\":\"DENY\",\"method\":\"authorizeConditional\"}"
+  ],
+  "clientDocumentFetches": 9
+}

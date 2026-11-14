@@ -54,6 +54,17 @@ auth:
   providers:
     guest:
       dangerouslyAllowOutsideDevelopment: true
+  # Sign-in for native clients. The harness serves the client document on the
+  # Compose network; see README.md. Exact entries only: a configured
+  # redirect pattern list replaces Backstage's loopback defaults.
+  clientIdMetadataDocuments:
+    enabled: true
+    allowedClientIdPatterns:
+      - https://client-document:8443/vscode-client.json
+    allowedRedirectUriPatterns:
+      - vscode://chtaylo3.backstage-validation-engine/sign-in
+  experimentalRefreshToken:
+    enabled: true
 catalog:
   rules:
     - allow: [Group, User, Component, API, System, Domain, Resource, Location]

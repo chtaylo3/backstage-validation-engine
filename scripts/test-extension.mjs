@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
-import { runVSCodeCommand } from './extension-test-cli.mjs';
+import { openUrl, runVSCodeCommand, serveOpenUrlRequests } from './extension-test-cli.mjs';
 import { selectInstalledModules } from './extension-test-selection.mjs';
 import { prepareFixture } from './extension-test-fixture.mjs';
 import { launchEditor, readProgress } from './extension-test-process.mjs';
@@ -783,7 +783,17 @@ async function execute(spec, output, fault, peer) {
         );
         if (result.exitCode !== 0 || result.error || progress?.status !== 'passed') break;
       }
-    } else result = await launch(args, {}, base);
+    } else {
+      // A case can ask the host to give the running editor a vscode:// link, as an OS does.
+      const links = serveOpenUrlRequests(base, (url) =>
+        openUrl(executable, url, { userDataDir: profile, extensionsDir: installed }),
+      );
+      try {
+        result = await launch(args, {}, base);
+      } finally {
+        await links.stop();
+      }
+    }
     const progress = await readProgress(progressFile);
     if (closedCleanly && !result.error && progress) {
       progress.status = 'passed';

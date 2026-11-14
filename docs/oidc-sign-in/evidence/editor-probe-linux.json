@@ -1,0 +1,806 @@
+{
+  "purpose": "Phase 1 probe evidence on Linux (WSL 2, Xvfb), 2026-11-14. Synthetic values only: lengths and digests.",
+  "local": {
+    "run1-function-form": {
+      "cases": [
+        {
+          "case": "open-url",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "probe-pipe",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "probe-secret",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "probe-uri",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "restart",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "server-crash",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "shutdown",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        },
+        {
+          "case": "startup",
+          "status": "failed",
+          "phase": "setup",
+          "error": "AssertionError [ERR_ASSERTION]: Running packaged server must expose its PID."
+        }
+      ],
+      "observations": [],
+      "fourthPipe": [
+        {
+          "at": "open-url/probe-fd3-74536.json",
+          "pid": 74536,
+          "bytes": 52,
+          "sha256": "f2bf114697ca54673834106064644ce5ac4d63b459db8af007140ab6d9ee47d5",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "probe-pipe/probe-fd3-75055.json",
+          "pid": 75055,
+          "bytes": 52,
+          "sha256": "cad0b653d4156032133defaf8a2a60ae5db6b1fbc3db7ccaecaf638480057738",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "probe-secret/probe-fd3-75565.json",
+          "pid": 75565,
+          "bytes": 52,
+          "sha256": "808ad997f891e3f092a1faa1bfaa4b32aa4518e78b7df12624fee57f9bb23932",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "probe-uri/probe-fd3-76086.json",
+          "pid": 76086,
+          "bytes": 52,
+          "sha256": "38ff82b16c20e3f742f374ddde30f0240b86fea717dafd847b0526a3bf4ef7a7",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "restart/probe-fd3-76623.json",
+          "pid": 76623,
+          "bytes": 52,
+          "sha256": "93fdfd860a6477920bb5d12bc6f56c22989a5362bc4a014660e4a95e51989682",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "server-crash/probe-fd3-77139.json",
+          "pid": 77139,
+          "bytes": 52,
+          "sha256": "25c6121609b60869086be5842163a4663c13fa725dbd60750024880a4326df2d",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "shutdown/probe-fd3-77652.json",
+          "pid": 77652,
+          "bytes": 52,
+          "sha256": "fd40aae626130b31ed5dbee4550e520120763c24ae31e8f81b652b3b346f8dd3",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "startup/probe-fd3-78191.json",
+          "pid": 78191,
+          "bytes": 52,
+          "sha256": "1863a4221eb59d43fbbf080f2c729f49aaa524a716bfa604e43737c01978ee46",
+          "platform": "linux",
+          "runtime": "node"
+        }
+      ]
+    },
+    "run2-1.145.2": {
+      "cases": [
+        {
+          "case": "1.145.2/open-url",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/probe-pipe",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/probe-secret",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/probe-uri",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/restart",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/server-crash",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/shutdown",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.145.2/startup",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        }
+      ],
+      "observations": [
+        {
+          "at": "1.145.2/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 80041,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 80089,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "1.145.2/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "storedSha256": "6c8d7a471485af1045b41a8f72e8622098c2f7c12a948f46b388f65224314eb1",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "1.145.2/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.145.2",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 1,
+          "firstDeliveryMs": 267,
+          "deliveredPath": "/sign-in",
+          "deliveredQueryUnchanged": true,
+          "handlerExtensionHostPid": 80897,
+          "caseExtensionHostPid": 80897
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "1.145.2/open-url/probe-fd3-79362.json",
+          "pid": 79362,
+          "bytes": 52,
+          "sha256": "8dff729ae3b2394d345ebaf71c478a37eeefe29934a9beba6208ef47bbc5acec",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/probe-pipe/probe-fd3-80041.json",
+          "pid": 80041,
+          "bytes": 52,
+          "sha256": "1b9d62bb3d0443a27a53ad0103889b9299a6022b7687f6f12500b5f10ce4a0aa",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/probe-pipe/probe-fd3-80089.json",
+          "pid": 80089,
+          "bytes": 52,
+          "sha256": "968e88801262e2243c9dbceb05b69a8c27ef89d0ff17bc7ba4ce1487e4155f9c",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/probe-secret/probe-fd3-80574.json",
+          "pid": 80574,
+          "bytes": 52,
+          "sha256": "5de6ab38d40633ba6f748011d223d1165ee3ee8c8fe60358b058d6c97972c7ac",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/probe-uri/probe-fd3-81082.json",
+          "pid": 81082,
+          "bytes": 52,
+          "sha256": "cd61d3a5a8dd30c2d1cb88a9f4aac68eac3946193c9ca855b35e7aed0c31e226",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/restart/probe-fd3-81716.json",
+          "pid": 81716,
+          "bytes": 52,
+          "sha256": "10070fe43edbdb0a63b3705a78e02431b17add9fac2366d8d0e02b32d56e61af",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/restart/probe-fd3-81762.json",
+          "pid": 81762,
+          "bytes": 52,
+          "sha256": "1845e4077788caf146f6bd306ac58b3af900c86313cb7637969c87382d4ca7e7",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/server-crash/probe-fd3-82253.json",
+          "pid": 82253,
+          "bytes": 52,
+          "sha256": "07d0d80449f7fe6a0c8c053d1a2972b12a6aee983cf7d954296a342b022f9ec9",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/server-crash/probe-fd3-82299.json",
+          "pid": 82299,
+          "bytes": 52,
+          "sha256": "7e2b0bc639b95dcf8c3adb2c5ef47f53331e24319fb6024b8cdae6d82c948d32",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/server-crash/probe-fd3-82319.json",
+          "pid": 82319,
+          "bytes": 52,
+          "sha256": "89f134b291471319107b18f35dfa1a4f3d25dc05e7f831b9fb13760eddee7892",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/server-crash/probe-fd3-82344.json",
+          "pid": 82344,
+          "bytes": 52,
+          "sha256": "12e680b47d48c74a0931f7ad38f2282d89d26d0e0c500f863b6a2f6c23a4ee90",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/shutdown/probe-fd3-82835.json",
+          "pid": 82835,
+          "bytes": 52,
+          "sha256": "a25e0e809aa0596c53ed9db0d7ae7f489cd808409e962cec8f609f599a176396",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.145.2/startup/probe-fd3-83352.json",
+          "pid": 83352,
+          "bytes": 52,
+          "sha256": "eef9f34eaf74dca3a116e5ace3f1748328501b04d29eebbc55362d9bbaf03a56",
+          "platform": "linux",
+          "runtime": "node"
+        }
+      ]
+    },
+    "run3-1.106.3": {
+      "cases": [
+        {
+          "case": "1.106.3/open-url",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/probe-pipe",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/probe-secret",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/probe-uri",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/restart",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/server-crash",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/shutdown",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        },
+        {
+          "case": "1.106.3/startup",
+          "status": "passed",
+          "phase": "complete",
+          "error": null
+        }
+      ],
+      "observations": [
+        {
+          "at": "1.106.3/probe-pipe/probe-pipe-observation.json",
+          "question": "V3",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "sessions": [
+            {
+              "stage": "start",
+              "serverProcessPid": 85090,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            },
+            {
+              "stage": "restart",
+              "serverProcessPid": 85106,
+              "clientServerProcessPid": null,
+              "sentBytes": 52,
+              "receivedBytes": 52,
+              "digestsMatch": true,
+              "serverRuntime": "node"
+            }
+          ]
+        },
+        {
+          "at": "1.106.3/probe-secret/probe-secret-observation.json",
+          "question": "V4 (local half)",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "storedSha256": "64acd596ddb86bc9ffa5853f35eb016fba237cac085d0e64fb11fc1f0471547a",
+          "readMatches": true,
+          "changeEvents": 1
+        },
+        {
+          "at": "1.106.3/probe-uri/probe-uri-observation.json",
+          "question": "V1",
+          "mode": "open-url",
+          "platform": "linux",
+          "editorVersion": "1.106.3",
+          "remoteName": null,
+          "requestError": null,
+          "deliveries": 1,
+          "firstDeliveryMs": 548,
+          "deliveredPath": "/sign-in",
+          "deliveredQueryUnchanged": true,
+          "handlerExtensionHostPid": 85939,
+          "caseExtensionHostPid": 85939
+        }
+      ],
+      "fourthPipe": [
+        {
+          "at": "1.106.3/open-url/probe-fd3-84310.json",
+          "pid": 84310,
+          "bytes": 52,
+          "sha256": "08ba484a74ef1410aa4105e570aa2287d704610e8eb15a5b9e6c232a15da21a5",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/probe-pipe/probe-fd3-85090.json",
+          "pid": 85090,
+          "bytes": 52,
+          "sha256": "b85f6e64276353ddef2ded2b56f7644c9d00202fe3c9386233a7d4b69bc028de",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/probe-pipe/probe-fd3-85106.json",
+          "pid": 85106,
+          "bytes": 52,
+          "sha256": "ab7c3e455a7d1ed68eeb84c2a6b99ef67015a0b09b0b8b50258e4d9dd11f8ce7",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/probe-secret/probe-fd3-85648.json",
+          "pid": 85648,
+          "bytes": 52,
+          "sha256": "f5959083bacc6c65aaa6f6b5b932c40628d04528149c15a4117d614958d88b2a",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/probe-uri/probe-fd3-86167.json",
+          "pid": 86167,
+          "bytes": 52,
+          "sha256": "b2ec1da0863d22bc939d44b0dd23947512411e99f0e86b1c3857d42d7f8fc1e9",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/restart/probe-fd3-86801.json",
+          "pid": 86801,
+          "bytes": 52,
+          "sha256": "d8021ad4930d8f8c4259a5c6cea8d75066d935140c87c5c6caf436598d39af97",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/restart/probe-fd3-86820.json",
+          "pid": 86820,
+          "bytes": 52,
+          "sha256": "92f1df4be4cc2cf5db184bc65605a371c8ea85aa3eecec60f10047aa6d99018d",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/server-crash/probe-fd3-87344.json",
+          "pid": 87344,
+          "bytes": 52,
+          "sha256": "c64ea4f876ff232f245319f1b6b2b614127682cd67cf9c86ff9589c83ca27aff",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/server-crash/probe-fd3-87368.json",
+          "pid": 87368,
+          "bytes": 52,
+          "sha256": "fa72622418153564ce535dc464947ce2ed2555bed037dff96bdb8702589cec43",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/server-crash/probe-fd3-87404.json",
+          "pid": 87404,
+          "bytes": 52,
+          "sha256": "f91a2bc15472168591106cd2f9fddeaa52baed9e5086ec4b414dbd39dba43715",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/server-crash/probe-fd3-87425.json",
+          "pid": 87425,
+          "bytes": 52,
+          "sha256": "9ba9f725c3f559589d21deafb223f37b1d3cd2b2e123d41b5c32ebeb0cca1534",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/shutdown/probe-fd3-87948.json",
+          "pid": 87948,
+          "bytes": 52,
+          "sha256": "01b889705470ba911065e9b7522812c2a8429373e4065b06ff0d8e1627ac328f",
+          "platform": "linux",
+          "runtime": "node"
+        },
+        {
+          "at": "1.106.3/startup/probe-fd3-88520.json",
+          "pid": 88520,
+          "bytes": 52,
+          "sha256": "9d0b959b2af5014facaee27bd58c21c49b69119d9cc93049704c9a7de6fd1c2b",
+          "platform": "linux",
+          "runtime": "node"
+        }
+      ]
+    }
+  },
+  "remote": {
+    "run1-without-consent": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-e5337ece-27ac-49cc-a49e-106aaa3a2b29",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 0,
+            "firstDeliveryMs": null,
+            "handlerRemoteName": null,
+            "deliveredQueryUnchanged": null
+          },
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [
+          "Cancel",
+          "Open",
+          "Allow 'Backstage Validation Engine' extension to open this URI?",
+          "Do not ask me again for this extension"
+        ],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-e5337ece-27ac-49cc-a49e-106aaa3a2b29",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 0,
+            "firstDeliveryMs": null,
+            "handlerRemoteName": null,
+            "deliveredQueryUnchanged": null
+          },
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [
+          "Cancel",
+          "Open",
+          "Allow 'Backstage Validation Engine' extension to open this URI?",
+          "Do not ask me again for this extension"
+        ],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      }
+    },
+    "run2-consent-by-setting": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-3d9a13d6-1cac-49fb-be59-87e29bb9f354",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 679,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-3d9a13d6-1cac-49fb-be59-87e29bb9f354",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 524,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": false,
+              "error": "No local window stored."
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": false,
+            "changeEvents": 0,
+            "valueAfterLocalWrite": "absent",
+            "valueMatchesLocalWrite": false
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      }
+    },
+    "final": {
+      "1.106.3": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.106.3",
+          "remoteHostname": "bve-a94caaca-0ab1-4cfe-9fa4-176cdd9290f1",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 686,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": true,
+              "at": 1794689906072
+            },
+            "localWindowActivation": {
+              "at": 1794689906065,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": true,
+            "changeEvents": 1,
+            "valueAfterLocalWrite": "present",
+            "valueMatchesLocalWrite": true
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      },
+      "1.145.2": {
+        "observation": {
+          "remoteName": "ssh-remote",
+          "editorVersion": "1.145.2",
+          "remoteHostname": "bve-a94caaca-0ab1-4cfe-9fa4-176cdd9290f1",
+          "V2": {
+            "hostOpenUrl": "passed",
+            "hostError": null,
+            "deliveries": 1,
+            "firstDeliveryMs": 623,
+            "handlerRemoteName": "ssh-remote",
+            "deliveredQueryUnchanged": true
+          },
+          "externalUriOfRedirect": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+          "confirmedUriHandlerExtensionIds": ["chtaylo3.backstage-validation-engine"],
+          "V4": {
+            "hostLocalWindow": "passed",
+            "hostError": null,
+            "localWindowStore": {
+              "stored": true,
+              "at": 1794689949315
+            },
+            "localWindowActivation": {
+              "at": 1794689949311,
+              "globalStorageFileExists": true,
+              "environmentFileSet": true
+            },
+            "valueBeforeLocalWrite": "absent",
+            "changeEventInRemoteWindow": true,
+            "changeEvents": 1,
+            "valueAfterLocalWrite": "present",
+            "valueMatchesLocalWrite": true
+          }
+        },
+        "dialogTextOnScreen": [],
+        "cases": [
+          {
+            "stage": 0,
+            "status": "passed"
+          },
+          {
+            "stage": 1,
+            "status": "passed"
+          }
+        ]
+      }
+    }
+  }
+}

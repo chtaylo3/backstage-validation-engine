@@ -215,12 +215,13 @@
           "@backstage/plugin-app-backend": "0.5.18",
           "@backstage/plugin-catalog-backend": "4.0.0",
           "@backstage/plugin-catalog": "2.0.9",
+          "@backstage/plugin-auth": "0.1.12",
           "@backstage/plugin-auth-backend": "0.30.1",
           "@backstage/plugin-auth-backend-module-guest-provider": "0.2.23",
           "@backstage/catalog-model": "1.10.1",
           "@backstage/plugin-permission-node": "0.11.5"
         },
-        "lockfileDigest": "sha256:2bec49ad0113e7dc53a80cfaa441d274144e562e7a6a81bfcaa0e84fa9bdc89a",
+        "lockfileDigest": "sha256:161a6dfbafba1513c516cc9c05507f91cd0342e7aac1b3dd644d92d31c3bdac4",
         "baseImage": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d"
       },
       "1.56.3": {
@@ -235,12 +236,13 @@
           "@backstage/plugin-app-backend": "0.5.19",
           "@backstage/plugin-catalog-backend": "4.0.2",
           "@backstage/plugin-catalog": "2.0.10",
+          "@backstage/plugin-auth": "0.1.13",
           "@backstage/plugin-auth-backend": "0.30.2",
           "@backstage/plugin-auth-backend-module-guest-provider": "0.2.24",
           "@backstage/catalog-model": "1.10.2",
           "@backstage/plugin-permission-node": "0.11.5"
         },
-        "lockfileDigest": "sha256:303646c248f1f0f3e65dae0274e104ea0836cdbae5cba6afcefb25f829a63b38",
+        "lockfileDigest": "sha256:231263504a193a71b24f9c9f3302bb41682519b061952205c0124121099b13d7",
         "baseImage": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d"
       }
     }

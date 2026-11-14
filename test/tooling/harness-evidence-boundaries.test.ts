@@ -139,9 +139,9 @@ void test('versioned installed inventory uses the actual portable selector witho
     .map((name) => name.replace(/\.ts$/u, '.cjs'))
     .sort();
   assert.deepEqual(modules, independent.modules);
-  assert.equal(modules.length, 58);
+  assert.equal(modules.length, 59);
   assert.deepEqual(selectInstalledModules(modules), independent.portable);
-  assert.equal(selectInstalledModules(modules).length, 50);
+  assert.equal(selectInstalledModules(modules).length, 51);
   const ids = modules.map((name) => name.replace(/\.case\.cjs$/u, ''));
   assert.deepEqual(
     selectInstalledModules(ids),

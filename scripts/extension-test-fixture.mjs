@@ -52,7 +52,7 @@ export async function prepareFixture({
       main: 'index.cjs',
       activationEvents: autonomousSuite
         ? ['onStartupFinished', ...(virtual ? ['onFileSystem:bve-virtual'] : [])]
-        : [],
+        : ['onUri'],
       capabilities: {
         untrustedWorkspaces: { supported: true },
         virtualWorkspaces: { supported: true },
@@ -63,7 +63,8 @@ export async function prepareFixture({
     path.join(driver, 'index.cjs'),
     autonomousSuite
       ? `exports.activate = (context) => { const vscode = require('vscode'); ${virtual ? `const events=new vscode.EventEmitter(); context.subscriptions.push(events,vscode.workspace.registerFileSystemProvider('bve-virtual',{onDidChangeFile:events.event,watch:()=>new vscode.Disposable(()=>{}),stat:u=>({type:u.path==='/workspace'?vscode.FileType.Directory:vscode.FileType.File,ctime:0,mtime:0,size:256}),readDirectory:()=>[['catalog.yaml',vscode.FileType.File],['team.yaml',vscode.FileType.File]],readFile:u=>require('fs').readFileSync(require('path').join(${JSON.stringify(workspace)},require('path').basename(u.path))),createDirectory:()=>{throw vscode.FileSystemError.NoPermissions()},writeFile:()=>{throw vscode.FileSystemError.NoPermissions()},delete:()=>{throw vscode.FileSystemError.NoPermissions()},rename:()=>{throw vscode.FileSystemError.NoPermissions()}},{isReadonly:true}));` : ''} void require(${JSON.stringify(autonomousSuite)}).run().then(() => vscode.commands.executeCommand('workbench.action.quit'), error => { console.error(error); return vscode.commands.executeCommand('workbench.action.quit'); }).catch(console.error); };\n`
-      : 'exports.activate = () => {};\n',
+      : // The driver's URI handler receives the links that a case asks the host to open.
+        "exports.activate = (context) => { const vscode = require('vscode'); const received = []; context.subscriptions.push(vscode.window.registerUriHandler({ handleUri: (uri) => { received.push(uri.toString(true)); } })); return { receivedUris: () => [...received] }; };\n",
   );
   const component =
     'apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: service}\nspec:\n  type: service\n  lifecycle: experimental\n  owner: team\n';

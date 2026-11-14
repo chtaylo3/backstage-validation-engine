@@ -1,0 +1,293 @@
+{
+  "release": "1.55.3",
+  "startedAt": "2026-11-14T20:00:04.044Z",
+  "configuration": {
+    "publicUrl": "http://localhost:33479",
+    "clientId": "https://client-document:8443/vscode-client.json",
+    "redirectUri": "vscode://chtaylo3.backstage-validation-engine/sign-in",
+    "expectedAccessTokenLifetimeSeconds": 900,
+    "secondUser": "user:bve-demo/bve-denied-user"
+  },
+  "steps": {
+    "discovery": {
+      "status": 200,
+      "issuer": "http://localhost:33479/api/auth",
+      "issuerIsAuthPluginBase": true,
+      "endpointsShareIssuerOrigin": true,
+      "authorization_endpoint": "http://localhost:33479/api/auth/v1/authorize",
+      "token_endpoint": "http://localhost:33479/api/auth/v1/token",
+      "userinfo_endpoint": "http://localhost:33479/api/auth/v1/userinfo",
+      "revocation_endpoint": "http://localhost:33479/api/auth/v1/revoke",
+      "client_id_metadata_document_supported": true,
+      "code_challenge_methods_supported": ["S256", "plain"],
+      "token_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "none"
+      ],
+      "grant_types_supported": ["authorization_code", "refresh_token"],
+      "scopes_supported": ["openid", "offline_access"]
+    },
+    "B1-B3.authorize-consent-redirect": {
+      "pages": ["sign-in", "consent"],
+      "consentPath": "/oauth2/authorize/<session>",
+      "consentShowsClientName": true,
+      "consentShowsRedirectUri": true,
+      "approveStatus": 200,
+      "redirectObservedAs": "browser navigation (Page.frameScheduledNavigation)",
+      "browserNavigationEvents": [
+        "Page.frameScheduledNavigation",
+        "Page.frameRequestedNavigation",
+        "Page.frameStartedNavigating"
+      ],
+      "redirect": {
+        "url": "vscode://chtaylo3.backstage-validation-engine/sign-in?code=%3Credacted+length%3D43%3E&state=%3Credacted+length%3D22%3E",
+        "protocol": "vscode:",
+        "authority": "chtaylo3.backstage-validation-engine",
+        "pathname": "/sign-in",
+        "queryKeys": ["code", "state"],
+        "stateMatches": true,
+        "codeLength": 43
+      },
+      "clientDocumentFetches": ["/vscode-client.json 200", "/vscode-client.json 200"]
+    },
+    "TC2.wrong-verifier": {
+      "status": 400,
+      "error": {
+        "error": "invalid_grant",
+        "error_description": "Invalid code verifier"
+      }
+    },
+    "TC1.exchange": {
+      "status": 200,
+      "fields": ["access_token", "expires_in", "id_token", "refresh_token", "scope", "token_type"],
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "scope": "openid offline_access",
+      "accessTokenLength": 492,
+      "idTokenEqualsAccessToken": true,
+      "refreshTokenPresent": true,
+      "refreshTokenLength": 80,
+      "accessClaims": {
+        "iss": "http://localhost:33479/api/auth",
+        "sub": "user:bve-demo/alice",
+        "aud": "backstage",
+        "lifetimeSeconds": 900,
+        "claimNames": ["aud", "exp", "iat", "iss", "sub", "uip"]
+      }
+    },
+    "TC3.second-exchange": {
+      "status": 400,
+      "error": {
+        "error": "invalid_grant",
+        "error_description": "Authorization code already used"
+      }
+    },
+    "B4.userinfo": {
+      "status": 200,
+      "body": {
+        "claims": {
+          "sub": "user:bve-demo/alice",
+          "ent": ["user:bve-demo/alice", "group:bve-demo/team-demo"]
+        }
+      }
+    },
+    "B4-TC1.catalog-read": {
+      "withIssuedToken": {
+        "byName": {
+          "status": 200,
+          "entity": "component:bve-demo/demo-service"
+        },
+        "list": {
+          "status": 200,
+          "count": 2
+        }
+      },
+      "withoutToken": 401
+    },
+    "B6.expiry": {
+      "configuredLifetimeSeconds": 900,
+      "expires_in": 3600,
+      "accessTokenLifetimeSeconds": 900,
+      "expiresInMatchesToken": false
+    },
+    "B2.refresh": {
+      "status": 200,
+      "fields": ["access_token", "expires_in", "refresh_token", "token_type"],
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "accessTokenLength": 492,
+      "idTokenEqualsAccessToken": null,
+      "refreshTokenPresent": true,
+      "refreshTokenLength": 80,
+      "accessClaims": {
+        "iss": "http://localhost:33479/api/auth",
+        "sub": "user:bve-demo/alice",
+        "aud": "backstage",
+        "lifetimeSeconds": 900,
+        "claimNames": ["aud", "exp", "iat", "iss", "sub", "uip"]
+      },
+      "refreshTokenRotated": true,
+      "catalogWithRefreshedToken": {
+        "status": 200,
+        "entity": "component:bve-demo/demo-service"
+      }
+    },
+    "B2-TC6.reuse-rotated-out": {
+      "status": 400,
+      "error": {
+        "error": "invalid_grant",
+        "error_description": "Invalid refresh token"
+      }
+    },
+    "B2-TC6.current-after-reuse": {
+      "status": 200,
+      "fields": ["access_token", "expires_in", "refresh_token", "token_type"],
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "accessTokenLength": 492,
+      "idTokenEqualsAccessToken": null,
+      "refreshTokenPresent": true,
+      "refreshTokenLength": 80,
+      "accessClaims": {
+        "iss": "http://localhost:33479/api/auth",
+        "sub": "user:bve-demo/alice",
+        "aud": "backstage",
+        "lifetimeSeconds": 900,
+        "claimNames": ["aud", "exp", "iat", "iss", "sub", "uip"]
+      },
+      "refreshTokenRotated": true
+    },
+    "B2.refresh-with-other-client-id": {
+      "status": 200,
+      "fields": ["access_token", "expires_in", "refresh_token", "token_type"],
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "accessTokenLength": 492,
+      "idTokenEqualsAccessToken": null,
+      "refreshTokenPresent": true,
+      "refreshTokenLength": 80,
+      "accessClaims": {
+        "iss": "http://localhost:33479/api/auth",
+        "sub": "user:bve-demo/alice",
+        "aud": "backstage",
+        "lifetimeSeconds": 900,
+        "claimNames": ["aud", "exp", "iat", "iss", "sub", "uip"]
+      }
+    },
+    "B2.revoke-with-unallowed-client": {
+      "status": 401,
+      "error": {
+        "error": "invalid_client",
+        "error_description": "Invalid client credentials"
+      }
+    },
+    "B2.revoke": {
+      "status": 200,
+      "body": ""
+    },
+    "B2.refresh-after-revoke": {
+      "status": 400,
+      "error": {
+        "error": "invalid_grant",
+        "error_description": "Invalid refresh token"
+      }
+    },
+    "TC7.access-token-after-revoke": {
+      "catalog": {
+        "status": 200,
+        "entity": "component:bve-demo/demo-service"
+      },
+      "userinfo": 200,
+      "note": "The access token is a signed JWT. Revocation deletes the refresh session only."
+    },
+    "TC4.redirect-with-query-not-in-document": {
+      "client": "https://client-document:8443/vscode-client.json",
+      "redirectUri": "vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1",
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "location": null,
+      "error": {
+        "name": "InputError",
+        "message": "Invalid redirect_uri 'vscode://chtaylo3.backstage-validation-engine/sign-in?windowId=1', not registered in client metadata"
+      },
+      "clientDocumentFetches": ["/vscode-client.json 200"]
+    },
+    "TC4.redirect-of-other-extension": {
+      "client": "https://client-document:8443/vscode-client.json",
+      "redirectUri": "vscode://other.publisher/sign-in",
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "location": null,
+      "error": {
+        "name": "InputError",
+        "message": "Invalid redirect_uri 'vscode://other.publisher/sign-in'"
+      },
+      "clientDocumentFetches": ["/vscode-client.json 200"]
+    },
+    "TC4.loopback-redirect": {
+      "client": "https://client-document:8443/vscode-client.json",
+      "redirectUri": "http://127.0.0.1:43123/callback",
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "location": null,
+      "error": {
+        "name": "InputError",
+        "message": "Invalid redirect_uri 'http://127.0.0.1:43123/callback'"
+      },
+      "clientDocumentFetches": ["/vscode-client.json 200"]
+    },
+    "TC5.client-not-allowed": {
+      "client": "https://client-document:8443/unlisted-client.json",
+      "redirectUri": "vscode://chtaylo3.backstage-validation-engine/sign-in",
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "location": null,
+      "error": {
+        "name": "InputError",
+        "message": "Invalid client_id 'https://client-document:8443/unlisted-client.json'"
+      },
+      "clientDocumentFetches": []
+    },
+    "B5.two-users": {
+      "firstUser": {
+        "sub": "user:bve-demo/alice",
+        "catalog": {
+          "byName": {
+            "status": 200,
+            "entity": "component:bve-demo/demo-service"
+          },
+          "list": {
+            "status": 200,
+            "count": 2
+          }
+        }
+      },
+      "secondUser": {
+        "sub": "user:bve-demo/bve-denied-user",
+        "userinfo": {
+          "claims": {
+            "sub": "user:bve-demo/bve-denied-user",
+            "ent": ["user:bve-demo/bve-denied-user"]
+          }
+        },
+        "catalog": {
+          "byName": {
+            "status": 404,
+            "error": {
+              "name": "NotFoundError",
+              "message": "No entity named 'demo-service' found, with kind 'component' in namespace 'bve-demo'"
+            }
+          },
+          "list": {
+            "status": 200,
+            "count": 0
+          }
+        }
+      },
+      "note": "The application restarted with another guest identity between the two sign-ins."
+    }
+  },
+  "completedAt": "2026-11-14T20:00:11.793Z",
+  "status": "passed"
+}

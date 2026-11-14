@@ -94,6 +94,36 @@ npm run backstage:test:clean -- --run=local-demo
 Cleanup examines the owner and run labels before removing containers, networks, or volumes.
 It does not remove another run's resources. Sanitized reports remain available after cleanup.
 
+## Run the sign-in flow
+
+The applications install `@backstage/plugin-auth`, the consent page of Backstage's OAuth
+authorization server. `app-config.test.yaml` enables client ID metadata documents for one exact
+client ID and the redirect URI `vscode://chtaylo3.backstage-validation-engine/sign-in`, and enables
+refresh tokens. The four static tokens are unchanged.
+
+Start a local application as above, then run the flow from the repository root:
+
+```sh
+node test/integration/backstage/oidc/run.mjs --run=local-demo
+```
+
+The runner creates a one-day test certificate authority and a certificate for the Compose host
+`client-document`. It starts `oidc/client-document.mjs` as a Compose service, and restarts
+Backstage with that authority in `NODE_EXTRA_CA_CERTS` and a sign-in overlay. Then it runs
+`oidc/flow.mjs` in the test container. The flow performs discovery, the authorization request with
+PKCE, guest sign-in and consent in Chromium through `editor/cdp.mjs`, the code exchange, `userinfo`,
+catalog reads, refresh, and revocation, and the refusal cases. It also signs in a second user whom
+the test permission policy denies catalog reads. Afterwards the runner restores the application as
+`backstage:test:up` started it.
+
+The sanitized report is `<reportDirectory>/oidc/flow-<release>.json`. It holds statuses, error
+bodies, lengths, and claim names. No token, authorization code, or verifier reaches a log or a
+report, and the flow fails if one does.
+
+`--serve` leaves the sign-in configuration running for a person with a browser and VS Code, and
+prints the values to use. `--restore` removes it. See the
+[Phase 1 desktop procedure](../../../docs/oidc-sign-in/phase-1-desktop-procedure.md).
+
 ## Run the packaged clients during development
 
 Build the CLI archive and Linux VSIX from the current sources. The archive includes its production dependency lock.

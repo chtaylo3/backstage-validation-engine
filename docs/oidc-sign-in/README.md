@@ -9,14 +9,14 @@ the engineers and agents who implement and review the work. Each phase is one in
 reviewable change. Phases 1 to 5 run in order. Phase 6 needs only Phase 2. See the
 [order with the other plans](#order-with-the-other-plans).
 
-| Phase | Plan                                                             | Outcome                                                                    |
-| ----- | ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 1     | [Feasibility checks](phase-1-feasibility.md)                     | The open questions are answered against real Backstage and real VS Code    |
-| 2     | [Launcher-supplied credentials](phase-2-launcher-credentials.md) | The language server accepts a credential from its launcher, in memory only |
-| 3     | [Sign-in in the extension](phase-3-extension-sign-in.md)         | A developer signs in from VS Code and catalog features work                |
-| 4     | [Session lifetime](phase-4-session-lifetime.md)                  | Refresh, expiry, rejection, sign-out, and two windows behave as specified  |
-| 5     | [Qualification and migration](phase-5-qualification.md)          | Evidence on both pinned Backstage releases, and documents without a token  |
-| 6     | [CLI credentials](phase-6-cli-credentials.md)                    | The CLI reads the catalog in CI with the CI system's own token             |
+| Phase | Plan                                                             | Outcome                                                                                                                                                                                          |
+| ----- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1     | [Feasibility checks](phase-1-feasibility.md)                     | The open questions are answered against real Backstage and real VS Code. Answers: [feasibility record](feasibility-record.md). Checks by hand: [desktop procedure](phase-1-desktop-procedure.md) |
+| 2     | [Launcher-supplied credentials](phase-2-launcher-credentials.md) | The language server accepts a credential from its launcher, in memory only                                                                                                                       |
+| 3     | [Sign-in in the extension](phase-3-extension-sign-in.md)         | A developer signs in from VS Code and catalog features work                                                                                                                                      |
+| 4     | [Session lifetime](phase-4-session-lifetime.md)                  | Refresh, expiry, rejection, sign-out, and two windows behave as specified                                                                                                                        |
+| 5     | [Qualification and migration](phase-5-qualification.md)          | Evidence on both pinned Backstage releases, and documents without a token                                                                                                                        |
+| 6     | [CLI credentials](phase-6-cli-credentials.md)                    | The CLI reads the catalog in CI with the CI system's own token                                                                                                                                   |
 
 ## Order with the other plans
 

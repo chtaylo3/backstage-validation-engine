@@ -2,6 +2,7 @@ import { coreServices, createServiceFactory } from '@backstage/backend-plugin-ap
 import { ServerPermissionClient } from '@backstage/plugin-permission-node';
 
 // Test-only policy. Native service-token access restrictions always run first.
+export const DENIED_USER = 'user:bve-demo/bve-denied-user';
 export const testPermissions = createServiceFactory({
   service: coreServices.permissions,
   deps: {
@@ -17,11 +18,16 @@ export const testPermissions = createServiceFactory({
         options?.credentials && auth.isPrincipal(options.credentials, 'service'),
       );
       const subject = service ? options.credentials.principal.subject : undefined;
+      // Sign-in tests: one user is denied catalog reads, and every other user keeps them.
+      const user =
+        options?.credentials && auth.isPrincipal(options.credentials, 'user')
+          ? options.credentials.principal.userEntityRef
+          : undefined;
       return decisions.map((decision, index) => {
         const permission = requests[index].permission.name;
         const result =
           decision.result === 'ALLOW' &&
-          subject === 'bve-filtered' &&
+          (subject === 'bve-filtered' || user === DENIED_USER) &&
           permission === 'catalog.entity.read'
             ? 'DENY'
             : decision.result;
@@ -35,6 +41,12 @@ export const testPermissions = createServiceFactory({
                 result,
                 method,
               }),
+          );
+        }
+        if (user && permission === 'catalog.entity.read') {
+          console.log(
+            'BVE_USER_PERMISSION_DECISION ' +
+              JSON.stringify({ user, permission, nativeResult: decision.result, result, method }),
           );
         }
         return result === decision.result ? decision : { ...decision, result };

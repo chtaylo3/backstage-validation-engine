@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout, clearTimeout } from 'node:timers';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
@@ -129,6 +129,93 @@ export function runCli(executable, script, args, options = {}) {
       if (!stopping) finish(code === 0 ? undefined : 'exit');
     });
   });
+}
+
+/**
+ * The arguments that give a `vscode://` link to the running editor of a test, the way an operating
+ * system does when a browser follows the link. The editor that owns `userDataDir` receives it.
+ */
+export function openUrlArgs(url, { userDataDir, extensionsDir } = {}) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Give the editor an absolute vscode: link.');
+  }
+  assert.equal(parsed.protocol, 'vscode:', 'Give the editor a vscode: link.');
+  assert.match(
+    parsed.host,
+    /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$/iu,
+    'Address the link to one extension identifier.',
+  );
+  assert(!parsed.username && !parsed.password, 'A link carries no credentials.');
+  assert(
+    typeof userDataDir === 'string' && path.isAbsolute(userDataDir),
+    'Name the absolute user data directory of the running editor.',
+  );
+  assert(
+    extensionsDir === undefined || path.isAbsolute(extensionsDir),
+    'Name an absolute extensions directory.',
+  );
+  return [
+    '--open-url',
+    url,
+    '--user-data-dir',
+    userDataDir,
+    ...(extensionsDir ? ['--extensions-dir', extensionsDir] : []),
+  ];
+}
+
+/** Give a `vscode://` link to the running test editor with `--open-url`, through its native CLI. */
+export async function openUrl(executable, url, options = {}) {
+  const args = openUrlArgs(url, options);
+  const { cli } = await resolveVSCodeCli(executable);
+  return runCli(executable, cli, args, {
+    env: options.env,
+    timeoutMs: options.timeoutMs ?? 60_000,
+  });
+}
+
+export const OPEN_URL_REQUEST = 'open-url-request.json';
+export const OPEN_URL_ACKNOWLEDGEMENT = 'open-url-ack.json';
+
+/**
+ * Answer the link requests that a case in the editor writes to its control directory. A request is
+ * `{ id, url }`; each id is answered once with `{ id, status }`, after `open(url)` settles.
+ */
+export function serveOpenUrlRequests(directory, open, { intervalMs = 100 } = {}) {
+  const answered = new Set();
+  let stopped = false;
+  const loop = (async () => {
+    while (!stopped) {
+      const request = await readFile(path.join(directory, OPEN_URL_REQUEST), 'utf8')
+        .then((text) => JSON.parse(text))
+        .catch(() => undefined);
+      if (request && typeof request.id === 'string' && !answered.has(request.id)) {
+        answered.add(request.id);
+        let status = 'passed';
+        let error;
+        try {
+          await open(request.url);
+        } catch (failure) {
+          status = 'failed';
+          error = failure instanceof Error ? failure.message : String(failure);
+        }
+        await writeFile(
+          path.join(directory, OPEN_URL_ACKNOWLEDGEMENT),
+          JSON.stringify({ id: request.id, status, ...(error ? { error } : {}) }),
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  })();
+  return {
+    answered: () => [...answered],
+    stop: async () => {
+      stopped = true;
+      await loop;
+    },
+  };
 }
 
 /** Keep the pinned SDK downloader; use the native CLI instead of code.cmd. */

@@ -12,6 +12,7 @@
   "dependencies": {
     "@backstage/cli": "0.36.6",
     "@backstage/frontend-defaults": "0.5.6",
+    "@backstage/plugin-auth": "0.1.12",
     "@backstage/plugin-catalog": "2.0.9",
     "@backstage/ui": "0.18.0",
     "react": "18.3.1",
