@@ -49,7 +49,7 @@
  import path from 'node:path';
  import * as vscode from 'vscode';
  import {
-@@ -25,6 +28,319 @@
+@@ -25,6 +28,336 @@
  import { addRoot, configuredSpellings, pathKey, protocolFileUri } from './protocol-uris.js';
  import type { ConfiguredSpellings } from './protocol-uris.js';
  
@@ -251,7 +251,11 @@
 +      try {
 +        const discovery = (await (
 +          await fetch(`${attempt.issuer}/.well-known/openid-configuration`)
-+        ).json()) as { token_endpoint: string; userinfo_endpoint: string };
++        ).json()) as {
++          token_endpoint: string;
++          userinfo_endpoint: string;
++          revocation_endpoint?: string;
++        };
 +        const response = await fetch(discovery.token_endpoint, {
 +          method: 'POST',
 +          headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -263,7 +267,11 @@
 +            client_id: attempt.clientId,
 +          }),
 +        });
-+        const body = (await response.json()) as { access_token?: string; error?: string };
++        const body = (await response.json()) as {
++          access_token?: string;
++          refresh_token?: string;
++          error?: string;
++        };
 +        row.exchange = { status: response.status, error: body.error ?? null };
 +        if (body.access_token) {
 +          const info = await fetch(discovery.userinfo_endpoint, {
@@ -272,6 +280,15 @@
 +          const claims = (await info.json()) as { claims?: { sub?: string } };
 +          row.userinfo = { status: info.status, sub: claims.claims?.sub ?? null };
 +        }
++        // Leave no refresh session behind on the Backstage that the owner signs in to.
++        if (body.refresh_token && discovery.revocation_endpoint) {
++          const revoked = await fetch(discovery.revocation_endpoint, {
++            method: 'POST',
++            headers: { 'content-type': 'application/x-www-form-urlencoded' },
++            body: new URLSearchParams({ token: body.refresh_token, client_id: attempt.clientId }),
++          });
++          row.revokeRefreshToken = { status: revoked.status };
++        } else row.revokeRefreshToken = { status: null, reason: 'no refresh token or endpoint' };
 +      } catch (error) {
 +        row.exchange = { error: String((error as Error).message) };
 +      }
@@ -369,7 +386,7 @@
  let client: LanguageClient | undefined;
  let pending: Promise<void> = Promise.resolve();
  let output: vscode.LogOutputChannel | undefined;
-@@ -330,7 +646,18 @@
+@@ -330,7 +663,18 @@
    reloadNotification?.dispose();
    reloadNotification = undefined;
    const previous = client;
@@ -388,7 +405,7 @@
    if (client === previous) client = undefined;
    output?.info('Backstage validation stopped. Use Restart Language Server to resume.');
  }
-@@ -352,15 +679,8 @@
+@@ -352,15 +696,8 @@
    const next = new LanguageClient(
      'backstageValidation',
      'Backstage Validation',
@@ -406,7 +423,7 @@
      {
        ...selection,
        middleware: {
-@@ -495,6 +815,7 @@
+@@ -495,6 +832,7 @@
  }
  export async function activate(context: vscode.ExtensionContext) {
    extensionContext = context;
@@ -414,7 +431,7 @@
    output = vscode.window.createOutputChannel('Backstage Validation', { log: true });
    context.subscriptions.push(
      output,
-@@ -545,9 +866,11 @@
+@@ -545,9 +883,11 @@
      },
      status: () => ({
        running: !disconnected && client?.isRunning() === true,
@@ -552,7 +569,7 @@
  import { createHash } from 'node:crypto';
  import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
  import { tmpdir } from 'node:os';
-@@ -794,7 +796,36 @@
+@@ -795,7 +797,36 @@
              .filter((key) => typeof options[key] === 'boolean')
              .map((key) => [key, options[key]]),
          );
